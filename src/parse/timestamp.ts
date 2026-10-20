@@ -108,7 +108,7 @@ export function detectFormat(
 
   const is12h = sampled.some((m) => Boolean(m[7]));
 
-  let dayFirst = true;
+  let dayFirst: boolean;
   if (opts.dayFirst) {
     dayFirst = true;
   } else if (opts.monthFirst) {

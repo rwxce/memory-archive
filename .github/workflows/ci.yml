@@ -2,50 +2,36 @@ name: CI
 
 on:
   push:
-    branches: [main]
-    tags: ['v*']
+    branches: [dev]
   pull_request:
-    branches: [main]
+    branches: [dev, main]
 
 permissions:
   contents: read
 
-jobs:
-  verify:
-    name: Test / Lint / Build
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [22.x, 24.x]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
-  publish:
-    name: Publish to npm
-    needs: verify
-    if: startsWith(github.ref, 'refs/tags/v')
+jobs:
+  check:
+    name: Lint / Typecheck / Test / Build
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write # required for npm provenance (OIDC)
-      contents: read
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
         with:
-          node-version: 22.x
-          registry-url: 'https://registry.npmjs.org'
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          persist-credentials: false
+
+      # Reads the pnpm version from package.json "packageManager".
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      # minimumReleaseAge (pnpm-workspace.yaml) is enforced here too.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm check

@@ -208,7 +208,7 @@ test('JSON: message carries urlTitles map', async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-jsonurl-'));
   await runFixture(WK, out);
   const env = readJson(out, WK);
-  const withUrl = env.messages.find((m) => m.text && /https?:\/\//.test(m.text));
+  const withUrl = env.messages.find((m: { text?: string }) => m.text && /https?:\/\//.test(m.text));
   // WK sample has no URLs; assert the field exists and is an object.
   assert.ok(
     withUrl === undefined || (withUrl.urlTitles && typeof withUrl.urlTitles === 'object'),

@@ -130,7 +130,7 @@ test('render: URLs become links in HTML + Markdown; JSON text unchanged', async 
 // ---- resolver override ----
 
 test('linkify: resolver overrides the displayed title', () => {
-  const out = linkifyHtml('go https://example.com/x', (u) =>
+  const out = linkifyHtml('go https://example.com/x', (u: string) =>
     u.includes('example.com') ? 'Fetched Title' : u,
   );
   assert.ok(out.includes('>Fetched Title</a>'), 'html uses resolver label');
@@ -145,7 +145,7 @@ test('linkify: resolver defaults to deriveTitle when omitted', () => {
 });
 
 test('linkify: iconResolver prepends a favicon img before the title', () => {
-  const out = linkifyHtml('go https://example.com/x', undefined, (u) => `https://${new URL(u).host}/favicon.ico`);
+  const out = linkifyHtml('go https://example.com/x', undefined, (u: string) => `https://${new URL(u).host}/favicon.ico`);
   assert.ok(out.includes('class="favicon"'), 'favicon img present');
   assert.ok(out.includes('src="https://example.com/favicon.ico"'), 'favicon src from iconResolver');
   assert.ok(out.includes('>example.com/x</a>'), 'title still shown after favicon');
