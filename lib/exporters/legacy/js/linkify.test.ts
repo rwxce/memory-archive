@@ -4,7 +4,6 @@ import {
   deriveTitle,
   linkifyHtml,
   linkifyMarkdown,
-  faviconFor,
   unwrapUrl,
 } from './linkify.js';
 
@@ -91,16 +90,10 @@ test('linkify: resolver defaults to deriveTitle when omitted', () => {
   assert.ok(out.includes('>example.com/path</a>'), 'falls back to derived title');
 });
 
-test('linkify: iconResolver prepends a favicon img before the title', () => {
-  const out = linkifyHtml('go https://example.com/x', undefined, (u: string) => `https://${new URL(u).host}/favicon.ico`);
-  assert.ok(out.includes('class="favicon"'), 'favicon img present');
-  assert.ok(out.includes('src="https://example.com/favicon.ico"'), 'favicon src from iconResolver');
-  assert.ok(out.includes('>example.com/x</a>'), 'title still shown after favicon');
-});
-
-test('linkify: no favicon img when iconResolver empty', () => {
-  const out = linkifyHtml('go https://example.com/x', undefined, () => '');
-  assert.ok(!out.includes('class="favicon"'), 'no favicon when resolver empty');
+test('linkify: never emits an <img> or any resource loaded from the linked site', () => {
+  const out = linkifyHtml('go https://example.com/x');
+  assert.ok(!out.includes('<img'), 'no image (favicon) element');
+  assert.ok(!/favicon/i.test(out), 'no favicon URL');
 });
 
 // ---- LinkedIn redirect unwrapping ----
@@ -122,9 +115,8 @@ test('unwrapUrl: passes through non-redirect and profile URLs', () => {
 test('linkify: LinkedIn redirect href + title use the real destination', () => {
   const li =
     'https://www.linkedin.com/safety/go/?url=https%3A%2F%2Fsourcecode%2Ekanaiyakatarmal%2Ecom%2FCLAUDE&urlhash=x';
-  const out = linkifyHtml(li, undefined, faviconFor);
+  const out = linkifyHtml(li);
   assert.ok(out.includes('href="https://sourcecode.kanaiyakatarmal.com/CLAUDE"'), 'href is real destination');
   assert.ok(out.includes('>sourcecode.kanaiyakatarmal.com/CLAUDE</a>'), 'title from real host');
-  assert.ok(out.includes('src="https://sourcecode.kanaiyakatarmal.com/favicon.ico"'), 'favicon of real host');
 });
 

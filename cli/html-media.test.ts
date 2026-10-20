@@ -23,10 +23,9 @@ test('html: photo/sticker imgs get media-img class + thumbnail css', async () =>
   const mediaImgs = imgTags.filter((t) => t.includes('class="media-img"'));
   assert.ok(mediaImgs.length > 0, 'expected at least one .media-img');
 
-  // Every <img> is a media thumbnail, a link favicon, or the (empty) lightbox img.
+  // Every <img> is a media thumbnail or the (empty) lightbox img.
   for (const t of imgTags) {
     if (t.includes('class="media-img"')) continue;
-    if (t.includes('class="favicon"')) continue;
     assert.ok(t.trim() === '<img alt="">', `unexpected <img>: ${t}`);
   }
 

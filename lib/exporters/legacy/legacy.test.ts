@@ -8,6 +8,7 @@ import { renderHtml, resolveSelfAuthor, transcriptItems } from './html';
 import { renderMarkdown } from './md';
 import { renderJson } from './json';
 import { GENERATOR_NAME, GENERATOR_VERSION } from './version';
+import { VIEWER_SCRIPT } from './js/viewer-script.generated';
 import type { Message } from '../../importers/whatsapp/types';
 
 const msg = (timestamp_iso: string, author: string, text: string, media = ''): Message => ({
@@ -86,6 +87,55 @@ describe('media + renderers (no file system)', () => {
     const md = await renderMarkdown(messages, 'Chat', { media, inline: true, loadDataUri });
     expect(html).toContain('src="data:image/jpeg;base64,aGk="');
     expect(md).toContain('](data:image/jpeg;base64,aGk=)');
+  });
+});
+
+/**
+ * Every URL the page would *load* by itself (not navigation links): `src`,
+ * `srcset`, `poster`, `data`, `<link href>`, CSS `url()` and `@import`. Returns
+ * only remote ones (`http:`, `https:` or protocol-relative `//`).
+ */
+function remoteResourceUrls(html: string): string[] {
+  const found: string[] = [];
+  const value = (m: RegExpMatchArray | RegExpExecArray) => m[1] ?? m[2] ?? m[3] ?? '';
+  for (const m of html.matchAll(/\b(?:src|srcset|poster|data)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)) {
+    found.push(value(m));
+  }
+  for (const tag of html.match(/<link\b[^>]*>/gi) ?? []) {
+    const href = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag);
+    if (href) found.push(value(href));
+  }
+  for (const m of html.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)/gi)) found.push(value(m));
+  for (const m of html.matchAll(/@import\s+(?:url\()?\s*["']?([^"')\s;]+)/gi)) found.push(m[1]);
+  return found.filter((u) => /^\s*(https?:)?\/\//i.test(u));
+}
+
+describe('no remote resources (privacy)', () => {
+  const linky: Message[] = [
+    msg('2026-01-01T10:00:00', 'A', 'see https://example.com/page and http://tracker.example/x'),
+    msg('2026-01-01T10:01:00', 'B', 'LinkedIn https://www.linkedin.com/safety/go/?url=https%3A%2F%2Fsite.example%2Fp'),
+    { ...msg('2026-01-01T10:02:00', 'system', 'joined via https://chat.example/invite'), type: 'system' },
+  ];
+
+  test('the scanner itself catches remote src, link href, url() and @import', () => {
+    expect(
+      remoteResourceUrls(
+        '<img src="https://a.example/i.png"><link rel="icon" href="//b.example/f.ico">' +
+          '<style>@import "https://c.example/x.css"; a{background:url(https://d.example/z)}</style>',
+      ),
+    ).toEqual(['https://a.example/i.png', '//b.example/f.ico', 'https://d.example/z', 'https://c.example/x.css']);
+    expect(remoteResourceUrls('<a href="https://example.com">x</a><img src="data:image/png;base64,AA">')).toEqual([]);
+  });
+
+  test('messages.html loads nothing from the network (no link favicons)', async () => {
+    const html = await renderHtml(linky, 'Chat');
+    expect(html).toContain('<a href="https://example.com/page"');
+    expect(remoteResourceUrls(html)).toEqual([]);
+    expect(html).not.toMatch(/favicon/i);
+  });
+
+  test('the in-page viewer script never builds favicon URLs', () => {
+    expect(VIEWER_SCRIPT).not.toMatch(/favicon/i);
   });
 });
 
