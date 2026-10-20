@@ -35,7 +35,7 @@ If you can't make it fail on demand, you can't fix it with confidence.
 
 | Layer | How to reproduce / read evidence |
 |---|---|
-| Unit tests | `node --import tsx --test test/<file>.test.ts` (after `node scripts/generate-fixtures.mjs`); `pnpm test` for the whole suite |
+| Unit tests | `pnpm exec vitest run <path/to/file.test.ts>` (after `node scripts/generate-fixtures.mjs`); `pnpm test` for the whole suite |
 | Parser / importer | Run the CLI on a synthetic fixture: `pnpm dev fixtures/<export>.zip --out /tmp/out --verbose --no-fetch-titles` |
 | Generated backup / viewer | Open the generated HTML from disk in a browser (Playwright MCP); read the console, not only the DOM |
 | Build / types | `pnpm typecheck`, `pnpm build` |
@@ -60,7 +60,7 @@ Narrow down *where*: ZIP extraction → line reader / timestamp detection → me
 media reconciliation → persistence (CSV today, SQLite/OPFS later) → rendering/export → the
 test itself.
 For a regression, bisect: `git bisect start && git bisect bad && git bisect good <sha>`, then
-`git bisect run node --import tsx --test test/<file>.test.ts`. Use `git grep -n "<symbol>"`
+`git bisect run pnpm exec vitest run <path/to/file.test.ts>`. Use `git grep -n "<symbol>"`
 to trace callers.
 
 ### 3. Reduce

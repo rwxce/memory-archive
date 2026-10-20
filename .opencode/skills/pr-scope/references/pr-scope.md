@@ -183,8 +183,8 @@ Some frequent problems are caught mechanically before the loop:
 - **Branch/base, `.gitignore`/`.env` safety, diff size** → `node scripts/check-pr-preflight.mjs`.
 - **Type-level wiring gaps** (a new variant not handled in an exhaustive `switch`, a changed
   signature not propagated) → `pnpm check` (lint → typecheck → test → build).
-- **Broken round-trips and parser regressions** → the `node:test` suite under `test/`, run
-  against the synthetic fixtures.
+- **Broken round-trips and parser regressions** → the Vitest suites next to the code
+  (`*.test.ts`), run against the synthetic fixtures.
 
 The adversarial loop (§6.1) still finds these in round B, but mechanical detection is cheaper
 and arrives earlier (in the editor, or in Pass 0 of the loop).
@@ -331,9 +331,9 @@ fully offline. The sensitive areas are:
 
 - **Data model and migrations** (`lib/domain/`, `lib/db/`) — schema changes, backfills,
   migrations that must run on archives created by older versions.
-- **Import idempotency** (`lib/importers/`, today `src/parse/`, `src/extract.ts`,
-  `src/media.ts`) — re-importing the same export must not duplicate or overwrite data.
-- **Backup / restore format** (`lib/exporters/`, sync ZIPs, today `src/render/`, `src/csv.ts`)
+- **Import idempotency** (`lib/importers/`, `cli/media.ts`) — re-importing the same export
+  must not duplicate or overwrite data.
+- **Backup / restore format** (`lib/exporters/`, sync ZIPs, today also `cli/csv.ts`)
   — every field written must be readable back; format changes need versioning.
 - **Storage** (OPFS, SQLite WASM in `lib/storage/`) — quota, partial writes, persistence.
 - **Privacy / network** — no telemetry, no network calls except explicit opt-in, no real
@@ -426,8 +426,8 @@ Round N (3 parallel subagents; at most 3 rounds):
       error behaviour, and semantics.
 
    Route subagents by area when useful: core-architect for the data layer (domain, db,
-   storage, importers, exporters, usecases; today src/parse, src/csv.ts, src/media.ts,
-   src/extract.ts), testing-expert for test gaps, responsive-ui-designer for UI.
+   storage, importers, exporters, usecases; today lib/importers, lib/exporters,
+   cli/pipeline.ts), testing-expert for test gaps, responsive-ui-designer for UI.
 
    Consolidate the three → classify each finding with §2.0 and §2:
      - completion            → apply the fix now, even if the file is not in the baseline

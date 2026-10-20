@@ -11,28 +11,43 @@ test type or architecture rule means updating this file **in the same PR**.
 ## 1. Stack
 
 - **Today (CLI):** TypeScript 6 (`strict`), Node 24 ESM (`.nvmrc`), pnpm 11.
-  - `commander` — CLI arguments (`src/index.ts`).
-  - `fflate` — streaming unzip of the WhatsApp export (`src/extract.ts`).
-  - `date-fns` — date formatting in renderers.
+  - `commander` — CLI arguments (`cli/index.ts`).
+  - `fflate` — streaming raw-DEFLATE `Inflate` behind the ZIP reader
+    (`lib/importers/whatsapp/zip.ts`).
+  - `date-fns` — timestamp formatting in the parser.
   - `picocolors` — terminal output.
-  - `tsup` (bundle to `dist/`), `tsx` (run TS directly), ESLint 10 flat config, `node:test`.
+  - `tsup` (bundle `cli/index.ts` to `dist/`), `tsx` (run TS directly), ESLint 10 flat
+    config, Vitest 5.
+  - TypeScript path alias `@/` → repo root (`tsconfig.json`, `vitest.config.ts`).
 - **App (planned):** Next.js 16 with `output: 'export'` (static files only, no server) as an
   installable **PWA**, React 19, Tailwind CSS 4 + shadcn/ui, next-intl (`ca` / `es` / `en`),
   zod 4, SQLite WASM (`@sqlite.org/sqlite-wasm`) persisted in the browser's **OPFS**, Serwist
-  service worker, Vitest 4.
+  service worker, Vitest.
 - **Hosting (planned):** Cloudflare Pages for the public URL; GitHub Pages workflow so any fork
   gets its own URL with no secrets.
 - **No backend, no accounts, no third-party APIs.** No Google Cloud, no OAuth, no telemetry.
 
 ## 2. Layered architecture
 
-- **Today — single pipeline** (`src/model.ts`): `chatInfoFromZip` → `extractChatTxt` →
-  `parseMessages` → `mergeCsv` → `enrichTitles` → `reconcileMedia` → `renderOutputs`.
+- **Platform-neutral core (`lib/`)** — runs in Node and in the browser (Web Worker in
+  Phase 2). Inputs are `Blob`s, web `ReadableStream`s and async iterables of lines; no
+  `node:*` imports, no `Buffer`/`process`.
+  - `lib/importers/whatsapp/` — `zip.ts` (single ZIP reader: central directory + ZIP64 over
+    `Blob.slice`, fflate streaming inflate per entry), `lines.ts` (UTF-8 decoding + line
+    splitting), `timestamp.ts`, `message.ts` (state machine), `chat.ts` (transcript entry,
+    chat name/slug), `media.ts` (media matching), `import.ts` (`parseWhatsAppZip`).
+  - `lib/exporters/legacy/` — wa-backup output formats as pure functions: `csv.ts`,
+    `json.ts`, `md.ts`, `html.ts`, `media.ts` (media map, MIME), `colors.ts` + `sha256.ts`.
+- **Node CLI (`cli/`)** — commander entry, `fs.openAsBlob` adapter, CSV/media/output
+  writing, link-title fetching. Pipeline (`cli/pipeline.ts`): `parseWhatsAppZip` →
+  `mergeCsv` → `enrichTitles` → `reconcileMedia` → `renderOutputs`.
+- **Why the ZIP reader uses the central directory** — WhatsApp exports store members with
+  data descriptors; a forward-only reader (fflate `Unzip`) must guess where such a member ends
+  and splits a stored inner `.zip` into bogus entries (regression test in `zip.test.ts`).
 - **CSV as source of truth** — `messages.csv` (`timestamp_iso,type,author,text,media,url_titles`),
-  merged and deduplicated on every run (`src/csv.ts`); JSON / Markdown / HTML are re-rendered
-  from it (`src/render/`).
-- **Shared browser scripts** — `src/render/js/{linkify,transcript,xss-sanitize}.js` run both
-  in Node and in the generated HTML.
+  merged and deduplicated on every run; JSON / Markdown / HTML are re-rendered from it.
+- **Shared browser scripts** — `lib/exporters/legacy/js/{linkify,transcript,xss-sanitize}.js`
+  run both in Node and in the generated HTML.
 - **Planned layers** (enforced by ESLint once they exist):
   `app/` → `components/` → `hooks/` → `lib/usecases/` → `lib/domain/` · `lib/db/` ·
   `lib/storage/` · `lib/importers/<source>/` · `lib/exporters/`.
@@ -52,30 +67,39 @@ test type or architecture rule means updating this file **in the same PR**.
 ## 3. Architecture as code
 
 - **ESLint** (`eslint.config.js`) — `@eslint/js` recommended + `typescript-eslint`
-  recommended; browser globals only for `src/render/js/**`.
+  recommended.
+  - `lib/**` (non-test): browser + worker globals; `no-restricted-imports` bans every Node
+    built-in (`node:*`, `fs`, `path`, …) and imports from `cli/`; `no-restricted-globals`
+    bans `Buffer`, `process`, `__dirname`, `require`, ….
+  - `local/require-test-file` (inline plugin in `eslint.config.js`) — every module in
+    `lib/importers/**` needs a sibling `*.test.ts` (`index.ts`, `types.ts` exempt).
 - **Planned** (Phase 2, Zliding style): `eslint-plugin-boundaries` for the layers above,
   `import-x/no-cycle`, `no-console` outside the logger, `i18next/no-literal-string` in UI,
-  custom `local/require-test-file` for `lib/importers` and `lib/usecases`.
+  `local/require-test-file` extended to `lib/usecases`.
 
 ## 4. Tests
 
-- **Runner:** `node:test` + `node:assert/strict` via `tsx` (`pnpm test`); Vitest 4 planned
-  in Phase 1, tests moving next to the code.
-- **Fixtures:** synthetic only — `scripts/generate-fixtures.mjs` (runs as `pretest`) writes
-  two chats and a ZIP into the git-ignored `fixtures/`. Real exports are never committed.
-- **Test types** (`test/`):
-  - Parsing — `timestamp`, `tracer`, `classify`.
-  - Data — `csv` (escaping round-trip, legacy 5-column rows), `integration` (merge, dedupe,
-    idempotent second run).
-  - Media — `media`, `html-media` (reconciliation, inline data URIs).
-  - Rendering — `render` (XSS payloads stay inert in all outputs), `linkify`, `theme`.
-  - Network — `title` (link-title fetch with mocked `fetch`).
-  - Tooling — `block-agent-github-review-writes` (the hook script, run end to end with the
-    stdin JSON agents send). The vendored `security-audit` validators have their own
-    `node --test` suite.
-- **Planned:** browser-environment tests for the core, Playwright checks of the PWA at
-  390 px and 1440 px, an automated run of the PRD acceptance scenario (backup → restore on a
-  clean browser).
+- **Runner:** Vitest 5 (`vitest.config.ts`), tests next to the code as `*.test.ts`;
+  assertions mostly `node:assert/strict` (carried over) and Vitest `expect`.
+  `pnpm test` = generate fixtures + `vitest run`.
+- **Fixtures:** synthetic only — `scripts/generate-fixtures.mjs` (run by `pnpm test`) writes
+  the chats and ZIPs into the git-ignored `fixtures/`. Real exports are never committed.
+- **Test types:**
+  - Importer units (`lib/importers/whatsapp/*.test.ts`) — `timestamp`, `lines` (chunk
+    boundaries, CRLF, UTF-8), `zip` (data descriptors, ZIP64, corrupt input), `chat`,
+    `media`, `message`, `import`.
+  - Platform neutrality — `lib/platform.test.ts`: scans `lib/` for Node imports/globals and
+    runs importer + exporters from a `Blob` with `Buffer`/`setImmediate` removed.
+  - Exporter units — `lib/exporters/legacy/legacy.test.ts` (sha256 vs `node:crypto`, CSV,
+    media map, inline loader), `js/linkify.test.ts`.
+  - CLI end to end (`cli/*.test.ts`) — `tracer`, `classify`, `integration` (merge, dedupe,
+    idempotent second run), `csv`, `media`, `html-media`, `render` (XSS stays inert),
+    `theme`, `titles` (mocked `fetch`).
+  - Tooling — `scripts/block-agent-github-review-writes.test.ts` (the hook script, run end
+    to end with the stdin JSON agents send). The vendored `security-audit` validators have
+    their own `node --test` suite.
+- **Planned:** Playwright checks of the PWA at 390 px and 1440 px, an automated run of the PRD
+  acceptance scenario (backup → restore on a clean browser).
 
 ## 5. CI/CD and branches
 

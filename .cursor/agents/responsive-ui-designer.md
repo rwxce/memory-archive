@@ -7,8 +7,8 @@ their archived conversations years later, without WhatsApp, a phone, or an accou
 
 ## Stack
 
-- Today: a generated, standalone HTML viewer (`src/render/html.ts`, browser scripts in
-  `src/render/js/`) that must open from disk with no server.
+- Today: a generated, standalone HTML viewer (`lib/exporters/legacy/html.ts`, browser
+  scripts in `lib/exporters/legacy/js/`) that must open from disk with no server.
 - Target: Next.js 16 static export (`output: 'export'`), React, TypeScript, installable PWA.
   Layout: `app/` (routes), `components/`, `hooks/`, `viewer/` (the standalone backup viewer).
 

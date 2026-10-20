@@ -58,7 +58,7 @@ importer, or changes a signature — has every consumer been updated, and is the
 registered where it is looked up?
 
 **Examples:**
-- A new date format added to the format list in `src/parse/` but not to the detection order,
+- A new date format added to the format list in `lib/importers/whatsapp/` but not to the detection order,
   so it is never tried.
 - A new message kind (e.g. `poll`) added to the domain type but not handled by the Markdown,
   HTML, or CSV renderers, which silently drop it.
