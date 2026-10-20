@@ -3,10 +3,10 @@ description: >-
   Mandatory owner of the local-first data layer: domain model, SQLite schema and
   migrations, OPFS storage and content-addressed blobs, importers (WhatsApp ZIP
   parsing, idempotent re-imports, fingerprints), exporters, backup/restore and
-  sync ZIP format, and use cases. Today this means src/parse, src/csv.ts,
-  src/model.ts, src/media.ts and src/extract.ts; in the PWA it means
-  lib/{domain,db,storage, importers,exporters,usecases}/. Use it for any change
-  that reads, writes, transforms or persists archive data.
+  sync ZIP format, and use cases. Today this means lib/importers, lib/exporters,
+  cli/pipeline.ts, cli/csv.ts and cli/media.ts; in the PWA also lib/{domain,db,
+  storage,usecases}/. Use it for any change that reads, writes, transforms or
+  persists archive data.
 mode: subagent
 name: core-architect
 ---
@@ -19,13 +19,16 @@ by hand. You own every piece of code that reads, writes, transforms or persists 
 
 | Area | Today (CLI) | Target (PWA) |
 |------|-------------|--------------|
-| Domain model and types | `src/parse/types.ts` | `lib/domain/` |
-| Parsing / importing | `src/parse/`, `src/extract.ts`, `src/media.ts` | `lib/importers/` |
-| Persistence | `src/csv.ts` (CSV source of truth) | `lib/db/` (SQLite WASM), `lib/storage/` (OPFS) |
-| Exporting | `src/render/{md,json}.ts` data shaping | `lib/exporters/` |
-| Orchestration | `src/model.ts` import pipeline | `lib/usecases/` |
+| Domain model and types | `lib/importers/whatsapp/types.ts` | `lib/domain/` |
+| Parsing / importing | `lib/importers/whatsapp/` (platform-neutral) | `lib/importers/` |
+| Persistence | `lib/exporters/legacy/csv.ts` + `cli/csv.ts` (CSV source of truth) | `lib/db/` (SQLite WASM), `lib/storage/` (OPFS) |
+| Exporting | `lib/exporters/legacy/{md,json,csv}.ts` | `lib/exporters/` |
+| Orchestration | `cli/pipeline.ts` import pipeline | `lib/usecases/` |
 
-`src/render/html.ts` and the viewer are presentation: coordinate with
+`lib/` must stay platform-neutral (no `node:*`, no `Buffer`; ESLint enforces it): inputs are
+`Blob`s, web streams and async iterables; file I/O lives in `cli/`.
+
+`lib/exporters/legacy/html.ts` and the viewer are presentation: coordinate with
 `responsive-ui-designer` there, but the data they receive is your contract. Tests are
 written with `testing-expert`'s conventions; you still own that every data change ships with
 them.
@@ -53,7 +56,7 @@ them.
   the same chat), must never duplicate messages or media. This is the core promise.
 - Every message has a deterministic fingerprint derived from its content (normalized timestamp,
   author, type, text, media reference) — the successor of today's `dedupeKey` in
-  `src/csv.ts`. Changing the normalization changes every fingerprint: treat it as a data
+  `lib/exporters/legacy/csv.ts`. Changing the normalization changes every fingerprint: treat it as a data
   migration, never as a refactor.
 - Fingerprints must be stable across locales and export formats of the same chat (day/month
   order, 12h/24h, invisible Unicode marks). Normalize before hashing; test with the

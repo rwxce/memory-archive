@@ -112,8 +112,8 @@ See [`docs/privacy.md`](docs/privacy.md) for details.
 | `pnpm install` | Install dependencies (only versions published ≥ 7 days ago). |
 | `pnpm dev <zip>` | Run the CLI from source with `tsx`. |
 | `pnpm check` | Lint → typecheck → tests → build. Must be green before any PR. |
-| `pnpm test` | Generate synthetic fixtures and run the test suite. |
-| `pnpm build` | Bundle the CLI into `dist/` with tsup. |
+| `pnpm test` | Generate synthetic fixtures and run the Vitest suite (tests live next to the code as `*.test.ts`). |
+| `pnpm build` | Bundle the CLI into `dist/` with tsup (`bin`: `memory-archive`). |
 
 * **Branches**: work on a feature branch → PR into `dev`. `main` only receives `release: vX.Y.Z` PRs from `dev`. See [`docs/branching-and-releases.md`](docs/branching-and-releases.md).
 * **Supply chain**: exact versions, `minimumReleaseAge` of 7 days, Dependabot with a 7-day cooldown.
@@ -124,7 +124,7 @@ See [`docs/privacy.md`](docs/privacy.md) for details.
 
 ## 🏗️ Stack
 
-* **Today**: TypeScript 6 (strict), Node 24 (ESM), commander, fflate (streaming unzip), date-fns, tsup, tsx, ESLint 10, `node:test`, pnpm 11.
+* **Today**: TypeScript 6 (strict), Node 24 (ESM), commander, fflate (inflate), date-fns, tsup, tsx, ESLint 10, Vitest 5, pnpm 11.
 * **App (in progress)**: Next.js 16 static export as a PWA, React 19, Tailwind CSS 4 + shadcn/ui, next-intl (`ca` / `es` / `en`), SQLite WASM stored in the browser's private file system (OPFS), Vitest.
 
 ---
@@ -132,19 +132,20 @@ See [`docs/privacy.md`](docs/privacy.md) for details.
 ## 🗂️ Architecture
 
 ```
-src/                      # today's CLI
-  index.ts                # commander entry point
-  model.ts                # pipeline: zip → parse → csv → media → render
-  extract.ts              # streaming _chat.txt extraction (fflate)
-  parse/                  # timestamp format detection + message state machine
-  csv.ts                  # CSV source of truth, merge + dedupe
-  media.ts                # media reconciliation / inlining
-  title.ts                # optional link-title enrichment
-  render/                 # Markdown, HTML (WhatsApp-style) and JSON renderers
+lib/                      # platform-neutral core (Node and browser; no Node APIs)
+  importers/whatsapp/     # ZIP reader (central directory + ZIP64, fflate inflate),
+                          # _chat.txt line splitting, timestamp detection,
+                          # message state machine, media matching
+  exporters/legacy/       # CSV / JSON / Markdown / HTML renderers (strings in, strings out)
+    js/                   # browser scripts shared with the generated HTML
+cli/                      # Node CLI: commander, file I/O, media copy, link titles
 scripts/                  # fixture generator and repo tooling
-test/                     # node:test suites (synthetic fixtures)
 docs/                     # blueprint, product, PRD, roadmap, policies
 ```
+
+Tests sit next to the code (`*.test.ts`). `lib/` must run unchanged inside a Web
+Worker: ESLint rejects Node imports and globals there, and `lib/platform.test.ts`
+runs the importer from a `Blob` with Node-only globals removed.
 
 Target layout for the app (see [`docs/roadmap.md`](docs/roadmap.md)):
 

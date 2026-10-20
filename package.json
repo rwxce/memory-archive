@@ -5,7 +5,7 @@
   "description": "Privacy-first, fully offline memory archive for WhatsApp conversations, photos, videos and voice messages",
   "type": "module",
   "bin": {
-    "wa-backup": "dist/index.js"
+    "memory-archive": "dist/index.js"
   },
   "main": "dist/index.js",
   "engines": {
@@ -28,14 +28,14 @@
   },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "dev": "tsx src/index.ts",
-    "start": "tsx src/index.ts",
+    "dev": "tsx cli/index.ts",
+    "start": "tsx cli/index.ts",
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "pretest": "node scripts/generate-fixtures.mjs",
-    "test": "node --import tsx --test \"test/*.test.ts\"",
+    "test": "node scripts/generate-fixtures.mjs && vitest run",
+    "test:watch": "node scripts/generate-fixtures.mjs && vitest",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "rulesync": "rulesync generate",
     "rulesync:check": "rulesync generate --check"
@@ -56,7 +56,8 @@
     "tsup": "8.5.1",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.71.2"
+    "typescript-eslint": "8.71.2",
+    "vitest": "5.0.4"
   },
   "packageManager": "pnpm@11.28.5"
 }

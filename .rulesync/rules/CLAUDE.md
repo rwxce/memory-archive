@@ -111,13 +111,13 @@ PR workflow commands: `/pr-plan` (split a feature into single-topic PRs) → `/p
 
 ## Tech stack
 
-**Current (CLI):** TypeScript 6, Node ≥ 24 (ESM), pnpm 11, commander, fflate (streaming
-unzip), date-fns, picocolors; tsup build, tsx dev runner; tests with `node:test` via tsx;
-ESLint 10 + typescript-eslint.
+**Current (CLI):** TypeScript 6, Node ≥ 24 (ESM), pnpm 11, commander, fflate (inflate),
+date-fns, picocolors; tsup build, tsx dev runner; Vitest 5 with tests next to the code;
+ESLint 10 + typescript-eslint. Path alias `@/` → repo root.
 
 **Target (PWA):** Next.js 16 static export (`output: 'export'`, no server), React,
 TypeScript; SQLite WASM persisted in OPFS; media as content-addressed blobs in OPFS; heavy
-work in Web Workers; manual ZIP backup/sync between devices; UI in ca/es/en; Vitest 4 with
+work in Web Workers; manual ZIP backup/sync between devices; UI in ca/es/en; Vitest with
 tests next to code. The core stays usable from the CLI.
 
 ## Project structure
@@ -125,18 +125,17 @@ tests next to code. The core stays usable from the CLI.
 Current:
 
 ```
-src/
-  index.ts        # CLI entry (commander)
-  extract.ts      # Streaming ZIP extraction (fflate)
-  parse/          # _chat.txt line parser, timestamp/locale detection, message types
-  csv.ts          # messages.csv source of truth, dedupe/merge
-  media.ts        # Media reconciliation
-  model.ts        # Import pipeline: extract → parse → CSV merge → render
-  title.ts        # Optional link-title fetching
-  render/         # md.ts, html.ts (+ js/ browser scripts), json.ts, colors.ts
-test/             # node:test suites (*.test.ts)
-scripts/          # generate-fixtures.mjs, agent hook scripts
+lib/                    # Platform-neutral core: Node AND browser (no node:*, no Buffer)
+  importers/whatsapp/   # ZIP reader (central dir + ZIP64, fflate inflate), lines,
+                        # timestamp detection, message state machine, chat name, media match
+  exporters/legacy/     # csv/json/md/html renderers (strings in, strings out) + js/ scripts
+cli/                    # Node CLI: commander entry, fs adapters, pipeline, link titles
+scripts/                # generate-fixtures.mjs, agent hook scripts
+**/*.test.ts            # Vitest suites next to the code they cover
 ```
+
+ESLint forbids Node built-ins and globals in `lib/**` and requires a sibling `*.test.ts` for
+every module in `lib/importers/**` (`local/require-test-file`).
 
 Target:
 
@@ -162,7 +161,7 @@ pnpm dev <zip>          # Run the CLI from source (tsx)
 pnpm build              # Build dist/ (tsup)
 pnpm lint               # ESLint
 pnpm typecheck          # tsc --noEmit
-pnpm test               # Generate synthetic fixtures, then node:test
+pnpm test               # Generate synthetic fixtures, then vitest run
 pnpm check              # lint → typecheck → test → build (the bar for "done")
 pnpm rulesync           # Regenerate all AI editor configs (after editing .rulesync/)
 pnpm rulesync:check     # Verify AI configs are in sync (runs in CI)
@@ -174,8 +173,8 @@ When a task matches an agent's domain, you MUST use that agent.
 
 | Agent | Domain | When to use |
 |-------|--------|-------------|
-| `core-architect` | Domain model, parsing/importers, persistence (CSV today; SQLite/OPFS later), fingerprints, migrations, backup/restore & sync format, exporters, use cases | Any change that reads, writes, transforms or persists archive data — today `src/parse`, `src/csv.ts`, `src/media.ts`, `src/extract.ts`, `src/model.ts`; later `lib/{domain,db,storage,importers,exporters,usecases}/` |
-| `testing-expert` | node:test suite now, Vitest 4 later; synthetic fixtures; regression, migration and round-trip tests | Writing or reviewing tests |
+| `core-architect` | Domain model, parsing/importers, persistence (CSV today; SQLite/OPFS later), fingerprints, migrations, backup/restore & sync format, exporters, use cases | Any change that reads, writes, transforms or persists archive data — `lib/importers/`, `lib/exporters/`, `cli/pipeline.ts`, `cli/csv.ts`, `cli/media.ts`; later also `lib/{domain,db,storage,usecases}/` |
+| `testing-expert` | Vitest suites next to the code; synthetic fixtures; regression, migration and round-trip tests | Writing or reviewing tests |
 | `responsive-ui-designer` | PWA screens, components, the HTML viewer, responsive layout, accessibility, ca/es/en copy | Any user-facing UI |
 
 **Data-layer work is never implemented inline: delegate to `core-architect`.**
