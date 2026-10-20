@@ -34,10 +34,30 @@
       "appVersion": "Versió de l'aplicació {version}",
       "formatVersion": "Format de fitxer d'arxiu {version}",
       "privacy": "Memory Archive funciona sense connexió a internet un cop obert. Res del que hi afegeixis surt d'aquest dispositiu si no l'exportes tu."
+    },
+    "storage": {
+      "title": "Espai en aquest dispositiu",
+      "loading": "Comprovant l’espai que s’utilitza…",
+      "usage": "{used} utilitzats d’uns {total} disponibles per a l’aplicació",
+      "unknown": "Aquest navegador no indica quant espai fa servir l’aplicació.",
+      "persisted": "El teu arxiu està protegit: el navegador no l’esborrarà pel seu compte.",
+      "notPersisted": "El navegador podria esborrar les dades de l’aplicació si el dispositiu es queda sense espai. Afegir l’aplicació a la pantalla d’inici ajuda a conservar-les, i també exportar-ne una còpia de tant en tant."
     }
   },
   "notFound": {
     "title": "Aquesta pàgina no existeix",
     "back": "Ves a l'inici"
+  },
+  "import": {
+    "title": "Fitxers rebuts",
+    "loading": "Buscant fitxers compartits…",
+    "none": "Encara no s’ha compartit res amb Memory Archive. A WhatsApp, obre un xat, tria Exporta el xat i comparteix-lo amb Memory Archive.",
+    "received": "{count, plural, one {S’ha rebut # fitxer} other {S’han rebut # fitxers}}",
+    "next": "Es guarden en aquest dispositiu. Afegir-los a l’arxiu serà possible en una propera versió."
+  },
+  "offline": {
+    "title": "No tens connexió",
+    "body": "Aquesta pàgina encara no s’ha desat en aquest dispositiu. Les pàgines que ja has obert continuen funcionant sense connexió.",
+    "home": "Ves a l’inici"
   }
 }

@@ -65,6 +65,7 @@ const ELEMENTS = [
   { type: 'importers', pattern: 'lib/importers' },
   { type: 'exporters', pattern: 'lib/exporters' },
   { type: 'cli', pattern: 'cli' },
+  { type: 'sw', pattern: 'sw' },
   // Files directly in lib/ (lib/log.ts): shared by every layer. Last, so the
   // lib/<layer> folders above win.
   { type: 'shared', pattern: 'lib' },
@@ -87,6 +88,8 @@ const LAYER_POLICIES = [
   allow('importers', ['importers', 'exporters', 'domain', 'shared']),
   allow('exporters', ['exporters', 'importers', 'domain', 'shared']),
   allow('domain', ['domain']),
+  // The service worker shares the share-inbox store with the pages.
+  allow('sw', ['sw', 'storage', 'domain', 'shared']),
   allow('cli', ['cli', 'usecases', 'domain', 'db', 'storage', 'importers', 'exporters', 'shared']),
 ];
 
@@ -205,6 +208,11 @@ export default tseslint.config(
     rules: {
       'i18next/no-literal-string': ['error', { mode: 'jsx-text-only' }],
     },
+  },
+  {
+    files: ['sw/**/*.ts'],
+    ignores: ['sw/**/*.test.ts'],
+    languageOptions: { globals: { ...globals.serviceworker } },
   },
   {
     // The logger itself, the Node CLI and repo scripts may print.

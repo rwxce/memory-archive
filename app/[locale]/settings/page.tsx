@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { AppHeader } from '@/components/app-header';
 import { LanguagePicker } from '@/components/language-picker';
+import { StorageCard } from '@/components/storage-card';
 import { ThemePicker } from '@/components/theme-picker';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ARCHIVE_FORMAT_VERSION } from '@/lib/domain/archive';
@@ -38,6 +39,8 @@ export default function SettingsPage({ params }: { params: Promise<{ locale: str
             <ThemePicker />
           </CardContent>
         </Card>
+
+        <StorageCard />
 
         <Card>
           <CardHeader>

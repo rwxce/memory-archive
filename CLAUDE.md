@@ -106,7 +106,10 @@ PR workflow commands: `/pr-plan` (split a feature into single-topic PRs) → `/p
 **App (PWA, in progress):** Next.js 16 App Router as a static export (`output: 'export'`,
 `trailingSlash`, optional `NEXT_PUBLIC_BASE_PATH`; no server, no middleware), React 19,
 next-intl (`ca` / `es` / `en`, prefixed static routes), Tailwind CSS 4 + shadcn/ui
-(new-york, lucide icons), system fonts only. Next.js telemetry is disabled.
+(new-york, lucide icons), system fonts only. Installable offline PWA: web manifest with
+generated icons and an Android share target; Serwist service worker built after
+`next build` (`scripts/build-sw.mjs`: esbuild + `@serwist/build` `injectManifest` over
+`out/`). Next.js telemetry is disabled.
 
 **CLI:** TypeScript 6, Node ≥ 24 (ESM), pnpm 11, commander, fflate (inflate), date-fns,
 picocolors; tsup build, tsx runner.
@@ -123,13 +126,16 @@ heavy work in Web Workers; manual ZIP backup/sync between devices.
 Current:
 
 ```
-app/                    # Next.js routes: [locale]/ (welcome, settings), / (language redirect)
+app/                    # Next.js routes: [locale]/ (welcome, settings, import, offline), /, manifest
 components/             # UI components; ui/ = shadcn/ui primitives (button, card)
-hooks/                  # React hooks (theme)
+hooks/                  # React hooks (theme, device storage)
+sw/                     # Service worker (Serwist): precache, offline page, share target
 i18n/                   # next-intl routing, request config, navigation
 messages/               # UI copy: en.json, ca.json, es.json (same keys, checked)
 lib/                    # Platform-neutral core: Node AND browser (no node:*, no Buffer)
   domain/               # Pure types and constants (archive format version)
+  storage/              # Browser storage: share inbox (Cache Storage), quota/persistence
+  usecases/             # What the UI calls (device storage, shared files)
   log.ts                # The only console writer outside cli/ and scripts/
   importers/whatsapp/   # ZIP reader (central dir + ZIP64, fflate inflate), lines,
                         # timestamp detection, message state machine, chat name, media match
@@ -173,8 +179,9 @@ pnpm preview            # Serve the built out/ on http://localhost:4173 (PORT=�
 pnpm cli <zip>          # Run the CLI from source (tsx)
 pnpm cli import-legacy <messages.json|.html|.csv>   # Rebuild CSV + outputs from an old backup
 pnpm cli render <dir>   # Re-render outputs from messages.csv
-pnpm build              # Inline viewer scripts, CLI → dist/ (tsup), app → out/ (next build)
-pnpm smoke              # Built CLI on the fixture ZIP + static export checks
+pnpm build              # Viewer scripts, CLI → dist/ (tsup), app → out/ (next build), out/sw.js
+pnpm smoke              # Built CLI on the fixture ZIP + static export, manifest, sw.js checks
+pnpm icons              # Regenerate app icons (scripts/generate-icons.mjs, no image tools)
 pnpm i18n:check         # messages/{ca,es,en}.json have the same keys and placeholders
 pnpm lint               # ESLint
 pnpm typecheck          # next typegen + tsc --noEmit

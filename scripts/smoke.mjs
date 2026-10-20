@@ -75,7 +75,11 @@ console.log(
 // ---- 2. static export ----
 const OUT = path.join(ROOT, 'out');
 const LOCALES = ['en', 'ca', 'es'];
-const pages = ['index.html', '404.html', ...LOCALES.flatMap((l) => [`${l}/index.html`, `${l}/settings/index.html`])];
+const pages = [
+  'index.html',
+  '404.html',
+  ...LOCALES.flatMap((l) => [`${l}/index.html`, `${l}/settings/index.html`, `${l}/import/index.html`, `${l}/offline/index.html`]),
+];
 for (const page of pages) {
   if (!fs.existsSync(path.join(OUT, page))) fail(`out/${page} missing — did next build run?`);
 }
@@ -108,4 +112,27 @@ const walk = (dir) => {
   }
 };
 walk(OUT);
-console.log(`[smoke] OK: static export has ${pages.length} pages; ${scanned} HTML/CSS files load nothing remote`);
+
+// PWA: manifest with icons + share target, and a service worker that
+// precaches every page (so the app opens in airplane mode).
+const manifestPath = path.join(OUT, 'manifest.webmanifest');
+if (!fs.existsSync(manifestPath)) fail('out/manifest.webmanifest missing');
+const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+for (const icon of manifest.icons ?? []) {
+  const rel = icon.src.replace(/^.*?\/icons\//, 'icons/');
+  if (!fs.existsSync(path.join(OUT, rel))) fail(`manifest icon ${icon.src} missing from out/`);
+}
+if (!manifest.icons?.some((i) => i.purpose === 'maskable')) fail('manifest has no maskable icon');
+if (manifest.share_target?.method !== 'POST' || !manifest.share_target?.params?.files) {
+  fail('manifest share_target (POST with files) missing');
+}
+const swPath = path.join(OUT, 'sw.js');
+if (!fs.existsSync(swPath)) fail('out/sw.js missing — did scripts/build-sw.mjs run?');
+const sw = fs.readFileSync(swPath, 'utf8');
+if (sw.includes('self.__SW_MANIFEST')) fail('out/sw.js still has the un-injected precache manifest');
+for (const page of pages) {
+  if (!sw.includes(JSON.stringify(page))) fail(`out/sw.js does not precache ${page}`);
+}
+console.log(
+  `[smoke] OK: static export has ${pages.length} pages; ${scanned} HTML/CSS files load nothing remote; manifest + sw.js precache every page`,
+);
