@@ -23,12 +23,17 @@ const OMITTED_RE = /<?\s*(?:media|image|video|sticker|document|audio|gif)\s+omit
 const DELETED_RE =
   /^(mensagem apagada|message deleted|this message was deleted)\.?$/i;
 
+/** Voice notes and audio files: by extension, or WhatsApp's `PTT-` / `AUD-` /
+ * `-AUDIO-` file-name markers. */
+const AUDIO_EXT_RE = /\.(opus|m4a|mp3|ogg)$/i;
+const AUDIO_NAME_RE = /(^|[^A-Z])(PTT|AUD)-|-AUDIO-/;
+
 function classifyFromFilename(filename: string): MessageType {
   const f = filename.toUpperCase();
   if (f.includes('STICKER')) return 'sticker';
+  if (AUDIO_EXT_RE.test(filename) || AUDIO_NAME_RE.test(f)) return 'audio';
   if (f.includes('PHOTO') || f.includes('IMG')) return 'photo';
   if (f.includes('VIDEO')) return 'video';
-  // No `audio` type exists in the locked 8; fallback to document (A1).
   return 'document';
 }
 

@@ -47,7 +47,16 @@ test type or architecture rule means updating this file **in the same PR**.
 - **CSV as source of truth** — `messages.csv` (`timestamp_iso,type,author,text,media,url_titles`),
   merged and deduplicated on every run; JSON / Markdown / HTML are re-rendered from it.
 - **Shared browser scripts** — `lib/exporters/legacy/js/{linkify,transcript,xss-sanitize}.js`
-  run both in Node and in the generated HTML.
+  run both in Node and in the generated HTML. `scripts/build-viewer-script.mjs` concatenates
+  them into one classic script, committed as `js/viewer-script.generated.ts` (`VIEWER_SCRIPT`)
+  and inlined by `html.ts`, so no file is read at runtime (the old runtime read broke the built
+  CLI). `pnpm build` regenerates it; a test fails when it is stale.
+- **Link titles** (`cli/titles.ts`) — opt-in (`--fetch-titles`), the CLI's only network
+  access. `guardedFetch` allows only http(s), resolves the host and refuses private /
+  loopback / link-local / CGNAT / multicast / ULA targets, re-checks every redirect (max 3)
+  and reads at most 512 KB. Stored titles are never wiped; only missing ones are fetched.
+- **Message types** — `text`, `photo`, `video`, `sticker`, `document`, `audio` (`.opus`,
+  `.m4a`, `.mp3`, `.ogg`, `PTT-*`, `AUD-*`), `system`, `deleted`, `omitted`.
 - **Planned layers** (enforced by ESLint once they exist):
   `app/` → `components/` → `hooks/` → `lib/usecases/` → `lib/domain/` · `lib/db/` ·
   `lib/storage/` · `lib/importers/<source>/` · `lib/exporters/`.
@@ -94,7 +103,10 @@ test type or architecture rule means updating this file **in the same PR**.
     media map, inline loader), `js/linkify.test.ts`.
   - CLI end to end (`cli/*.test.ts`) — `tracer`, `classify`, `integration` (merge, dedupe,
     idempotent second run), `csv`, `media`, `html-media`, `render` (XSS stays inert),
-    `theme`, `titles` (mocked `fetch`).
+    `theme`, `titles` (mocked `fetch`), `titles-guard` (SSRF guard, redirects, kept titles),
+    `regressions` (one block per fixed known bug).
+  - Packaging — `scripts/build-viewer-script.test.ts` (bundle fresh and self-contained) and
+    `pnpm smoke` (built CLI).
   - Tooling — `scripts/block-agent-github-review-writes.test.ts` (the hook script, run end
     to end with the stdin JSON agents send). The vendored `security-audit` validators have
     their own `node --test` suite.
@@ -119,7 +131,8 @@ test type or architecture rule means updating this file **in the same PR**.
 
 ## 6. Quality gates and supply chain
 
-- **`pnpm check`** — lint → typecheck → test → build.
+- **`pnpm check`** — lint → typecheck → test → build → smoke (`scripts/smoke.mjs` runs the
+  built `dist/` CLI on the fixture ZIP into a temp dir and checks the four outputs + media).
 - **Exact versions** (`.npmrc` `save-exact=true`, `engine-strict=true`), **`minimumReleaseAge`
   of 7 days** (`pnpm-workspace.yaml`, 10080 minutes), exact security **`overrides`**,
   **`allowBuilds`** allowlist for install scripts, `only-allow pnpm` (`preinstall`).

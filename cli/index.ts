@@ -19,7 +19,9 @@ export function buildCli() {
     .option('--month-first', 'force month/day date order')
     .option('--verbose', 'report detected format, locale guess, overrides')
     .option('--inline', 'embed resolved media as base64 into a single self-contained HTML file')
-    .option('--no-fetch-titles', 'skip fetching webpage titles (offline)')
+    .option('--me <name>', 'author name of the export owner (outgoing bubbles); default: most active author')
+    .option('--fetch-titles', 'fetch webpage titles for links (network; off by default)')
+    .option('--no-fetch-titles', 'do not fetch webpage titles (default; kept for compatibility)')
     .addHelpText(
       'after',
       `
@@ -47,7 +49,8 @@ Examples:
           monthFirst: Boolean(opts.monthFirst),
           verbose: Boolean(opts.verbose),
           inline: Boolean(opts.inline),
-          noFetchTitles: Boolean((opts as Record<string, unknown>).noFetchTitles ?? (opts as Record<string, unknown>).fetchTitles === false),
+          fetchTitles: opts.fetchTitles === true,
+          me: typeof opts.me === 'string' ? opts.me : undefined,
         });
         const { slug } = await chatInfoFromZip(zip);
         const outDir = (opts.out as string | undefined) ?? 'output';

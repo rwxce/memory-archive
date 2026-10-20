@@ -185,7 +185,8 @@ test('url titles: fetched + persisted to CSV/JSON/HTML', async () => {
     const zipPath = path.join(tmp, 'e.zip');
     fs.writeFileSync(zipPath, Buffer.from(zipped));
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-ut-out-'));
-    await runParser(zipPath, { out });
+    // Opt-in fetch; the guard must allow the loopback mock server here.
+    await runParser(zipPath, { out, fetchTitles: true, titleGuard: { allowPrivateHosts: true } });
     const dir = path.join(out, slugifyChatName(chat));
     const csv = fs.readFileSync(path.join(dir, 'messages.csv'), 'utf8');
     assert.ok(csv.includes('url_titles'), 'CSV has url_titles column');
@@ -199,7 +200,7 @@ test('url titles: fetched + persisted to CSV/JSON/HTML', async () => {
   }
 });
 
-test('url titles: --no-fetch-titles leaves urlTitles empty (offline)', async () => {
+test('url titles: offline by default leaves urlTitles empty', async () => {
   const chat = 'WhatsApp Chat - UrlTitle Off';
   const txt = `23/07/2026 09:47 - Owner: see https://example.com/x\n`;
   const zipped = zipSync({ [`${chat}/_chat.txt`]: Buffer.from(txt, 'utf8') });
@@ -207,7 +208,7 @@ test('url titles: --no-fetch-titles leaves urlTitles empty (offline)', async () 
   const zipPath = path.join(tmp, 'e.zip');
   fs.writeFileSync(zipPath, Buffer.from(zipped));
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-ut2-out-'));
-  await runParser(zipPath, { out, noFetchTitles: true });
+  await runParser(zipPath, { out });
   const dir = path.join(out, slugifyChatName(chat));
   const env = JSON.parse(fs.readFileSync(path.join(dir, 'messages.json'), 'utf8'));
   assert.deepEqual(env.messages[0].urlTitles, {});

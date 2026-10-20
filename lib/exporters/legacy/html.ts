@@ -3,6 +3,7 @@ import type { MediaEntry, RenderOptions } from './media';
 import { buildEnvelope, dayOf, timeOf } from './json';
 import { getAccentColor, initials } from './colors';
 import { linkifyHtml, deriveTitle, faviconFor } from './js/linkify.js';
+import { VIEWER_SCRIPT } from './js/viewer-script.generated';
 
 function escapeHtml(s: string): string {
   return s
@@ -23,7 +24,7 @@ const MEDIA_ICON: Record<string, string> = {
 
 /**
  * Render a media message as real HTML (MEDIA-02 / MEDIA-03):
- * - resolved + not inlining  -> <img>/<video>/<a> with a relative `media/F` src
+ * - resolved + not inlining  -> <img>/<video>/<audio>/<a> with a relative `media/F` src
  * - `--inline` + inlineable  -> the same element with a `data:<mime>;base64,…` URI
  * - missing / not-inlineable (oversized or video under --inline) -> placeholder span
  * All `src`/`href`/`alt` values are HTML-escaped (OUT-05). Data URIs are built
@@ -48,8 +49,8 @@ function mediaHtml(
     if (m.type === 'photo' || m.type === 'sticker') {
       return `<img class="media-img" src="${rel}" alt="${alt}" loading="lazy">`;
     }
-    if (m.type === 'video') {
-      return `<video src="${rel}" controls>`;
+    if (m.type === 'video' || m.type === 'audio') {
+      return `<${m.type} class="media-${m.type}" src="${rel}" controls preload="metadata"></${m.type}>`;
     }
     return `<a href="${rel}">${escapeHtml(label)}: ${alt}</a>`;
   }
@@ -67,10 +68,33 @@ async function inlineMediaHtml(
   if (m.type === 'photo' || m.type === 'sticker') {
     return `<img class="media-img" src="${dataUri}" alt="${alt}" loading="lazy">`;
   }
-  if (m.type === 'video') {
-    return `<video src="${dataUri}" controls>`;
+  if (m.type === 'video' || m.type === 'audio') {
+    return `<${m.type} class="media-${m.type}" src="${dataUri}" controls></${m.type}>`;
   }
   return `<a href="${dataUri}">${escapeHtml(MEDIA_ICON[m.type] ?? `📎 ${m.type}`)}: ${alt}</a>`;
+}
+
+/** Comparable form of an author name: invisible marks dropped, trimmed, lower-case. */
+function authorKey(s: string): string {
+  return s.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '').trim().toLowerCase();
+}
+
+/**
+ * The export owner (outgoing side). An explicit `me` wins when it matches an
+ * author (exactly, or ignoring case and invisible marks); otherwise the most
+ * frequent author is guessed.
+ */
+export function resolveSelfAuthor(messages: Message[], me?: string): string {
+  return (me ? findAuthor(messages, me) : undefined) ?? pickSelfAuthor(messages);
+}
+
+/** The author matching `name` exactly, or ignoring case and invisible marks. */
+export function findAuthor(messages: Message[], name: string): string | undefined {
+  const authors = new Set(messages.map((m) => m.author));
+  if (authors.has(name)) return name;
+  const key = authorKey(name);
+  for (const a of authors) if (a && authorKey(a) === key) return a;
+  return undefined;
 }
 
 /** Most frequent author is treated as the export owner (outgoing side). */
@@ -154,13 +178,19 @@ function renderDayPill(day: string): string {
   return `<div class="day-pill">${escapeHtml(label)}</div>`;
 }
 
-function renderTranscript(
-  messages: Message[],
-  media: Map<string, MediaEntry>,
-  opts: RenderOptions,
-): Promise<string> {
-  const self = pickSelfAuthor(messages);
-  const out: (string | Promise<string>)[] = [];
+/** One transcript item: a day separator or a group of same-sender messages. */
+export type TranscriptItem =
+  | { kind: 'day'; day: string }
+  | { kind: 'group'; messages: Message[] };
+
+/**
+ * Split messages into day separators and bubble groups (same sender, within
+ * five minutes, user messages only). Day separators are explicit items, not
+ * strings recognised by their shape.
+ */
+export function transcriptItems(messages: Message[]): TranscriptItem[] {
+  const out: TranscriptItem[] = [];
+  let lastDay: string | null = null;
   let i = 0;
   while (i < messages.length) {
     const group: Message[] = [messages[i]];
@@ -177,7 +207,9 @@ function renderTranscript(
         cur.type !== 'system' &&
         cur.type !== 'deleted' &&
         cur.type !== 'omitted';
-      if (sameSender && withinWindow && bothUser) {
+      // A group never crosses midnight, so every day gets its own separator.
+      const sameDay = dayOf(prev.timestamp_iso) === dayOf(cur.timestamp_iso);
+      if (sameSender && withinWindow && bothUser && sameDay) {
         group.push(cur);
         j++;
       } else {
@@ -185,24 +217,30 @@ function renderTranscript(
       }
     }
     const day = dayOf(group[0].timestamp_iso);
-    if (out.length === 0 || out[out.length - 1] !== day) {
-      out.push(day);
+    if (day !== lastDay) {
+      out.push({ kind: 'day', day });
+      lastDay = day;
     }
-    out.push(renderBubble(group, self, media, opts));
+    out.push({ kind: 'group', messages: group });
     i = j;
   }
-  // Convert day markers to day-pills.
-  return Promise.all(out).then((items) => {
-    const html: string[] = [];
-    for (const item of items) {
-      if (item.length === 10 && item[4] === '-') {
-        html.push(renderDayPill(item));
-      } else {
-        html.push(item);
-      }
-    }
-    return html.join('\n');
-  });
+  return out;
+}
+
+async function renderTranscript(
+  messages: Message[],
+  media: Map<string, MediaEntry>,
+  opts: HtmlRenderOptions,
+  self: string,
+): Promise<string> {
+  const html = await Promise.all(
+    transcriptItems(messages).map((item) =>
+      item.kind === 'day'
+        ? renderDayPill(item.day)
+        : renderBubble(item.messages, self, media, opts),
+    ),
+  );
+  return html.join('\n');
 }
 
 const CSS = `
@@ -211,7 +249,7 @@ const CSS = `
 * { box-sizing:border-box; }
 a { color:var(--link); text-decoration:underline; }
 body { margin:0; font-family: system-ui, "Segoe UI", Helvetica, Roboto, sans-serif; background:var(--bg); color:var(--ink); }
-#toolbar { position:sticky; top:0; z-index:10; display:flex; gap:8px; padding:8px 12px; background:var(--panel); border-bottom:1px solid rgba(0,0,0,.1); }
+#toolbar { position:sticky; top:0; z-index:10; display:flex; flex-wrap:wrap; gap:8px; padding:8px 12px; background:var(--panel); border-bottom:1px solid rgba(0,0,0,.1); }
 #toolbar input, #toolbar select { padding:6px 8px; border:1px solid #ccc; border-radius:6px; font-size:14px; }
 #theme-toggle { margin-left:auto; cursor:pointer; border:1px solid #ccc; border-radius:6px; background:var(--panel); color:var(--ink); padding:6px 10px; }
 .chat-title { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:40%; min-width:0; }
@@ -232,6 +270,9 @@ body { margin:0; font-family: system-ui, "Segoe UI", Helvetica, Roboto, sans-ser
 .favicon { width:14px; height:14px; vertical-align:middle; margin-right:4px; border-radius:2px; }
 .media-placeholder { display:inline-block; background:rgba(0,0,0,.06); border:1px solid rgba(0,0,0,.1); border-radius:6px; padding:2px 6px; font-size:12px; color:var(--muted); }
 .media-img { max-width:220px; max-height:280px; border-radius:6px; cursor:zoom-in; display:block; }
+.media-video { display:block; width:280px; max-width:100%; max-height:320px; border-radius:6px; background:#000; }
+.media-audio { display:block; width:260px; max-width:100%; }
+.bubble-line > video, .bubble-line > audio { flex:1 1 auto; min-width:0; }
 .lightbox { position:fixed; inset:0; background:rgba(0,0,0,.88); display:none; align-items:center; justify-content:center; z-index:100; cursor:zoom-out; }
 .lightbox.open { display:flex; }
 .lightbox img { max-width:95vw; max-height:95vh; border-radius:4px; }
@@ -239,8 +280,8 @@ body { margin:0; font-family: system-ui, "Segoe UI", Helvetica, Roboto, sans-ser
 `;
 
 export interface HtmlRenderOptions extends RenderOptions {
-  /** Source of the browser viewer script (`js/transcript.js`), inlined as a module. */
-  viewerScript?: string;
+  /** Who owns the export (outgoing bubbles). Falls back to the most frequent author. */
+  me?: string;
 }
 
 /** `messages.html` content: a standalone, WhatsApp-like page. */
@@ -250,14 +291,17 @@ export async function renderHtml(
   opts: HtmlRenderOptions = {},
 ): Promise<string> {
   const media = opts.media ?? new Map<string, MediaEntry>();
-  const envelope = buildEnvelope(messages, chatName);
-  const transcript = await renderTranscript(messages, media, opts);
+  const envelope = buildEnvelope(messages, chatName, media);
+  const self = resolveSelfAuthor(messages, opts.me);
+  const transcript = await renderTranscript(messages, media, opts, self);
 
   // Escape `</` in serialized JSON so message text containing </script> cannot
   // break the document (D-32 landmine).
   const islandJson = JSON.stringify(envelope).replace(/<\//g, '<\\/');
 
-  const js = opts.viewerScript ?? '';
+  // Self-contained bundle (see scripts/build-viewer-script.mjs); `</script`
+  // can never appear literally inside the inline script.
+  const js = VIEWER_SCRIPT.replace(/<\/script/gi, '<\\/script');
 
   const authors = [...new Set(messages.map((m) => m.author))].sort();
   const authorOptions = authors
@@ -282,11 +326,11 @@ export async function renderHtml(
   </select>
   <button id="theme-toggle" type="button">🌓 Tema</button>
 </div>
-<div id="transcript">
+<div id="transcript" data-me="${escapeHtml(self)}">
 ${transcript}
 </div>
 <script type="application/json" id="chat-data">${islandJson}</script>
-<script type="module">
+<script>
 ${js}
 </script>
 <div class="lightbox" id="lightbox"><img alt=""></div>
