@@ -93,10 +93,18 @@ test type or architecture rule means updating this file **in the same PR**.
   `pnpm test` = generate fixtures + `vitest run`.
 - **Fixtures:** synthetic only — `scripts/generate-fixtures.mjs` (run by `pnpm test`) writes
   the chats and ZIPs into the git-ignored `fixtures/`. Real exports are never committed.
+  `FORMAT_FIXTURES` covers one root-level ZIP per export style: Android en-US (M/D/YY,
+  `AM`/`PM`, `(file attached)`, system lines, multiline, identical same-minute messages),
+  iOS en-US with and without media (U+202F before `AM`/`PM`, U+200E system lines), Android
+  es (`p. m.`), iOS es (`<adjunto: …>`), Android pt (24h, no comma) and Android ca
+  (best-effort strings).
 - **Test types:**
   - Importer units (`lib/importers/whatsapp/*.test.ts`) — `timestamp`, `lines` (chunk
     boundaries, CRLF, UTF-8), `zip` (data descriptors, ZIP64, corrupt input), `chat`,
-    `media`, `message`, `import`.
+    `media`, `message`, `import`, `formats` (every message of every format fixture:
+    detection + classification).
+  - CLI format runs — `cli/formats.test.ts` (each format fixture end to end: media copied,
+    idempotent re-import, identical same-minute messages counted, not collapsed).
   - Platform neutrality — `lib/platform.test.ts`: scans `lib/` for Node imports/globals and
     runs importer + exporters from a `Blob` with `Buffer`/`setImmediate` removed.
   - Exporter units — `lib/exporters/legacy/legacy.test.ts` (sha256 vs `node:crypto`, CSV,

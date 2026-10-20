@@ -45,6 +45,18 @@ describe('csv (pure)', () => {
     expect(added).toBe(1);
     expect(messages).toEqual([b, a]);
   });
+
+  test('mergeMessages counts identical messages instead of collapsing them', () => {
+    const ok = msg('2026-01-01T12:30:00', 'A', 'ok');
+    // First import keeps both "ok"s.
+    expect(mergeMessages([], [ok, { ...ok }]).added).toBe(2);
+    // Re-import of the same export adds nothing.
+    expect(mergeMessages([ok, { ...ok }], [ok, { ...ok }]).added).toBe(0);
+    // A newer export with a third "ok" adds exactly one.
+    const r = mergeMessages([ok, { ...ok }], [ok, { ...ok }, { ...ok }]);
+    expect(r.added).toBe(1);
+    expect(r.messages).toHaveLength(3);
+  });
 });
 
 describe('media + renderers (no file system)', () => {

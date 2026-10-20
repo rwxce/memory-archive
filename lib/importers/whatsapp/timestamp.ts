@@ -27,10 +27,13 @@ export function trimInvisible(s: string): string {
  * AM/PM (D-03). Anchored `^` + fixed alternation => linear time (no ReDoS,
  * T-01-04).
  *
+ * AM/PM forms: `AM` / `pm` (en), `a. m.` / `p. m.` (es, ca), with a normal,
+ * no-break (U+00A0) or narrow no-break (U+202F, iOS) space — `\s` covers all.
+ *
  * Captures: 1=day 2=month 3=year 4=hour 5=min 6=sec? 7=ampm?
  */
 export const TS_RE =
-  /^\[?(\d{1,2})[./-](\d{1,2})[./-](\d{2,4}),?\s(\d{1,2}):(\d{2})(?::(\d{2}))?\s?(am|pm|AM|PM)?\]?/;
+  /^\[?(\d{1,2})[./-](\d{1,2})[./-](\d{2,4}),?\s(\d{1,2}):(\d{2})(?::(\d{2}))?\s?([AaPp]\.?\s?[Mm]\.?(?![A-Za-z]))?\]?/;
 
 /** Per-file format decision (PARSE-03): applied to EVERY line of one export. */
 export interface Detection {
@@ -86,7 +89,9 @@ function isValidYmd(year: number, month: number, day: number): boolean {
  * - `--day-first` / `--month-first` short-circuit the vote (D-01).
  * - Otherwise: majority vote over ambiguous timestamped lines among the first
  *   ~50 samples — whichever ordering yields more VALID calendar dates wins;
- *   tie defaults to DAY-FIRST (pt-BR, assumption A2).
+ *   tie defaults to DAY-FIRST (pt-BR, assumption A2), except when the clock
+ *   uses upper-case `AM`/`PM` without dots: that is the en-US style, which
+ *   writes month first (en-GB/AU write `am`/`pm`, es/ca write `p. m.`).
  * - `is12h`: ANY sampled line carries an AM/PM token (D-02).
  */
 export function detectFormat(
@@ -124,7 +129,12 @@ export function detectFormat(
       if (isValidYmd(year, b, a)) dfValid += 1; // a=day, b=month
       if (isValidYmd(year, a, b)) mfValid += 1; // b=day, a=month
     }
-    dayFirst = dfValid >= mfValid; // tie -> day-first (A2)
+    if (dfValid !== mfValid) {
+      dayFirst = dfValid > mfValid;
+    } else {
+      const enUsClock = sampled.some((m) => m[7] === 'AM' || m[7] === 'PM');
+      dayFirst = !enUsClock; // tie -> day-first (A2), unless en-US clock
+    }
   }
 
   return { dayFirst, is12h, example, overridden };
@@ -154,11 +164,12 @@ export function tryParseTimestamp(
   let hour = parseInt(m[4], 10);
   const min = parseInt(m[5], 10);
   const sec = m[6] ? parseInt(m[6], 10) : 0;
-  const ampm = m[7]?.toLowerCase();
+  // `a. m.` / `PM` / `p.m.` -> 'a' | 'p'
+  const ampm = m[7]?.[0].toLowerCase();
 
   if (detection.is12h && ampm) {
-    if (ampm === 'pm' && hour !== 12) hour += 12;
-    if (ampm === 'am' && hour === 12) hour = 0;
+    if (ampm === 'p' && hour !== 12) hour += 12;
+    if (ampm === 'a' && hour === 12) hour = 0;
   }
 
   const day = detection.dayFirst ? first : second;

@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import { detectFormat, parseTimestamp, resolveYear, TS_RE } from './timestamp';
 
 test('12h detection: PM token converts to 24h (D-02)', () => {
-  const line = '[01/02/2026, 03:04:05 PM] Name: x';
+  // Day 13 keeps the order unambiguous (an all-ambiguous en-US "PM" sample now reads month-first).
+  const line = '[13/02/2026, 03:04:05 PM] Name: x';
   const det = detectFormat([line]);
   assert.equal(det.is12h, true);
   const ts = parseTimestamp(line, det)!;
   assert.equal(ts.hour, 15);
-  assert.equal(ts.iso, '2026-02-01T15:04:05');
+  assert.equal(ts.iso, '2026-02-13T15:04:05');
 });
 
 test('12h edge cases: 12PM stays 12, 12AM becomes 0 (D-02)', () => {
@@ -87,6 +88,38 @@ test('separator variants . - / all accepted (D-03)', () => {
     const line = `15${sep}08${sep}2026, 10:00:00 N: x`;
     assert.equal(parseTimestamp(line)!.iso, '2026-08-15T10:00:00', sep);
   }
+});
+
+test('12h variants: a. m. / p. m. / p.m. with normal, no-break and narrow no-break spaces', () => {
+  const det = { dayFirst: true, is12h: true };
+  for (const [ampm, hour] of [
+    ['p. m.', 21],
+    ['p. m.', 21],
+    ['p.m.', 21],
+    ['\u202fPM', 21],
+    ['a. m.', 9],
+    ['\u202fam', 9],
+  ] as const) {
+    const sep = ampm.startsWith('\u202f') ? '' : ' ';
+    const ts = parseTimestamp(`31/12/25, 9:41${sep}${ampm} - Ana: x`, det);
+    assert.equal(ts?.hour, hour, JSON.stringify(ampm));
+  }
+});
+
+test('12h token is not taken from a name starting with "Am"/"Pm"', () => {
+  const m = TS_RE.exec('[01/02/2026, 10:00:00] Amy: hi')!;
+  assert.equal(m[7], undefined);
+  assert.equal(detectFormat(['01/02/2026, 10:00 - Pmela: hi']).is12h, false);
+});
+
+test('ambiguous dates: upper-case AM/PM (en-US) reads month-first; other clocks day-first', () => {
+  assert.equal(detectFormat(['1/2/26, 9:41 PM - A: x', '3/4/26, 9:41 AM - A: x']).dayFirst, false);
+  assert.equal(detectFormat([`[1/2/26, 9:41:00\u202fPM] A: x`]).dayFirst, false);
+  assert.equal(detectFormat(['1/2/26, 9:41 pm - A: x']).dayFirst, true); // en-GB/AU style
+  assert.equal(detectFormat(['1/2/26, 9:41 p. m. - A: x']).dayFirst, true); // es
+  assert.equal(detectFormat(['1/2/26, 21:41 - A: x']).dayFirst, true); // 24h
+  // An unambiguous date still wins over the clock style.
+  assert.equal(detectFormat(['13/2/26, 9:41 PM - A: x']).dayFirst, true);
 });
 
 test('TS_RE has no seconds group when absent — sec defaults to 0', () => {
