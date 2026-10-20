@@ -1,208 +1,202 @@
-# wa-backup
+# Memory Archive
 
-[![CI](https://github.com/guionardo/wa-backup/actions/workflows/ci.yml/badge.svg)](https://github.com/guionardo/wa-backup/actions/workflows/ci.yml)
+**Memory Archive** is a **privacy-first, fully offline memory archive** that brings WhatsApp conversations, photos, videos and voice messages into a **unified, portable timeline** — one profile per person you want to remember.
+Everything runs **on your own device**. No server, no account, no cloud, no telemetry: your memories never leave your hands.
 
-Turn a WhatsApp **"Export chat"** ZIP into a self-contained, no-server backup of a single
-conversation. It emits three synchronized outputs — **Markdown**, a **WhatsApp-like HTML**
-viewer, and structured **JSON** — plus a `messages.csv` source-of-truth, with media
-reconciled and optionally inlined.
+> **Status:** early development. Today the repository ships a working **WhatsApp export → Markdown / HTML / JSON** command-line tool (the foundation inherited from [guionardo/wa-backup](https://github.com/guionardo/wa-backup)). The multi-profile, installable app described below is being built phase by phase — see [🗺️ Roadmap](#️-roadmap).
 
-Everything runs **locally on your machine**. Your chat never leaves your computer (see
-[FAQ](#faq)).
+---
 
-## Why
+## 🧩 Features
 
-I keep chats and groups that are no longer active, but I don't want to lose them — and my
-phone needs the space back. WhatsApp's "Export chat" gives you a ZIP, but the raw `_chat.txt`
-is clumsy to read later and still assumes you have WhatsApp installed. **wa-backup** turns that
-export into a portable, easily-viewed backup (Markdown, HTML, JSON) you can open in any browser
-years from now — no phone, no account, no WhatsApp required.
+### Available today (CLI)
 
-## Features
+* **WhatsApp export parsing**: reads the official *Export chat* ZIP (`_chat.txt` + media), auto-detecting day/month order and 12h/24h formats (`pt-BR`, `en-US`, and more).
 
-- Parses the official WhatsApp `_chat.txt` export (locale-tolerant: auto-detects day/month
-  order and 12h/24h format for `pt-BR`, `en-US`, and more).
-- Streams line-by-line, so memory stays flat even on huge chats with video.
-- Renders the full conversation as Markdown, HTML (WhatsApp-style bubbles), and JSON.
-- Reconciles and copies media (`IMG-*.jpg`, `VID-*.mp4`, documents, stickers) into the
-  output folder, with relative paths — or inlines them as base64 for a single portable file.
-- Resolves shared webpage links to readable **titles** (YouTube, Reddit, Medium, Stack
-  Overflow, LinkedIn, X, and generic `<title>`), with favicons in the HTML view.
-- XSS-safe output: all chat content is escaped before rendering.
+* **Streaming and memory-safe**: parses line by line, so huge chats with videos stay flat in memory.
 
-## Requirements
+* **Three synchronized outputs**: Markdown, a WhatsApp-style HTML viewer, and structured JSON, plus a `messages.csv` source of truth.
 
-- **Node.js ≥ 22.12** (commander 15 requires it). Check with `node --version`.
-- No account, no server, no database.
+* **Media reconciliation**: photos, videos, documents and stickers are copied next to the outputs with relative paths, or inlined into one self-contained HTML file.
 
-## Installation
+* **Incremental updates**: re-running on a newer export of the same chat merges only the new messages.
 
-Install globally with your preferred package manager:
+* **XSS-safe output**: all chat content is escaped before rendering.
 
-```bash
-npm install -g wa-backup       # npm
-pnpm add -g wa-backup          # pnpm
-bun install -g wa-backup       # bun
-```
+### Coming next (the Memory Archive app)
 
-Then run it from anywhere:
+* **One profile per person**: parents, partners, friends — each with their own conversations, photos, videos, voice messages and notes.
 
-```bash
-wa-backup "WhatsApp Chat - X.zip"
-```
+* **Install on any device**: an installable web app (PWA) for iPhone, Android, Mac, Windows and Linux that works offline.
 
-Or run it on demand without installing, via your package manager's runner:
+* **Incremental, duplicate-free imports**: import the same chat again years later and only the new messages are added.
 
-```bash
-npx wa-backup "WhatsApp Chat - X.zip"        # npm
-pnpm dlx wa-backup "WhatsApp Chat - X.zip"   # pnpm
-bunx wa-backup "WhatsApp Chat - X.zip"       # bun
-```
+* **Hand-picked photos**: import from your phone gallery, a Google Photos download or a Google Takeout album, and choose exactly which photos belong to whom.
 
-## Quick start
+* **Timeline, gallery, audio archive and calendar** per person, with search and favorites.
 
-1. In WhatsApp, open a conversation → **⋮ Menu → More → Export chat → Without media**
-   (or **With media** to include photos/videos).
-2. You get a ZIP containing `_chat.txt` and media folders. Save it somewhere.
-3. Run:
+* **One-file backup and restore**: export your whole archive into a single ZIP and restore it on any other device.
 
-```bash
-wa-backup "WhatsApp Chat - X.zip"
-```
+* **Manual device-to-device sync**: export a small *changes* ZIP on one device and merge it on another.
 
-This writes, by default, to `output/<chat-name>/`:
+* **Portable viewer**: a single HTML file you can send to a relative — it opens with a double-click, no install needed.
 
-```
-output/<chat-name>/
-├── messages.csv     # source-of-truth, one row per message
-├── messages.json    # structured envelope (messages + metadata + urlTitles)
-├── messages.md      # human-readable Markdown log
-├── messages.html    # standalone WhatsApp-like viewer (open with no server)
-└── media/           # reconciled media files (when exported with media)
-```
+---
 
-Open `messages.html` directly in a browser (double-click) — no server needed.
+## 🔒 Privacy
 
-## Usage
+* **Local only.** All parsing, storage and rendering happens on your device.
+* **No accounts, no keys, no backend.** There is nothing to sign up for and nothing to configure.
+* **No telemetry or analytics.**
+* **You own the file.** Your archive can always be exported as a plain ZIP (SQLite database + original media + integrity manifest) and read without this app.
 
-```
-wa-backup [zip] [options]
-```
+See [`docs/privacy.md`](docs/privacy.md) for details.
 
-### Options
+---
+
+## 🚀 Installation and Usage
+
+### Requirements
+
+* **Node.js 24** (see `.nvmrc`).
+* **pnpm 11** — enable it once with `corepack enable` (or `npm i -g pnpm`).
+
+### Run the CLI
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/rwxce/memory-archive.git
+   cd memory-archive
+   pnpm install
+   ```
+
+2. **Export a chat from WhatsApp**
+
+   Open the conversation → **⋮ Menu → More → Export chat** → *Include media* (or *Without media*). Save the ZIP somewhere on your computer.
+
+3. **Convert it**
+
+   ```bash
+   pnpm dev "WhatsApp Chat - X.zip"
+   ```
+
+4. **Open the result**
+
+   ```
+   output/<chat-name>/
+   ├── messages.csv     # source of truth, one row per message
+   ├── messages.json    # structured envelope (metadata + messages)
+   ├── messages.md      # human-readable Markdown log
+   ├── messages.html    # WhatsApp-like viewer — double-click to open
+   └── media/           # reconciled media files
+   ```
+
+### CLI options
 
 | Option | Description |
-|--------|-------------|
-| `[zip]` | Path to the WhatsApp "Export chat" ZIP (positional). |
-| `--zip <path>` | Path to the export ZIP (alternative to the positional argument). |
-| `--out <dir>` | Output directory. Default: `output/<chat-name>/` under the current directory. |
-| `--day-first` | Force day/month date order (e.g. `31/12/2026`). |
-| `--month-first` | Force month/day date order (e.g. `12/31/2026`). |
-| `--verbose` | Print detected format, locale guess, and any overrides while parsing. |
-| `--inline` | Embed resolved media as base64 into a single self-contained HTML file. |
-| `--no-fetch-titles` | Skip fetching webpage titles (fully offline; links keep their raw URLs). |
-| `-h, --help` | Show full help and examples. |
+| ------ | ----------- |
+| `[zip]` / `--zip <path>` | Path to the WhatsApp *Export chat* ZIP. |
+| `--out <dir>` | Output directory (default: `output/<chat-name>/`). |
+| `--day-first` / `--month-first` | Force the date order if auto-detection guesses wrong. |
+| `--inline` | Embed media as base64 into one self-contained HTML file. |
+| `--no-fetch-titles` | Do not fetch link titles (fully offline). |
+| `--verbose` | Print the detected format and any overrides. |
 
-If format detection guesses wrong on your export, pass `--day-first` or `--month-first`.
+---
 
-## Examples
+## 🛠️ Development
 
-Render a chat with media, into a specific folder, with verbose parsing info:
+| Command | What it does |
+| ------- | ------------ |
+| `pnpm install` | Install dependencies (only versions published ≥ 7 days ago). |
+| `pnpm dev <zip>` | Run the CLI from source with `tsx`. |
+| `pnpm check` | Lint → typecheck → tests → build. Must be green before any PR. |
+| `pnpm test` | Generate synthetic fixtures and run the test suite. |
+| `pnpm build` | Bundle the CLI into `dist/` with tsup. |
 
-```bash
-wa-backup "WhatsApp Chat - Família.zip" --out ./backup --verbose
+* **Branches**: work on a feature branch → PR into `dev`. `main` only receives `release: vX.Y.Z` PRs from `dev`. See [`docs/branching-and-releases.md`](docs/branching-and-releases.md).
+* **Supply chain**: exact versions, `minimumReleaseAge` of 7 days, Dependabot with a 7-day cooldown.
+* **Fixtures only**: tests use synthetic chats generated by `scripts/generate-fixtures.mjs`. Never commit a real WhatsApp export.
+* **Full inventory** of tooling, tests and rules: [`docs/blueprint.md`](docs/blueprint.md).
+
+---
+
+## 🏗️ Stack
+
+* **Today**: TypeScript 6 (strict), Node 24 (ESM), commander, fflate (streaming unzip), date-fns, tsup, tsx, ESLint 10, `node:test`, pnpm 11.
+* **App (in progress)**: Next.js 16 static export as a PWA, React 19, Tailwind CSS 4 + shadcn/ui, next-intl (`ca` / `es` / `en`), SQLite WASM stored in the browser's private file system (OPFS), Vitest.
+
+---
+
+## 🗂️ Architecture
+
+```
+src/                      # today's CLI
+  index.ts                # commander entry point
+  model.ts                # pipeline: zip → parse → csv → media → render
+  extract.ts              # streaming _chat.txt extraction (fflate)
+  parse/                  # timestamp format detection + message state machine
+  csv.ts                  # CSV source of truth, merge + dedupe
+  media.ts                # media reconciliation / inlining
+  title.ts                # optional link-title enrichment
+  render/                 # Markdown, HTML (WhatsApp-style) and JSON renderers
+scripts/                  # fixture generator and repo tooling
+test/                     # node:test suites (synthetic fixtures)
+docs/                     # blueprint, product, PRD, roadmap, policies
 ```
 
-Equivalent using the `--zip` flag:
+Target layout for the app (see [`docs/roadmap.md`](docs/roadmap.md)):
 
-```bash
-wa-backup --zip "WhatsApp Chat - Família.zip" --out ./backup
+```
+app/[locale]/             # Next.js pages (static export, PWA)
+components/  hooks/
+lib/
+  domain/                 # canonical model: profiles, conversations, messages, media
+  db/                     # SQLite WASM worker + versioned migrations
+  storage/                # content-addressed blobs (sha256) in OPFS
+  importers/<source>/     # whatsapp, google-takeout, loose files
+  exporters/              # backup ZIP, change packs, portable viewer
+  usecases/               # import, backup, restore, sync, export
+viewer/                   # single-file offline HTML viewer
+cli/                      # same use cases from the terminal
 ```
 
-Produce a single portable HTML file (media embedded, opens anywhere with no folder):
+### Main flows
 
-```bash
-wa-backup "WhatsApp Chat - X.zip" --inline
-```
+1. **Import** — WhatsApp ZIP → parse in a Web Worker → fingerprint and deduplicate → store messages in SQLite and media by hash → import summary.
+2. **Backup** — archive → `memory-archive-YYYY-MM-DD.zip` (database snapshot + media + `manifest.json` with hashes).
+3. **Restore / sync** — open a backup or *changes* ZIP on another device → validate → merge without duplicates.
 
-Run fully offline (no network calls for link titles):
+---
 
-```bash
-wa-backup "WhatsApp Chat - X.zip" --no-fetch-titles
-```
+## 🗺️ Roadmap
 
-### Developing locally
+| Phase | Scope |
+| ----- | ----- |
+| 0 | Tooling: pnpm, 7-day release age, CI, agent rules (rulesync), docs |
+| 1 | Reusable core for Node and browser, bug fixes, re-import of old HTML/JSON/CSV outputs |
+| 2 | PWA skeleton, local SQLite database, backup/restore proof of concept |
+| 3 | Profiles and conversations |
+| 4 | Incremental WhatsApp import and import history |
+| 5 | Timeline, conversation view, gallery, audio, calendar, search |
+| 6 | Full backup and restore |
+| 7 | Manual device-to-device sync with ZIP files |
+| 8 | Google Photos (download / Takeout) and loose files |
+| 9 | Portable viewer exports and hardening |
 
-```bash
-npm install
-npm run dev -- "WhatsApp Chat - X.zip" --verbose
-```
+Details in [`docs/roadmap.md`](docs/roadmap.md).
 
-> The `--` after `npm run dev` matters: without it, npm swallows flags like `--verbose`.
+---
 
-## Output reference
+## 🧾 License
 
-- **`messages.csv`** — the authoritative model: `timestamp,type,sender,text,media`. Safe to
-  re-run; new messages are merged and de-duplicated.
-- **`messages.json`** — an envelope with `metadata`, `messages`, and a `urlTitles` map
-  (link URL → resolved title) for downstream tooling.
-- **`messages.md`** — a linear Markdown transcript, one block per message.
-- **`messages.html`** — a standalone viewer with per-sender colors, day dividers, media
-  thumbnails, and a click-to-zoom lightbox (works from `file://`).
-- **`media/`** — copied media, referenced by relative path. Unresolved references are skipped
-  (never crash the run); intentional `<Media omitted>` placeholders stay visible.
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+It started as a fork of [guionardo/wa-backup](https://github.com/guionardo/wa-backup) by Guionardo Furlan, also MIT.
 
-## FAQ
+---
 
-**Where do I get the ZIP?**
-Inside WhatsApp: open a chat → menu → *More* → *Export chat*. Choose *Without media* for a
-small backup or *With media* to include photos/videos.
+## 📬 Contact
 
-**Why are some media missing?**
-The export only contains media that was on the device at export time. `wa-backup` copies
-whatever the ZIP references; if a file isn't in the ZIP, it can't be recovered from the text
-export alone.
-
-**Is my data sent anywhere?**
-Your chat content stays on your machine. The only network activity is **optional title
-fetching** for shared web links (to show "YouTube — Video Title" instead of a raw URL). Pass
-`--no-fetch-titles` to disable all network access.
-
-**Can I open the backup years later?**
-Yes — that's the point. The HTML/MD/JSON open in any browser with no server, account, or
-WhatsApp. Media is either in the local `media/` folder or inlined via `--inline`.
-
-**Does it modify my phone or WhatsApp?**
-No. It only reads the ZIP you provide.
-
-## Development
-
-```bash
-git clone <your-repo-url>
-cd wa-backup
-npm install
-
-npm run dev       # run the CLI via tsx
-npm test          # run the test suite (node:test)
-npm run lint      # eslint
-npm run typecheck # tsc --noEmit
-npm run build     # bundle to dist/ via tsup
-```
-
-CI (`.github/workflows/ci.yml`) runs **test → lint → build** on every push/PR and publishes to
-npm on version tags.
-
-## Publishing
-
-This package uses [semantic versioning](https://semver.org). To publish:
-
-1. Bump the version: `npm version patch` (or `minor`/`major`).
-2. Push the tag: `git push --follow-tags`.
-3. The CI `publish` job builds and runs `npm publish --provenance` automatically.
-
-You need an `NPM_TOKEN` secret configured in the GitHub repository settings, and a
-[provenance](https://docs.npmjs.com/generating-provenance-statements)-capable publish.
-
-## License
-
-[MIT](./LICENSE)
+For questions or suggestions, contact:
+**[148581386+rwxce@users.noreply.github.com](mailto:148581386+rwxce@users.noreply.github.com)**

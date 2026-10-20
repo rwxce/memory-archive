@@ -11,6 +11,17 @@ together — without WhatsApp, a phone, or any account. Today it is a TypeScript
 turns a WhatsApp "Export chat" ZIP into a standalone backup. It is becoming a local-only,
 offline PWA. Everything stays on the user's device.
 
+## Key docs
+
+- `docs/blueprint.md` — inventory of stack, architecture, tests, CI, supply chain and AI
+  tooling. Any PR that adds/removes an agent, skill, hook, lint rule, CI workflow, test type
+  or architecture rule updates it in the same PR.
+- `docs/roadmap.md` — approved phases 0-9 and architecture decisions (PWA, local only, no
+  Google APIs, manual ZIP sync). `docs/prd.md` — full requirements.
+- `PRODUCT.md`, `docs/privacy.md`, `docs/tone.md` (UI copy in ca/es/en),
+  `docs/branching-and-releases.md`.
+- `docs/archive/` — historical wa-backup planning and specs; read-only.
+
 ## Language
 
 Reply in the language of the user's last message (Catalan, Spanish, English, ...); follow a

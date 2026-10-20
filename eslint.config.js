@@ -7,7 +7,6 @@ export default tseslint.config(
     ignores: [
       'dist/**',
       'node_modules/**',
-      '.planning/**',
       'lab/**',
       'backup/**',
       'out/**',
