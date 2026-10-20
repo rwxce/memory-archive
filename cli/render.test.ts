@@ -277,7 +277,7 @@ test('render: URLs become links in HTML + Markdown; JSON text unchanged', async 
     'HTML anchor href, root path',
   );
   assert.ok(html.includes('example.com</a>'), 'HTML anchor, root path -> host only');
-  assert.ok(html.includes('class="favicon"'), 'HTML anchor has favicon');
+  assert.ok(!html.includes('favicon'), 'HTML anchor loads no remote favicon');
 
   assert.ok(
     md.includes('[github.com/owner/repo](https://www.github.com/owner/repo?x=1)'),
