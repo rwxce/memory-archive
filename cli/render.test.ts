@@ -260,7 +260,7 @@ test('render: URLs become links in HTML + Markdown; JSON text unchanged', async 
   const zipPath = path.join(tmp, 'link.zip');
   fs.writeFileSync(zipPath, Buffer.from(zipped));
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-link-out-'));
-  await runParser(zipPath, { out, noFetchTitles: true });
+  await runParser(zipPath, { out });
 
   const dir = path.join(out, slugifyChatName(chat));
   const html = fs.readFileSync(path.join(dir, 'messages.html'), 'utf8');

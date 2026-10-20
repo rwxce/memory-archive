@@ -1,13 +1,13 @@
 import * as fs from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import pc from 'picocolors';
 import { parseWhatsAppZip } from '@/lib/importers/whatsapp';
 import type { Detection } from '@/lib/importers/whatsapp';
-import { renderHtml, renderJson, renderMarkdown } from '@/lib/exporters/legacy';
+import { findAuthor, renderHtml, renderJson, renderMarkdown } from '@/lib/exporters/legacy';
 import { mergeCsv, readCsv, writeCsv } from './csv';
 import { buildMediaMap, dataUriLoader, reconcileMedia } from './media';
+import type { FetchGuardOptions } from './titles';
 import { openZip } from './zip';
 
 export interface RunOptions {
@@ -17,8 +17,20 @@ export interface RunOptions {
   verbose?: boolean;
   /** Embed resolved media as base64 `data:` URIs into a single HTML file. */
   inline?: boolean;
-  /** Skip fetching webpage titles (offline). URL→title map stays empty. */
-  noFetchTitles?: boolean;
+  /**
+   * Fetch webpage titles for links (opt-in network access; default off).
+   * Titles stored by earlier runs are kept either way.
+   */
+  fetchTitles?: boolean;
+  /** Tests / embedding: DNS resolver and private-host policy for title fetches. */
+  titleGuard?: FetchGuardOptions;
+  /** Who owns the export (outgoing side). Falls back to the most frequent author. */
+  me?: string;
+}
+
+export interface RenderOutputOptions {
+  inline?: boolean;
+  me?: string;
 }
 
 /** D-07 — transparency report for the detected file format. */
@@ -51,15 +63,6 @@ export interface RenderResult {
   html?: string;
 }
 
-/** Source of the browser viewer script, read next to the exporter sources. */
-function viewerScript(): string {
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  return readFileSync(
-    path.join(here, '..', 'lib', 'exporters', 'legacy', 'js', 'transcript.js'),
-    'utf8',
-  );
-}
-
 /**
  * Render the three synchronized outputs (JSON / Markdown / HTML) from the
  * messages.csv source-of-truth in `dir` (D-20/D-21/D-22). Re-reads the CSV
@@ -68,12 +71,17 @@ function viewerScript(): string {
 export async function renderOutputs(
   dir: string,
   chatName: string,
-  opts: { inline?: boolean } = {},
+  opts: RenderOutputOptions = {},
 ): Promise<RenderResult> {
   const csvPath = path.join(dir, 'messages.csv');
   if (!existsSync(csvPath)) return {};
   const messages = readCsv(csvPath);
   const media = buildMediaMap(dir, messages);
+  if (opts.me && !findAuthor(messages, opts.me)) {
+    console.error(
+      pc.yellow(`[memory-archive] --me "${opts.me}" matches no author; guessing the owner instead.`),
+    );
+  }
   const renderOpts = {
     media,
     inline: Boolean(opts.inline),
@@ -88,7 +96,7 @@ export async function renderOutputs(
   await fs.writeFile(result.md!, await renderMarkdown(messages, chatName, renderOpts), 'utf8');
   await fs.writeFile(
     result.html!,
-    await renderHtml(messages, chatName, { ...renderOpts, viewerScript: viewerScript() }),
+    await renderHtml(messages, chatName, { ...renderOpts, me: opts.me }),
     'utf8',
   );
   return result;
@@ -118,17 +126,21 @@ export async function runParser(
   const csvPath = path.join(dir, 'messages.csv');
   const added = await mergeCsv(csvPath, messages);
 
-  // TITLE-ENRICH (always on; opt-out via --no-fetch-titles): fetch webpage
-  // titles and persist the URL→title map back into the CSV source-of-truth.
-  const { enrichTitles } = await import('./titles');
-  const merged = readCsv(csvPath);
-  await enrichTitles(merged, {
-    enabled: !opts.noFetchTitles,
-    concurrency: 8,
-    timeoutMs: 5000,
-    verbose: Boolean(opts.verbose),
-  });
-  await writeCsv(csvPath, merged);
+  // TITLE-ENRICH (opt-in via --fetch-titles): fetch titles only for links that
+  // have none yet and persist the URL→title map in the CSV source-of-truth.
+  // Without the flag nothing is fetched and stored titles stay untouched.
+  if (opts.fetchTitles) {
+    const { enrichTitles } = await import('./titles');
+    const merged = readCsv(csvPath);
+    await enrichTitles(merged, {
+      ...opts.titleGuard,
+      enabled: true,
+      concurrency: 8,
+      timeoutMs: 5000,
+      verbose: Boolean(opts.verbose),
+    });
+    await writeCsv(csvPath, merged);
+  }
 
   // MEDIA-01/02: reconcile referenced media and copy matched files to
   // <dir>/media/. Never throws on unresolved — missing refs are reported and
@@ -137,7 +149,7 @@ export async function runParser(
   const mediaReport = await reconcileMedia(zipPath, dir, distinctMedia);
 
   // Single run ALWAYS emits all four formats (D-22).
-  await renderOutputs(dir, info.name, { inline: Boolean(opts.inline) });
+  await renderOutputs(dir, info.name, { inline: Boolean(opts.inline), me: opts.me });
 
   if (opts.verbose) {
     verboseReport(

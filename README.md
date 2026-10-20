@@ -17,7 +17,7 @@ Everything runs **on your own device**. No server, no account, no cloud, no tele
 
 * **Three synchronized outputs**: Markdown, a WhatsApp-style HTML viewer, and structured JSON, plus a `messages.csv` source of truth.
 
-* **Media reconciliation**: photos, videos, documents and stickers are copied next to the outputs with relative paths, or inlined into one self-contained HTML file.
+* **Media reconciliation**: photos, videos, voice notes and other audio, documents and stickers are copied next to the outputs with relative paths, or inlined into one self-contained HTML file.
 
 * **Incremental updates**: re-running on a newer export of the same chat merges only the new messages.
 
@@ -99,8 +99,10 @@ See [`docs/privacy.md`](docs/privacy.md) for details.
 | `[zip]` / `--zip <path>` | Path to the WhatsApp *Export chat* ZIP. |
 | `--out <dir>` | Output directory (default: `output/<chat-name>/`). |
 | `--day-first` / `--month-first` | Force the date order if auto-detection guesses wrong. |
-| `--inline` | Embed media as base64 into one self-contained HTML file. |
-| `--no-fetch-titles` | Do not fetch link titles (fully offline). |
+| `--me <name>` | Your author name in the chat: your messages become the outgoing (right-hand) bubbles. Default: the most active author. |
+| `--inline` | Embed media as base64 into one self-contained HTML file (videos stay linked). |
+| `--fetch-titles` | Opt in to fetching link titles from the web. **Off by default**: the CLI makes no network request without it. Private, loopback and link-local addresses are never contacted; titles fetched earlier are kept. |
+| `--no-fetch-titles` | Accepted for compatibility; offline is already the default. |
 | `--verbose` | Print the detected format and any overrides. |
 
 ---
@@ -111,9 +113,10 @@ See [`docs/privacy.md`](docs/privacy.md) for details.
 | ------- | ------------ |
 | `pnpm install` | Install dependencies (only versions published ≥ 7 days ago). |
 | `pnpm dev <zip>` | Run the CLI from source with `tsx`. |
-| `pnpm check` | Lint → typecheck → tests → build. Must be green before any PR. |
+| `pnpm check` | Lint → typecheck → tests → build → smoke. Must be green before any PR. |
 | `pnpm test` | Generate synthetic fixtures and run the Vitest suite (tests live next to the code as `*.test.ts`). |
-| `pnpm build` | Bundle the CLI into `dist/` with tsup (`bin`: `memory-archive`). |
+| `pnpm build` | Inline the viewer scripts, then bundle the CLI into `dist/` with tsup (`bin`: `memory-archive`). |
+| `pnpm smoke` | Run the **built** CLI on the synthetic fixture ZIP and check the four outputs and media. |
 
 * **Branches**: work on a feature branch → PR into `dev`. `main` only receives `release: vX.Y.Z` PRs from `dev`. See [`docs/branching-and-releases.md`](docs/branching-and-releases.md).
 * **Supply chain**: exact versions, `minimumReleaseAge` of 7 days, Dependabot with a 7-day cooldown.

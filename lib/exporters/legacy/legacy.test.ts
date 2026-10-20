@@ -4,7 +4,7 @@ import { sha256 } from './sha256';
 import { accentHue } from './colors';
 import { mergeMessages, parseCsv, serializeCsv } from './csv';
 import { buildMediaMap, bytesToBase64, extOf } from './media';
-import { renderHtml } from './html';
+import { renderHtml, resolveSelfAuthor, transcriptItems } from './html';
 import { renderMarkdown } from './md';
 import type { Message } from '../../importers/whatsapp/types';
 
@@ -72,5 +72,41 @@ describe('media + renderers (no file system)', () => {
     const md = await renderMarkdown(messages, 'Chat', { media, inline: true, loadDataUri });
     expect(html).toContain('src="data:image/jpeg;base64,aGk="');
     expect(md).toContain('](data:image/jpeg;base64,aGk=)');
+  });
+});
+
+describe('transcript structure', () => {
+  test('day separators are explicit items, one per calendar day', () => {
+    const items = transcriptItems([
+      msg('2026-01-01T10:00:00', 'A', 'one'),
+      msg('2026-01-01T10:01:00', 'A', 'two'),
+      msg('2026-01-01T23:59:00', 'B', 'three'),
+      msg('2026-01-02T00:00:00', 'B', 'four'),
+    ]);
+    expect(items.map((i) => (i.kind === 'day' ? `day:${i.day}` : `group:${i.messages.length}`))).toEqual([
+      'day:2026-01-01',
+      'group:2',
+      'group:1',
+      'day:2026-01-02',
+      'group:1',
+    ]);
+  });
+
+  test('a message whose rendered HTML looks like a date is never taken for a day pill', async () => {
+    // The old renderer recognised day markers by string shape (length 10, "-" at 4).
+    const html = await renderHtml([msg('2026-01-01T10:00:00', 'A', '2026-01-01')], 'Chat');
+    expect(html.match(/class="day-pill"/g)).toHaveLength(1);
+    expect(html).toContain('<span class="bubble-text">2026-01-01</span>');
+  });
+
+  test('resolveSelfAuthor: explicit me (ignoring case/bidi marks) or the most frequent author', () => {
+    const messages = [
+      msg('2026-01-01T10:00:00', 'Ana', 'x'),
+      msg('2026-01-01T10:01:00', 'Ana', 'y'),
+      msg('2026-01-01T10:02:00', '‪+55 11 9999‬', 'z'),
+    ];
+    expect(resolveSelfAuthor(messages)).toBe('Ana');
+    expect(resolveSelfAuthor(messages, '+55 11 9999')).toBe('‪+55 11 9999‬');
+    expect(resolveSelfAuthor(messages, 'nobody')).toBe('Ana');
   });
 });

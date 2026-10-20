@@ -4,6 +4,7 @@ export type MessageType =
   | 'video'
   | 'sticker'
   | 'document'
+  | 'audio'
   | 'system'
   | 'deleted'
   | 'omitted';

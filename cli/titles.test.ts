@@ -19,6 +19,11 @@ import {
 import { unwrapUrl } from '@/lib/exporters/legacy/js/linkify.js';
 import type { Message } from '@/lib/importers/whatsapp';
 
+/** Local mock servers listen on 127.0.0.1: allow loopback for those tests only. */
+const LOCAL = { allowPrivateHosts: true };
+/** Mocked-fetch tests: resolve every host to a public address, no real DNS. */
+const PUBLIC = { resolveHost: async () => ['93.184.216.34'] };
+
 function startServer(
   body: string,
   { contentType = 'text/html; charset=utf-8', delayMs = 0 } = {},
@@ -51,7 +56,7 @@ test('extractTitle: null when absent', () => {
 test('fetchTitle: returns fetched title for html', async () => {
   const srv = await startServer('<title>My Page</title>');
   try {
-    assert.equal(await fetchTitle(srv.url), 'My Page');
+    assert.equal(await fetchTitle(srv.url, LOCAL), 'My Page');
   } finally {
     srv.close();
   }
@@ -60,7 +65,7 @@ test('fetchTitle: returns fetched title for html', async () => {
 test('fetchTitle: falls back to derived title on timeout', async () => {
   const srv = await startServer('<title>Slow</title>', { delayMs: 200 });
   try {
-    const r = await fetchTitle(srv.url, { timeoutMs: 40 });
+    const r = await fetchTitle(srv.url, { ...LOCAL, timeoutMs: 40 });
     assert.ok(r.includes('127.0.0.1'), 'fell back to derived (host) title');
   } finally {
     srv.close();
@@ -70,7 +75,7 @@ test('fetchTitle: falls back to derived title on timeout', async () => {
 test('fetchTitle: falls back on non-html content', async () => {
   const srv = await startServer('plain text', { contentType: 'text/plain' });
   try {
-    const r = await fetchTitle(srv.url);
+    const r = await fetchTitle(srv.url, LOCAL);
     assert.ok(r.includes('127.0.0.1'), 'non-html -> derived title');
   } finally {
     srv.close();
@@ -86,7 +91,7 @@ test('enrichTitles: maps each URL to a title and dedupes fetches', async () => {
       { timestamp_iso: '2026-07-23T09:47:18', type: 'text', author: 'a', text: `one ${urlA}`, media: '' },
       { timestamp_iso: '2026-07-23T09:47:19', type: 'text', author: 'b', text: `two ${urlA} and ${urlB}`, media: '' },
     ];
-    await enrichTitles(msgs, { enabled: true, timeoutMs: 2000 });
+    await enrichTitles(msgs, { ...LOCAL, enabled: true, timeoutMs: 2000 });
     assert.equal(msgs[0].urlTitles?.[urlA], 'Shared Title');
     assert.equal(msgs[1].urlTitles?.[urlA], 'Shared Title');
     assert.equal(msgs[1].urlTitles?.[urlB], 'Shared Title');
@@ -118,7 +123,7 @@ test('enrichTitles: verbose logs each processed URL', async () => {
         media: '',
       },
     ];
-    await enrichTitles(msgs, { enabled: true, timeoutMs: 2000, verbose: true });
+    await enrichTitles(msgs, { ...LOCAL, enabled: true, timeoutMs: 2000, verbose: true });
   } finally {
     console.error = orig;
     srv.close();
@@ -136,7 +141,7 @@ test('enrichTitles: no verbose logging when verbose is false', async () => {
     const msgs: Message[] = [
       { timestamp_iso: '2026-07-23T09:47:18', type: 'text', author: 'a', text: `see ${srv.url}`, media: '' },
     ];
-    await enrichTitles(msgs, { enabled: true, timeoutMs: 2000 });
+    await enrichTitles(msgs, { ...LOCAL, enabled: true, timeoutMs: 2000 });
   } finally {
     console.error = orig;
     srv.close();
@@ -219,7 +224,7 @@ test('medium: api url + parser + fetch (og:title via mocked fetch)', async () =>
   globalThis.fetch = (async () =>
     new Response(html, { status: 200, headers: { 'content-type': 'text/html' } })) as any;
   try {
-    const t = await fetchMediumTitle('https://medium.com/@me/post', new AbortController().signal);
+    const t = await fetchMediumTitle('https://medium.com/@me/post', new AbortController().signal, PUBLIC);
     assert.equal(t, 'Medium Post');
   } finally {
     globalThis.fetch = original;
@@ -239,7 +244,7 @@ test('fetchTitle: stackoverflow uses the Stack Exchange API', async () => {
   }) as any;
   try {
     assert.equal(
-      await fetchTitle('https://stackoverflow.com/questions/11299354/why-z'),
+      await fetchTitle('https://stackoverflow.com/questions/11299354/why-z', PUBLIC),
       'How to X',
     );
   } finally {
@@ -255,7 +260,7 @@ test('fetchTitle: medium uses og:title (mocked html)', async () => {
       { status: 200, headers: { 'content-type': 'text/html' } },
     )) as any;
   try {
-    assert.equal(await fetchTitle('https://medium.com/@me/post'), 'Great Post');
+    assert.equal(await fetchTitle('https://medium.com/@me/post', PUBLIC), 'Great Post');
   } finally {
     globalThis.fetch = original;
   }
@@ -276,7 +281,7 @@ test('fetchTitle: x is offline (no network)', async () => {
     return new Response('<title>x</title>');
   }) as any;
   try {
-    assert.equal(await fetchTitle('https://x.com/NASA'), 'NASA on X');
+    assert.equal(await fetchTitle('https://x.com/NASA', PUBLIC), 'NASA on X');
     assert.equal(networkCalled, false, 'x must not hit the network');
   } finally {
     globalThis.fetch = original;
@@ -297,7 +302,7 @@ test('fetchTitle: youtube uses oEmbed endpoint', async () => {
     return new Response('<title>ignored</title>', { status: 200 });
   }) as any;
   try {
-    assert.equal(await fetchTitle('https://youtube.com/watch?v=1'), 'My Video');
+    assert.equal(await fetchTitle('https://youtube.com/watch?v=1', PUBLIC), 'My Video');
   } finally {
     globalThis.fetch = original;
   }
@@ -315,7 +320,7 @@ test('fetchTitle: reddit uses .json listing', async () => {
     return new Response('<title>ignored</title>', { status: 200 });
   }) as any;
   try {
-    assert.equal(await fetchTitle('https://reddit.com/r/x/'), 'Sub Post');
+    assert.equal(await fetchTitle('https://reddit.com/r/x/', PUBLIC), 'Sub Post');
   } finally {
     globalThis.fetch = original;
   }
@@ -330,7 +335,7 @@ test('fetchTitle: linkedin is offline (no network)', async () => {
   }) as any;
   try {
     assert.equal(
-      await fetchTitle('https://www.linkedin.com/in/jane-doe'),
+      await fetchTitle('https://www.linkedin.com/in/jane-doe', PUBLIC),
       'jane doe',
     );
     assert.equal(networkCalled, false, 'linkedin must not hit the network');
@@ -351,7 +356,7 @@ test('fetchTitle: youtube falls back to generic title on oEmbed failure', async 
     });
   }) as any;
   try {
-    assert.equal(await fetchTitle('https://youtube.com/watch?v=9'), 'Generic Fallback');
+    assert.equal(await fetchTitle('https://youtube.com/watch?v=9', PUBLIC), 'Generic Fallback');
   } finally {
     globalThis.fetch = original;
   }
@@ -379,7 +384,7 @@ test('fetchTitle: LinkedIn redirect resolves the destination title (not LinkedIn
   try {
     const li =
       'https://www.linkedin.com/safety/go/?url=https%3A%2F%2Fexample%2Ecom%2Fp&urlhash=x';
-    assert.equal(await fetchTitle(li), 'Real Destination');
+    assert.equal(await fetchTitle(li, PUBLIC), 'Real Destination');
   } finally {
     globalThis.fetch = original;
   }
