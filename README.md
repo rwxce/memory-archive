@@ -80,7 +80,7 @@ See [`docs/privacy.md`](docs/privacy.md) for details.
 3. **Convert it**
 
    ```bash
-   pnpm dev "WhatsApp Chat - X.zip"
+   pnpm cli "WhatsApp Chat - X.zip"
    ```
 
 4. **Open the result**
@@ -98,11 +98,11 @@ See [`docs/privacy.md`](docs/privacy.md) for details.
 
 ```bash
 # Rebuild messages.csv from an older output (wa-backup or memory-archive) and re-render everything
-pnpm dev import-legacy "output/<chat-name>/messages.html"     # or messages.json / messages.csv
-pnpm dev import-legacy old/messages.json --out ./backup        # into ./backup/<chat-name>/
+pnpm cli import-legacy "output/<chat-name>/messages.html"     # or messages.json / messages.csv
+pnpm cli import-legacy old/messages.json --out ./backup        # into ./backup/<chat-name>/
 
 # Re-render messages.json / .md / .html from messages.csv (offline)
-pnpm dev render "output/<chat-name>"
+pnpm cli render "output/<chat-name>"
 ```
 
 `messages.md` cannot be re-imported: it is a lossy rendering. The JSON format is documented
@@ -128,11 +128,17 @@ in [`docs/formats/legacy-json.md`](docs/formats/legacy-json.md).
 | Command | What it does |
 | ------- | ------------ |
 | `pnpm install` | Install dependencies (only versions published ≥ 7 days ago). |
-| `pnpm dev <zip>` | Run the CLI from source with `tsx`. |
-| `pnpm check` | Lint → typecheck → tests → build → smoke. Must be green before any PR. |
-| `pnpm test` | Generate synthetic fixtures and run the Vitest suite (tests live next to the code as `*.test.ts`). |
-| `pnpm build` | Inline the viewer scripts, then bundle the CLI into `dist/` with tsup (`bin`: `memory-archive`). |
-| `pnpm smoke` | Run the **built** CLI on the synthetic fixture ZIP and check the four outputs and media. |
+| `pnpm dev` | Run the app in development (`next dev`, http://localhost:3000). |
+| `pnpm preview` | Serve the built app from `out/` on http://localhost:4173 (dependency-free `scripts/serve-out.mjs`; set `NEXT_PUBLIC_BASE_PATH` to preview a sub-path build). |
+| `pnpm cli <zip>` | Run the CLI from source with `tsx`. |
+| `pnpm check` | i18n parity → lint → typecheck → tests → build → smoke. Must be green before any PR. |
+| `pnpm test` | Generate synthetic fixtures and run the Vitest suite (tests live next to the code as `*.test.ts(x)`). |
+| `pnpm build` | Inline the viewer scripts, bundle the CLI into `dist/` (tsup, `bin`: `memory-archive`) and export the app into `out/` (`next build`). |
+| `pnpm smoke` | Run the **built** CLI on the synthetic fixture ZIP, and check that every page of `out/` exists and loads nothing from another site. |
+| `pnpm i18n:check` | Check that `messages/{ca,es,en}.json` have the same keys and placeholders. |
+
+* **UI copy** lives in `messages/{ca,es,en}.json`; ESLint rejects hard-coded text in JSX. Tone rules: [`docs/tone.md`](docs/tone.md).
+* **No telemetry**: Next.js telemetry is switched off in the scripts and in `next.config.ts`.
 
 * **Branches**: work on a feature branch → PR into `dev`. `main` only receives `release: vX.Y.Z` PRs from `dev`. See [`docs/branching-and-releases.md`](docs/branching-and-releases.md).
 * **Supply chain**: exact versions, `minimumReleaseAge` of 7 days, Dependabot with a 7-day cooldown.
@@ -143,15 +149,20 @@ in [`docs/formats/legacy-json.md`](docs/formats/legacy-json.md).
 
 ## 🏗️ Stack
 
-* **Today**: TypeScript 6 (strict), Node 24 (ESM), commander, fflate (inflate), date-fns, tsup, tsx, ESLint 10, Vitest 5, pnpm 11.
-* **App (in progress)**: Next.js 16 static export as a PWA, React 19, Tailwind CSS 4 + shadcn/ui, next-intl (`ca` / `es` / `en`), SQLite WASM stored in the browser's private file system (OPFS), Vitest.
+* **App**: Next.js 16 static export (no server), React 19, Tailwind CSS 4 + shadcn/ui, next-intl (`ca` / `es` / `en`), system fonts only. Coming in Phase 2: offline PWA, SQLite WASM stored in the browser's private file system (OPFS).
+* **CLI**: TypeScript 6 (strict), Node 24 (ESM), commander, fflate (inflate), date-fns, tsup, tsx.
+* **Tooling**: ESLint 10 (layer boundaries, no cycles, no hard-coded UI text), Vitest 5 (+ happy-dom for components), pnpm 11.
 
 ---
 
 ## 🗂️ Architecture
 
 ```
+app/[locale]/             # Next.js pages (static export): welcome, settings
+components/  hooks/       # UI components (shadcn/ui in components/ui) and React hooks
+i18n/  messages/          # next-intl routing + UI copy in ca / es / en
 lib/                      # platform-neutral core (Node and browser; no Node APIs)
+  domain/                 # pure types and constants
   importers/whatsapp/     # ZIP reader (central directory + ZIP64, fflate inflate),
                           # _chat.txt line splitting, timestamp detection,
                           # message state machine, media matching

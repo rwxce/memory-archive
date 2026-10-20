@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "title": "Memory Archive",
+    "description": "Conserva les converses, les fotos i els missatges de veu de les persones que t'importen. Tot es queda en aquest dispositiu."
+  },
+  "nav": {
+    "home": "Inici",
+    "settings": "Configuració",
+    "back": "Enrere"
+  },
+  "welcome": {
+    "title": "Conserva les seves paraules a prop",
+    "body": "Aplega les converses, les fotos i els missatges de veu de les persones que t'importen, i torna-hi sempre que vulguis.",
+    "privacy": "Tot es queda en aquest dispositiu. Sense compte, sense núvol, sense seguiment.",
+    "start": "Comença",
+    "open": "Obre un arxiu",
+    "openHint": "Ja tens un fitxer de Memory Archive? Obre'l per continuar on ho vas deixar.",
+    "comingSoon": "Aquest pas encara no està llest. Arribarà en una propera versió."
+  },
+  "settings": {
+    "title": "Configuració",
+    "language": {
+      "title": "Idioma",
+      "description": "L'idioma de l'aplicació. Els teus missatges no es tradueixen mai."
+    },
+    "theme": {
+      "title": "Aparença",
+      "system": "Com aquest dispositiu",
+      "light": "Clar",
+      "dark": "Fosc"
+    },
+    "about": {
+      "title": "Quant a",
+      "appVersion": "Versió de l'aplicació {version}",
+      "formatVersion": "Format de fitxer d'arxiu {version}",
+      "privacy": "Memory Archive funciona sense connexió a internet un cop obert. Res del que hi afegeixis surt d'aquest dispositiu si no l'exportes tu."
+    }
+  },
+  "notFound": {
+    "title": "Aquesta pàgina no existeix",
+    "back": "Ves a l'inici"
+  }
+}

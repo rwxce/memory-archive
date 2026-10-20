@@ -34,7 +34,7 @@ If you can't make it fail on demand, you can't fix it with confidence.
 | Layer | How to reproduce / read evidence |
 |---|---|
 | Unit tests | `pnpm exec vitest run <path/to/file.test.ts>` (after `node scripts/generate-fixtures.mjs`); `pnpm test` for the whole suite |
-| Parser / importer | Run the CLI on a synthetic fixture: `pnpm dev fixtures/<export>.zip --out /tmp/out --verbose --no-fetch-titles` |
+| Parser / importer | Run the CLI on a synthetic fixture: `pnpm cli fixtures/<export>.zip --out /tmp/out --verbose --no-fetch-titles` |
 | Generated backup / viewer | Open the generated HTML from disk in a browser (Playwright MCP); read the console, not only the DOM |
 | Build / types | `pnpm typecheck`, `pnpm build` |
 | PWA (once it exists) | Browser devtools: OPFS contents, SQLite state, service-worker cache, Web Worker console |

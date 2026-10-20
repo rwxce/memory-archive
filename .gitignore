@@ -12,3 +12,8 @@ docs/archive/planning/research/.cache/
 
 # Generated backup output
 backup/
+
+# Next.js
+.next/
+next-env.d.ts
+*.tsbuildinfo

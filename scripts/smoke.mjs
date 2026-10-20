@@ -1,11 +1,13 @@
-// Smoke test of the BUILT CLI (`dist/index.js`), not the sources: catches
-// packaging bugs (files read at runtime that tsup does not ship, shebang,
-// import.meta.url paths) that the source-level test suite cannot see.
+// Smoke test of the BUILT artifacts, not the sources:
+//
+// 1. The CLI (`dist/index.js`): catches packaging bugs (files read at runtime
+//    that tsup does not ship, shebang, import.meta.url paths) that the
+//    source-level test suite cannot see. Runs the CLI on the synthetic fixture
+//    ZIP into a temp dir and checks the four outputs and the copied media.
+// 2. The app's static export (`out/`): every locale page exists with the right
+//    `lang`, and no page or stylesheet loads anything from another origin.
 //
 //   pnpm build && pnpm smoke
-//
-// Runs the CLI on the synthetic fixture ZIP into a temp dir and checks the
-// four outputs and the copied media.
 
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -69,3 +71,41 @@ fs.rmSync(tmp, { recursive: true, force: true });
 console.log(
   `[smoke] OK: built CLI wrote 4 outputs and ${media.length} media file(s); import-legacy round trip identical`,
 );
+
+// ---- 2. static export ----
+const OUT = path.join(ROOT, 'out');
+const LOCALES = ['en', 'ca', 'es'];
+const pages = ['index.html', '404.html', ...LOCALES.flatMap((l) => [`${l}/index.html`, `${l}/settings/index.html`])];
+for (const page of pages) {
+  if (!fs.existsSync(path.join(OUT, page))) fail(`out/${page} missing — did next build run?`);
+}
+for (const l of LOCALES) {
+  const page = fs.readFileSync(path.join(OUT, l, 'index.html'), 'utf8');
+  if (!page.includes(`<html lang="${l}"`)) fail(`out/${l}/index.html is not lang="${l}"`);
+}
+
+/** Remote resources a page or stylesheet would load by itself. */
+function remoteResources(text) {
+  const found = [];
+  const attr = /\b(?:src|srcset|poster)\s*=\s*["']?\s*((?:https?:)?\/\/[^"'\s>]+)/gi;
+  const link = /<link\b[^>]*\bhref\s*=\s*["']?\s*((?:https?:)?\/\/[^"'\s>]+)/gi;
+  const css = /(?:url\(\s*["']?|@import\s+["'])\s*((?:https?:)?\/\/[^"')\s]+)/gi;
+  for (const re of [attr, link, css]) for (const m of text.matchAll(re)) found.push(m[1]);
+  // SVG namespaces are identifiers, not requests.
+  return found.filter((u) => !/^https?:\/\/www\.w3\.org\//.test(u));
+}
+
+let scanned = 0;
+const walk = (dir) => {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, entry.name);
+    if (entry.isDirectory()) walk(p);
+    else if (/\.(html|css)$/.test(entry.name)) {
+      const remote = remoteResources(fs.readFileSync(p, 'utf8'));
+      if (remote.length) fail(`${path.relative(ROOT, p)} loads remote resources: ${remote.join(', ')}`);
+      scanned++;
+    }
+  }
+};
+walk(OUT);
+console.log(`[smoke] OK: static export has ${pages.length} pages; ${scanned} HTML/CSS files load nothing remote`);

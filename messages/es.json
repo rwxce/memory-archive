@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "title": "Memory Archive",
+    "description": "Conserva las conversaciones, las fotos y los mensajes de voz de las personas que te importan. Todo se queda en este dispositivo."
+  },
+  "nav": {
+    "home": "Inicio",
+    "settings": "Ajustes",
+    "back": "Atrás"
+  },
+  "welcome": {
+    "title": "Conserva sus palabras cerca",
+    "body": "Reúne las conversaciones, las fotos y los mensajes de voz de las personas que te importan, y vuelve a ellos siempre que quieras.",
+    "privacy": "Todo se queda en este dispositivo. Sin cuenta, sin nube, sin seguimiento.",
+    "start": "Empezar",
+    "open": "Abrir un archivo",
+    "openHint": "¿Ya tienes un fichero de Memory Archive? Ábrelo para seguir donde lo dejaste.",
+    "comingSoon": "Este paso aún no está listo. Llegará en una próxima versión."
+  },
+  "settings": {
+    "title": "Ajustes",
+    "language": {
+      "title": "Idioma",
+      "description": "El idioma de la aplicación. Tus mensajes nunca se traducen."
+    },
+    "theme": {
+      "title": "Apariencia",
+      "system": "Como este dispositivo",
+      "light": "Claro",
+      "dark": "Oscuro"
+    },
+    "about": {
+      "title": "Acerca de",
+      "appVersion": "Versión de la aplicación {version}",
+      "formatVersion": "Formato de fichero de archivo {version}",
+      "privacy": "Memory Archive funciona sin conexión a internet una vez abierto. Nada de lo que añadas sale de este dispositivo si no lo exportas tú."
+    }
+  },
+  "notFound": {
+    "title": "Esta página no existe",
+    "back": "Ir al inicio"
+  }
+}
