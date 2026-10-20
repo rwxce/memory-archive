@@ -4,6 +4,12 @@ import { PassThrough } from 'node:stream';
 import * as readline from 'node:readline';
 import * as path from 'node:path';
 
+// createReadStream without an encoding always emits Buffers; the string branch
+// only satisfies the stream's listener type.
+function toBytes(chunk: Buffer | string): Uint8Array {
+  return typeof chunk === 'string' ? new TextEncoder().encode(chunk) : new Uint8Array(chunk);
+}
+
 /**
  * Stream a WhatsApp export ZIP and resolve a `readline.Interface` over the
  * decompressed `_chat.txt` content — WITHOUT buffering the whole archive or any
@@ -50,7 +56,7 @@ export function extractChatTxt(zipPath: string): Promise<AsyncIterable<string>> 
     };
 
     createReadStream(zipPath)
-      .on('data', (chunk: Buffer) => unzip.push(new Uint8Array(chunk)))
+      .on('data', (chunk: Buffer | string) => unzip.push(toBytes(chunk)))
       .on('end', () => {
         unzip.push(new Uint8Array(0), true);
         if (!resolved) {
@@ -157,7 +163,7 @@ export async function chatNameFromZip(zipPath: string): Promise<string> {
       collected.push(file.name); // header only; never start() => not inflated
     };
     createReadStream(zipPath)
-      .on('data', (chunk: Buffer) => unzip.push(new Uint8Array(chunk)))
+      .on('data', (chunk: Buffer | string) => unzip.push(toBytes(chunk)))
       .on('end', () => {
         unzip.push(new Uint8Array(0), true);
         resolve(collected);
@@ -185,7 +191,7 @@ export async function chatInfoFromZip(
       collected.push(file.name);
     };
     createReadStream(zipPath)
-      .on('data', (chunk: Buffer) => unzip.push(new Uint8Array(chunk)))
+      .on('data', (chunk: Buffer | string) => unzip.push(toBytes(chunk)))
       .on('end', () => {
         unzip.push(new Uint8Array(0), true);
         resolve(collected);

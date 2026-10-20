@@ -238,7 +238,7 @@ export function buildMediaMap(
   messages: Message[],
 ): Map<string, MediaEntry> {
   const mediaDir = path.join(dir, 'media');
-  let entries: fs.Dirent[] = [];
+  let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(mediaDir, { withFileTypes: true });
   } catch {
@@ -258,7 +258,7 @@ export function buildMediaMap(
     const hit = index.get(normalizeMediaName(m.media));
     if (!hit) continue; // missing-but-expected: not in map
     const full = path.join(mediaDir, hit);
-    let size = 0;
+    let size: number;
     try {
       size = fs.statSync(full).size;
     } catch {

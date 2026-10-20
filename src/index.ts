@@ -54,12 +54,10 @@ Note the "--" in the npm form: without it, npm swallows flags like --verbose.`,
         const { slug } = await chatInfoFromZip(zip);
         const outDir = (opts.out as string | undefined) ?? 'output';
         const base = path.join(outDir, slug);
-        // eslint-disable-next-line no-console
         console.log(
           pc.green(`✓ Merged ${count} new message(s)`) +
             pc.dim(` into ${path.join(base, 'messages.csv')}`),
         );
-        // eslint-disable-next-line no-console
         console.log(
           pc.dim('  rendered:') +
             ` ${path.join(base, 'messages.json')}` +
@@ -67,7 +65,6 @@ Note the "--" in the npm form: without it, npm swallows flags like --verbose.`,
             ` ${path.join(base, 'messages.html')}`,
         );
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error(pc.red('✗ ' + (err instanceof Error ? err.message : String(err))));
         process.exitCode = 1;
       }

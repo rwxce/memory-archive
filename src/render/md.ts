@@ -65,7 +65,7 @@ async function mediaMarkdown(
   if (isImg) {
     const img = `![${escapeMd(m.media)}](${src})`;
     const caption = m.text
-      ? linkifyMarkdown(m.text, (u) => m.urlTitles?.[u] ?? deriveTitle(u))
+      ? linkifyMarkdown(m.text, (u: string) => m.urlTitles?.[u] ?? deriveTitle(u))
       : '';
     return caption ? `${img} ${caption}` : img;
   }
@@ -107,12 +107,12 @@ export async function renderMarkdown(
     lines.push('');
     for (const m of groups.get(day)!) {
       if (m.type === 'system' || m.type === 'deleted' || m.type === 'omitted') {
-        lines.push(`*${linkifyMarkdown(m.text, (u) => m.urlTitles?.[u] ?? deriveTitle(u))}*`);
+        lines.push(`*${linkifyMarkdown(m.text, (u: string) => m.urlTitles?.[u] ?? deriveTitle(u))}*`);
       } else {
         const time = timeOf(m.timestamp_iso).slice(0, 5); // HH:mm
         const body = m.media
           ? await mediaMarkdown(m, media, inline, outDir)
-          : linkifyMarkdown(m.text, (u) => m.urlTitles?.[u] ?? deriveTitle(u));
+          : linkifyMarkdown(m.text, (u: string) => m.urlTitles?.[u] ?? deriveTitle(u));
         lines.push(`**${escapeMd(m.author)}** · ${time} — ${body}`);
       }
       lines.push('');

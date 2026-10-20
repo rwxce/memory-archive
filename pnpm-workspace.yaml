@@ -1,0 +1,14 @@
+# Supply-chain safety: never install a version published less than 7 days ago.
+# Gives the community time to detect and pull a malicious release before it
+# reaches node_modules. Value in minutes (10080 = 7 days).
+minimumReleaseAge: 10080
+
+# Security overrides: exact patched versions of vulnerable transitive deps.
+# Always an exact version (never a range) and published ≥7 days ago, consistent
+# with minimumReleaseAge.
+overrides:
+  esbuild: 0.28.2
+
+# Install scripts allowlist: only these packages may run lifecycle scripts.
+allowBuilds:
+  esbuild: true

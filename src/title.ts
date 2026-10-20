@@ -291,7 +291,6 @@ export async function enrichTitles(
           const url = urls[cursor++];
           const title = await fetchTitle(url, { timeoutMs: opts.timeoutMs });
           if (opts.verbose) {
-            // eslint-disable-next-line no-console
             console.error(pc.dim('[wa-backup] title:') + ` ${url} -> ${title}`);
           }
           map[url] = title;

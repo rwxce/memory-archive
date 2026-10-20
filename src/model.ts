@@ -30,7 +30,6 @@ export function verboseReport(
   count: number,
 ): void {
   const order = detection.dayFirst ? 'DAY/MM (dd/mm)' : 'MM/DAY (mm/dd)';
-  // eslint-disable-next-line no-console
   console.error(
     pc.dim(`[wa-backup] format detection:`) +
       `\n  order : ${pc.cyan(order)}${detection.overridden ? pc.yellow(' (CLI override)') : ''}` +
@@ -38,7 +37,6 @@ export function verboseReport(
       (detection.example ? `\n  sample: ${pc.dim(detection.example)}` : ''),
   );
   if (warnings.length) {
-    // eslint-disable-next-line no-console
     console.error(
       pc.yellow(`  warnings (${warnings.length}):`) +
         '\n    ' +
@@ -46,7 +44,6 @@ export function verboseReport(
         (warnings.length > 10 ? `\n    … and ${warnings.length - 10} more` : ''),
     );
   }
-  // eslint-disable-next-line no-console
   console.error(pc.dim(`  parsed: ${count} messages`));
 }
 
@@ -141,14 +138,12 @@ export async function runParser(
   // MEDIA-03 reporting: surface resolved/unresolved counts on stderr so the
   // JSON/MD/HTML artifacts stay clean (D-M7).
   if (opts.verbose || mediaReport.resolved.length + mediaReport.unresolved.length > 0) {
-    // eslint-disable-next-line no-console
     console.error(
       pc.dim('[wa-backup] media:') +
         ` ${mediaReport.resolved.length} resolved` +
         `, ${mediaReport.unresolved.length} unresolved`,
     );
     for (const u of mediaReport.unresolved) {
-      // eslint-disable-next-line no-console
       console.error(pc.yellow(`  unresolved: ${u}`));
     }
   }
