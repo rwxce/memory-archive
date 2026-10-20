@@ -7,8 +7,8 @@ data/
 out/
 output/
 
-# GSD ephemeral research cache
-.planning/research/.cache/
+# Archived GSD research cache
+docs/archive/planning/research/.cache/
 
 # Generated backup output
 backup/
