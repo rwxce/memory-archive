@@ -6,6 +6,8 @@ import { mergeMessages, parseCsv, serializeCsv } from './csv';
 import { buildMediaMap, bytesToBase64, extOf } from './media';
 import { renderHtml, resolveSelfAuthor, transcriptItems } from './html';
 import { renderMarkdown } from './md';
+import { renderJson } from './json';
+import { GENERATOR_NAME, GENERATOR_VERSION } from './version';
 import type { Message } from '../../importers/whatsapp/types';
 
 const msg = (timestamp_iso: string, author: string, text: string, media = ''): Message => ({
@@ -17,7 +19,7 @@ const msg = (timestamp_iso: string, author: string, text: string, media = ''): M
 });
 
 describe('sha256 (sync, platform-neutral)', () => {
-  test.each(['', 'abc', 'Guionardo Furlan', '‪+55 99 99951-1234‬', 'x'.repeat(55), 'y'.repeat(64), 'z'.repeat(1000)])(
+  test.each(['', 'abc', 'Guionardo Furlan', '\u202a+55 99 99951-1234\u202c', 'x'.repeat(55), 'y'.repeat(64), 'z'.repeat(1000)])(
     'matches node:crypto for %j',
     (input) => {
       const expected = createHash('sha256').update(input, 'utf8').digest('hex');
@@ -87,6 +89,19 @@ describe('media + renderers (no file system)', () => {
   });
 });
 
+describe('versioned JSON envelope', () => {
+  test('schemaVersion 1 and generator identity, kept in sync with package.json', async () => {
+    const fs = await import('node:fs');
+    const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')) as { name: string; version: string };
+    expect(GENERATOR_VERSION).toBe(pkg.version);
+    expect(GENERATOR_NAME).toBe(pkg.name);
+    const env = JSON.parse(renderJson([msg('2026-01-01T00:00:00', 'A', 'x')], 'Chat'));
+    expect(env.schemaVersion).toBe(1);
+    expect(env.generator).toEqual({ name: 'memory-archive', version: pkg.version });
+    expect(Object.keys(env)).toEqual(['schemaVersion', 'generator', 'metadata', 'messages']);
+  });
+});
+
 describe('transcript structure', () => {
   test('day separators are explicit items, one per calendar day', () => {
     const items = transcriptItems([
@@ -115,10 +130,10 @@ describe('transcript structure', () => {
     const messages = [
       msg('2026-01-01T10:00:00', 'Ana', 'x'),
       msg('2026-01-01T10:01:00', 'Ana', 'y'),
-      msg('2026-01-01T10:02:00', '‪+55 11 9999‬', 'z'),
+      msg('2026-01-01T10:02:00', '\u202a+55 11 9999\u202c', 'z'),
     ];
     expect(resolveSelfAuthor(messages)).toBe('Ana');
-    expect(resolveSelfAuthor(messages, '+55 11 9999')).toBe('‪+55 11 9999‬');
+    expect(resolveSelfAuthor(messages, '+55 11 9999')).toBe('\u202a+55 11 9999\u202c');
     expect(resolveSelfAuthor(messages, 'nobody')).toBe('Ana');
   });
 });

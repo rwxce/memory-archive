@@ -36,16 +36,26 @@ test type or architecture rule means updating this file **in the same PR**.
     `Blob.slice`, fflate streaming inflate per entry), `lines.ts` (UTF-8 decoding + line
     splitting), `timestamp.ts`, `message.ts` (state machine), `chat.ts` (transcript entry,
     chat name/slug), `media.ts` (media matching), `import.ts` (`parseWhatsAppZip`).
+  - `lib/importers/legacy/` — readers for old outputs back into `Message[]`:
+    `readLegacyJson` (schema 0 and 1, refuses newer), `readLegacyHtml` (the `chat-data`
+    island), `readLegacyCsv` (5 and 6 columns), `readLegacyOutput` (dispatch; Markdown is
+    refused as lossy).
   - `lib/exporters/legacy/` — wa-backup output formats as pure functions: `csv.ts`,
     `json.ts`, `md.ts`, `html.ts`, `media.ts` (media map, MIME), `colors.ts` + `sha256.ts`.
-- **Node CLI (`cli/`)** — commander entry, `fs.openAsBlob` adapter, CSV/media/output
-  writing, link-title fetching. Pipeline (`cli/pipeline.ts`): `parseWhatsAppZip` →
+- **Node CLI (`cli/`)** — `index.ts` (bin entry) → `main.ts` (`buildCli`, commander with
+  positional options): the default import command, `import-legacy <file>` and
+  `render <dir>` (`cli/legacy.ts`). Plus the `fs.openAsBlob` adapter, CSV/media/output
+  writing and link-title fetching. Pipeline (`cli/pipeline.ts`): `parseWhatsAppZip` →
   `mergeCsv` → `enrichTitles` → `reconcileMedia` → `renderOutputs`.
 - **Why the ZIP reader uses the central directory** — WhatsApp exports store members with
   data descriptors; a forward-only reader (fflate `Unzip`) must guess where such a member ends
   and splits a stored inner `.zip` into bogus entries (regression test in `zip.test.ts`).
 - **CSV as source of truth** — `messages.csv` (`timestamp_iso,type,author,text,media,url_titles`),
   merged and deduplicated on every run; JSON / Markdown / HTML are re-rendered from it.
+- **Versioned JSON envelope** — `schemaVersion` (1) + `generator` in `messages.json` and the
+  HTML island; schema in [`formats/legacy-json.md`](formats/legacy-json.md). The version
+  constants live in `lib/exporters/legacy/version.ts` (a test keeps them in sync with
+  `package.json`).
 - **Shared browser scripts** — `lib/exporters/legacy/js/{linkify,transcript,xss-sanitize}.js`
   run both in Node and in the generated HTML. `scripts/build-viewer-script.mjs` concatenates
   them into one classic script, committed as `js/viewer-script.generated.ts` (`VIEWER_SCRIPT`)
@@ -103,6 +113,11 @@ test type or architecture rule means updating this file **in the same PR**.
     boundaries, CRLF, UTF-8), `zip` (data descriptors, ZIP64, corrupt input), `chat`,
     `media`, `message`, `import`, `formats` (every message of every format fixture:
     detection + classification).
+  - Legacy readers — `lib/importers/legacy/*.test.ts` (schema 0/1, newer refused, escaped
+    islands, 5/6-column CSV, Markdown refused).
+  - Round trips — `cli/legacy.test.ts`: fixture ZIP → outputs → delete CSV →
+    `import-legacy` from JSON and from HTML (in place and `--out`) → byte-identical CSV;
+    `render <dir>`; also in `pnpm smoke` against the built CLI.
   - CLI format runs — `cli/formats.test.ts` (each format fixture end to end: media copied,
     idempotent re-import, identical same-minute messages counted, not collapsed).
   - Platform neutrality — `lib/platform.test.ts`: scans `lib/` for Node imports/globals and
@@ -211,6 +226,8 @@ test type or architecture rule means updating this file **in the same PR**.
 - `roadmap.md` — phases 0–9 with scope, PR breakdown and verification.
 - `branching-and-releases.md` — branch and release procedure.
 - `ai-tooling.md` — rulesync layout and how to add rules, skills and commands.
+- `formats/legacy-json.md` — the versioned `messages.json` envelope and what each legacy output
+  can be re-imported from.
 - `archive/planning/` — the original GSD planning of the wa-backup CLI (phases 1–3, codebase
   map, concerns). Historical, read-only.
 - `archive/specs/` — design specs and plans of the CLI features (linkification, link titles,

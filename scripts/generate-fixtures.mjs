@@ -100,9 +100,9 @@ const WK_TXT = [
 // ZIP file name), so these are built that way. Names and content are made up.
 // ---------------------------------------------------------------------------
 
-const NNBSP = ' '; // narrow no-break space iOS puts before AM/PM
-const NBSP = ' ';
-const LRM = '‎'; // iOS marks system lines and media placeholders with it
+const NNBSP = '\u202f'; // narrow no-break space iOS puts before AM/PM
+const NBSP = '\u00a0';
+const LRM = '\u200e'; // iOS marks system lines and media placeholders with it
 
 /** Android, en-US: M/D/YY, 12h `AM`/`PM`, ` - ` separator, `(file attached)`. */
 const ANDROID_US = {
