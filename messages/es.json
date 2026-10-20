@@ -34,10 +34,30 @@
       "appVersion": "Versión de la aplicación {version}",
       "formatVersion": "Formato de fichero de archivo {version}",
       "privacy": "Memory Archive funciona sin conexión a internet una vez abierto. Nada de lo que añadas sale de este dispositivo si no lo exportas tú."
+    },
+    "storage": {
+      "title": "Espacio en este dispositivo",
+      "loading": "Comprobando el espacio usado…",
+      "usage": "{used} usados de unos {total} disponibles para la aplicación",
+      "unknown": "Este navegador no indica cuánto espacio usa la aplicación.",
+      "persisted": "Tu archivo está protegido: el navegador no lo borrará por su cuenta.",
+      "notPersisted": "El navegador podría borrar los datos de la aplicación si el dispositivo se queda sin espacio. Añadir la aplicación a la pantalla de inicio ayuda a conservarlos, y también exportar una copia de vez en cuando."
     }
   },
   "notFound": {
     "title": "Esta página no existe",
     "back": "Ir al inicio"
+  },
+  "import": {
+    "title": "Ficheros recibidos",
+    "loading": "Buscando ficheros compartidos…",
+    "none": "Todavía no se ha compartido nada con Memory Archive. En WhatsApp, abre un chat, elige Exportar chat y compártelo con Memory Archive.",
+    "received": "{count, plural, one {Se ha recibido # fichero} other {Se han recibido # ficheros}}",
+    "next": "Se guardan en este dispositivo. Añadirlos al archivo será posible en una próxima versión."
+  },
+  "offline": {
+    "title": "No tienes conexión",
+    "body": "Esta página aún no se ha guardado en este dispositivo. Las páginas que ya abriste siguen funcionando sin conexión.",
+    "home": "Ir al inicio"
   }
 }

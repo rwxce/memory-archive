@@ -133,9 +133,12 @@ in [`docs/formats/legacy-json.md`](docs/formats/legacy-json.md).
 | `pnpm cli <zip>` | Run the CLI from source with `tsx`. |
 | `pnpm check` | i18n parity → lint → typecheck → tests → build → smoke. Must be green before any PR. |
 | `pnpm test` | Generate synthetic fixtures and run the Vitest suite (tests live next to the code as `*.test.ts(x)`). |
-| `pnpm build` | Inline the viewer scripts, bundle the CLI into `dist/` (tsup, `bin`: `memory-archive`) and export the app into `out/` (`next build`). |
+| `pnpm build` | Inline the viewer scripts, bundle the CLI into `dist/` (tsup, `bin`: `memory-archive`), export the app into `out/` (`next build`) and build the offline service worker `out/sw.js`. |
 | `pnpm smoke` | Run the **built** CLI on the synthetic fixture ZIP, and check that every page of `out/` exists and loads nothing from another site. |
 | `pnpm i18n:check` | Check that `messages/{ca,es,en}.json` have the same keys and placeholders. |
+| `pnpm icons` | Regenerate the app icons from code (`scripts/generate-icons.mjs`, no image tools). |
+
+* **Offline**: `pnpm preview` serves the production build with its service worker. After the first load the app keeps working with the network off (DevTools → Network → Offline). `pnpm dev` has no service worker.
 
 * **UI copy** lives in `messages/{ca,es,en}.json`; ESLint rejects hard-coded text in JSX. Tone rules: [`docs/tone.md`](docs/tone.md).
 * **No telemetry**: Next.js telemetry is switched off in the scripts and in `next.config.ts`.
@@ -149,7 +152,7 @@ in [`docs/formats/legacy-json.md`](docs/formats/legacy-json.md).
 
 ## 🏗️ Stack
 
-* **App**: Next.js 16 static export (no server), React 19, Tailwind CSS 4 + shadcn/ui, next-intl (`ca` / `es` / `en`), system fonts only. Coming in Phase 2: offline PWA, SQLite WASM stored in the browser's private file system (OPFS).
+* **App**: Next.js 16 static export (no server) as an installable, offline PWA (Serwist service worker, web manifest, Android share target), React 19, Tailwind CSS 4 + shadcn/ui, next-intl (`ca` / `es` / `en`), system fonts only. Coming in Phase 2: SQLite WASM stored in the browser's private file system (OPFS).
 * **CLI**: TypeScript 6 (strict), Node 24 (ESM), commander, fflate (inflate), date-fns, tsup, tsx.
 * **Tooling**: ESLint 10 (layer boundaries, no cycles, no hard-coded UI text), Vitest 5 (+ happy-dom for components), pnpm 11.
 
@@ -160,6 +163,7 @@ in [`docs/formats/legacy-json.md`](docs/formats/legacy-json.md).
 ```
 app/[locale]/             # Next.js pages (static export): welcome, settings
 components/  hooks/       # UI components (shadcn/ui in components/ui) and React hooks
+sw/                       # service worker: offline precache, share target
 i18n/  messages/          # next-intl routing + UI copy in ca / es / en
 lib/                      # platform-neutral core (Node and browser; no Node APIs)
   domain/                 # pure types and constants

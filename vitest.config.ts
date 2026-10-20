@@ -17,7 +17,13 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'node',
-          include: ['lib/**/*.test.ts', 'cli/**/*.test.ts', 'scripts/**/*.test.ts', 'i18n/**/*.test.ts'],
+          include: [
+            'lib/**/*.test.ts',
+            'cli/**/*.test.ts',
+            'scripts/**/*.test.ts',
+            'i18n/**/*.test.ts',
+            'sw/**/*.test.ts',
+          ],
         },
       },
       {
