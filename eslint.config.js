@@ -3,6 +3,10 @@ import { builtinModules } from 'node:module';
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
+import boundaries from 'eslint-plugin-boundaries';
+import { importX } from 'eslint-plugin-import-x';
+import i18next from 'eslint-plugin-i18next';
+import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 
 /**
  * `local/require-test-file`: every source module under the configured folders
@@ -35,11 +39,64 @@ const requireTestFile = {
 // Node built-ins, with and without the `node:` prefix.
 const NODE_MODULES = [...new Set(builtinModules.map((m) => m.replace(/^node:/, '')))];
 
+// UI frameworks: never imported from lib/ (the core runs in Node, a Web Worker
+// and the standalone viewer).
+const UI_MODULES = ['react', 'react-dom', 'next', 'next-intl', 'lucide-react', '@radix-ui'];
+
+/**
+ * Architecture layers (eslint-plugin-boundaries). Upper layers may import
+ * lower ones, never the reverse:
+ *
+ *   app → components → hooks → lib/usecases → lib/{domain,db,storage,importers,exporters}
+ *
+ * UI code reaches data only through use cases (and may use domain types);
+ * only use cases compose db / storage / importers / exporters.
+ */
+const ELEMENTS = [
+  { type: 'app', pattern: 'app' },
+  { type: 'components', pattern: 'components' },
+  { type: 'hooks', pattern: 'hooks' },
+  { type: 'i18n', pattern: 'i18n' },
+  { type: 'messages', pattern: 'messages' },
+  { type: 'usecases', pattern: 'lib/usecases' },
+  { type: 'domain', pattern: 'lib/domain' },
+  { type: 'db', pattern: 'lib/db' },
+  { type: 'storage', pattern: 'lib/storage' },
+  { type: 'importers', pattern: 'lib/importers' },
+  { type: 'exporters', pattern: 'lib/exporters' },
+  { type: 'cli', pattern: 'cli' },
+  // Files directly in lib/ (lib/log.ts): shared by every layer. Last, so the
+  // lib/<layer> folders above win.
+  { type: 'shared', pattern: 'lib' },
+].map((e) => ({ ...e, partialMatch: false }));
+
+const allow = (from, to) => ({
+  from: { element: { type: from } },
+  allow: { to: { element: { types: { anyOf: to } } } },
+});
+
+const LAYER_POLICIES = [
+  allow('app', ['app', 'components', 'hooks', 'i18n', 'messages', 'usecases', 'domain', 'shared']),
+  allow('components', ['components', 'hooks', 'i18n', 'messages', 'usecases', 'domain', 'shared']),
+  allow('hooks', ['hooks', 'i18n', 'usecases', 'domain', 'shared']),
+  allow('i18n', ['i18n', 'messages']),
+  allow('usecases', ['usecases', 'domain', 'db', 'storage', 'importers', 'exporters', 'shared']),
+  allow('db', ['db', 'domain', 'shared']),
+  allow('storage', ['storage', 'domain', 'shared']),
+  // The legacy importer/exporter pair shares the CSV codec and version.
+  allow('importers', ['importers', 'exporters', 'domain', 'shared']),
+  allow('exporters', ['exporters', 'importers', 'domain', 'shared']),
+  allow('domain', ['domain']),
+  allow('cli', ['cli', 'usecases', 'domain', 'db', 'storage', 'importers', 'exporters', 'shared']),
+];
+
 export default tseslint.config(
   {
     ignores: [
       'dist/**',
       'node_modules/**',
+      '.next/**',
+      'next-env.d.ts',
       'lab/**',
       'backup/**',
       'out/**',
@@ -65,7 +122,21 @@ export default tseslint.config(
         ...globals.node,
       },
     },
+    plugins: { boundaries, 'import-x': importX },
+    settings: {
+      'import-x/resolver-next': [createTypeScriptImportResolver({ alwaysTryTypes: true })],
+      // Without these, import-x skips TypeScript modules when following imports.
+      'import-x/extensions': ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'],
+      'import-x/parsers': { '@typescript-eslint/parser': ['.ts', '.tsx', '.mts', '.cts'] },
+      'import/resolver': { typescript: { alwaysTryTypes: true } },
+      'boundaries/elements': ELEMENTS,
+      'boundaries/ignore': ['**/*.test.{ts,tsx}', 'components/test-utils.tsx'],
+    },
     rules: {
+      'boundaries/dependencies': ['error', { default: 'disallow', policies: LAYER_POLICIES }],
+      'import-x/no-cycle': ['error', { ignoreExternal: true }],
+      // Diagnostics go through lib/log.ts (the CLI and repo scripts print by design).
+      'no-console': 'error',
       '@typescript-eslint/no-unused-vars': [
         'warn',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
@@ -106,6 +177,10 @@ export default tseslint.config(
               group: ['@/cli/*', '**/cli/*'],
               message: 'lib/ must not depend on the CLI.',
             },
+            {
+              group: UI_MODULES.flatMap((m) => [m, `${m}/*`]),
+              message: 'lib/ must not import React, Next.js or other UI code.',
+            },
           ],
         },
       ],
@@ -121,5 +196,19 @@ export default tseslint.config(
     files: ['lib/importers/**/*.ts'],
     plugins: { local: { rules: { 'require-test-file': requireTestFile } } },
     rules: { 'local/require-test-file': 'error' },
+  },
+  {
+    // UI copy comes from messages/{ca,es,en}.json, never hard-coded JSX text.
+    files: ['app/**/*.tsx', 'components/**/*.tsx'],
+    ignores: ['**/*.test.tsx', 'components/test-utils.tsx'],
+    plugins: { i18next },
+    rules: {
+      'i18next/no-literal-string': ['error', { mode: 'jsx-text-only' }],
+    },
+  },
+  {
+    // The logger itself, the Node CLI and repo scripts may print.
+    files: ['lib/log.ts', 'cli/**', 'scripts/**', '**/*.test.{ts,tsx}', '*.config.{js,ts,mjs}'],
+    rules: { 'no-console': 'off' },
   },
 );

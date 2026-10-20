@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "title": "Memory Archive",
+    "description": "Keep the conversations, photos and voice messages of the people who matter to you. Everything stays on this device."
+  },
+  "nav": {
+    "home": "Home",
+    "settings": "Settings",
+    "back": "Back"
+  },
+  "welcome": {
+    "title": "Keep their words close",
+    "body": "Bring together the conversations, photos and voice messages of the people who matter to you, and open them again whenever you want.",
+    "privacy": "Everything stays on this device. No account, no cloud, no tracking.",
+    "start": "Start",
+    "open": "Open an archive",
+    "openHint": "Already have a Memory Archive file? Open it to continue where you left off.",
+    "comingSoon": "This step is not ready yet. It will arrive in a coming version."
+  },
+  "settings": {
+    "title": "Settings",
+    "language": {
+      "title": "Language",
+      "description": "The language of the app. Your messages are never translated."
+    },
+    "theme": {
+      "title": "Appearance",
+      "system": "Same as this device",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "about": {
+      "title": "About",
+      "appVersion": "App version {version}",
+      "formatVersion": "Archive file format {version}",
+      "privacy": "Memory Archive works without an internet connection once it is open. Nothing you add leaves this device unless you export it yourself."
+    }
+  },
+  "notFound": {
+    "title": "This page does not exist",
+    "back": "Go to the start"
+  }
+}

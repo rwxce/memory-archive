@@ -10,7 +10,27 @@ test type or architecture rule means updating this file **in the same PR**.
 
 ## 1. Stack
 
-- **Today (CLI):** TypeScript 6 (`strict`), Node 24 ESM (`.nvmrc`), pnpm 11.
+- **App (`app/`, `components/`, `hooks/`, `i18n/`, `messages/`):** Next.js 16 App Router,
+  `output: 'export'` (static files in `out/`, no server, no middleware), `trailingSlash: true`,
+  images unoptimized, `basePath` from `NEXT_PUBLIC_BASE_PATH` (e.g. `/memory-archive` for
+  GitHub Pages) — `next.config.ts`. React 19.
+  - `next-intl` — locales `en` (default), `ca`, `es`; every page is prerendered under
+    `/<locale>/` (`generateStaticParams`, `localePrefix: 'always'`); `/` picks the locale in
+    the browser from `navigator.languages` (`components/locale-redirect.tsx`,
+    `pickLocale` in `i18n/routing.ts`) with plain links as a no-JS fallback.
+  - Tailwind CSS 4 (`@tailwindcss/postcss`, `app/globals.css`, warm palette, system font
+    stacks) + shadcn/ui new-york (`components.json`; only `components/ui/{button,card}.tsx`
+    with `@radix-ui/react-slot`, `class-variance-authority`, `clsx`, `tailwind-merge`,
+    `tw-animate-css`), `lucide-react` icons.
+  - Theme: `.dark` class on `<html>` set before first paint by `THEME_INIT_SCRIPT`
+    (`hooks/theme.ts`; device preference or the choice in `localStorage`), `useTheme`,
+    `ThemeSync` (re-applies after a client-side locale switch).
+  - Pages: `/[locale]/` welcome (Start / Open an archive, placeholders for now),
+    `/[locale]/settings/` (language, appearance, app version + archive format version),
+    `not-found` → `out/404.html`.
+  - Next.js telemetry disabled (`NEXT_TELEMETRY_DISABLED` in scripts, CI and
+    `next.config.ts`; `.npmrc` `shell-emulator=true` makes the env prefix work on Windows).
+- **CLI:** TypeScript 6 (`strict`), Node 24 ESM (`.nvmrc`), pnpm 11.
   - `commander` — CLI arguments (`cli/index.ts`).
   - `fflate` — streaming raw-DEFLATE `Inflate` behind the ZIP reader
     (`lib/importers/whatsapp/zip.ts`).
@@ -19,10 +39,8 @@ test type or architecture rule means updating this file **in the same PR**.
   - `tsup` (bundle `cli/index.ts` to `dist/`), `tsx` (run TS directly), ESLint 10 flat
     config, Vitest 5.
   - TypeScript path alias `@/` → repo root (`tsconfig.json`, `vitest.config.ts`).
-- **App (planned):** Next.js 16 with `output: 'export'` (static files only, no server) as an
-  installable **PWA**, React 19, Tailwind CSS 4 + shadcn/ui, next-intl (`ca` / `es` / `en`),
-  zod 4, SQLite WASM (`@sqlite.org/sqlite-wasm`) persisted in the browser's **OPFS**, Serwist
-  service worker, Vitest.
+- **App (planned, Phase 2):** installable **PWA** (Serwist service worker), zod 4, SQLite
+  WASM (`@sqlite.org/sqlite-wasm`) persisted in the browser's **OPFS**.
 - **Hosting (planned):** Cloudflare Pages for the public URL; GitHub Pages workflow so any fork
   gets its own URL with no secrets.
 - **No backend, no accounts, no third-party APIs.** No Google Cloud, no OAuth, no telemetry.
@@ -31,7 +49,10 @@ test type or architecture rule means updating this file **in the same PR**.
 
 - **Platform-neutral core (`lib/`)** — runs in Node and in the browser (Web Worker in
   Phase 2). Inputs are `Blob`s, web `ReadableStream`s and async iterables of lines; no
-  `node:*` imports, no `Buffer`/`process`.
+  `node:*` imports, no `Buffer`/`process`, no React / Next.js.
+  - `lib/domain/` — pure types and constants: `archive.ts` (`ARCHIVE_FORMAT_VERSION`).
+  - `lib/log.ts` — `createLogger(scope)`; the only console writer outside `cli/` and
+    `scripts/`. Local diagnostics only, never message content.
   - `lib/importers/whatsapp/` — `zip.ts` (single ZIP reader: central directory + ZIP64 over
     `Blob.slice`, fflate streaming inflate per entry), `lines.ts` (UTF-8 decoding + line
     splitting), `timestamp.ts`, `message.ts` (state machine), `chat.ts` (transcript entry,
@@ -67,9 +88,11 @@ test type or architecture rule means updating this file **in the same PR**.
   and reads at most 512 KB. Stored titles are never wiped; only missing ones are fetched.
 - **Message types** — `text`, `photo`, `video`, `sticker`, `document`, `audio` (`.opus`,
   `.m4a`, `.mp3`, `.ogg`, `PTT-*`, `AUD-*`), `system`, `deleted`, `omitted`.
-- **Planned layers** (enforced by ESLint once they exist):
+- **Layers** (enforced by ESLint, see §3):
   `app/` → `components/` → `hooks/` → `lib/usecases/` → `lib/domain/` · `lib/db/` ·
-  `lib/storage/` · `lib/importers/<source>/` · `lib/exporters/`.
+  `lib/storage/` · `lib/importers/<source>/` · `lib/exporters/`. UI may also use
+  `lib/domain` types and `i18n/`; only use cases compose db / storage / importers /
+  exporters.
 - **Planned storage model** — SQLite (profiles, conversations, participants, messages,
   media, timeline events, associations, import batches, favorites, annotations, meta) +
   **content-addressed blobs** (`blobs/sha256/ab/cd/<hash>`), immutable, paths relative to the
@@ -90,17 +113,31 @@ test type or architecture rule means updating this file **in the same PR**.
   - `lib/**` (non-test): browser + worker globals; `no-restricted-imports` bans every Node
     built-in (`node:*`, `fs`, `path`, …) and imports from `cli/`; `no-restricted-globals`
     bans `Buffer`, `process`, `__dirname`, `require`, ….
+    `lib/**` also bans `react`, `react-dom`, `next`, `next-intl`, `lucide-react`,
+    `@radix-ui/*`.
   - `local/require-test-file` (inline plugin in `eslint.config.js`) — every module in
     `lib/importers/**` needs a sibling `*.test.ts` (`index.ts`, `types.ts` exempt).
-- **Planned** (Phase 2, Zliding style): `eslint-plugin-boundaries` for the layers above,
-  `import-x/no-cycle`, `no-console` outside the logger, `i18next/no-literal-string` in UI,
-  `local/require-test-file` extended to `lib/usecases`.
+  - `boundaries/dependencies` (`eslint-plugin-boundaries` 7, default `disallow`) — elements
+    `app`, `components`, `hooks`, `i18n`, `messages`, `usecases`, `domain`, `db`, `storage`,
+    `importers`, `exporters`, `cli`, `shared` (files directly in `lib/`); the allowed
+    edges are `LAYER_POLICIES` in `eslint.config.js`. Resolution via
+    `eslint-import-resolver-typescript` (`@/` alias).
+  - `import-x/no-cycle` (`eslint-plugin-import-x`).
+  - `i18next/no-literal-string` (`jsx-text-only`) in `app/**/*.tsx` and
+    `components/**/*.tsx`.
+  - `no-console` everywhere except `lib/log.ts`, `cli/`, `scripts/`, tests and configs.
+  - `scripts/eslint-architecture.test.ts` lints snippets against the real config and proves
+    each rule above fires (and allowed imports pass).
+- **Planned:** `local/require-test-file` extended to `lib/usecases`.
 
 ## 4. Tests
 
-- **Runner:** Vitest 5 (`vitest.config.ts`), tests next to the code as `*.test.ts`;
+- **Runner:** Vitest 5 (`vitest.config.ts`), tests next to the code as `*.test.ts(x)`;
   assertions mostly `node:assert/strict` (carried over) and Vitest `expect`.
-  `pnpm test` = generate fixtures + `vitest run`.
+  `pnpm test` = generate fixtures + `vitest run`. Two projects: `node` (`lib/`, `cli/`,
+  `scripts/`, `i18n/`) and `dom` (`app/`, `components/`, `hooks/` on **happy-dom**,
+  lighter than jsdom). Component tests render with `react-dom/client` + `act`
+  (`components/test-utils.tsx`), no testing library.
 - **Fixtures:** synthetic only — `scripts/generate-fixtures.mjs` (run by `pnpm test`) writes
   the chats and ZIPs into the git-ignored `fixtures/`. Real exports are never committed.
   `FORMAT_FIXTURES` covers one root-level ZIP per export style: Android en-US (M/D/YY,
@@ -130,8 +167,13 @@ test type or architecture rule means updating this file **in the same PR**.
     `regressions` (one block per fixed known bug).
   - Packaging — `scripts/build-viewer-script.test.ts` (bundle fresh and self-contained) and
     `pnpm smoke` (built CLI).
+  - UI — `components/*.test.tsx` (welcome actions, theme picker / sync), `hooks/theme.test.ts`
+    (the inline theme script), `i18n/routing.test.ts` (`pickLocale`).
+  - No remote resources — `lib/exporters/legacy/legacy.test.ts` scans the generated
+    `messages.html`; `pnpm smoke` scans every HTML/CSS file in `out/`.
   - Tooling — `scripts/block-agent-github-review-writes.test.ts` (the hook script, run end
-    to end with the stdin JSON agents send). The vendored `security-audit` validators have
+    to end with the stdin JSON agents send), `check-i18n-parity.test.ts`,
+    `serve-out.test.ts` (base path, 404, no path traversal), `eslint-architecture.test.ts`. The vendored `security-audit` validators have
     their own `node --test` suite.
 - **Planned:** Playwright checks of the PWA at 390 px and 1440 px, an automated run of the PRD
   acceptance scenario (backup → restore on a clean browser).
@@ -154,14 +196,23 @@ test type or architecture rule means updating this file **in the same PR**.
 
 ## 6. Quality gates and supply chain
 
-- **`pnpm check`** — lint → typecheck → test → build → smoke (`scripts/smoke.mjs` runs the
-  built `dist/` CLI on the fixture ZIP into a temp dir and checks the four outputs + media).
+- **`pnpm check`** — i18n parity (`scripts/check-i18n-parity.mjs`: same keys, same ICU
+  placeholders, no empty strings in `messages/{ca,es,en}.json`) → lint → typecheck
+  (`next typegen` + `tsc`) → test → build (CLI + app) → smoke (`scripts/smoke.mjs` runs the
+  built `dist/` CLI on the fixture ZIP and checks the four outputs + media, then checks every
+  locale page in `out/` and that no HTML/CSS loads a remote resource).
+- **`pnpm preview`** — `scripts/serve-out.mjs`, a dependency-free static server for `out/`
+  on `127.0.0.1` (honours `NEXT_PUBLIC_BASE_PATH`, serves `404.html`, refuses path
+  traversal).
 - **Exact versions** (`.npmrc` `save-exact=true`, `engine-strict=true`), **`minimumReleaseAge`
   of 7 days** (`pnpm-workspace.yaml`, 10080 minutes), exact security **`overrides`**,
   **`allowBuilds`** allowlist for install scripts, `only-allow pnpm` (`preinstall`).
 - New dependencies need a reason in the PR description; prefer no dependency.
 - `ajv` is a direct devDependency only as a workaround: pnpm 11 drops `ajv-formats`' optional
   peer and `rulesync` crashes without it. Remove when upstream fixes the peer.
+- Install scripts denied with a reason in `allowBuilds`: `@swc/core`, `@parcel/watcher`
+  (via next-intl / tsup) and `unrs-resolver` (via the import resolver) — their prebuilt
+  binaries come from platform-specific optional dependencies.
 - ESLint ignores the generated agent folders (`.claude/`, `.codex/`, `.cursor/`,
   `.opencode/`, `.agents/`) and `.rulesync/`.
 

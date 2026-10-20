@@ -108,32 +108,50 @@ PR workflow commands: `/pr-plan` (split a feature into single-topic PRs) → `/p
 
 ## Tech stack
 
-**Current (CLI):** TypeScript 6, Node ≥ 24 (ESM), pnpm 11, commander, fflate (inflate),
-date-fns, picocolors; tsup build, tsx dev runner; Vitest 5 with tests next to the code;
-ESLint 10 + typescript-eslint. Path alias `@/` → repo root.
+**App (PWA, in progress):** Next.js 16 App Router as a static export (`output: 'export'`,
+`trailingSlash`, optional `NEXT_PUBLIC_BASE_PATH`; no server, no middleware), React 19,
+next-intl (`ca` / `es` / `en`, prefixed static routes), Tailwind CSS 4 + shadcn/ui
+(new-york, lucide icons), system fonts only. Next.js telemetry is disabled.
 
-**Target (PWA):** Next.js 16 static export (`output: 'export'`, no server), React,
-TypeScript; SQLite WASM persisted in OPFS; media as content-addressed blobs in OPFS; heavy
-work in Web Workers; manual ZIP backup/sync between devices; UI in ca/es/en; Vitest with
-tests next to code. The core stays usable from the CLI.
+**CLI:** TypeScript 6, Node ≥ 24 (ESM), pnpm 11, commander, fflate (inflate), date-fns,
+picocolors; tsup build, tsx runner.
+
+**Shared:** Vitest 5 with tests next to the code (`node` project for `lib/`, `cli/`,
+`scripts/`, `i18n/`; `happy-dom` project for `app/`, `components/`, `hooks/`); ESLint 10 +
+typescript-eslint, eslint-plugin-boundaries, import-x, i18next. Path alias `@/` → repo root.
+
+**Next (Phase 2):** SQLite WASM persisted in OPFS; media as content-addressed blobs in OPFS;
+heavy work in Web Workers; manual ZIP backup/sync between devices.
 
 ## Project structure
 
 Current:
 
 ```
+app/                    # Next.js routes: [locale]/ (welcome, settings), / (language redirect)
+components/             # UI components; ui/ = shadcn/ui primitives (button, card)
+hooks/                  # React hooks (theme)
+i18n/                   # next-intl routing, request config, navigation
+messages/               # UI copy: en.json, ca.json, es.json (same keys, checked)
 lib/                    # Platform-neutral core: Node AND browser (no node:*, no Buffer)
+  domain/               # Pure types and constants (archive format version)
+  log.ts                # The only console writer outside cli/ and scripts/
   importers/whatsapp/   # ZIP reader (central dir + ZIP64, fflate inflate), lines,
                         # timestamp detection, message state machine, chat name, media match
   importers/legacy/     # readers for old messages.json / .html / .csv outputs
   exporters/legacy/     # csv/json/md/html renderers (strings in, strings out) + js/ scripts
 cli/                    # Node CLI: commander (import, import-legacy, render), fs adapters, pipeline, link titles
-scripts/                # generate-fixtures.mjs, agent hook scripts
-**/*.test.ts            # Vitest suites next to the code they cover
+scripts/                # fixtures, i18n parity, preview server, smoke, agent hooks
+**/*.test.ts(x)         # Vitest suites next to the code they cover
 ```
 
-ESLint forbids Node built-ins and globals in `lib/**` and requires a sibling `*.test.ts` for
-every module in `lib/importers/**` (`local/require-test-file`).
+ESLint enforces the layers `app` → `components` → `hooks` → `lib/usecases` →
+`lib/{domain,db,storage,importers,exporters}` (`boundaries/dependencies`; UI reaches data
+only through use cases), `import-x/no-cycle`, `i18next/no-literal-string` in `app/` and
+`components/`, `no-console` outside `lib/log.ts` / `cli/` / `scripts/`; forbids Node
+built-ins, React and Next.js in `lib/**`; and requires a sibling `*.test.ts` for every module
+in `lib/importers/**` (`local/require-test-file`). `scripts/eslint-architecture.test.ts`
+proves each rule fires.
 
 Target:
 
@@ -155,15 +173,18 @@ cli/            # Node CLI on top of lib/
 ## Commands
 
 ```bash
-pnpm dev <zip>          # Run the CLI from source (tsx)
-pnpm dev import-legacy <messages.json|.html|.csv>   # Rebuild CSV + outputs from an old backup
-pnpm dev render <dir>   # Re-render outputs from messages.csv
-pnpm build              # Inline viewer scripts, build dist/ (tsup)
-pnpm smoke              # Run the built CLI on the fixture ZIP
+pnpm dev                # App: next dev (http://localhost:3000)
+pnpm preview            # Serve the built out/ on http://localhost:4173 (PORT=… to change)
+pnpm cli <zip>          # Run the CLI from source (tsx)
+pnpm cli import-legacy <messages.json|.html|.csv>   # Rebuild CSV + outputs from an old backup
+pnpm cli render <dir>   # Re-render outputs from messages.csv
+pnpm build              # Inline viewer scripts, CLI → dist/ (tsup), app → out/ (next build)
+pnpm smoke              # Built CLI on the fixture ZIP + static export checks
+pnpm i18n:check         # messages/{ca,es,en}.json have the same keys and placeholders
 pnpm lint               # ESLint
-pnpm typecheck          # tsc --noEmit
+pnpm typecheck          # next typegen + tsc --noEmit
 pnpm test               # Generate synthetic fixtures, then vitest run
-pnpm check              # lint → typecheck → test → build → smoke (the bar for "done")
+pnpm check              # i18n → lint → typecheck → test → build → smoke (the bar for "done")
 pnpm rulesync           # Regenerate all AI editor configs (after editing .rulesync/)
 pnpm rulesync:check     # Verify AI configs are in sync (runs in CI)
 ```

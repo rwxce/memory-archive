@@ -15,3 +15,12 @@ allowBuilds:
   # tldjs (via rulesync → fastmcp → mcp-proxy → pipenet): its postinstall only
   # refreshes the TLD list from the network when explicitly opted in. Not needed.
   tldjs: false
+  # @swc/core and @parcel/watcher (via next-intl's optional message extractor,
+  # and tsup): their install scripts only download/select a native binary that
+  # the platform-specific optional dependencies already provide. Not needed.
+  '@swc/core': false
+  '@parcel/watcher': false
+  # unrs-resolver (via eslint-import-resolver-typescript / import-x): its
+  # postinstall only re-checks the native binding that the platform-specific
+  # optional dependency already installs. Not needed.
+  unrs-resolver: false

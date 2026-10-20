@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # No telemetry from the Next.js toolchain (docs/privacy.md).
+  NEXT_TELEMETRY_DISABLED: '1'
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
