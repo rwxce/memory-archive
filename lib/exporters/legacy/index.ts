@@ -9,3 +9,4 @@ export * from './md';
 export * from './html';
 export * from './media';
 export * from './colors';
+export * from './version';

@@ -94,7 +94,7 @@ test('12h variants: a. m. / p. m. / p.m. with normal, no-break and narrow no-bre
   const det = { dayFirst: true, is12h: true };
   for (const [ampm, hour] of [
     ['p. m.', 21],
-    ['p. m.', 21],
+    ['p.\u00a0m.', 21],
     ['p.m.', 21],
     ['\u202fPM', 21],
     ['a. m.', 9],

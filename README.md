@@ -21,6 +21,8 @@ Everything runs **on your own device**. No server, no account, no cloud, no tele
 
 * **Incremental updates**: re-running on a newer export of the same chat merges only the new messages.
 
+* **Re-import old backups**: rebuild a backup from an old `messages.json`, `messages.html` or `messages.csv`, or re-render it.
+
 * **XSS-safe output**: all chat content is escaped before rendering.
 
 ### Coming next (the Memory Archive app)
@@ -92,6 +94,20 @@ See [`docs/privacy.md`](docs/privacy.md) for details.
    └── media/           # reconciled media files
    ```
 
+### Re-import or re-render an existing backup
+
+```bash
+# Rebuild messages.csv from an older output (wa-backup or memory-archive) and re-render everything
+pnpm dev import-legacy "output/<chat-name>/messages.html"     # or messages.json / messages.csv
+pnpm dev import-legacy old/messages.json --out ./backup        # into ./backup/<chat-name>/
+
+# Re-render messages.json / .md / .html from messages.csv (offline)
+pnpm dev render "output/<chat-name>"
+```
+
+`messages.md` cannot be re-imported: it is a lossy rendering. The JSON format is documented
+in [`docs/formats/legacy-json.md`](docs/formats/legacy-json.md).
+
 ### CLI options
 
 | Option | Description |
@@ -139,6 +155,7 @@ lib/                      # platform-neutral core (Node and browser; no Node API
   importers/whatsapp/     # ZIP reader (central directory + ZIP64, fflate inflate),
                           # _chat.txt line splitting, timestamp detection,
                           # message state machine, media matching
+  importers/legacy/       # readers for old messages.json / .html / .csv outputs
   exporters/legacy/       # CSV / JSON / Markdown / HTML renderers (strings in, strings out)
     js/                   # browser scripts shared with the generated HTML
 cli/                      # Node CLI: commander, file I/O, media copy, link titles

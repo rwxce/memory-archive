@@ -57,12 +57,12 @@ describe('format coverage (PR 3 fixes)', () => {
   });
 
   test('iOS system line: chat-name sender + U+200E body', async () => {
-    const [m] = await parse('[31/12/2025, 23:59:00] Family: ‎Ana added Bo');
+    const [m] = await parse('[31/12/2025, 23:59:00] Family: \u200eAna added Bo');
     expect(m).toMatchObject({ type: 'system', author: 'Family', text: 'Ana added Bo' });
   });
 
   test('a U+200E inside (not leading) a body stays text', async () => {
-    const [m] = await parse('[31/12/2025, 23:59:00] Ana: see ‎page 1');
+    const [m] = await parse('[31/12/2025, 23:59:00] Ana: see \u200epage 1');
     expect(m.type).toBe('text');
   });
 

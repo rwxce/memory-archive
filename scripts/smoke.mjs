@@ -49,5 +49,23 @@ if (/\bimport\s[^;]*from\s*['"]\.\//.test(html)) fail('messages.html still has r
 const json = JSON.parse(fs.readFileSync(path.join(dir, 'messages.json'), 'utf8'));
 if (!Array.isArray(json.messages) || json.messages.length === 0) fail('messages.json has no messages');
 
+if (json.schemaVersion !== 1 || json.generator?.name !== 'memory-archive') {
+  fail('messages.json lacks schemaVersion 1 / generator');
+}
+
+// Round trip through the built CLI: rebuild the CSV from the HTML island.
+const csv = fs.readFileSync(path.join(dir, 'messages.csv'), 'utf8');
+fs.rmSync(path.join(dir, 'messages.csv'));
+const legacy = spawnSync(process.execPath, [CLI, 'import-legacy', path.join(dir, 'messages.html')], {
+  cwd: tmp,
+  encoding: 'utf8',
+});
+if (legacy.status !== 0) fail(`import-legacy exited with ${legacy.status}\n${legacy.stderr}`);
+if (fs.readFileSync(path.join(dir, 'messages.csv'), 'utf8') !== csv) {
+  fail('import-legacy from messages.html did not rebuild an identical messages.csv');
+}
+
 fs.rmSync(tmp, { recursive: true, force: true });
-console.log(`[smoke] OK: built CLI wrote 4 outputs and ${media.length} media file(s)`);
+console.log(
+  `[smoke] OK: built CLI wrote 4 outputs and ${media.length} media file(s); import-legacy round trip identical`,
+);

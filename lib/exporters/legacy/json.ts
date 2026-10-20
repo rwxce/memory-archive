@@ -1,5 +1,6 @@
 import type { Message } from '../../importers/whatsapp/types';
 import type { MediaEntry } from './media';
+import { GENERATOR_NAME, GENERATOR_VERSION, LEGACY_JSON_SCHEMA_VERSION } from './version';
 
 export interface RenderedMessage {
   timestampIso: string;
@@ -15,7 +16,17 @@ export interface RenderedMessage {
   time: string;
 }
 
+export interface JsonGenerator {
+  name: string;
+  version: string;
+}
+
+/** Schema: docs/formats/legacy-json.md. */
 export interface JsonEnvelope {
+  /** Envelope version (absent = 0, old wa-backup outputs). */
+  schemaVersion: typeof LEGACY_JSON_SCHEMA_VERSION;
+  /** Tool that wrote the file. */
+  generator: JsonGenerator;
   metadata: {
     chatName: string;
     messageCount: number;
@@ -62,6 +73,8 @@ export function buildEnvelope(
   const dateRange: [string, string] =
     days.length > 0 ? [days[0], days[days.length - 1]] : ['', ''];
   return {
+    schemaVersion: LEGACY_JSON_SCHEMA_VERSION,
+    generator: { name: GENERATOR_NAME, version: GENERATOR_VERSION },
     metadata: {
       chatName,
       messageCount: rendered.length,

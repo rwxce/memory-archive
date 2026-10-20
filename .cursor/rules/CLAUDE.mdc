@@ -125,8 +125,9 @@ Current:
 lib/                    # Platform-neutral core: Node AND browser (no node:*, no Buffer)
   importers/whatsapp/   # ZIP reader (central dir + ZIP64, fflate inflate), lines,
                         # timestamp detection, message state machine, chat name, media match
+  importers/legacy/     # readers for old messages.json / .html / .csv outputs
   exporters/legacy/     # csv/json/md/html renderers (strings in, strings out) + js/ scripts
-cli/                    # Node CLI: commander entry, fs adapters, pipeline, link titles
+cli/                    # Node CLI: commander (import, import-legacy, render), fs adapters, pipeline, link titles
 scripts/                # generate-fixtures.mjs, agent hook scripts
 **/*.test.ts            # Vitest suites next to the code they cover
 ```
@@ -155,6 +156,8 @@ cli/            # Node CLI on top of lib/
 
 ```bash
 pnpm dev <zip>          # Run the CLI from source (tsx)
+pnpm dev import-legacy <messages.json|.html|.csv>   # Rebuild CSV + outputs from an old backup
+pnpm dev render <dir>   # Re-render outputs from messages.csv
 pnpm build              # Inline viewer scripts, build dist/ (tsup)
 pnpm smoke              # Run the built CLI on the fixture ZIP
 pnpm lint               # ESLint
