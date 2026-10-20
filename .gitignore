@@ -1,0 +1,14 @@
+node_modules/
+dist/
+fixtures/
+data/
+.DS_Store
+*.log
+out/
+output/
+
+# GSD ephemeral research cache
+.planning/research/.cache/
+
+# Generated backup output
+backup/

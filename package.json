@@ -1,0 +1,60 @@
+{
+  "name": "wa-backup",
+  "version": "0.1.1",
+  "description": "WhatsApp chat export backup tool — streaming parser producing a CSV source-of-truth",
+  "type": "module",
+  "bin": {
+    "wa-backup": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "keywords": [
+    "whatsapp",
+    "chat",
+    "backup",
+    "export",
+    "markdown",
+    "html",
+    "csv"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/guionardo/wa-backup.git"
+  },
+  "scripts": {
+    "prepublishOnly": "npm run build",
+    "dev": "tsx src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "pretest": "node scripts/generate-fixtures.mjs",
+    "test": "node --import tsx --test \"test/*.test.ts\""
+  },
+  "dependencies": {
+    "commander": "15.0.0",
+    "date-fns": "4.4.0",
+    "fflate": "0.8.3",
+    "picocolors": "1.1.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "26.2.0",
+    "eslint": "^9.39.5",
+    "globals": "^17.11.0",
+    "tsup": "8.5.1",
+    "tsx": "4.23.12",
+    "typescript": "^5",
+    "typescript-eslint": "^8.67.0"
+  },
+  "overrides": {
+    "esbuild": "0.28.2"
+  }
+}
