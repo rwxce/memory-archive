@@ -1,0 +1,316 @@
+# Configuration
+
+You can configure Rulesync by creating a `rulesync.jsonc` file in the root of your project.
+
+## JSON Schema Support
+
+Rulesync provides a JSON Schema for editor validation and autocompletion. Add the `$schema` property to your `rulesync.jsonc`:
+
+```jsonc
+// rulesync.jsonc
+{
+  "$schema": "https://github.com/dyoshikawa/rulesync/releases/latest/download/config-schema.json",
+  "targets": ["claudecode"],
+  "features": ["rules"],
+}
+```
+
+## Configuration Options
+
+Example:
+
+```jsonc
+// rulesync.jsonc
+{
+  "$schema": "https://github.com/dyoshikawa/rulesync/releases/latest/download/config-schema.json",
+
+  // List of tools to generate configurations for. You can specify "*" to generate all tools.
+  "targets": ["cursor", "claudecode", "opencode", "codexcli"],
+
+  // Features to generate. You can specify "*" to generate all features.
+  "features": ["rules", "mcp", "commands", "subagents", "hooks", "permissions"],
+
+  // Output root directories to generate files into.
+  // Basically, you can specify `["."]` only.
+  // However, for example, if your project is a monorepo and you have to launch the AI agent at each package directory, you can specify multiple output roots.
+  "outputRoots": ["."],
+
+  // Delete existing files before generating
+  "delete": true,
+
+  // Verbose output
+  "verbose": false,
+
+  // Silent mode - suppress all output (except errors)
+  "silent": false,
+
+  // Advanced options
+  "global": false, // Generate for global(user scope) configuration files
+  "simulateCommands": false, // Generate simulated commands
+  "simulateSubagents": false, // Generate simulated subagents
+  "simulateSkills": false, // Generate simulated skills
+
+  // Keep hook handlers Rulesync did not write when regenerating a tool's hooks
+  // file. By default the generated hooks replace the destination's hook list
+  // wholesale, so a handler another tool (or a person) added by hand is lost on
+  // the next `generate`. Turning this on keeps such handlers and appends the
+  // generated ones. It applies to Claude Code, Codex CLI and Cursor, in both
+  // project and global scope; the Claude Code *plugin* bundle always replaces,
+  // because Rulesync owns that directory outright. There is no CLI flag: this
+  // is a project policy, not a per-invocation one.
+  //
+  // To stay able to retract a hook it did write, Rulesync records what it
+  // generated in a `.rulesync-hooks-lock.json` next to each hooks file (e.g.
+  // `.claude/.rulesync-hooks-lock.json`). Commit it alongside the generated
+  // hooks. A handler listed there that the sources no longer define is removed;
+  // anything else is kept. The very first run after opting in has no lock yet,
+  // so a hook Rulesync wrote before is kept once and retracted from the run
+  // after that.
+  "preserveUnownedHooks": false,
+
+  // Derive `agentsmd.subprojectPath` from each non-root rule's `globs`, so a
+  // rule with `globs: ["packages/api/**/*"]` is written as
+  // `packages/api/AGENTS.md` (nested AGENTS.md) by the targets that nest,
+  // instead of `.agents/memories/<rule>.md`. The directory is the leading
+  // wildcard-free part every glob shares; a rule whose globs have none (e.g.
+  // `["src/**/*.ts", "test/**/*.ts"]`) or disagree silently keeps its default
+  // placement. Only a rule that sets `agentsmd: { subprojectPath: "auto" }`
+  // itself is warned about when nothing can be derived; that value also opts
+  // a single rule in regardless of this option, and `agentsmd: {
+  // subprojectPath: "" }` opts a single rule out. An explicit directory
+  // always wins and `root: true` rules never nest.
+  // Turning it on moves existing outputs, so run `generate --delete` once.
+  "deriveSubprojectPathFromGlobs": false,
+
+  // Naming for command files flattened for tools without subdirectory
+  // command support (e.g. Cursor): "basename" (default) keeps only the
+  // filename, so `pj/test.md` and `ops/test.md` collide and the last one
+  // wins; "path" joins the directory segments into the filename
+  // (`pj/test.md` -> `pj-test.md`), which reduces collisions but cannot
+  // rule them out (a literal `pj-test.md` also maps to `pj-test.md`); the
+  // collision warning still applies.
+  // Tools that support subdirectories (e.g. Claude Code) are unaffected.
+  // Note: switching from "basename" to "path" renames the generated files
+  // (e.g. `test.md` -> `pj-test.md`); run `rulesync generate` with
+  // `delete: true` (or `--delete`) once after switching, otherwise the
+  // stale old flat-named files remain alongside the new ones.
+  "flattenedCommandNaming": "basename",
+
+  // Language the AI should answer in. Omit it to say nothing about language.
+  // See the "Response Language" section for what each tool receives.
+  // "language": "ja",
+
+  // When true (default), `rulesync gitignore` only emits entries for the
+  // tools listed in `targets`. Set to false to emit entries for all supported
+  // tools regardless of `targets`.
+  //
+  // Note: Entries for `agentsmd` (AGENTS.md and related paths) are always
+  // appended even when `gitignoreTargetsOnly` is true and `agentsmd` is
+  // absent from `targets`. AGENTS.md is a de facto standard read by many AI
+  // tools regardless of the target set, so its gitignore entries are emitted
+  // unconditionally to prevent accidental commits of generated rule files.
+  "gitignoreTargetsOnly": true,
+
+  // Declarative rule and skill sources — installed via 'rulesync install'
+  // See the "Declarative Sources" section for details.
+  // "sources": [
+  //   { "source": "owner/repo" },
+  //   { "source": "org/repo", "skills": ["specific-skill"] },
+  //   { "source": "org/standards", "rules": ["testing-guidelines"] },
+  // ],
+}
+```
+
+## Per-Target Features
+
+The `targets` option accepts both an array and an object format. Use the
+object format when you want to declare per-target feature configuration in
+a single place — the object keys are the target tools, and each value
+carries the features to generate for that tool:
+
+```jsonc
+// rulesync.jsonc
+{
+  "targets": {
+    "claudecode": ["rules", "commands"],
+    "cursor": ["rules", "mcp"],
+    "copilot": ["rules", "subagents"],
+  },
+}
+```
+
+In this example:
+
+- `claudecode` generates rules and commands
+- `cursor` generates rules and MCP configuration
+- `copilot` generates rules and subagents
+
+> **Important:** When `targets` is in object form, the top-level `features`
+> field must be omitted. Declaring both would double-define the target
+> set, so the config loader rejects that combination.
+
+You can also use `*` (wildcard) inside a target's value to enable every
+feature for that tool:
+
+```jsonc
+{
+  "targets": {
+    "claudecode": ["*"], // Generate all features for Claude Code
+    "cursor": ["rules"], // Only rules for Cursor
+  },
+}
+```
+
+### Per-feature options
+
+Some features accept additional configuration. To pass options through, use
+the object form for a target's value instead of an array. Each feature key
+maps to either `true`/`false` (enable/disable) or an options object.
+
+```jsonc
+{
+  "gitignoreDestination": "gitignore",
+  "targets": {
+    "claudecode": {
+      "gitignoreDestination": "gitattributes",
+      "rules": { "ruleDiscoveryMode": "explicit" },
+      "ignore": {
+        "fileMode": "local",
+        "gitignoreDestination": "gitignore",
+      },
+    },
+  },
+}
+```
+
+`gitignoreDestination` controls where `rulesync gitignore` writes path entries.
+You can set it:
+
+- at **root level** (`gitignoreDestination`)
+- at **tool level** (`targets.<tool>.gitignoreDestination`)
+- or at **tool × feature level**
+  (`targets.<tool>.<feature>.gitignoreDestination`)
+
+Allowed values:
+
+- `"gitignore"` (default)
+- `"gitattributes"`
+
+Priority is **more specific wins**:
+
+1. tool × feature level
+2. tool level
+3. root level
+4. default (`"gitignore"`)
+
+The current per-feature options are:
+
+| Target       | Feature  | Option                 | Values                                                                                                                           | Default       |
+| ------------ | -------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `claudecode` | `rules`  | `ruleDiscoveryMode`    | `"none"` / `"explicit"`                                                                                                          | tool default  |
+| any          | `rules`  | `includeLocalRoot`     | `true` / `false` (when `false`, `localRoot` rules are skipped for this target)                                                   | `true`        |
+| `claudecode` | `rules`  | `includeRoot`          | `true` / `false` (when `false`, project `CLAUDE.md` and `CLAUDE.local.md` are skipped; leftovers are removed only with `delete`) | `true`        |
+| `claudecode` | `ignore` | `fileMode`             | `"shared"` (settings.json) / `"local"` (settings.local.json)                                                                     | `"shared"`    |
+| any          | any      | `gitignoreDestination` | `"gitignore"` / `"gitattributes"`                                                                                                | `"gitignore"` |
+
+See [`docs/reference/file-formats.md`](./file-formats.md#where-ignore-patterns-are-written-per-tool)
+for the rationale behind the Claude Code default and when to switch to
+`"local"`.
+
+## Response Language
+
+The root `language` key steers the language the AI answers in. It accepts one of `en`, `ja`, `zh-CN`, `zh-TW`, `ko`, `fr`, `de`, `es`, `pt-BR`, `ru`, has no CLI flag, and can be overridden per developer from `rulesync.local.jsonc`. When it is omitted, Rulesync says nothing about language; `en` is therefore an explicit instruction, not the default.
+
+```jsonc
+// rulesync.jsonc
+{
+  "language": "ja",
+}
+```
+
+What the `rules` feature generates from it depends on the tool:
+
+- **Claude Code** has a native `language` setting, so the key is written as `"language": "japanese"` into `.claude/settings.local.json` (project scope) or `~/.claude/settings.json` (global scope, since Claude Code reads no `~/.claude/settings.local.json`) and `CLAUDE.md` is left as it is. Only the `language` key is touched; everything else in the settings file is preserved, and the file is never created or modified while the key is unset. Removing `language` later does not retract the key already written: the settings file is shared with your own configuration, so Rulesync never deletes from it, and the value stays until you remove it by hand.
+- **Every other tool** gets the instruction appended to the generated root rule file — the file built from your `root: true` rule (`AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursor/rules/overview.mdc`, and so on). Nested rules never carry it, and neither does a `localRoot: true` rule's separate personal file. For a tool that files every rule side by side (Cursor and the fixed-name targets) with more than one `root: true` rule, only the file built from the first root rule carries the block. The block is separated from your content by a thematic break:
+
+  ```md
+  ---
+
+  You must always answer in Japanese. On the other hand, reasoning (thinking) should be in English to improve token efficiency.
+  ```
+
+  `rulesync import` recognizes the block for every supported language and strips it (with a warning, since the instruction is not carried into `.rulesync/rules/` — the `language` key in `rulesync.jsonc` is what keeps it), so importing a generated file and generating again yields one block rather than two. `rulesync convert` re-adds the block to the destination's root file when `language` is set.
+
+## Local Configuration
+
+Rulesync supports a local configuration file (`rulesync.local.jsonc`) for machine-specific or developer-specific settings. This file is automatically added to `.gitignore` by `rulesync gitignore` and should not be committed to the repository.
+
+**Configuration Priority** (highest to lowest):
+
+1. CLI options
+2. `rulesync.local.jsonc`
+3. `rulesync.jsonc`
+4. Default values
+
+Example usage:
+
+```jsonc
+// rulesync.local.jsonc (not committed to git)
+{
+  "$schema": "https://github.com/dyoshikawa/rulesync/releases/latest/download/config-schema.json",
+  // Override targets for local development
+  "targets": ["claudecode"],
+  // Enable verbose output for debugging
+  "verbose": true,
+}
+```
+
+## User-Level Defaults for `rulesync init`
+
+`rulesync init` seeds the `targets` and `features` of a new `rulesync.jsonc` from `$XDG_CONFIG_HOME/rulesync/rulesync.jsonc` (`~/.config/rulesync/rulesync.jsonc` by default) when that file exists. It is a template for `init` only — it does not take part in the priority list above, and `generate` never reads it. See [Init Command](./cli-commands.md#init-command).
+
+## Target Order and File Conflicts
+
+When multiple targets write to the same output file, **the last target in the array wins**. This is the "last-wins" behavior.
+
+For example, both `agentsmd` and `opencode` generate `AGENTS.md`:
+
+```jsonc
+{
+  // opencode wins because it comes last
+  "targets": ["agentsmd", "opencode"],
+  "features": ["rules"],
+}
+```
+
+In this case:
+
+1. `agentsmd` generates `AGENTS.md` first
+2. `opencode` generates `AGENTS.md` second, overwriting the previous file
+
+If you want `agentsmd`'s output instead, reverse the order:
+
+```jsonc
+{
+  // agentsmd wins because it comes last
+  "targets": ["opencode", "agentsmd"],
+  "features": ["rules"],
+}
+```
+
+The order matters most when a target that folds every rule into its root file shares that file with a target that keeps non-root rules in separate files. `codexcli` folds all rules (except directory-scoped ones, which it nests) into `AGENTS.md`, while `roo` and `zoocode` write only the root rule to `AGENTS.md` and put the rest under `.roo/rules/`. With `["codexcli", "zoocode"]`, `zoocode` overwrites `AGENTS.md` with the root rule alone, so Codex CLI silently loses every folded non-root rule. `rulesync generate` warns when this happens; list the folding target last to keep the folded content:
+
+```jsonc
+{
+  // codexcli wins AGENTS.md, so its folded rules survive;
+  // zoocode still gets its own files under .roo/rules/
+  "targets": ["zoocode", "codexcli"],
+  "features": ["rules"],
+}
+```
+
+In this order Roo Code and ZooCode see the non-root rules twice — folded into `AGENTS.md` and again under `.roo/rules/` — so prefer it when a complete `AGENTS.md` for Codex CLI matters more than that duplication.
+
+The object form of `targets` follows the same rule using its key order.
+
+`rulesync generate --check` compares a shared root file against what `rulesync generate` without `--targets` leaves on disk, even when `--targets` narrows the check. Other options such as `--features` still apply. The file's owner is the last target in the config file that generates rules. A target in the check run counts when the run generates rules for it. Any other target counts when a run without `--targets` would generate rules for it, so one listed only for other features (for example `"opencode": ["mcp"]`) never owns it. With `"targets": ["codexcli", "claudecode", "opencode"]`, `rulesync generate --check --targets codexcli` therefore compares `AGENTS.md` against opencode's output. It passes after a full `rulesync generate` and fails once `AGENTS.md` is edited. It also fails after `rulesync generate --targets codexcli`, because that run overwrites `AGENTS.md` with codexcli's content, which the next full generate would replace. Run a full `rulesync generate` to fix it, or list the target you narrow to last.

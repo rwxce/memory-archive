@@ -14,6 +14,13 @@ export default tseslint.config(
       'output/**',
       'coverage/**',
       'docs/**',
+      // Vendored skill scripts and rulesync-generated agent config.
+      '.rulesync/**',
+      '.agents/**',
+      '.claude/**',
+      '.codex/**',
+      '.cursor/**',
+      '.opencode/**',
     ],
   },
   js.configs.recommended,

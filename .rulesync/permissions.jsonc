@@ -1,0 +1,117 @@
+{
+  "$schema": "https://github.com/dyoshikawa/rulesync/releases/latest/download/permissions-schema.json",
+  "permission": {
+    "bash": {
+      // Project checks — no prompt.
+      "pnpm check *": "allow",
+      "pnpm test *": "allow",
+      "pnpm lint *": "allow",
+      "pnpm typecheck *": "allow",
+      "pnpm exec tsc *": "allow",
+      "pnpm rulesync:check *": "allow",
+      // gh reads are always allowed — no prompt. Writes fall through to the default "ask"
+      // (pr create, push, edit, labels, ...); comment/review and mutating `gh api` calls stay
+      // hard-denied below regardless of approval (and the PreToolUse hook blocks them too).
+      "gh pr view *": "allow",
+      "gh pr list *": "allow",
+      "gh pr checks *": "allow",
+      "gh pr diff *": "allow",
+      "gh pr status*": "allow",
+      "gh issue view *": "allow",
+      "gh issue list *": "allow",
+      "gh run list *": "allow",
+      "gh run view *": "allow",
+      "gh run watch *": "allow",
+      "gh repo view *": "allow",
+      "gh workflow list *": "allow",
+      "gh workflow view *": "allow",
+      // No blanket allow for `gh api`: any -f/-F parameter switches the request from GET to
+      // POST even without --method. Only the explicit GET form is allowed; the rest asks.
+      "gh api * --method GET *": "allow",
+      "gh issue comment *": "deny",
+      "gh pr comment *": "deny",
+      "gh pr review *": "deny",
+      "gh api * -f *": "deny",
+      "gh api * -F *": "deny",
+      "gh api * --raw-field *": "deny",
+      "gh api * --field *": "deny",
+      "gh api * --input *": "deny",
+      "gh api * --method POST *": "deny",
+      "gh api * --method PUT *": "deny",
+      "gh api * --method PATCH *": "deny",
+      "gh api * --method DELETE *": "deny",
+      "gh api * -X POST *": "deny",
+      "gh api * -X PUT *": "deny",
+      "gh api * -X PATCH *": "deny",
+      "gh api * -X DELETE *": "deny",
+      // Never read env files through the shell.
+      ". .env*": "deny",
+      "awk*.env*": "deny",
+      "cat ./.env*": "deny",
+      "cat .env*": "deny",
+      "grep*.env*": "deny",
+      "head*.env*": "deny",
+      "less .env*": "deny",
+      "more .env*": "deny",
+      "nl .env*": "deny",
+      "od*.env*": "deny",
+      "sed*.env*": "deny",
+      "source .env*": "deny",
+      "strings .env*": "deny",
+      "tail*.env*": "deny",
+      "xxd .env*": "deny"
+    },
+    "read": {
+      // Secrets.
+      ".env": "deny",
+      ".env.*": "deny",
+      "*.pem": "deny",
+      "*.key": "deny",
+      // Build output and dependencies (noise, not source).
+      "node_modules/": "deny",
+      "dist/": "deny",
+      "out/": "deny",
+      "coverage/": "deny",
+      // Private data: real chat exports, personal media and generated backups.
+      "data/": "deny",
+      "output/": "deny",
+      "backup/": "deny",
+      "*.zip": "deny",
+      "_chat.txt": "deny",
+      "**/_chat.txt": "deny"
+    }
+  },
+  // Codex CLI prefix rules match literal words (only a trailing " *" is a wildcard), so the
+  // mid-pattern globs above would be dropped for it. This block replaces the shared `bash`
+  // category for Codex with the rules it can express. Mutating `gh api` calls fall through to
+  // "ask" and are still blocked by the PreToolUse hook; `.env*` reads are denied by the
+  // `read` category (Codex filesystem profile).
+  "codexcli": {
+    "permission": {
+      "bash": {
+        "pnpm check *": "allow",
+        "pnpm test *": "allow",
+        "pnpm lint *": "allow",
+        "pnpm typecheck *": "allow",
+        "pnpm exec tsc *": "allow",
+        "pnpm rulesync:check *": "allow",
+        "gh pr view *": "allow",
+        "gh pr list *": "allow",
+        "gh pr checks *": "allow",
+        "gh pr diff *": "allow",
+        "gh pr status *": "allow",
+        "gh issue view *": "allow",
+        "gh issue list *": "allow",
+        "gh run list *": "allow",
+        "gh run view *": "allow",
+        "gh run watch *": "allow",
+        "gh repo view *": "allow",
+        "gh workflow list *": "allow",
+        "gh workflow view *": "allow",
+        "gh issue comment *": "deny",
+        "gh pr comment *": "deny",
+        "gh pr review *": "deny"
+      }
+    }
+  }
+}

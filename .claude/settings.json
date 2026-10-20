@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Bash(. .env*)",
+      "Bash(awk*.env*)",
+      "Bash(cat ./.env*)",
+      "Bash(cat .env*)",
+      "Bash(gh api * --field *)",
+      "Bash(gh api * --input *)",
+      "Bash(gh api * --method DELETE *)",
+      "Bash(gh api * --method PATCH *)",
+      "Bash(gh api * --method POST *)",
+      "Bash(gh api * --method PUT *)",
+      "Bash(gh api * --raw-field *)",
+      "Bash(gh api * -F *)",
+      "Bash(gh api * -X DELETE *)",
+      "Bash(gh api * -X PATCH *)",
+      "Bash(gh api * -X POST *)",
+      "Bash(gh api * -X PUT *)",
+      "Bash(gh api * -f *)",
+      "Bash(gh issue comment *)",
+      "Bash(gh pr comment *)",
+      "Bash(gh pr review *)",
+      "Bash(grep*.env*)",
+      "Bash(head*.env*)",
+      "Bash(less .env*)",
+      "Bash(more .env*)",
+      "Bash(nl .env*)",
+      "Bash(od*.env*)",
+      "Bash(sed*.env*)",
+      "Bash(source .env*)",
+      "Bash(strings .env*)",
+      "Bash(tail*.env*)",
+      "Bash(xxd .env*)",
+      "Read(**/_chat.txt)",
+      "Read(*.key)",
+      "Read(*.pem)",
+      "Read(*.zip)",
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(_chat.txt)",
+      "Read(backup/)",
+      "Read(coverage/)",
+      "Read(data/)",
+      "Read(dist/)",
+      "Read(node_modules/)",
+      "Read(out/)",
+      "Read(output/)"
+    ],
+    "allow": [
+      "Bash(gh api * --method GET *)",
+      "Bash(gh issue list *)",
+      "Bash(gh issue view *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr status*)",
+      "Bash(gh pr view *)",
+      "Bash(gh repo view *)",
+      "Bash(gh run list *)",
+      "Bash(gh run view *)",
+      "Bash(gh run watch *)",
+      "Bash(gh workflow list *)",
+      "Bash(gh workflow view *)",
+      "Bash(pnpm check *)",
+      "Bash(pnpm exec tsc *)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm rulesync:check *)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm typecheck *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/block-agent-github-review-writes.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pnpm run lint 2>&1 | tail -30",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/check-pr-preflight.mjs\" --advisory",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$CONDUCTOR_WORKSPACE_PATH\" ]; then if [ -n \"$CONDUCTOR_PORT\" ]; then for p in $(seq \"$CONDUCTOR_PORT\" $((CONDUCTOR_PORT+9))); do lsof -ti tcp:$p | xargs kill -9 2>/dev/null; done; fi; pkill -f \"$CONDUCTOR_WORKSPACE_PATH\" 2>/dev/null; fi; true",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
