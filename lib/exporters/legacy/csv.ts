@@ -131,8 +131,11 @@ export function serializeCsv(messages: Message[]): string {
 
 /**
  * Incremental merge (D-13/D-16/D-17):
- * 1. index existing rows by `dedupeKey`
- * 2. append only incoming messages whose key is absent
+ * 1. count existing rows per `dedupeKey`
+ * 2. append an incoming message only when its key has been seen more times in
+ *    `incoming` than in `existing` — identical messages sent within the same
+ *    minute ("ok", "ok") are distinct rows, and a newer export that adds one
+ *    more of them adds exactly one row
  * 3. STABLE sort everything by `timestamp_iso` ascending — equal timestamps
  *    keep insertion order (explicit index tiebreaker)
  * Returns the merged list and the number of NEW rows.
@@ -141,8 +144,20 @@ export function mergeMessages(
   existing: Message[],
   incoming: Message[],
 ): { messages: Message[]; added: number } {
-  const seen = new Set(existing.map(dedupeKey));
-  const fresh = incoming.filter((m) => !seen.has(dedupeKey(m)));
+  const remaining = new Map<string, number>();
+  for (const m of existing) {
+    const k = dedupeKey(m);
+    remaining.set(k, (remaining.get(k) ?? 0) + 1);
+  }
+  const fresh = incoming.filter((m) => {
+    const k = dedupeKey(m);
+    const left = remaining.get(k) ?? 0;
+    if (left > 0) {
+      remaining.set(k, left - 1);
+      return false;
+    }
+    return true;
+  });
   const indexed = existing.concat(fresh).map((m, i) => ({ m, i }));
   indexed.sort((a, b) =>
     a.m.timestamp_iso < b.m.timestamp_iso

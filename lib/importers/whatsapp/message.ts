@@ -13,15 +13,32 @@ import type { Detection } from './timestamp';
  * messages like `[..] Camilla:`). Requiring `\s|$` keeps URLs (`https://…`)
  * from being mistaken for senders. */
 const SENDER_RE = /^(?:\s*-\s*)?(.+?):(?:\s|$)([\s\S]*)$/;
-/** `<attached: FILENAME>` media marker. */
-const ATTACHED_RE = /<attached:\s*([^>]+?)>/;
-/** `<Media omitted>` / `image omitted` / `sticker omitted` /
+/** iOS media marker, per export language: `<attached: F>` (en),
+ * `<adjunto: F>` (es), `<anexado: F>` (pt), `<adjunt: F>` (ca). */
+const ATTACHED_RE = /<(?:attached|adjunto|anexado|adjunt):\s*([^>]+?)>/;
+/** Android media marker: the whole first line is `F (file attached)`, with
+ * the caption (if any) on the following lines. */
+const FILE_ATTACHED_RE =
+  /^(\S(?:[^\n]*?\S)?\.[A-Za-z0-9]{1,5})\s+\((?:file attached|archivo adjunto|arquivo anexado|fitxer adjunt)\)\s*$/i;
+
+/** Media nouns and "omitted" words in en / pt / es / ca. Written without `\b`
+ * because JS word boundaries ignore accented letters. */
+const OMIT_MEDIA =
+  '(?:media|multimedia|multim[eè]dia|m[ií]dia|image|imagen|imagem|imatge|video|v[ií]deo|' +
+  'audio|[aáà]udio|sticker|figurinha|document|documento|gif)';
+const OMIT_WORD = '(?:omitted|omitid[oa]s?|ocult[oa]|ocultad[oa]|om[eè]s|omes[ao]s?)';
+/** `<Media omitted>` / `image omitted` / `<Mídia oculta>` / `<Multimedia omitido>` /
  *  `*.pdf • N páginas document omitted` — brackets are OPTIONAL because real
  *  Android exports drop them (MEDIA-04). */
-const OMITTED_RE = /<?\s*(?:media|image|video|sticker|document|audio|gif)\s+omitted\s*>?/i;
-/** Deleted-message markers (pt-BR + EN), whole-body match (D-15). */
-const DELETED_RE =
-  /^(mensagem apagada|message deleted|this message was deleted)\.?$/i;
+const OMITTED_RE = new RegExp(`<?\\s*${OMIT_MEDIA}\\s+${OMIT_WORD}\\s*>?`, 'i');
+/** Deleted-message markers (en, pt, es, ca), whole-body match (D-15). */
+const DELETED_RE = new RegExp(
+  '^(?:message deleted|this message was deleted|you deleted this message|' +
+    'mensagem apagada|esta mensagem foi apagada|voc[eê] apagou esta mensagem|' +
+    'se elimin[oó] este mensaje|este mensaje fue eliminado|eliminaste este mensaje|' +
+    "s['’]ha suprimit aquest missatge|aquest missatge s['’]ha suprimit|has suprimit aquest missatge)\\.?$",
+  'i',
+);
 
 /** Voice notes and audio files: by extension, or WhatsApp's `PTT-` / `AUD-` /
  * `-AUDIO-` file-name markers. */
@@ -30,29 +47,50 @@ const AUDIO_NAME_RE = /(^|[^A-Z])(PTT|AUD)-|-AUDIO-/;
 
 function classifyFromFilename(filename: string): MessageType {
   const f = filename.toUpperCase();
-  if (f.includes('STICKER')) return 'sticker';
+  // iOS: `00000008-STICKER-…`, `-PHOTO-`, `-VIDEO-`; Android: `STK-`, `IMG-`, `VID-`.
+  if (f.includes('STICKER') || /(^|[^A-Z])STK-/.test(f)) return 'sticker';
   if (AUDIO_EXT_RE.test(filename) || AUDIO_NAME_RE.test(f)) return 'audio';
   if (f.includes('PHOTO') || f.includes('IMG')) return 'photo';
-  if (f.includes('VIDEO')) return 'video';
+  if (f.includes('VIDEO') || /(^|[^A-Z])VID-/.test(f)) return 'video';
+  // No name marker: fall back to the extension.
+  if (/\.(jpe?g|png|heic|gif)$/i.test(filename)) return 'photo';
+  if (/\.(mp4|mov|3gp|mkv|webm)$/i.test(filename)) return 'video';
+  if (/\.webp$/i.test(filename)) return 'sticker';
   return 'document';
 }
 
 /**
  * Type classification order (research §3.3):
  * attached → omitted-marker → deleted-marker → system → text.
- * `media` non-null means an `<attached:` marker was consumed.
+ * `media` non-null means an attachment marker was consumed.
+ * `systemMark`: iOS writes system events as `[ts] <Group>: \u200eAna added Bo`
+ * — a sender (the chat) whose body starts with U+200E.
  */
 export function classifyType(
   body: string,
   media: string | null,
   hasSender: boolean,
+  systemMark = false,
 ): MessageType {
   if (media) return classifyFromFilename(media);
   const t = trimInvisible(body).trim();
   if (OMITTED_RE.test(t)) return 'omitted';
   if (DELETED_RE.test(t)) return 'deleted';
-  if (!hasSender) return 'system';
+  if (!hasSender || systemMark) return 'system';
   return 'text';
+}
+
+/** Find an attachment marker in a message body: `{ media, text }` or null. */
+export function extractAttachment(body: string): { media: string; text: string } | null {
+  const ios = body.match(ATTACHED_RE);
+  if (ios) {
+    return { media: ios[1].trim(), text: trimInvisible(body.replace(ATTACHED_RE, '')).trim() };
+  }
+  const android = body.match(FILE_ATTACHED_RE);
+  if (android) {
+    return { media: android[1].trim(), text: trimInvisible(body.slice(android[0].length)).trim() };
+  }
+  return null;
 }
 
 export interface ParseOptions {
@@ -124,13 +162,15 @@ export async function* parseMessages(
     const afterTs = stripped.slice(tsMatch[0].length);
     const senderMatch = SENDER_RE.exec(afterTs);
     const author = senderMatch ? senderMatch[1].trim() : '';
-    let body = senderMatch ? senderMatch[2] : afterTs;
+    // Android system lines have no sender: drop the ` - ` separator too.
+    let body = senderMatch ? senderMatch[2] : afterTs.replace(/^\s*-\s+/, '');
+    const systemMark = Boolean(senderMatch) && body.trimStart().startsWith('\u200e');
     body = trimInvisible(body).trim();
 
-    const attached = body.match(ATTACHED_RE);
-    const media = attached ? attached[1].trim() : null;
-    const text = media ? trimInvisible(body.replace(ATTACHED_RE, '')).trim() : body;
-    const type = classifyType(body, media, Boolean(senderMatch));
+    const attached = extractAttachment(body);
+    const media = attached ? attached.media : null;
+    const text = attached ? attached.text : body;
+    const type = classifyType(body, media, Boolean(senderMatch), systemMark);
 
     const msg: Message = {
       timestamp_iso: parsed.iso,
