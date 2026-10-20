@@ -21,7 +21,6 @@
       "Bash(gh api * -f *)",
       "Bash(gh issue comment *)",
       "Bash(gh pr comment *)",
-      "Bash(gh pr merge *)",
       "Bash(gh pr review *)",
       "Bash(grep*.env*)",
       "Bash(head*.env*)",

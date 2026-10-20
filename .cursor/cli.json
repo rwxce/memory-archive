@@ -56,7 +56,6 @@
       "Shell(gh api * -f *)",
       "Shell(gh issue comment *)",
       "Shell(gh pr comment *)",
-      "Shell(gh pr merge *)",
       "Shell(gh pr review *)",
       "Shell(grep*.env*)",
       "Shell(head*.env*)",

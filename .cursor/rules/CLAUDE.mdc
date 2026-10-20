@@ -52,7 +52,9 @@ and every file under `.rulesync/` are always in English.
   allowed. Other GitHub mutations need explicit permission for that operation.
 - Never commit directly to `main` or `dev`. Work on a branch; PRs target `dev`
   (`gh pr create --base dev`), or the branch of a PR they are stacked on.
-- `main` only receives `release: vX.Y.Z` PRs from `dev`. Never merge anything yourself.
+- `main` only receives `release: vX.Y.Z` PRs from `dev`. Merge PRs only when the user
+  explicitly asks; squash-merge into `dev`, and merge stacked PRs in order (retarget the
+  next one to `dev` first).
 - Setting work aside: use a WIP commit or `git stash push -u -m <unique-tag>` and apply by
   SHA. The stash is shared across worktrees; never bare `git stash` / `git stash pop`.
 

@@ -154,10 +154,3 @@ prefix_rule(
     decision = "forbidden",
     justification = "Generated from Rulesync permission.bash: gh pr review *",
 )
-
-# gh pr merge *
-prefix_rule(
-    pattern = ["gh", "pr", "merge"],
-    decision = "forbidden",
-    justification = "Generated from Rulesync permission.bash: gh pr merge *",
-)

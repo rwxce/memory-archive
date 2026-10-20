@@ -31,7 +31,6 @@
       "gh issue comment *": "deny",
       "gh pr comment *": "deny",
       "gh pr review *": "deny",
-      "gh pr merge *": "deny",
       "gh api * -f *": "deny",
       "gh api * -F *": "deny",
       "gh api * --raw-field *": "deny",
@@ -111,8 +110,7 @@
         "gh workflow view *": "allow",
         "gh issue comment *": "deny",
         "gh pr comment *": "deny",
-        "gh pr review *": "deny",
-        "gh pr merge *": "deny"
+        "gh pr review *": "deny"
       }
     }
   }
