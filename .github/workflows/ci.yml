@@ -34,4 +34,7 @@ jobs:
       # minimumReleaseAge (pnpm-workspace.yaml) is enforced here too.
       - run: pnpm install --frozen-lockfile
 
+      # Generated agent config (AGENTS.md, CLAUDE.md, .claude/, ...) must match .rulesync/.
+      - run: pnpm rulesync:check
+
       - run: pnpm check

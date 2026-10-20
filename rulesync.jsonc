@@ -1,0 +1,21 @@
+{
+  "$schema": "https://github.com/dyoshikawa/rulesync/releases/latest/download/config-schema.json",
+  // Single source of truth lives in .rulesync/ — edit there, then run `pnpm rulesync`.
+  // Generated files (AGENTS.md, CLAUDE.md, .claude/, .cursor/, .codex/, .opencode/, .agents/,
+  // opencode.jsonc, ...) are tracked but must not be hand-edited. CI runs `pnpm rulesync:check`.
+  "targets": {
+    // claudecode: no "ignore" — in rulesync 33 both ignore and permissions write Read() denies
+    // into .claude/settings.json and fight each other (generate --check never settles).
+    // permissions.jsonc `read` denies cover the same paths.
+    "claudecode":["rules", "mcp", "commands", "subagents", "skills", "hooks", "permissions"],
+    "cursor": ["rules", "ignore", "mcp", "commands", "subagents", "skills", "hooks", "permissions", "checks"],
+    // codexcli: no ignore support; commands are global-only (~/.codex/prompts) upstream.
+    "codexcli": ["rules", "mcp", "subagents", "skills", "hooks", "permissions"],
+    // opencode: no ignore support.
+    "opencode": ["rules", "mcp", "commands", "subagents", "skills", "hooks", "permissions"]
+  },
+  "outputRoots": ["."],
+  // Keep false so a generate never wipes hand-maintained files that live next to generated
+  // ones (e.g. .claude/agent-memory/, .claude/settings.local.json).
+  "delete": false
+}

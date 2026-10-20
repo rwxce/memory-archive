@@ -12,3 +12,6 @@ overrides:
 # Install scripts allowlist: only these packages may run lifecycle scripts.
 allowBuilds:
   esbuild: true
+  # tldjs (via rulesync → fastmcp → mcp-proxy → pipenet): its postinstall only
+  # refreshes the TLD list from the network when explicitly opted in. Not needed.
+  tldjs: false

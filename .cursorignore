@@ -1,0 +1,23 @@
+# Never expose these to AI tools. (Deprecated upstream in favor of permissions.jsonc `read`
+# denies, which mirror this list; kept because Cursor reads it as .cursorignore.)
+
+# Secrets & env — block every .env variant (negation isn't honored by every tool).
+.env
+.env.*
+*.pem
+*.key
+
+# Dependencies & build output
+node_modules/
+dist/
+out/
+coverage/
+
+# Private data: synthetic fixtures are generated at test time; real chat exports,
+# personal media and generated backups must never reach a model.
+fixtures/
+output/
+backup/
+data/
+*.zip
+_chat.txt
