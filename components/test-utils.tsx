@@ -5,7 +5,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { LibraryProvider } from '@/hooks/use-library';
 import en from '@/messages/en.json';
 import type { Library } from '@/lib/usecases/library';
-import { createTestLibrary } from '@/lib/usecases/test-client';
+import { createTestLibrary, libraryOf } from '@/lib/usecases/test-client';
 
 // React's act() environment flag for DOM tests without a testing library.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -52,7 +52,7 @@ export async function renderWithLibrary(
 ): Promise<Rendered & { lib: Awaited<ReturnType<typeof createTestLibrary>>; close: ReturnType<typeof vi.fn> }> {
   const lib = options.lib ?? (await createTestLibrary());
   const close = vi.fn();
-  const open = options.open ?? (async () => ({ deps: lib.deps, close }));
+  const open = options.open ?? (async () => libraryOf(lib.deps, close));
   const view = await render(<LibraryProvider open={open}>{ui}</LibraryProvider>, options.messages);
   return Object.assign(view, { lib, close });
 }

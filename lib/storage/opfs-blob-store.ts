@@ -18,7 +18,9 @@
  *
  * One sweeper at a time: `openBlobStore` sweeps `tmp/` by default, which deletes every
  * temp file in it, so only the thread that owns the library (the page) opens with the
- * default. A second thread that writes blobs at the same time (the import worker) opens with
+ * default. The library itself opens with `{ sweep: false }` and calls `sweepTemp()` only while it
+ * holds the archive lock (`sweepLeftovers`): a reload or a second tab must not delete the temp
+ * files of an import worker that is still writing. A second thread that writes blobs at the same time (the import worker) opens with
  * `{ sweep: false }`: it must not delete the other's in-flight temp files, and the page's next
  * open removes whatever a crashed worker left. Their temp names are random UUIDs, so two live
  * stores never collide in `tmp/`.
@@ -312,6 +314,7 @@ export async function openBlobStore(root: OpfsDirectoryHandle, options: OpenBlob
       return out.sort();
     },
     verify,
+    sweepTemp: sweep,
   };
 }
 

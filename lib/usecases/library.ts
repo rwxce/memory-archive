@@ -1,29 +1,75 @@
 import { createDbClient, createWorkerTransport, type DbClient } from '../db/client';
 import { DbError, toDbError } from '../db/errors';
+import { ArchiveError } from '../exporters/archive/format';
 import { isUuid, type Profile } from '../domain/library';
+import { createLogger } from '../log';
 import type { BlobStore } from '../storage/blob-store';
 import { openOpfsBlobStore } from '../storage/opfs-blob-store';
-import { webArchiveLock } from './archive-guard';
+import { isArchiveBusy, webArchiveLock, type ArchiveLock } from './archive-guard';
 import { listConversations, withParticipants, listConversationRows, type ConversationRow } from './conversations';
+import { sweepLeftovers } from './import';
 import { listProfiles, type ProfileDeps } from './profiles';
+
+const log = createLogger('library');
 
 /** An open library: what every profile and conversation use case needs, and a way to let go of it. */
 export interface Library {
   deps: ProfileDeps;
-  close(): void;
+  /**
+   * The open-time cleanup (`sweepLeftovers`), running when the library is handed out. Never
+   * rejects (a failure is logged without data); tests and callers that need it done await it.
+   */
+  cleanup: Promise<void>;
+  /** Where the built import worker is served (`importWorkerUrlOf` the database worker's URL). */
+  importWorkerUrl: string;
+  /** A new port to this library's database connection, to hand to the import worker. */
+  connectPort(): MessagePort;
+  /** An archive operation (import, undo, backup, restore, sweep) is running in this tab. */
+  isBusy(): boolean;
+  /**
+   * Lets go of the library. While an archive operation runs it THROWS `ArchiveError` `busy` and
+   * closes nothing: closing stops the database worker, which would leave an import worker
+   * waiting forever on its port. Cancel the operation first, or pass `force` when the page is
+   * going away anyway (`pagehide`, unmount): the operation is then abandoned, the archive keeps
+   * the whole batch or nothing, and what it left is swept by the next open that gets the lock.
+   */
+  close(options?: { force?: boolean }): void;
 }
 
 export interface OpenLibraryOptions {
   /** Where the built database worker is served, e.g. `${basePath}/db/worker.js`. */
   workerUrl: string;
+  /** Where the built import worker is served; by default next to `workerUrl` (`importWorkerUrlOf`). */
+  importWorkerUrl?: string;
   /** Test seams: the real worker and the real OPFS are used when absent. */
   createClient?: (workerUrl: string) => DbClient;
   openBlobStore?: () => Promise<BlobStore>;
+  /** The cross-tab lock; `navigator.locks` (`webArchiveLock`) when absent and available. */
+  lock?: ArchiveLock;
 }
 
 /**
+ * The import worker is built into the same directory as the database worker
+ * (`scripts/build-db-worker.mjs` writes both to `public/db/`), so its URL is the database
+ * worker's with the file name replaced; the deployment base path is already in it.
+ * `${base}/db/worker.js` -> `${base}/db/import-worker.js`.
+ */
+export const importWorkerUrlOf = (workerUrl: string): string => workerUrl.slice(0, workerUrl.lastIndexOf('/') + 1) + 'import-worker.js';
+
+/**
  * Opens the on-device library: starts the database worker, makes sure the
- * database opens (applying any pending upgrade), and opens the file store.
+ * database opens (applying any pending upgrade), opens the file store and starts cleaning up
+ * what an interrupted import left (`sweepLeftovers`: temp files and orphan blobs).
+ *
+ * The cleanup runs only while this tab holds the archive lock and no archive operation runs in
+ * it: a reload, a second tab or a reopened library must never delete the temp files and
+ * not-yet-committed blobs of an import worker that is still writing. If the lock is taken (or
+ * the browser has none) it is skipped silently and the next open tries again; a cleanup that
+ * fails is logged (no data) and does not fail the open. It runs in the background:
+ * `openLibrary` does not wait for it (`Library.cleanup` resolves when it is done), so it never counts
+ * toward `OPEN_TIMEOUT_MS`; it holds the in-tab guard from the moment the library is handed out, so
+ * an import started meanwhile is `busy`, and `close()` needs `force` until it ends.
+ *
  * Rejects with a `DbError`: `unavailable` (another tab holds the library, or
  * this browser cannot keep private files), `newer-schema` (saved by a newer
  * version of the app) or `internal`. Nothing stays open after a failure.
@@ -32,9 +78,29 @@ export async function openLibrary(options: OpenLibraryOptions): Promise<Library>
   const client = (options.createClient ?? defaultCreateClient)(options.workerUrl);
   try {
     await client.call('status');
-    const blobStore = await (options.openBlobStore ?? openOpfsBlobStore)();
-    const lock = typeof navigator !== 'undefined' && 'locks' in navigator ? webArchiveLock : undefined;
-    return { deps: { client, blobStore, ...(lock ? { lock } : {}) }, close: () => client.close() };
+    // The store is opened WITHOUT its own sweep of `tmp/`: that one is unconditional.
+    const blobStore = await (options.openBlobStore ?? (() => openOpfsBlobStore({ sweep: false })))();
+    const lock = options.lock ?? (typeof navigator !== 'undefined' && 'locks' in navigator ? webArchiveLock : undefined);
+    const deps: ProfileDeps = { client, blobStore, ...(lock ? { lock } : {}) };
+    // Started now (the guard is taken before `openLibrary` returns, so an import started meanwhile
+    // is `busy`) but NOT awaited: a slow cleanup must never count toward the open timeout.
+    const cleanup = sweepLeftovers(deps).then(
+      () => undefined,
+      (error: unknown) => log.warn('the open-time cleanup failed', error instanceof Error ? error.name : 'error'),
+    );
+    return {
+      deps,
+      cleanup,
+      importWorkerUrl: options.importWorkerUrl ?? importWorkerUrlOf(options.workerUrl),
+      connectPort: () => client.connectPort(),
+      isBusy: () => isArchiveBusy(blobStore),
+      close: (closeOptions) => {
+        if (!closeOptions?.force && isArchiveBusy(blobStore)) {
+          throw new ArchiveError('busy', 'an archive operation is running: cancel it before closing the library');
+        }
+        client.close();
+      },
+    };
   } catch (error) {
     client.close();
     // Not being able to open the file store means private storage is unavailable here.
@@ -138,7 +204,7 @@ export function openWithTimeout(open: () => Promise<Library>, timeoutMs = OPEN_T
     }, timeoutMs);
     new Promise<Library>((go) => go(open())).then(
       (opened) => {
-        if (settled) return opened.close();
+        if (settled) return opened.close({ force: true });
         settled = true;
         clearTimeout(timer);
         resolve(opened);

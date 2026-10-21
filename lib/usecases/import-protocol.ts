@@ -1,6 +1,7 @@
 import { DbError, type DbErrorCode } from '../db/errors';
 import { ArchiveError, type ArchiveErrorCode } from '../exporters/archive/format';
 import { BlobStoreError, type BlobStoreErrorCode } from '../storage/blob-store';
+import type { ImportPreview, PreviewProgress, PreviewWhatsAppInput } from './import-preview';
 import {
   ImportError,
   type ImportErrorCode,
@@ -18,15 +19,25 @@ import {
 /** The import request without the two callbacks-in-spirit (`signal`, `onProgress`) that cannot cross. */
 export type ImportWorkerInput = Omit<ImportWhatsAppInput, 'signal' | 'onProgress'>;
 
+/** The preview request without `signal` and `onProgress`, like `ImportWorkerInput`. */
+export type PreviewWorkerInput = PreviewWhatsAppInput;
+
 export type ImportWorkerRequest =
   /** Starts the import. `dbPort` is a port to the database worker's own connection (`DbClient.connectPort()`). */
   | { type: 'start'; input: ImportWorkerInput; dbPort: MessagePort }
-  /** Aborts the running import; before its save step the archive is left exactly as it was. */
+  /**
+   * Reads the export and the library and answers with `preview-done`; writes nothing, stores no
+   * blob and takes no archive lock. A worker runs ONE job, an import or a preview.
+   */
+  | { type: 'preview'; input: PreviewWorkerInput; dbPort: MessagePort }
+  /** Aborts the running job; an import before its save step leaves the archive exactly as it was. */
   | { type: 'cancel' };
 
 export type ImportWorkerEvent =
   | { type: 'progress'; progress: ImportProgress }
   | { type: 'done'; result: ImportResult }
+  | { type: 'preview-progress'; progress: PreviewProgress }
+  | { type: 'preview-done'; result: ImportPreview }
   | { type: 'error'; error: ImportFailure };
 
 /** An error as data. `message` never contains chat text, author names or file names (the source errors guarantee it). */

@@ -230,6 +230,19 @@ describe.each(VARIANTS)('blob store on %s', (_label, capabilities) => {
     await openBlobStore(root);
     expect(await tmpEntries(root)).toEqual([]);
   });
+
+  test('sweepTemp does on demand what the default open does, and keeps stored blobs', async () => {
+    const { root, store } = await setup();
+    await store.put(enc('abc'));
+    const base = await root.getDirectoryHandle(BLOBS_DIRECTORY);
+    const tmp = await base.getDirectoryHandle('tmp');
+    await tmp.getFileHandle('abandoned.tmp', { create: true });
+    const lazy = await openBlobStore(root, { sweep: false });
+    expect(await tmpEntries(root)).toEqual(['abandoned.tmp']);
+    await lazy.sweepTemp?.();
+    expect(await tmpEntries(root)).toEqual([]);
+    expect(await lazy.list()).toEqual([ABC]);
+  });
 });
 
 describe('copy fallback recovery', () => {

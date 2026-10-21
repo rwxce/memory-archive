@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import en from '@/messages/en.json';
 import { DbError } from '@/lib/db/errors';
 import { createConversation } from '@/lib/db/queries';
-import { createTestLibrary } from '@/lib/usecases/test-client';
+import { createTestLibrary, libraryOf } from '@/lib/usecases/test-client';
 import { archiveProfile, createProfile } from '@/lib/usecases/profiles';
 import { act } from 'react';
 import { click, renderWithLibrary, settle, submit, type, type Rendered } from './test-utils';
@@ -540,7 +540,7 @@ describe('Home when the library cannot open on first run', () => {
     view = await renderWithLibrary(<PeopleScreen whenNoProfiles={<Welcome />} />, {
       open: async () => {
         if (fail) throw new DbError('unavailable', 'held');
-        return { deps: lib.deps, close: () => {} };
+        return libraryOf(lib.deps);
       },
     });
     await advance(8000);
@@ -590,7 +590,7 @@ describe('PeopleScreen when the library cannot open', () => {
     view = await renderWithLibrary(<PeopleScreen />, {
       open: async () => {
         if (fail) throw new DbError('unavailable', 'held');
-        return { deps: lib.deps, close: () => {} };
+        return libraryOf(lib.deps);
       },
     });
     await advance(8000);

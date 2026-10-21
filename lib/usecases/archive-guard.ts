@@ -28,6 +28,9 @@ export const webArchiveLock: ArchiveLock = (name, work) =>
  */
 const running = new WeakSet<object>();
 
+/** Whether an archive operation (import, undo, sweep, backup, restore) is running in this tab for this library. */
+export const isArchiveBusy = (blobStore: BlobStore): boolean => running.has(blobStore);
+
 export async function withArchiveGuard<T>(blobStore: BlobStore, work: () => Promise<T>, lock?: ArchiveLock): Promise<T> {
   if (running.has(blobStore)) throw new ArchiveError('busy', 'another archive operation is already running');
   running.add(blobStore);

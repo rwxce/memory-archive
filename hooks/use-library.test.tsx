@@ -15,7 +15,14 @@ function Probe() {
   );
 }
 
-const library = (): Library => ({ deps: { client: { call: vi.fn() } } as unknown as Library['deps'], close: vi.fn() });
+const library = (): Library => ({
+  deps: { client: { call: vi.fn() } } as unknown as Library['deps'],
+  cleanup: Promise.resolve(),
+  importWorkerUrl: '/db/import-worker.js',
+  connectPort: vi.fn(),
+  isBusy: () => false,
+  close: vi.fn(),
+});
 const stateOf = (view: Rendered) => view.container.querySelector('[data-testid="state"]')?.textContent;
 
 describe('LibraryProvider', () => {
@@ -114,6 +121,7 @@ describe('LibraryProvider', () => {
     await click(view.container.querySelector('button'));
     await settle();
     expect(first.close).toHaveBeenCalledOnce();
+    expect(first.close).toHaveBeenCalledWith({ force: true });
   });
 
   test('using the hook outside the provider is a programming error', async () => {
@@ -133,6 +141,7 @@ describe('LibraryProvider', () => {
     expect(opened.close).not.toHaveBeenCalled();
     view.unmount();
     expect(opened.close).toHaveBeenCalledOnce();
+    expect(opened.close).toHaveBeenCalledWith({ force: true });
     view = undefined;
   });
 
@@ -184,6 +193,7 @@ describe('LibraryProvider', () => {
     finish(late);
     await settle();
     expect(late.close).toHaveBeenCalledOnce();
+    expect(late.close).toHaveBeenCalledWith({ force: true });
   });
 
   test('an open that finishes after a retry started is closed and does not set state', async () => {
@@ -203,6 +213,7 @@ describe('LibraryProvider', () => {
     resolvers[0]!(stale);
     await settle();
     expect(stale.close).toHaveBeenCalledOnce();
+    expect(stale.close).toHaveBeenCalledWith({ force: true });
     expect(stateOf(view)).toBe('loading');
     const fresh = library();
     resolvers[1]!(fresh);
@@ -221,6 +232,7 @@ describe('LibraryProvider', () => {
     await settle();
     window.dispatchEvent(new Event('pagehide'));
     expect(opened.close).toHaveBeenCalledOnce();
+    expect(opened.close).toHaveBeenCalledWith({ force: true });
   });
 
   test('Retry after a newer-version notice is harmless', async () => {

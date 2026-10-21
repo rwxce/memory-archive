@@ -158,14 +158,17 @@ test type or architecture rule means updating this file **in the same PR**.
     `linkConversationToProfile`, `unlinkConversationFromProfile`): they take a `DbClient`
     (worker protocol), an injectable UUID source and clock, and fail with `DbError` codes
     `invalid` / `not-found`. `test-client.ts` is the structured-clone loopback for their tests.
-    `lib/usecases/library.ts` — `openLibrary` (worker + database check + blob store, with test
-    seams), `libraryProblemOf` (error → reason the UI explains), `listPeople` (profiles split
+    `lib/usecases/library.ts` — `openLibrary` (worker + database check + blob store opened with
+    `sweep:false` + the open-time cleanup `sweepLeftovers`, with test seams; the returned `Library`
+    also has `importWorkerUrl`, `connectPort()`, `isBusy()` and a `close({force?})` that refuses with
+    `busy` while an archive operation runs), `libraryProblemOf` (error → reason the UI explains), `listPeople` (profiles split
     active / archived with conversation counts, plus `unassigned` conversations), `getPersonDetails`
     (one person + their conversations + everyone; `undefined` for an unknown or malformed id);
     `conversations.ts` also has `listConversationRows` / `withParticipants` (summaries with
     participant names; read-only compositions); the UI never imports `lib/db`.
     Import off the main thread (`import-client.ts`, `import-protocol.ts`, `import-worker-core.ts`,
-    `import-worker.ts`, `import-space.ts`): see "Workers topology" below.
+    `import-worker.ts`, `import-space.ts`) and its read-only preview (`import-preview.ts`): see
+    "Workers topology" and "Import preview" below.
   - `lib/db/snapshot.ts` — `serializeDb`, `loadSnapshot`, `listBlobs`, `isLibraryEmpty`.
   - `lib/exporters/archive/` — `format.ts` (manifest, limits, `ArchiveError`, path validation),
     `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`restoreArchive`).
@@ -296,7 +299,7 @@ test type or architecture rule means updating this file **in the same PR**.
   (`webArchiveLock`), and the guard lives in `archive-guard.ts` so UI code can import it without
   pulling SQLite. Sweep guarantees: never deletes a blob the database references and never
   overlaps another archive operation; it does NOT protect a photo blob stored but not yet saved
-  with its profile, and nothing calls it yet (a start-up sweep is a follow-up). Date reading: the day/month order is decided from the WHOLE transcript
+  with its profile. `openLibrary` runs `sweepLeftovers` (blob store `tmp/` + orphans, see "Open-time cleanup"). Date reading: the day/month order is decided from the WHOLE transcript
   (`createFormatDetector`, a first constant-memory pass): one date with a component >= 13
   anywhere settles it. Only a genuine tie (every date reads both ways) is `ambiguous`; in `auto`
   mode that returns `ambiguous` / `date-format` BEFORE any write, with both readings of the first
@@ -331,7 +334,8 @@ test type or architecture rule means updating this file **in the same PR**.
     archive lock itself; the page holds its in-tab guard for the same span, so a restore, undo or
     second import is `busy` in this tab and in other tabs.
   - Protocol (`import-protocol.ts`): page → worker `start {input, dbPort}` (the ZIP is a `Blob`
-    reference, not a copy) and `cancel`; worker → page `progress`, `done {result}` or `error`
+    reference, not a copy), `preview {input, dbPort}` (read-only, see "Import preview") and `cancel`;
+    a worker runs ONE job, an import or a preview; worker → page `progress`, `done {result}` or `error`
     (`ImportError` / `DbError` / `ArchiveError` / `BlobStoreError` codes survive; an abort resolves to
     the caller's `signal.reason`). Cancel aborts the same `AbortSignal` the in-thread import uses:
     before the save step the archive is unchanged; a cancel that arrives during the single save
@@ -349,16 +353,67 @@ test type or architecture rule means updating this file **in the same PR**.
     / `.avi` without a VID-/VIDEO marker are not videos; available = quota − usage (null when unknown: never blocks);
     reports video bytes and whether "import without videos" would fit. An upper bound: media already
     stored is not stored twice.
-  - Follow-ups for the wiring PR: run the open-time `tmp/` sweep and `sweepOrphanBlobs` only while
-    holding the archive lock (a `library.close()` or reload while an import worker runs can sweep its
-    in-flight temp files, so refuse or abort the import before closing the library); show code-based
-    copy, never the raw internal error `message`; `estimateImport` and `suggestSkipVideos` are
-    heuristics; `importWhatsAppExportInWorker`, `estimateImport` and `createImportWorkerTransport`
-    have no non-test caller until the wizard PR; the DB worker's end of the brokered port is not
-    closed when the import worker terminates (a small leak until GC).
+  - Open-time cleanup (`sweepLeftovers` in `import.ts`, called by `openLibrary`): the blob store's
+    `tmp/` (`BlobStore.sweepTemp`, the store is opened with `sweep:false`) AND `sweepOrphanBlobs`'
+    work run ONLY while holding the archive lock (try-lock, `ifAvailable`) and the in-tab guard; the
+    import worker holds that lock for its whole run, so a reload, a second tab or a retried open
+    never deletes the temp files or uncommitted blobs of a running import. If the lock is taken, the
+    guard is busy or the browser has no Web Locks it is skipped silently (the next open tries again);
+    a cleanup that fails is logged without data and does not fail the open. It runs in the
+    BACKGROUND, started when the library is handed out and not awaited (`Library.cleanup` resolves when
+    it ends and never rejects), so a slow orphan cleanup never counts toward `OPEN_TIMEOUT_MS` or
+    holds the connection of an abandoned open; it holds the in-tab guard from the start, so an import
+    begun meanwhile is `busy`. `Library.close()` THROWS `ArchiveError busy` while an archive operation
+    (the cleanup included) runs in this tab (closing stops the database
+    worker, which would leave an import worker waiting forever on its port); `close({force:true})`
+    is for `pagehide` / unmount / retry (`use-library.tsx`). The import worker URL is the database
+    worker's URL with the file name replaced (`importWorkerUrlOf`: both are built into `public/db/`).
+  - Follow-ups for the wizard: pre-select `suggestedMe` visibly, never apply it silently (it is wrong
+    when the exporter's own entry is a bare number next to a saved contact); authors beyond the cap
+    (`authorsTruncated`) cannot be picked as "me"; `use-library.tsx`'s retry force-closes without
+    aborting a running import (it cannot reach the wizard's signal: the wizard must cancel first);
+    show code-based copy, never the raw internal error `message`;
+    `estimateImport` and `suggestSkipVideos` are heuristics; `importWhatsAppExportInWorker`,
+    `previewWhatsAppExportInWorker`, `estimateImport` and `createImportWorkerTransport` have no
+    non-test caller until the wizard PR; the DB worker's end of the brokered port is not closed when
+    the import worker terminates (a small leak until GC).
   - Limits: no heartbeat, so a worker killed by the OS is only noticed when the person cancels (15 s
     grace); if the DB worker dies, the import worker's pending calls hang until that cancel; messages
     still cross as one `importMessages` request (see above).
+- **Import preview (`lib/usecases/import-preview.ts`)** — `previewWhatsAppExport(deps:{client},
+  input, {signal, onProgress})`: read-only look at an export for the wizard. No blob store in its
+  deps (it cannot store media), only `listConversations`, `findImportCandidates` and
+  `findExistingFingerprints` on the `DbClient` (no new database operation), no archive lock. One
+  streaming pass over the transcript (`streamWhatsAppZip`, the generator `parseWhatsAppZip` now
+  collects; format pass + parse pass, constant memory) keeping only fingerprints, a capped author
+  table and media names. Shares the import's code, not just its rules: `createMessageDrafter`
+  (fingerprints), `matchConversation` (the `auto` rule), `guessIsGroup` (> 2 distinct authors),
+  `matchMediaEntries`, `estimateImport` (space), the same limits; so `duplicates.alreadyThere` /
+  `wouldAdd` equal the import's `alreadyThere` / `added` (tested for same ZIP twice, a newer export,
+  same-minute repeats, system messages, a sample that misses the overlap, chunked matching).
+  Result: `chatTitle`, `sourceKey`, `isGroup`, `messageCount` (system messages included),
+  `firstAt` / `lastAt`, `authors [{name, messageCount, looksLikePhoneNumber}]` (most active first,
+  capped at `MAX_PREVIEW_AUTHORS` = 200, `authorsTruncated`, a truncated chat is a group),
+  `suggestedMe` (`suggestMe`: only a two-person chat with exactly one author that is not a phone
+  number; otherwise null), `dateFormat {dayFirst, ambiguous, preview?}`, `rawLines`, `media {byKind,
+  totalCount, totalBytes, missing}` from the central directory (`classifyFromFilename`, the importer's
+  rule), `space` (`ImportSpaceEstimate`; `storage` numbers are an input, null = unknown) and
+  `duplicates`: `new` | `existing {conversationId, title, storedCount, alreadyThere, wouldAdd}` |
+  `ambiguous {reason, candidates}` | `date-format` (a genuine date tie in `auto` mode: no library
+  lookup, same order as the import). Explicit `conversation` targets work like the import's (`new`,
+  `existing`, not-found). Errors are the import's (`invalid-export`, `limit-exceeded`, `invalid`).
+  Worker: `previewWhatsAppExportInWorker(deps:{client, blobStore}, input, {workerUrl, signal,
+  onProgress, cancelGraceMs})` shares `runWorkerJob` with the import client (same `worker-failed` /
+  grace / typed-error / abort semantics, one worker per job, terminated at the end); events
+  `preview-progress {phase: reading | matching}` and `preview-done`. Concurrency decision: no lock and
+  no guard of its own (two previews can run together, and an import may start during one: the answer is
+  advisory and the import decides again under the lock), but it is refused with `ArchiveError busy`
+  while an archive operation runs in this tab (a restore swaps the library it would read; a preview
+  during an import describes a library about to change). Cross-tab it needs nothing: only one tab can
+  hold the database. A killed worker or an abort leaves nothing (nothing is written; tests compare
+  every table and the blob store before and after). Limits: fingerprints are O(messages) in memory
+  (64 chars each), `warnings` strings are collected like the import does, and the transcript is
+  read twice.
 - **Archive file (v1, implemented as a PoC in `lib/exporters/archive/`)** —
   `memory-archive-YYYY-MM-DD.zip`: `manifest.json` first (deflated; `format`, `formatVersion`,
   `createdAt`, `app`, `schemaVersion`, `entries[{path,size,sha256}]`), then `db/library.sqlite`
@@ -485,7 +540,10 @@ test type or architecture rule means updating this file **in the same PR**.
     COOPERATIVE cancel / crash, HARD kill mid-media (orphan blob until the sweep) and during the save
     (batch whole), fake-timer checks of the 15 s grace, cancel during save and the throttle,
     untrusted worker messages, typed errors, busy guard and lock),
-    `lib/usecases/import-space.test.ts` (synthetic central directories). The OPFS VFS only
+    `lib/usecases/import-space.test.ts` (synthetic central directories), `lib/usecases/import-preview.test.ts`
+    (preview counts equal the real import's, ambiguous matches, phone authors, caps, limits, abort) and the
+    preview half of `import-client.test.ts` (loopback + real `MessagePort`s: abort, crash, hard kill, busy),
+    the open-time cleanup and `close` tests in `library.test.ts`. The OPFS VFS only
     exists in a browser, so it is verified manually (headless Chrome, see the PR).
   - No remote resources — `lib/exporters/legacy/legacy.test.ts` scans the generated
     `messages.html`; `pnpm smoke` scans every HTML/CSS file in `out/` and asserts `out/db/worker.js`,
