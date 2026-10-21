@@ -134,9 +134,9 @@ for (const page of pages) {
   if (!sw.includes(JSON.stringify(page))) fail(`out/sw.js does not precache ${page}`);
 }
 
-// Database: the worker bundle and the SQLite binary ship in out/db/ and are
+// Database and import: the worker bundles and the SQLite binary ship in out/db/ and are
 // precached, so the library opens offline.
-for (const f of ['db/worker.js', 'db/sqlite3.wasm']) {
+for (const f of ['db/worker.js', 'db/sqlite3.wasm', 'db/import-worker.js']) {
   if (!fs.existsSync(path.join(OUT, f)) || fs.statSync(path.join(OUT, f)).size === 0) fail(`out/${f} missing or empty`);
   if (!sw.includes(JSON.stringify(f))) fail(`out/sw.js does not precache ${f}`);
 }

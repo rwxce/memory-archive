@@ -7,10 +7,11 @@ import { buildDbWorker } from './build-db-worker.mjs';
 let outDir: string;
 let worker: string;
 let wasm: string;
+let importWorker: string;
 
 beforeAll(async () => {
   outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'db-worker-'));
-  ({ worker, wasm } = await buildDbWorker({ outDir }));
+  ({ worker, wasm, importWorker } = await buildDbWorker({ outDir }));
 });
 
 afterAll(() => fs.rmSync(outDir, { recursive: true, force: true }));
@@ -42,5 +43,17 @@ describe('build-db-worker', () => {
   test('bundles the SAH-pool VFS (no COOP/COEP headers needed)', () => {
     const code = fs.readFileSync(worker, 'utf8');
     expect(code).toContain('installOpfsSAHPoolVfs');
+  });
+
+  test('the import worker is its own bundle: no SQLite inside, no remote URL', () => {
+    const code = fs.readFileSync(importWorker, 'utf8');
+    expect(path.dirname(importWorker)).toBe(path.dirname(worker));
+    expect(code).not.toContain('installOpfsSAHPoolVfs');
+    expect(code).not.toContain('sqlite3.wasm');
+    expect(code).toContain('memory-archive-blobs'); // it writes the blob store itself
+    // Only a documentation link inside a date-fns error message.
+    const urls = [...code.matchAll(/https?:\/\/[^\s"'`)<>\\]+/gi)].map((m) => new URL(m[0]).hostname);
+    expect(urls.filter((host) => host !== 'github.com')).toEqual([]);
+    expect(code).not.toMatch(/\b(?:fetch|importScripts|XMLHttpRequest|WebSocket|EventSource|sendBeacon)\s*\(/);
   });
 });

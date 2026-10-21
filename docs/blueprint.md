@@ -104,7 +104,8 @@ test type or architecture rule means updating this file **in the same PR**.
   `.wasm` into `public/db/` (gitignored); `next build` ships both in `out/`, same origin, and
   the service worker precaches them (so the database opens offline). Turbopack cannot bundle
   the package itself (its legacy worker wrapper uses a dynamic `new Worker(new URL(...))`),
-  hence the separate esbuild step. The newer 3.54.x was skipped until it passes the 7-day
+  hence the separate esbuild step. The same script bundles the **import worker**
+  (`lib/usecases/import-worker.ts` → `public/db/import-worker.js`, ~50 KiB, no SQLite inside). The newer 3.54.x was skipped until it passes the 7-day
   `minimumReleaseAge`.
 - **App (planned, Phase 2):** zod 4.
 - **Hosting (planned):** Cloudflare Pages for the public URL; GitHub Pages workflow so any fork
@@ -132,8 +133,10 @@ test type or architecture rule means updating this file **in the same PR**.
     move / link / unlink; `importMessages` (batch, optional new conversation and "me", all in one transaction), `findImportCandidates`, `findExistingFingerprints`, `undoImportBatch`, `listMessages`),
     `protocol.ts` + `dispatch.ts` (typed request/response messages; no raw SQL crosses the
     boundary), `open.ts` (`openMemoryDb` for Node tests, `openOpfsDb` for the worker),
-    `worker.ts` (worker entry), `client.ts` (`createDbClient`, request ids, `DbError`
-    codes; `createWorkerTransport(url)`). The same migrations and queries run against the
+    `worker.ts` (worker entry) over `serve.ts` (`createDbServer`: the request loop, plus `connect`:
+    a `MessagePort` another worker uses to reach THIS connection), `client.ts` (`createDbClient`,
+    request ids, `DbError` codes; `createWorkerTransport(url)`, `createPortTransport(port)`,
+    `DbClient.connectPort()`). The same migrations and queries run against the
     in-memory database in Node tests and the OPFS one in the browser.
   - `lib/log.ts` — `createLogger(scope)`; the only console writer outside `cli/` and
     `scripts/`. Local diagnostics only, never message content.
@@ -141,10 +144,10 @@ test type or architecture rule means updating this file **in the same PR**.
     `memory-archive-share-inbox-v1`; names are metadata only, never paths), `quota.ts`
     (`requestPersistentStorage`, `readStorageStatus`), `test-cache-storage.ts` (in-memory
     `CacheStorage` for tests), `blob-store.ts` (`BlobStore` interface, `BlobStoreError`),
-    `opfs-blob-store.ts` (`openBlobStore(dir)` / `openOpfsBlobStore()`: content-addressed
+    `opfs-blob-store.ts` (`openBlobStore(dir, {sweep?})` / `openOpfsBlobStore({sweep?})`: content-addressed
     blobs in OPFS `memory-archive-blobs/<aa>/<sha256>`, streamed hash-while-write into
     `tmp/` then atomic `move()`, copy+verify fallback with recovery markers, sweep of
-    abandoned temp files on open, only valid 64-hex names become paths),
+    abandoned temp files on open (`sweep:false` for a second, concurrent opener), only valid 64-hex names become paths),
     `test-opfs-directory.ts` (in-memory OPFS directory for tests).
   - `lib/usecases/device-storage.ts` — `prepareDeviceStorage`, `getDeviceStorageStatus`,
     `getSharedFiles` (called from `hooks/use-device-storage.ts`); `lib/usecases/archive.ts` —
@@ -161,6 +164,8 @@ test type or architecture rule means updating this file **in the same PR**.
     (one person + their conversations + everyone; `undefined` for an unknown or malformed id);
     `conversations.ts` also has `listConversationRows` / `withParticipants` (summaries with
     participant names; read-only compositions); the UI never imports `lib/db`.
+    Import off the main thread (`import-client.ts`, `import-protocol.ts`, `import-worker-core.ts`,
+    `import-worker.ts`, `import-space.ts`): see "Workers topology" below.
   - `lib/db/snapshot.ts` — `serializeDb`, `loadSnapshot`, `listBlobs`, `isLibraryEmpty`.
   - `lib/exporters/archive/` — `format.ts` (manifest, limits, `ArchiveError`, path validation),
     `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`restoreArchive`).
@@ -302,13 +307,58 @@ test type or architecture rule means updating this file **in the same PR**.
   but has nowhere to attach). Hostile ZIPs: a ZIP problem in any phase is a typed `ImportError`
   (`limit-exceeded` for a size lie or bound, `invalid-export` for a damaged entry), with the
   database unchanged and this run's blobs removed. Progress callback:
-  `{phase: reading | media | saving, done, total}`.
+  `{phase: reading | media | saving, done, total}`, plus `bytes` / `totalBytes` in `media` (updated
+  inside a big file, at most every 200 ms).
   Known limits: re-import never fills media a message was stored without (`skipVideos`, files
   missing from the ZIP): undo and import again; undoing the batch that created a conversation
   removes the messages a later overlapping export re-contained, and undoing the first of several
   batches can leave an empty conversation; `maxChatBytes` (256 MiB) is far too high for a phone
   and all messages cross the worker boundary in one request (memory risks: lower the browser
   default, chunk requests).
+- **Workers topology (Phase 4)** — three threads, ONE SQLite connection:
+  - *Page*: UI, `DbClient`, the busy guard, `estimateImport`. Opens the blob store with the default
+    sweep of `tmp/`.
+  - *DB worker* (`db/worker.js`): the only SQLite (SAH pool allows one connection). Answers the page
+    on its own channel and any number of `MessagePort`s the page hands it with
+    `{type:'connect', port}`. Requests from every port run one at a time (each handler is synchronous),
+    so two senders never interleave inside a transaction.
+  - *Import worker* (`db/import-worker.js`, one per import, terminated at the end): parse, inflate,
+    sha256 and blob writes (OPFS sync access handles) off the page's thread. Its `DbClient` talks over
+    the port the page brokered (`DbClient.connectPort()` creates the `MessageChannel`, keeps no end,
+    sends one to the DB worker and returns the other to be transferred to the import worker). It opens
+    the blob store with `sweep:false`: a second opener must not delete the page's in-flight temp files,
+    and the page's next open removes what a crashed worker left. It takes the `navigator.locks`
+    archive lock itself; the page holds its in-tab guard for the same span, so a restore, undo or
+    second import is `busy` in this tab and in other tabs.
+  - Protocol (`import-protocol.ts`): page → worker `start {input, dbPort}` (the ZIP is a `Blob`
+    reference, not a copy) and `cancel`; worker → page `progress`, `done {result}` or `error`
+    (`ImportError` / `DbError` / `ArchiveError` / `BlobStoreError` codes survive; an abort resolves to
+    the caller's `signal.reason`). Cancel aborts the same `AbortSignal` the in-thread import uses:
+    before the save step the archive is unchanged; a cancel that arrives during the single save
+    transaction lets it commit and the import resolves normally: once a `saving` progress event has
+    been seen the client arms no grace timer (and clears a pending one) and waits for `done` / `error`,
+    however long the save takes. Messages from the worker are untrusted: the client dispatches on
+    `event.type`, ignores unknown ones, and a malformed `error` still settles as `worker-failed`.
+  - Failure: a crashed or unloadable worker, or one that ignores a cancel for 15 s, rejects with
+    `ImportError` `worker-failed`. Archive: the whole batch or nothing; written media may be orphans
+    for `sweepOrphanBlobs`; running the import again is safe (fingerprints and hashes dedupe).
+  - Space (`estimateImport(zip, storageStatus)`): reads only the central directory; needed =
+    uncompressed bytes × 1.1 + 32 MiB + the largest file (a browser without `move()` holds one blob
+    twice at the peak); "video" is the importer's own rule (`isVideoFileName` in
+    `importers/whatsapp/message.ts`, the one `skipVideos` uses, judged on the base name), so `.m4v`
+    / `.avi` without a VID-/VIDEO marker are not videos; available = quota − usage (null when unknown: never blocks);
+    reports video bytes and whether "import without videos" would fit. An upper bound: media already
+    stored is not stored twice.
+  - Follow-ups for the wiring PR: run the open-time `tmp/` sweep and `sweepOrphanBlobs` only while
+    holding the archive lock (a `library.close()` or reload while an import worker runs can sweep its
+    in-flight temp files, so refuse or abort the import before closing the library); show code-based
+    copy, never the raw internal error `message`; `estimateImport` and `suggestSkipVideos` are
+    heuristics; `importWhatsAppExportInWorker`, `estimateImport` and `createImportWorkerTransport`
+    have no non-test caller until the wizard PR; the DB worker's end of the brokered port is not
+    closed when the import worker terminates (a small leak until GC).
+  - Limits: no heartbeat, so a worker killed by the OS is only noticed when the person cancels (15 s
+    grace); if the DB worker dies, the import worker's pending calls hang until that cancel; messages
+    still cross as one `importMessages` request (see above).
 - **Archive file (v1, implemented as a PoC in `lib/exporters/archive/`)** —
   `memory-archive-YYYY-MM-DD.zip`: `manifest.json` first (deflated; `format`, `formatVersion`,
   `createdAt`, `app`, `schemaVersion`, `entries[{path,size,sha256}]`), then `db/library.sqlite`
@@ -428,11 +478,18 @@ test type or architecture rule means updating this file **in the same PR**.
     guard against restore, and a backup round trip with imported data. Use cases (`lib/usecases/profiles.test.ts`,
     `conversations.test.ts`) run on in-memory SQLite: validation bounds, archive / unarchive,
     move / link / unlink with message counts and rows unchanged, group chats, archived targets. `scripts/build-db-worker.test.ts`
-    builds the worker bundle and checks it contains no remote URL. The OPFS VFS only
+    builds the worker bundles and checks they contain no remote URL (and the import worker no SQLite).
+    `lib/db/serve.test.ts` (real `MessageChannel`s: connect, shared connection, typed errors over a
+    port, open retry), `lib/usecases/import-client.test.ts` (the real import worker core on in-memory
+    SQLite and blob store through a structured-clone loopback: progress order, idempotent re-import,
+    COOPERATIVE cancel / crash, HARD kill mid-media (orphan blob until the sweep) and during the save
+    (batch whole), fake-timer checks of the 15 s grace, cancel during save and the throttle,
+    untrusted worker messages, typed errors, busy guard and lock),
+    `lib/usecases/import-space.test.ts` (synthetic central directories). The OPFS VFS only
     exists in a browser, so it is verified manually (headless Chrome, see the PR).
   - No remote resources — `lib/exporters/legacy/legacy.test.ts` scans the generated
-    `messages.html`; `pnpm smoke` scans every HTML/CSS file in `out/` and asserts `out/db/worker.js` and
-    `out/db/sqlite3.wasm` exist and are precached by `out/sw.js`.
+    `messages.html`; `pnpm smoke` scans every HTML/CSS file in `out/` and asserts `out/db/worker.js`,
+    `out/db/import-worker.js` and `out/db/sqlite3.wasm` exist and are precached by `out/sw.js`.
   - Archive — `lib/exporters/archive/archive.test.ts` (round trip row by row and blob by
     blob, layout, hostile archives: traversal / absolute / backslash / drive letter, duplicates,
     unlisted or missing entries, tampered blob / database, size mismatch, bad manifest, newer

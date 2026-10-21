@@ -60,6 +60,12 @@ function classifyFromFilename(filename: string): MessageType {
 }
 
 /**
+ * Whether a media file name is a video by the importer's own rule (what `skipVideos` skips).
+ * Pass the base name; the ZIP directory is not part of the file's identity.
+ */
+export const isVideoFileName = (filename: string): boolean => classifyFromFilename(filename) === 'video';
+
+/**
  * Type classification order (research §3.3):
  * attached → omitted-marker → deleted-marker → system → text.
  * `media` non-null means an attachment marker was consumed.
