@@ -118,7 +118,7 @@ export function ProfileForm({
     };
     return (
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={inputId} className="font-medium">
+        <label htmlFor={inputId} className="font-medium break-words">
           {label}
         </label>
         {name === 'description' ? (
@@ -138,7 +138,7 @@ export function ProfileForm({
             {hint}
           </p>
         )}
-        <p id={`${inputId}-error`} role="alert" className="text-destructive min-h-0 text-sm empty:hidden">
+        <p id={`${inputId}-error`} role="alert" className="text-destructive min-h-0 text-sm break-words empty:hidden">
           {errors[name]}
         </p>
       </div>
@@ -153,12 +153,12 @@ export function ProfileForm({
         if (event.key === 'Escape' && !event.nativeEvent.isComposing && !event.defaultPrevented && !savingNow.current) onCancel();
       }}
       noValidate
-      className="bg-card flex flex-col gap-5 rounded-xl border p-5 sm:p-6"
+      className="bg-card flex min-w-0 flex-col gap-5 rounded-xl border p-5 sm:p-6"
     >
       {field('displayName', t('name'))}
       {field('relationship', t('relationship'), t('relationshipHint'))}
       {field('description', t('description'), t('descriptionHint'))}
-      <p role="alert" className="text-destructive text-sm empty:hidden">
+      <p role="alert" className="text-destructive text-sm break-words empty:hidden">
         {failed ? t('saveFailed') : ''}
       </p>
       {/* Same order on screen and for Tab: Cancel, then the main action. */}

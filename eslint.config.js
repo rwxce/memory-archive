@@ -107,6 +107,8 @@ export default tseslint.config(
       'output/**',
       'fixtures/**',
       'coverage/**',
+      'test-results/**',
+      'playwright-report/**',
       'docs/**',
       '.scratch/**',
       // Vendored skill scripts and rulesync-generated agent config.
@@ -211,13 +213,25 @@ export default tseslint.config(
     },
   },
   {
+    // Browser end-to-end tests (Playwright) drive the built app; they are not
+    // part of the layered app and import nothing from it.
+    files: ['e2e/**/*.ts'],
+    rules: {
+      'boundaries/dependencies': 'off',
+      'no-restricted-imports': [
+        'error',
+        { patterns: [{ group: ['@/*', '**/lib/*', '**/components/*', '**/hooks/*'], message: 'e2e tests drive the built app through the browser; do not import app code.' }] },
+      ],
+    },
+  },
+  {
     files: ['sw/**/*.ts'],
     ignores: ['sw/**/*.test.ts'],
     languageOptions: { globals: { ...globals.serviceworker } },
   },
   {
     // The logger itself, the Node CLI and repo scripts may print.
-    files: ['lib/log.ts', 'cli/**', 'scripts/**', '**/*.test.{ts,tsx}', '*.config.{js,ts,mjs}'],
+    files: ['lib/log.ts', 'cli/**', 'scripts/**', 'e2e/**', '**/*.test.{ts,tsx}', '*.config.{js,ts,mjs}'],
     rules: { 'no-console': 'off' },
   },
 );

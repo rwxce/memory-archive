@@ -33,6 +33,7 @@
     "build": "node scripts/build-viewer-script.mjs && tsup && node scripts/build-db-worker.mjs && NEXT_TELEMETRY_DISABLED=1 next build && node scripts/build-sw.mjs",
     "preview": "node scripts/serve-out.mjs",
     "smoke": "node scripts/smoke.mjs",
+    "e2e": "playwright test",
     "i18n:check": "node scripts/check-i18n-parity.mjs",
     "typecheck": "NEXT_TELEMETRY_DISABLED=1 next typegen && tsc --noEmit",
     "lint": "eslint .",
@@ -63,6 +64,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.0",
     "@serwist/build": "9.5.13",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "24.19.2",

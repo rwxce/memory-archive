@@ -119,7 +119,7 @@ export function ConversationList({
           const others = row.profileIds.filter((id) => id !== personId).map(nameOf).filter(Boolean);
           const dates = formatDateRange(row.firstMessageAt, row.lastMessageAt, locale);
           return (
-            <li key={row.id} className="bg-card flex flex-col gap-3 rounded-xl border p-4 sm:p-5">
+            <li key={row.id} className="bg-card flex min-w-0 flex-col gap-3 rounded-xl border p-4 sm:p-5">
               <div className="flex flex-col gap-1">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <Title className="min-w-0 text-base leading-snug font-semibold break-words">{row.title}</Title>
@@ -315,9 +315,9 @@ function RenameForm({ initial, onSave, onCancel }: { initial: string; onSave: (t
       onKeyDown={onEscape(() => {
         if (!savingNow.current) onCancel();
       })}
-      className="bg-muted flex flex-col gap-3 rounded-lg p-4"
+      className="bg-muted flex min-w-0 flex-col gap-3 rounded-lg p-4"
     >
-      <label htmlFor={`${id}-title`} className="font-medium">
+      <label htmlFor={`${id}-title`} className="font-medium break-words">
         {t('label')}
       </label>
       <input
@@ -332,7 +332,7 @@ function RenameForm({ initial, onSave, onCancel }: { initial: string; onSave: (t
         aria-describedby={error ? `${id}-error` : undefined}
         className={cn(inputClass, 'h-11')}
       />
-      <p id={`${id}-error`} role="alert" className="text-destructive text-sm empty:hidden">
+      <p id={`${id}-error`} role="alert" className="text-destructive text-sm break-words empty:hidden">
         {error || (failed ? t('failed') : '')}
       </p>
       {/* Same order on screen and for Tab: Cancel, then the main action. */}
@@ -417,9 +417,9 @@ function PickPersonForm({
       onKeyDown={onEscape(() => {
         if (!savingNow.current) onCancel();
       })}
-      className="bg-muted flex flex-col gap-3 rounded-lg p-4"
+      className="bg-muted flex min-w-0 flex-col gap-3 rounded-lg p-4"
     >
-      <label htmlFor={nobody ? undefined : `${id}-person`} className="font-medium">
+      <label htmlFor={nobody ? undefined : `${id}-person`} className="font-medium break-words">
         {t(`${kind}Label`, { title: row.title })}
       </label>
       {nobody ? (
@@ -452,10 +452,10 @@ function PickPersonForm({
               </optgroup>
             )}
           </select>
-          <p id={`${id}-hint`} className="text-muted-foreground text-sm leading-relaxed">
+          <p id={`${id}-hint`} className="text-muted-foreground text-sm leading-relaxed break-words">
             {hint}
           </p>
-          <p id={`${id}-error`} role="alert" className="text-destructive text-sm empty:hidden">
+          <p id={`${id}-error`} role="alert" className="text-destructive text-sm break-words empty:hidden">
             {error ? t('required') : failed ? t('failed') : ''}
           </p>
         </>
@@ -509,16 +509,16 @@ function UnlinkConfirm({
     <div
       role="group"
       aria-labelledby={titleId}
-      className="bg-muted flex flex-col gap-3 rounded-lg p-4"
+      className="bg-muted flex min-w-0 flex-col gap-3 rounded-lg p-4"
       onKeyDown={onEscape(() => {
         if (!busy) onCancel();
       })}
     >
-      <p id={titleId} className="font-semibold">
+      <p id={titleId} className="font-semibold break-words">
         {t('title', { title: row.title, name })}
       </p>
-      <p className="text-muted-foreground text-sm leading-relaxed">{t(last ? 'bodyLast' : 'body', { name })}</p>
-      <p role="alert" className="text-destructive text-sm empty:hidden">
+      <p className="text-muted-foreground text-sm leading-relaxed break-words">{t(last ? 'bodyLast' : 'body', { name })}</p>
+      <p role="alert" className="text-destructive text-sm break-words empty:hidden">
         {problem}
       </p>
       <div className="flex flex-col gap-3 sm:flex-row">
