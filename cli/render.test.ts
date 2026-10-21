@@ -116,7 +116,7 @@ test('Notas: deleted + document-omitted render in Markdown', async () => {
 
   assert.ok(md.includes('*Mensagem apagada*'), 'deleted');
   assert.ok(
-    md.includes('*document omitted*') || md.includes('autorizacao_atividade.pdf'),
+    md.includes('*document omitted*') || md.includes('autorizacao\\_atividade.pdf'),
     'document omitted marker preserved',
   );
 });

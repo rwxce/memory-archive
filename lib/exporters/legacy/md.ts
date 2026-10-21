@@ -1,7 +1,7 @@
 import type { Message } from '../../importers/whatsapp/types';
 import { dayOf, timeOf } from './json';
 import type { MediaEntry, RenderOptions } from './media';
-import { linkifyMarkdown, deriveTitle } from './js/linkify.js';
+import { linkifyMarkdown, deriveTitle, escapeMd } from './js/linkify.js';
 
 const PT_BR_DATE = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
@@ -24,12 +24,21 @@ const MEDIA_ICON: Record<string, string> = {
   audio: '🎧 audio',
 };
 
-function escapeMd(s: string): string {
-  // Markdown viewers can execute raw HTML; escape to keep content inert (OUT-05).
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+/**
+ * Link/image target for a media reference, or null when it is not safe.
+ * Allowed: a `data:` URI built by the caller for `--inline`, or
+ * a plain `media/<file>` path. Names are percent-encoded so a file name cannot
+ * close the destination or start another construct.
+ */
+function mdTarget(src: string): string | null {
+  if (/^data:[a-z]+\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]*$/i.test(src)) return src;
+  const encode = (s: string) =>
+    encodeURIComponent(s).replace(/[()!'*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+  if (src.startsWith('media/')) {
+    const name = src.slice('media/'.length);
+    if (name && name !== '.' && name !== '..' && !/[\\/]/.test(name)) return 'media/' + encode(name);
+  }
+  return null;
 }
 
 /**
@@ -50,10 +59,13 @@ async function mediaMarkdown(
     return `[${label}: ${escapeMd(m.media)}]`;
   }
   const isImg = m.type === 'photo' || m.type === 'sticker';
-  const src =
+  const label = MEDIA_ICON[m.type] ?? `📎 ${m.type}`;
+  const src = mdTarget(
     opts.inline && entry.inlineable && opts.loadDataUri
       ? await opts.loadDataUri(entry)
-      : entry.relPath;
+      : entry.relPath,
+  );
+  if (src === null) return `[${label}: ${escapeMd(m.media)}]`;
   if (isImg) {
     const img = `![${escapeMd(m.media)}](${src})`;
     const caption = m.text
@@ -61,7 +73,6 @@ async function mediaMarkdown(
       : '';
     return caption ? `${img} ${caption}` : img;
   }
-  const label = MEDIA_ICON[m.type] ?? `📎 ${m.type}`;
   return `[${label}: ${escapeMd(m.media)}](${src})`;
 }
 

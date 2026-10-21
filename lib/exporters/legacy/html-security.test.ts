@@ -108,3 +108,53 @@ describe('messages.html Content-Security-Policy', () => {
     expect(scriptSrc).toEqual(hashes);
   });
 });
+
+describe('messages.md escaping', () => {
+  const bodyOf = (md: string) => md.split('\n').find((l) => l.startsWith('**'))!;
+
+  test.each([
+    ['![x](https://evil.example/p.png)', '!\\[x\\]('],
+    ['<img src=x onerror=alert(1)>', '&lt;img src=x onerror=alert(1)&gt;'],
+    ['[a](javascript:alert(1))', '\\[a\\](javascript:alert(1))'],
+    ['`code` **bold** _it_', '\\`code\\` \\*\\*bold\\*\\* \\_it\\_'],
+  ])('message text %j renders inert', async (text, expected) => {
+    const body = bodyOf(await renderMarkdown([msg(text)], 'Chat'));
+    expect(body).toContain(expected);
+    expect(body).not.toMatch(/(^|[^\\])!\[/); // no live image
+    expect(body).not.toContain('<');
+  });
+
+  test('author and chat name are escaped', async () => {
+    const md = await renderMarkdown([msg('hi', '![x](https://evil.example/a.png)<b>')], '[t](javascript:1)');
+    expect(md).toContain('**!\\[x\\](https://evil.example/a.png)&lt;b&gt;**');
+    expect(md).toContain('# \\[t\\](javascript:1)');
+  });
+
+  test('a fetched title cannot inject an image, HTML or a new line', async () => {
+    const m = { ...msg('see https://ok.example/p'), urlTitles: { 'https://ok.example/p': 'x](javascript:1) ![](https://evil.example/t.png)<i>\n# h' } };
+    const md = await renderMarkdown([m], 'Chat');
+    expect(md).toContain('[x\\](javascript:1) !\\[\\](https://evil.example/t.png)&lt;i&gt; # h](https://ok.example/p)');
+  });
+
+  test('link destination escapes parentheses', () => {
+    expect(linkifyMarkdown('https://e.example/a(b')).toContain('](https://e.example/a\\(b)');
+  });
+
+  test('multi-line text cannot forge headings or lists', async () => {
+    const md = await renderMarkdown([msg('a\n# H\n- x\n1. y')], 'Chat');
+    expect(md).toContain('a\n\\# H\n\\- x\n1\\. y');
+  });
+
+  test('media targets: only data: URIs and media/<name> paths become links', async () => {
+    const photo = (media: string): Message => ({ ...msg('', 'A'), type: 'photo', media });
+    const entry = (relPath: string) => ({ relPath, mime: 'image/jpeg', size: 1, inlineable: false });
+    const render = (relPath: string) =>
+      renderMarkdown([photo('p.jpg')], 'Chat', { media: new Map([['p.jpg', entry(relPath)]]) });
+    expect(await render('media/a (1).jpg')).toContain('](media/a%20%281%29.jpg)');
+    for (const bad of ['javascript:alert(1)', 'https://evil.example/p.png', '//evil.example/p', 'media/../x', 'media/a/b', '/etc/passwd']) {
+      const md = await render(bad);
+      expect(md).not.toMatch(/\]\(/);
+      expect(md).toContain('[📷 photo: p.jpg]');
+    }
+  });
+});
