@@ -174,7 +174,7 @@ test('XSS: adversarial content renders inert in all three outputs (OUT-05)', asy
     !html.includes('<script>alert("xss")</script>'),
     'adversarial </script> is escaped, not literal',
   );
-  assert.ok(html.includes('<\\/script>'), 'island escapes </ to <\\/');
+  assert.ok(html.includes('\\u003c/script>'), 'island escapes < as \\u003c');
   // No executable javascript: href.
   assert.ok(!/href\s*=\s*["']?\s*javascript:/i.test(html), 'no javascript: href');
 });
