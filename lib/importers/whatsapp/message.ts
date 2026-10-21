@@ -45,7 +45,8 @@ const DELETED_RE = new RegExp(
 const AUDIO_EXT_RE = /\.(opus|m4a|mp3|ogg)$/i;
 const AUDIO_NAME_RE = /(^|[^A-Z])(PTT|AUD)-|-AUDIO-/;
 
-function classifyFromFilename(filename: string): MessageType {
+/** The kind of media a file name says it is (the importer's own rule; also what the preview counts by). */
+export function classifyFromFilename(filename: string): MessageType {
   const f = filename.toUpperCase();
   // iOS: `00000008-STICKER-…`, `-PHOTO-`, `-VIDEO-`; Android: `STK-`, `IMG-`, `VID-`.
   if (f.includes('STICKER') || /(^|[^A-Z])STK-/.test(f)) return 'sticker';

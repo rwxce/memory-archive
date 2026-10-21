@@ -5,6 +5,8 @@ import { openMemoryDb, type OpenedDb } from '../db/open';
 import type { DbRequest, DbResponse } from '../db/protocol';
 import { openBlobStore, type OpfsDirectoryHandle } from '../storage/opfs-blob-store';
 import { createMemoryDirectory } from '../storage/test-opfs-directory';
+import { isArchiveBusy } from './archive-guard';
+import type { Library } from './library';
 import type { ProfileDeps } from './profiles';
 
 /**
@@ -41,4 +43,16 @@ export async function createTestLibrary(): Promise<{ opened: OpenedDb; client: D
     now: () => new Date('2026-03-01T10:00:00Z'),
   };
   return { opened, client, deps, root };
+}
+
+/** Test helper: the `Library` a screen test hands to `LibraryProvider`, around existing deps. */
+export function libraryOf(deps: ProfileDeps, close: Library['close'] = () => {}): Library {
+  return {
+    deps,
+    cleanup: Promise.resolve(),
+    importWorkerUrl: '/db/import-worker.js',
+    connectPort: () => (deps.client as DbClient).connectPort(),
+    isBusy: () => isArchiveBusy(deps.blobStore),
+    close,
+  };
 }

@@ -6,8 +6,9 @@ import type { BlobStore } from '../storage/blob-store';
 import { openBlobStore } from '../storage/opfs-blob-store';
 import { undoImportBatch, sweepOrphanBlobs, type ImportProgress, type ImportResult } from './import';
 import { ARCHIVE_LOCK_NAME, type ArchiveLock } from './archive-guard';
-import { importWhatsAppExportInWorker, type ImportWorkerTransport } from './import-client';
-import type { ImportWorkerEvent, ImportWorkerInput, ImportWorkerRequest } from './import-protocol';
+import { importWhatsAppExportInWorker, previewWhatsAppExportInWorker, type ImportWorkerTransport } from './import-client';
+import { previewWhatsAppExport, type ImportPreview, type PreviewProgress } from './import-preview';
+import type { ImportWorkerEvent, ImportWorkerInput, ImportWorkerRequest, PreviewWorkerInput } from './import-protocol';
 import { createImportWorker } from './import-worker-core';
 import { createProfile } from './profiles';
 import { createTestLibrary } from './test-client';
@@ -55,6 +56,8 @@ function createLock(): ArchiveLock & { hold(): () => void } {
 interface Loopback extends ImportWorkerTransport {
   requests: ImportWorkerRequest[];
   terminated: number;
+  /** How many times the worker opened the blob store (a preview never does). */
+  blobStoreOpens: number;
   /** COOPERATIVE crash: the worker is told to stop (its `finally` runs and cleans up), the page hears an error. */
   crash(message?: string): void;
   /**
@@ -75,7 +78,16 @@ interface Loopback extends ImportWorkerTransport {
  */
 function loopback(
   lib: Lib,
-  options: { lock?: ArchiveLock; ignoreCancel?: boolean; gate?: Promise<void>; dbGate?: Promise<void>; killWhenSaving?: boolean } = {},
+  options: {
+    lock?: ArchiveLock;
+    ignoreCancel?: boolean;
+    gate?: Promise<void>;
+    dbGate?: Promise<void>;
+    killWhenSaving?: boolean;
+    /** Preview: held until released, at the first `findExistingFingerprints` (the library lookup). */
+    lookupGate?: Promise<void>;
+    killOnLookup?: boolean;
+  } = {},
 ): Loopback {
   let listener: (e: ImportWorkerEvent) => void = () => {};
   let failure: (message: string) => void = () => {};
@@ -91,6 +103,13 @@ function loopback(
         ...real,
         call: async (op: never, ...args: never[]) => {
           if (frozen) return forever();
+          if (op === 'findExistingFingerprints') {
+            if (options.killOnLookup) {
+              t.kill();
+              return forever();
+            }
+            await options.lookupGate;
+          }
           if (op === 'importMessages') {
             if (options.killWhenSaving) {
               // The request is on its way to the database worker; the process dies before the answer.
@@ -109,6 +128,7 @@ function loopback(
       setTimeout(() => !dead && listener(copy));
     },
     openBlobStore: async (): Promise<BlobStore> => {
+      t.blobStoreOpens++;
       const real = await openBlobStore(lib.root, { sweep: false });
       let puts = 0;
       // The second file waits for the gate: the test acts while the worker is in the middle of the media.
@@ -126,6 +146,7 @@ function loopback(
   const t: Loopback = {
     requests: [],
     terminated: 0,
+    blobStoreOpens: 0,
     post(message, transfer) {
       t.requests.push(message);
       if (message.type === 'cancel' && options.ignoreCancel) return;
@@ -392,7 +413,7 @@ describe('importWhatsAppExportInWorker', () => {
     const request = { type: 'start', input: {} as ImportWorkerInput, dbPort: port.port1 } as const;
     worker.handle(request);
     worker.handle(request);
-    expect(events).toEqual([{ type: 'error', error: { kind: 'internal', message: 'an import worker runs one import' } }]);
+    expect(events).toEqual([{ type: 'error', error: { kind: 'internal', message: 'an import worker runs one job' } }]);
     worker.handle({ type: 'cancel' });
     port.port1.close();
     port.port2.close();
@@ -703,5 +724,245 @@ describe('importWhatsAppExportInWorker: cancel and grace timing (fake timers)', 
     await pump(20_000); // nothing fires afterwards
     expect(transport.terminated).toBe(1);
     expect(await lib.deps.blobStore.list()).toEqual([]);
+  });
+});
+
+describe('previewWhatsAppExportInWorker', () => {
+  const previewZip = () => zipOf([...LINES, '[19/03/2026, 10:00:00] Ana: Nou']);
+
+  async function previewSetup(lockOptions: { lock?: ArchiveLock } = {}) {
+    const lib = await setup(lockOptions);
+    const preview = (
+      zip: Blob = zipOf(),
+      options: {
+        signal?: AbortSignal;
+        onProgress?: (p: PreviewProgress) => void;
+        transport?: Loopback;
+        extra?: Partial<PreviewWorkerInput>;
+        cancelGraceMs?: number;
+      } = {},
+    ): Promise<ImportPreview> => {
+      const transport = options.transport ?? loopback(lib, { lock: lockOptions.lock });
+      return previewWhatsAppExportInWorker(
+        { client: lib.client, blobStore: lib.deps.blobStore },
+        { zip, fileName: 'WhatsApp Chat - Ana i Bo.zip', profileIds: [lib.profile.id], ...options.extra },
+        {
+          workerUrl: 'unused',
+          createTransport: () => transport,
+          signal: options.signal,
+          onProgress: options.onProgress,
+          cancelGraceMs: options.cancelGraceMs,
+        },
+      );
+    };
+    return { ...lib, preview };
+  }
+
+  test('answers through the worker and the brokered port, equal to the in-thread preview, writing and opening nothing', async () => {
+    const lib = await previewSetup();
+    await imported(lib.run());
+    const before = tableState(lib.opened);
+    const stored = await lib.deps.blobStore.list();
+    const transport = loopback(lib);
+    const events: PreviewProgress[] = [];
+    const viaWorker = await lib.preview(previewZip(), { transport, onProgress: (p) => events.push(p) });
+    const inThread = await previewWhatsAppExport(lib.deps, { zip: previewZip(), fileName: 'WhatsApp Chat - Ana i Bo.zip', profileIds: [lib.profile.id] });
+    expect(viaWorker).toEqual(inThread);
+    expect(viaWorker.duplicates).toMatchObject({ status: 'existing', alreadyThere: 5, wouldAdd: 1 });
+    expect(events[0]).toEqual({ phase: 'reading', done: 0 });
+    expect(events.at(-1)).toMatchObject({ phase: 'matching', done: 6, total: 6 });
+    expect(transport.requests.map((r) => r.type)).toEqual(['preview']);
+    expect(transport.blobStoreOpens).toBe(0);
+    expect(transport.terminated).toBe(1);
+    expect(tableState(lib.opened)).toBe(before);
+    expect(await lib.deps.blobStore.list()).toEqual(stored);
+  });
+
+  test('its counts are the real import’s through the worker too (same ZIP twice, then a newer export)', async () => {
+    const lib = await previewSetup();
+    await imported(lib.run());
+    const same = await lib.preview();
+    expect(same.duplicates).toMatchObject({ status: 'existing', alreadyThere: 5, wouldAdd: 0 });
+    expect((await imported(lib.run())).summary).toMatchObject({ added: 0, alreadyThere: 5 });
+    const newer = await lib.preview(previewZip());
+    expect(newer.duplicates).toMatchObject({ status: 'existing', alreadyThere: 5, wouldAdd: 1 });
+    expect((await imported(lib.run(previewZip()))).summary).toMatchObject({ added: 1, alreadyThere: 5 });
+  });
+
+  test('typed errors keep their class and code across the boundary', async () => {
+    const lib = await previewSetup();
+    await expect(lib.preview(new Blob(['not a zip']))).rejects.toMatchObject({ name: 'ImportError', code: 'invalid-export' });
+    await expect(lib.preview(zipOf(), { extra: { limits: { maxEntries: 1 } } })).rejects.toMatchObject({ code: 'limit-exceeded' });
+    await expect(lib.preview(zipOf(), { extra: { dayFirst: true, monthFirst: true } })).rejects.toMatchObject({ code: 'invalid' });
+    await expect(
+      lib.preview(zipOf(), { extra: { conversation: { mode: 'existing', conversationId: '00000000-0000-4000-8000-0000000000ff' } } }),
+    ).rejects.toMatchObject({ name: 'DbError', code: 'not-found' });
+  });
+
+  test('a cooperative cancel during the library lookup: AbortError, nothing written, worker terminated, usable again', async () => {
+    const lib = await previewSetup();
+    await imported(lib.run());
+    const before = tableState(lib.opened);
+    const stored = await lib.deps.blobStore.list();
+    const controller = new AbortController();
+    const gate = openGate();
+    const transport = loopback(lib, { lookupGate: gate.promise });
+    await expect(
+      lib.preview(zipOf(), {
+        transport,
+        signal: controller.signal,
+        onProgress: (p) => {
+          if (p.phase === 'matching' && p.done === 0) {
+            controller.abort();
+            gate.open(10);
+          }
+        },
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(transport.requests.map((r) => r.type)).toEqual(['preview', 'cancel']);
+    expect(transport.terminated).toBe(1);
+    expect(tableState(lib.opened)).toBe(before);
+    expect(await lib.deps.blobStore.list()).toEqual(stored);
+    expect((await lib.preview()).messageCount).toBe(5);
+  });
+
+  test('a signal that is already aborted never starts a worker', async () => {
+    const lib = await previewSetup();
+    const controller = new AbortController();
+    controller.abort(new Error('nope'));
+    let created = 0;
+    await expect(
+      previewWhatsAppExportInWorker(
+        { client: lib.client, blobStore: lib.deps.blobStore },
+        { zip: zipOf(), fileName: 'x.zip', profileIds: [] },
+        { workerUrl: 'unused', signal: controller.signal, createTransport: () => (created++, loopback(lib)) },
+      ),
+    ).rejects.toThrow('nope');
+    expect(created).toBe(0);
+  });
+
+  test('a COOPERATIVE crash and a HARD kill mid-preview: worker-failed, tables and blob store unchanged, next preview works', async () => {
+    const lib = await previewSetup();
+    await imported(lib.run());
+    const before = tableState(lib.opened);
+    const stored = await lib.deps.blobStore.list();
+    const cooperative = loopback(lib);
+    const post = cooperative.post.bind(cooperative);
+    cooperative.post = (message, transfer) => {
+      post(message, transfer);
+      cooperative.crash('boom');
+    };
+    await expect(lib.preview(zipOf(), { transport: cooperative })).rejects.toMatchObject({ name: 'ImportError', code: 'worker-failed', message: 'boom' });
+    const killed = loopback(lib, { killOnLookup: true });
+    await expect(lib.preview(zipOf(), { transport: killed })).rejects.toMatchObject({ name: 'ImportError', code: 'worker-failed', message: 'worker killed' });
+    killed.releasePorts();
+    expect(killed.terminated).toBe(1);
+    expect(tableState(lib.opened)).toBe(before);
+    expect(await lib.deps.blobStore.list()).toEqual(stored);
+    expect((await lib.preview()).duplicates).toMatchObject({ status: 'existing', alreadyThere: 5 });
+  });
+
+  test('a worker that cannot load is worker-failed', async () => {
+    const lib = await previewSetup();
+    const transport = loopback(lib);
+    const post = transport.post.bind(transport);
+    transport.post = (message, transfer) => {
+      post(message, transfer);
+      transport.crash('the import worker failed to start');
+    };
+    await expect(lib.preview(zipOf(), { transport })).rejects.toMatchObject({ code: 'worker-failed' });
+  });
+
+  test('a worker that ignores the cancel is terminated after the grace period', async () => {
+    const lib = await previewSetup();
+    await imported(lib.run());
+    const controller = new AbortController();
+    const gate = openGate();
+    const transport = loopback(lib, { ignoreCancel: true, lookupGate: gate.promise });
+    await expect(
+      lib.preview(zipOf(), {
+        transport,
+        signal: controller.signal,
+        cancelGraceMs: 20,
+        onProgress: (p) => {
+          if (p.phase === 'matching' && p.done === 0) {
+            controller.abort();
+            gate.open(200);
+          }
+        },
+      }),
+    ).rejects.toMatchObject({ name: 'ImportError', code: 'worker-failed' });
+    expect(transport.terminated).toBe(1);
+  });
+
+  test('takes no archive lock: it works while another tab holds it, and holds nothing itself', async () => {
+    const lock = createLock();
+    const lib = await previewSetup({ lock });
+    const release = lock.hold();
+    expect((await lib.preview()).messageCount).toBe(5);
+    release();
+    // Nothing is held afterwards: an import takes the lock freely.
+    expect((await imported(lib.run())).summary.added).toBe(5);
+  });
+
+  test('is refused (busy, no worker started) while an archive operation runs in this tab, and allowed right after', async () => {
+    const lib = await previewSetup();
+    const gate = openGate();
+    let created = 0;
+    let busy: unknown;
+    await imported(
+      lib.run(zipOf(), {
+        transport: loopback(lib, { gate: gate.promise }),
+        onProgress: (p) => {
+          if (p.phase === 'media' && p.done === 1 && !busy) {
+            busy = previewWhatsAppExportInWorker(
+              { client: lib.client, blobStore: lib.deps.blobStore },
+              { zip: zipOf(), fileName: 'x.zip', profileIds: [] },
+              { workerUrl: 'unused', createTransport: () => (created++, loopback(lib)) },
+            ).catch((e: unknown) => e);
+            void Promise.resolve(busy).then(() => gate.open(0));
+          }
+        },
+      }),
+    );
+    expect(await busy).toMatchObject({ name: 'ArchiveError', code: 'busy' });
+    expect(created).toBe(0);
+    expect((await lib.preview()).duplicates).toMatchObject({ status: 'existing' });
+  });
+
+  test('previews do not hold the in-tab guard: two run together, and an import can start during one', async () => {
+    const lib = await previewSetup();
+    const gate = openGate();
+    const slow = loopback(lib, { lookupGate: gate.promise });
+    await imported(lib.run());
+    const first = lib.preview(zipOf(), { transport: slow });
+    const second = lib.preview();
+    expect((await second).messageCount).toBe(5);
+    // The import is not blocked by a preview in flight (the preview is advisory).
+    expect((await imported(lib.run(previewZip()))).summary.added).toBe(1);
+    gate.open(0);
+    // The slow preview read the library before or after that import: either answer is a valid snapshot.
+    expect(['existing']).toContain((await first).duplicates.status);
+  });
+
+  test('a worker runs one job: a preview after a start (or a second preview) is refused, not queued', async () => {
+    const events: ImportWorkerEvent[] = [];
+    const worker = createImportWorker({ post: (e) => events.push(e), openBlobStore: () => new Promise(() => {}) });
+    const port = new MessageChannel();
+    worker.handle({ type: 'start', input: {} as ImportWorkerInput, dbPort: port.port1 });
+    worker.handle({ type: 'preview', input: {} as PreviewWorkerInput, dbPort: port.port1 });
+    expect(events).toEqual([{ type: 'error', error: { kind: 'internal', message: 'an import worker runs one job' } }]);
+    worker.handle({ type: 'cancel' });
+    port.port1.close();
+    port.port2.close();
+  });
+
+  test('a preview request with a broken port is a typed error to the page, not a hang', async () => {
+    const events: ImportWorkerEvent[] = [];
+    const worker = createImportWorker({ post: (e) => events.push(e), openBlobStore: async () => (await createTestLibrary()).deps.blobStore });
+    worker.handle({ type: 'preview', input: {} as PreviewWorkerInput, dbPort: undefined as unknown as MessagePort });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: 'error' });
   });
 });

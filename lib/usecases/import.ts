@@ -1,8 +1,11 @@
+import type { DbClient } from '../db/client';
 import { DbError } from '../db/errors';
+import { ArchiveError } from '../exporters/archive/format';
 import type { ImportCandidate } from '../db/queries';
 import { createFingerprinter, normalizeAuthor } from '../domain/fingerprint';
 import { isUuid, type BlobRef, type NewMessage } from '../domain/library';
 import { chatKeyOf, chatTitleOf } from '../importers/whatsapp/chat';
+import type { Message } from '../importers/whatsapp/types';
 import { parseWhatsAppZip } from '../importers/whatsapp/import';
 import { matchMediaEntries, mimeFromFileName, normalizeMediaName } from '../importers/whatsapp/media';
 import { openZipEntry, ZipLimitError } from '../importers/whatsapp/zip';
@@ -203,6 +206,64 @@ function sample<T>(items: readonly T[], size: number): T[] {
   return Array.from({ length: size }, (_, i) => items[Math.floor((i * items.length) / size)]);
 }
 
+/** More than two distinct authors: a group. The import and its preview use this one rule. */
+export const guessIsGroup = (distinctAuthors: number): boolean => distinctAuthors > 2;
+
+/**
+ * A message as the import stores it, in transcript order: the normalized author (`''` for a
+ * system message), the occurrence index within its minute and the fingerprint. The import and
+ * its preview both build their fingerprints here, so a preview counts exactly what the import
+ * will find.
+ */
+export function createMessageDrafter(): (m: Message) => { author: string; ordinal: number; fingerprint: string } {
+  const nextFingerprint = createFingerprinter();
+  const ordinals = new Map<string, number>();
+  return (m) => {
+    const author = m.type === 'system' ? '' : normalizeAuthor(m.author);
+    const ordinal = ordinals.get(m.timestamp_iso) ?? 0;
+    ordinals.set(m.timestamp_iso, ordinal + 1);
+    return {
+      author,
+      ordinal,
+      fingerprint: nextFingerprint({ sentAt: m.timestamp_iso, author, type: m.type, text: m.text, mediaName: m.media }),
+    };
+  };
+}
+
+export type ConversationMatch =
+  | { kind: 'existing'; conversationId: string; title: string; messageCount: number }
+  | { kind: 'new' }
+  | { kind: 'ambiguous'; reason: 'same-title' | 'same-title-no-overlap' | 'overlap'; candidates: ImportCandidate[] };
+
+/**
+ * The `auto` rule documented on `ConversationTarget`, as one function (reads only): the import
+ * acts on its answer and the preview reports it. `authored`: fingerprints of the export's
+ * non-system messages.
+ */
+export async function matchConversation(
+  client: Pick<DbClient, 'call'>,
+  input: { sourceKey: string; profileIds: string[]; authored: string[] },
+): Promise<ConversationMatch> {
+  const lookup = (sampleFingerprints: string[]) =>
+    client.call('findImportCandidates', { source: SOURCE, sourceKey: input.sourceKey, profileIds: input.profileIds, sampleFingerprints });
+  let found = await lookup(sample(input.authored, SAMPLE_SIZE));
+  // A newer export can share only a handful of messages with what is stored, and a sample can
+  // miss them: before calling a same-name chat a different one, look for ALL of its messages.
+  if (found.keyed.length === 1 && found.keyed[0].overlap === 0) found = await lookup(input.authored);
+  if (found.keyed.length > 1) return { kind: 'ambiguous', reason: 'same-title', candidates: found.keyed };
+  if (found.keyed.length === 1 && found.keyed[0].overlap === 0) {
+    return { kind: 'ambiguous', reason: 'same-title-no-overlap', candidates: found.keyed };
+  }
+  if (found.keyed.length === 0 && found.overlapping.length > 0) {
+    return { kind: 'ambiguous', reason: 'overlap', candidates: found.overlapping };
+  }
+  if (found.keyed.length === 1) {
+    const [only] = found.keyed;
+    return { kind: 'existing', conversationId: only.id, title: only.title, messageCount: only.messageCount };
+  }
+  return { kind: 'new' };
+}
+
 /**
  * The entry's bytes pass through unchanged. Aborting the signal stops the copy into the store, and
  * a failure of the ZIP itself (a size bomb, a damaged entry) is recorded in `failure`, so the
@@ -292,21 +353,12 @@ async function importNow(deps: ProfileDeps, input: ImportWhatsAppInput): Promise
   signal?.throwIfAborted();
   const dateFormat: DateFormat = { dayFirst: parsed.detection?.dayFirst ?? true, ambiguous: parsed.detection?.ambiguous ?? false };
 
-  const nextFingerprint = createFingerprinter();
-  const ordinals = new Map<string, number>();
+  const draft = createMessageDrafter();
   const authors = new Set<string>();
   const drafts = parsed.messages.map((m) => {
-    const system = m.type === 'system';
-    const author = system ? '' : normalizeAuthor(m.author);
-    if (author !== '') authors.add(author);
-    const ordinal = ordinals.get(m.timestamp_iso) ?? 0;
-    ordinals.set(m.timestamp_iso, ordinal + 1);
-    return {
-      message: m,
-      author,
-      ordinal,
-      fingerprint: nextFingerprint({ sentAt: m.timestamp_iso, author, type: m.type, text: m.text, mediaName: m.media }),
-    };
+    const d = draft(m);
+    if (d.author !== '') authors.add(d.author);
+    return { message: m, ...d };
   });
   const meAuthor = input.meAuthor === null ? null : normalizeAuthor(input.meAuthor);
   if (meAuthor !== null && !authors.has(meAuthor)) {
@@ -332,21 +384,13 @@ async function importNow(deps: ProfileDeps, input: ImportWhatsAppInput): Promise
     conversationId = newIdOf(deps);
     createdConversation = true;
   } else {
-    const authored = drafts.filter((d) => d.message.type !== 'system').map((d) => d.fingerprint);
-    const lookup = (sampleFingerprints: string[]) =>
-      deps.client.call('findImportCandidates', { source: SOURCE, sourceKey, profileIds: input.profileIds, sampleFingerprints });
-    let found = await lookup(sample(authored, SAMPLE_SIZE));
-    // A newer export can share only a handful of messages with what is stored, and a sample can
-    // miss them: before calling a same-name chat a different one, look for ALL of its messages.
-    if (found.keyed.length === 1 && found.keyed[0].overlap === 0) found = await lookup(authored);
-    if (found.keyed.length > 1) return { status: 'ambiguous', dateFormat, reason: 'same-title', candidates: found.keyed };
-    if (found.keyed.length === 1 && found.keyed[0].overlap === 0) {
-      return { status: 'ambiguous', dateFormat, reason: 'same-title-no-overlap', candidates: found.keyed };
-    }
-    if (found.keyed.length === 0 && found.overlapping.length > 0) {
-      return { status: 'ambiguous', dateFormat, reason: 'overlap', candidates: found.overlapping };
-    }
-    if (found.keyed.length === 1) conversationId = found.keyed[0].id;
+    const match = await matchConversation(deps.client, {
+      sourceKey,
+      profileIds: input.profileIds,
+      authored: drafts.filter((d) => d.message.type !== 'system').map((d) => d.fingerprint),
+    });
+    if (match.kind === 'ambiguous') return { status: 'ambiguous', dateFormat, reason: match.reason, candidates: match.candidates };
+    if (match.kind === 'existing') conversationId = match.conversationId;
     else {
       conversationId = newIdOf(deps);
       createdConversation = true;
@@ -444,7 +488,7 @@ async function importNow(deps: ProfileDeps, input: ImportWhatsAppInput): Promise
       messages,
       meAuthor,
       ...(createdConversation
-        ? { newConversation: { title, sourceKey, isGroup: input.isGroup ?? authors.size > 2, profileIds: input.profileIds } }
+        ? { newConversation: { title, sourceKey, isGroup: input.isGroup ?? guessIsGroup(authors.size), profileIds: input.profileIds } }
         : {}),
     });
     onProgress?.({ phase: 'saving', done: drafts.length, total: drafts.length });
@@ -519,16 +563,47 @@ export function undoImportBatch(deps: ProfileDeps, batchId: string): Promise<Und
  * `deps.lock` is given), so it never overlaps an import, undo, backup, restore or a profile write
  * that carries a photo. What is not: a photo blob stored by the UI but not yet saved with its
  * profile looks like an orphan, so do not sweep while a photo is being chosen. Nothing calls
- * this yet: a start-up sweep is a follow-up and has to be wired before any screen is shown.
+ * this directly at start-up: `openLibrary` runs `sweepLeftovers`, which adds the blob store's temp files.
  */
 export function sweepOrphanBlobs(deps: Pick<ProfileDeps, 'client' | 'blobStore' | 'lock'>): Promise<{ removed: number }> {
   return withArchiveGuard(
     deps.blobStore,
-    async () => {
-      const known = new Set(await deps.client.call('listBlobHashes'));
-      const orphans = (await deps.blobStore.list()).filter((sha256) => !known.has(sha256));
-      return { removed: await deleteBlobs(deps.blobStore, orphans) };
-    },
+    async () => ({ removed: await removeOrphans(deps) }),
     deps.lock,
   );
+}
+
+async function removeOrphans(deps: Pick<ProfileDeps, 'client' | 'blobStore'>): Promise<number> {
+  const known = new Set(await deps.client.call('listBlobHashes'));
+  const orphans = (await deps.blobStore.list()).filter((sha256) => !known.has(sha256));
+  return deleteBlobs(deps.blobStore, orphans);
+}
+
+/**
+ * The library's open-time cleanup: the blob store's abandoned temp files AND the orphan blobs,
+ * together, under the archive busy guard and the cross-tab lock. Both deletions are only safe
+ * when no import is writing (its temp files and not-yet-committed blobs look abandoned), which
+ * the lock proves across tabs and workers and the guard proves in this tab.
+ *
+ * Skips (resolves `{ ran: false }`, nothing deleted) when it cannot prove that: another tab or
+ * an import worker holds the lock, another archive operation runs in this tab, or there is no
+ * lock to take (a browser without Web Locks). Any other failure rejects.
+ */
+export async function sweepLeftovers(
+  deps: Pick<ProfileDeps, 'client' | 'blobStore' | 'lock'>,
+): Promise<{ ran: false } | { ran: true; removed: number }> {
+  if (!deps.lock) return { ran: false };
+  try {
+    return await withArchiveGuard(
+      deps.blobStore,
+      async () => {
+        await deps.blobStore.sweepTemp?.();
+        return { ran: true as const, removed: await removeOrphans(deps) };
+      },
+      deps.lock,
+    );
+  } catch (error) {
+    if (error instanceof ArchiveError && error.code === 'busy') return { ran: false };
+    throw error;
+  }
 }

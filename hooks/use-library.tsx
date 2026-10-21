@@ -87,7 +87,7 @@ export function LibraryProvider({ children, open = defaultOpen }: { children: Re
         for (let tries = 0; current(); tries++) {
           try {
             const opened = await openWithTimeout(() => openRef.current());
-            if (!current()) return opened.close();
+            if (!current()) return opened.close({ force: true });
             library.current = opened;
             setState({ status: 'ready', deps: opened.deps });
             return;
@@ -113,7 +113,7 @@ export function LibraryProvider({ children, open = defaultOpen }: { children: Re
   }, [run]);
 
   const retry = useCallback(() => {
-    library.current?.close();
+    library.current?.close({ force: true });
     library.current = undefined;
     run();
   }, [run]);
@@ -121,7 +121,7 @@ export function LibraryProvider({ children, open = defaultOpen }: { children: Re
   useEffect(() => {
     const release = () => {
       supersede();
-      library.current?.close();
+      library.current?.close({ force: true });
       library.current = undefined;
       attempt.current = undefined;
     };

@@ -35,6 +35,11 @@ export interface BlobStore {
   list(): Promise<string[]>;
   /** Rehash the stored bytes and compare with the name. */
   verify(sha256: string): Promise<BlobVerification>;
+  /**
+   * Stores that keep temp files for writes in progress: delete the abandoned ones. Only safe
+   * while NO other writer is active (see `sweepLeftovers`, which proves it with the archive lock).
+   */
+  sweepTemp?(): Promise<void>;
 }
 
 export type BlobStoreErrorCode = 'invalid-hash' | 'invalid-source' | 'unsupported' | 'io';
