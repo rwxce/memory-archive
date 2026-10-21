@@ -92,6 +92,10 @@ on-device checks below (iPhone, Android, airplane mode, a second browser).**
 
 ## Phase 4 — Incremental WhatsApp import
 
+**Status: done for WhatsApp ZIP exports (picked or shared). Not done: `.txt`-only exports, loose media files and
+old wa-backup outputs as import sources, and an on-device check of closing the tab mid-import (covered in
+Chromium e2e and unit tests).**
+
 - Import wizard: several files (ZIP, TXT, loose media, old wa-backup outputs) or shared from
   WhatsApp → source detection → profile per file → pick "me" → preview → duplicates →
   confirm → summary. Runs in a worker with progress; warns when space is short and offers
