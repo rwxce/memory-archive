@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileUp, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { ConversationList } from '@/components/conversation-list';
 import { LibraryNotice } from '@/components/library-notice';
@@ -190,17 +190,25 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
           </h1>
           <p className="text-muted-foreground">{t('intro')}</p>
         </div>
-        <Button
-          id="add-person"
-          className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
-          aria-disabled={busy || undefined}
-          onClick={() => {
-            if (!busy) openForm({ mode: 'create' }, 'add-person');
-          }}
-        >
-          <Plus aria-hidden />
-          {t('add')}
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button variant="outline" asChild>
+            <Link href="/import">
+              <FileUp aria-hidden />
+              {t('import')}
+            </Link>
+          </Button>
+          <Button
+            id="add-person"
+            className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
+            aria-disabled={busy || undefined}
+            onClick={() => {
+              if (!busy) openForm({ mode: 'create' }, 'add-person');
+            }}
+          >
+            <Plus aria-hidden />
+            {t('add')}
+          </Button>
+        </div>
       </div>
 
       <p role="alert" className="text-destructive text-sm break-words empty:hidden">

@@ -43,6 +43,37 @@ test type or architecture rule means updating this file **in the same PR**.
     `hooks/use-conversation-actions.ts` (rename / move / link / unlink; same reload contract).
     No dynamic route segments for ids (static export): detail screens use query params
     (`/person?id=`).
+  - **Import wizard** (`/[locale]/import/`, `components/import-screen.tsx` and its parts
+    `import-choose` / `import-wizard` / `import-steps` / `import-run` / `import-types`,
+    `hooks/use-import.tsx`): files picked, dropped or shared (the share inbox is offered in the
+    same list; only ZIPs, others are counted and left out), then five steps per file with
+    focus on the step heading (preview, person, "me", what is new, space and confirm), then a
+    sequential run with progress, cancel and per-file results with undo. Reached from People
+    ("Import a chat"). Rules: every choice is explicit (the `suggestedMe` guess is pre-selected and
+    says so; a missing choice is explained under the question, Next never picks); a file's
+    state is kept while going back; step 1 previews with `conversation:{mode:'new'}` (no library
+    lookup) and step 4 re-previews with the person, date reading and conversation chosen, keyed by
+    those choices so an older answer is ignored; dates that read both ways and ambiguous matches are
+    questions the person answers (`dayFirst`/`monthFirst`, `existing`/`new`); an unknown quota
+    never blocks and "Import without videos" appears when there are videos; the person created in
+    step 2 exists at once (an empty person is normal), everything else is written only after the
+    last confirmation; all files are confirmed first and then imported one after the other (a
+    preview is refused while an import runs, so previews of later files describe the library
+    before the earlier ones are added; the import decides again under the lock, and an
+    `ambiguous` answer then sends that file back to step 4); a cancel stops the queue (rest
+    "not started"), a cancel after the save began completes the import and says so; failures show
+    code-based copy (`importProblemOf` in `lib/usecases/import-wizard.ts`), never the error message;
+    the wizard's pure rules (requests, problems, ZIP test) live in that use-case module; a preview
+    refused as `busy` (the open-time cleanup holds the guard) is retried for ~3 s in `use-import`.
+    `beforeunload` warns while a run is going. The share inbox copy of a file is deleted after its
+    successful import (`discardSharedFile`); a shared file that is not a ZIP (a TXT) is discarded
+    when the screen first sees it, since nothing can import it yet. "Add a new person" does not
+    clear the earlier choice (`FileItem.addingPerson`; Next is blocked while the form is open, Cancel and
+    Back restore the radio); a created person's radio takes the focus. The chosen person's name is kept in
+    the file's state, so the result screen never depends on the people list loading. Step 4's
+    answer sits in one persistent `aria-live="polite"` region whose content swaps. `import.problem`
+    wording never promises an unchanged archive after the import began (`workerFailed`, `storage`,
+    `other` say that trying again creates no duplicates); a crash while only reading says nothing changed (`readFailed`).
   - Pages: `/[locale]/` home (People once the library holds any profile, the welcome while it
     is empty — the switch runs on the device; if the library cannot open on first run it still shows
     the welcome with the reason and a retry beneath it, never only an error; while loading it
@@ -93,7 +124,7 @@ test type or architecture rule means updating this file **in the same PR**.
   - **Share target** (`sw/share-target.ts`): the worker stores accepted files (ZIP / TXT,
     max 20) in the share inbox and answers `303` to `/?to=import&received=N`; the root
     redirect (`redirectPath`, allow-listed targets only) lands on `/<locale>/import/`,
-    which lists them. Phase 4 imports them.
+    which offers them in the import wizard.
   - **Storage**: *Start* calls `navigator.storage.persist()`; Settings → *Space on this
     device* shows `navigator.storage.estimate()` and whether storage is persistent.
 - **SQLite WASM** (`@sqlite.org/sqlite-wasm` 3.53.4-build2, exact pin; official SQLite
@@ -150,7 +181,7 @@ test type or architecture rule means updating this file **in the same PR**.
     abandoned temp files on open (`sweep:false` for a second, concurrent opener), only valid 64-hex names become paths),
     `test-opfs-directory.ts` (in-memory OPFS directory for tests).
   - `lib/usecases/device-storage.ts` — `prepareDeviceStorage`, `getDeviceStorageStatus`,
-    `getSharedFiles` (called from `hooks/use-device-storage.ts`); `lib/usecases/archive.ts` —
+    `getSharedFiles`, `takeSharedFile`, `discardSharedFile` (called from `hooks/use-device-storage.ts`); `lib/usecases/archive.ts` —
     `exportArchive`, `restoreArchiveIntoEmptyLibrary` (no UI entry point yet);
     `lib/usecases/profiles.ts` (`createProfile`, `updateProfile`, `archiveProfile`,
     `unarchiveProfile`, `listProfiles`, `getProfileDetails`) and `conversations.ts`
@@ -368,14 +399,14 @@ test type or architecture rule means updating this file **in the same PR**.
     worker, which would leave an import worker waiting forever on its port); `close({force:true})`
     is for `pagehide` / unmount / retry (`use-library.tsx`). The import worker URL is the database
     worker's URL with the file name replaced (`importWorkerUrlOf`: both are built into `public/db/`).
-  - Follow-ups for the wizard: pre-select `suggestedMe` visibly, never apply it silently (it is wrong
+  - Wizard follow-ups (done in the wizard PR except where marked): pre-select `suggestedMe` visibly, never apply it silently (it is wrong
     when the exporter's own entry is a bare number next to a saved contact); authors beyond the cap
     (`authorsTruncated`) cannot be picked as "me"; `use-library.tsx`'s retry force-closes without
-    aborting a running import (it cannot reach the wizard's signal: the wizard must cancel first);
+    aborting a running import (it cannot reach the wizard's signal: the wizard must cancel first; still open: the wizard has no Retry handle on the library while running);
     show code-based copy, never the raw internal error `message`;
     `estimateImport` and `suggestSkipVideos` are heuristics; `importWhatsAppExportInWorker`,
     `previewWhatsAppExportInWorker`, `estimateImport` and `createImportWorkerTransport` have no
-    non-test caller until the wizard PR; the DB worker's end of the brokered port is not closed when
+    non-test caller until the wizard PR (the wizard now calls them); the DB worker's end of the brokered port is not closed when
     the import worker terminates (a small leak until GC).
   - Limits: no heartbeat, so a worker killed by the OS is only noticed when the person cancels (15 s
     grace); if the DB worker dies, the import worker's pending calls hang until that cancel; messages
@@ -507,7 +538,12 @@ test type or architecture rule means updating this file **in the same PR**.
     person, busy guard, focus and live-region behaviour), `components/people-screen.test.tsx`
     (list / link to the person / empty / create / validate / edit /
     archive with confirmation / restore / failures / welcome switch / unassigned section / library unavailable, over
-    the real use cases on in-memory SQLite via `renderWithLibrary`), `hooks/use-library.test.tsx`
+    the real use cases on in-memory SQLite via `renderWithLibrary`), `components/import-screen.test.tsx`
+    (the whole wizard over the real use cases and the REAL import worker core via
+    `createLoopbackImports` in `lib/usecases/test-client.ts`: files, each step, back/forward state, guess
+    pre-selected, ambiguous match, date question, no-fit and skip videos, cancel (early and late), progress
+    announcements, results, undo, a queue with a failing file, an archive that changed), `lib/usecases/import-wizard.test.ts`,
+    `hooks/use-library.test.tsx`
     (provider states, lazy open, retry), `components/*.test.tsx` (welcome actions incl.
     persistence request and navigation, theme picker / sync, `redirectPath` allow-list, `formatBytes`), `hooks/theme.test.ts` (the inline theme
     script), `i18n/routing.test.ts` (`pickLocale`).
@@ -578,7 +614,9 @@ test type or architecture rule means updating this file **in the same PR**.
     welcome → Start → People, create + reload (OPFS persistence), edit, archive with
     confirmation, restore, person page empty state, Escape closes the form, a cold open of /ca/ finds the
     library made on /en/, the language picker, a Catalan run, offline reload, no horizontal overflow and a 60-character
-    unbroken name. Screenshots on failure only; `test-results/` and `playwright-report/` are
+    unbroken name, and the import wizard (`e2e/import.spec.ts`: a synthetic ZIP built with fflate and set
+    on the file input; import into a new person, summary, person page count, offline reload; same ZIP again =
+    already in the archive, 0 added; undo asks first and removes the conversation; a TXT left out; Catalan). Screenshots on failure only; `test-results/` and `playwright-report/` are
     git-ignored. Firefox and WebKit projects come in Phase 6 with a browser install step.
 - **Planned:** an automated run of the PRD acceptance scenario (backup → restore on a clean
   browser) in e2e.

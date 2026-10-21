@@ -67,7 +67,8 @@
       "cancel": "Cancel"
     },
     "unassignedTitle": "Not assigned to anyone yet",
-    "unassignedHint": "These conversations are safe on this device. Choose who each one belongs to whenever you like."
+    "unassignedHint": "These conversations are safe on this device. Choose who each one belongs to whenever you like.",
+    "import": "Import a chat"
   },
   "library": {
     "loading": "Opening your archive…",
@@ -117,11 +118,211 @@
     "back": "Go to the start"
   },
   "import": {
-    "title": "Received files",
-    "loading": "Looking for shared files…",
-    "none": "Nothing has been shared with Memory Archive yet. In WhatsApp, open a chat, choose Export chat and share it with Memory Archive.",
-    "received": "{count, plural, one {Received # file} other {Received # files}}",
-    "next": "They are kept on this device. Adding them to the archive will be possible in a coming version."
+    "title": "Import a chat",
+    "intro": "Bring a WhatsApp chat into your archive. In WhatsApp, open the chat, choose Export chat and keep the ZIP file. Everything stays on this device.",
+    "backToPeople": "Back to People",
+    "loadFailed": "Your people could not be read. Nothing was changed.",
+    "choose": {
+      "pick": "Choose ZIP files",
+      "drop": "or drop them here",
+      "hint": "Each WhatsApp chat is one ZIP file. You can choose several at once.",
+      "listTitle": "Files to import ({count})",
+      "empty": "No files chosen yet.",
+      "remove": "Remove",
+      "removeLabel": "Remove {name} from the list",
+      "shared": "Shared with Memory Archive",
+      "sharedNote": "Files shared from WhatsApp stay here until you import or remove them. Shared files that cannot be imported are removed from this device.",
+      "skipped": "{count, plural, one {# file was left out: for now only WhatsApp ZIP files can be imported.} other {# files were left out: for now only WhatsApp ZIP files can be imported.}}",
+      "start": "{count, plural, one {Continue with # file} other {Continue with # files}}"
+    },
+    "wizard": {
+      "fileOf": "File {index} of {count}: {name}",
+      "step": "Step {step} of {total}",
+      "toFiles": "Back to the files",
+      "back": "Back",
+      "next": "Next"
+    },
+    "steps": {
+      "preview": "What is in this file",
+      "person": "Who is this for?",
+      "me": "Which one is you?",
+      "check": "What is new",
+      "confirm": "Check and confirm"
+    },
+    "preview": {
+      "loading": "Reading the chat. A long chat can take a moment.",
+      "progress": "{count, plural, one {# message read so far} other {# messages read so far}}",
+      "chat": "Chat",
+      "type": "Type",
+      "group": "Group chat",
+      "private": "Private chat",
+      "messages": "Messages",
+      "messageCount": "{count, plural, one {# message} other {# messages}}",
+      "period": "Period",
+      "media": "Photos and files",
+      "mediaNone": "None",
+      "mediaTotal": "{count, plural, one {# file} other {# files}} ({size})",
+      "kind": {
+        "photo": "{count, plural, one {# photo} other {# photos}}",
+        "video": "{count, plural, one {# video} other {# videos}}",
+        "audio": "{count, plural, one {# voice message or audio} other {# voice messages or audios}}",
+        "sticker": "{count, plural, one {# sticker} other {# stickers}}",
+        "document": "{count, plural, one {# document} other {# documents}}"
+      },
+      "missing": "{count, plural, one {# file mentioned in the chat is not in the ZIP. Its message will be kept without it.} other {# files mentioned in the chat are not in the ZIP. Their messages will be kept without them.}}",
+      "rawLines": "{count, plural, one {# line has a date that cannot be read. It will be kept as part of the message before it.} other {# lines have a date that cannot be read. They will be kept as part of the message before them.}}",
+      "retry": "Try again",
+      "removeFile": "Remove this file"
+    },
+    "person": {
+      "legend": "Where should “{title}” be kept?",
+      "hint": "You can move it to someone else later. The messages are never copied.",
+      "required": "Choose a person, or Decide later, to continue.",
+      "noOne": "There is no one in your archive yet. Add a person, or decide later.",
+      "later": "Decide later",
+      "laterHint": "The conversation waits under “Not assigned to anyone yet” on the People screen.",
+      "new": "Add a new person",
+      "newHint": "Write who this chat is with. They are added to your archive right away.",
+      "conversations": "{count, plural, =0 {No conversations yet} one {# conversation} other {# conversations}}"
+    },
+    "me": {
+      "legend": "Which of these is you in “{title}”?",
+      "hint": "This tells your messages apart from theirs.",
+      "guess": "We guessed this one. Change it if it is wrong.",
+      "count": "{count, plural, one {# message} other {# messages}}",
+      "phone": "Looks like a phone number",
+      "phoneHint": "A phone number usually means a contact that was not saved on the phone that exported the chat.",
+      "none": "I am not in this chat, or I do not know",
+      "noneHint": "The messages are kept as they are, without marking which ones are yours.",
+      "truncated": "This chat has many people. Only the {count} who wrote the most are listed. If you are not one of them, choose “I am not in this chat”.",
+      "noAuthors": "No one wrote in this chat, so there is nobody to choose.",
+      "required": "Choose one to continue."
+    },
+    "check": {
+      "loading": "Checking what is already in your archive…",
+      "failed": "We could not check what is already in your archive.",
+      "retry": "Try again",
+      "new": "This is a new conversation. {count, plural, one {Its # message will be added.} other {All # messages will be added.}}",
+      "existingTitle": "This chat is already in the archive",
+      "existingBody": "It is kept as “{title}”. {count, plural, =0 {No message is already there.} one {# message is already there and will not be copied again.} other {# messages are already there and will not be copied again.}}",
+      "existingNew": "{count, plural, =0 {There are no new messages to add.} one {# new message will be added.} other {# new messages will be added.}}",
+      "ambiguousTitle": "Is this a chat you already have?",
+      "reason": {
+        "sameTitle": "Your archive has more than one chat with this name. Choose the one this file continues, or keep it apart as a new conversation.",
+        "sameTitleNoOverlap": "Your archive has a chat with this name, but none of its messages are in this file. It may be a different chat.",
+        "overlap": "Some messages in this file are already in a chat with another name. The chat may have been renamed."
+      },
+      "candidate": "Add to “{title}”",
+      "candidateCount": "{count, plural, one {# message stored} other {# messages stored}}",
+      "makeNew": "Create a new conversation",
+      "makeNewHint": "Nothing is joined to the chats you already have.",
+      "choose": "Choose one to continue.",
+      "dateTitle": "How are dates written in this chat?",
+      "dateBody": "Every date in this chat can be read in two ways. For example, the first one could be {dayFirst} or {monthFirst}. Choose the way dates are written on the phone that exported the chat.",
+      "dayFirst": "Day first: {date}",
+      "monthFirst": "Month first: {date}",
+      "dateRequired": "Choose how the dates are written to continue."
+    },
+    "space": {
+      "summary": "Summary",
+      "forPerson": "For",
+      "forNobody": "Not assigned to anyone yet",
+      "you": "You are",
+      "youNone": "Not marked",
+      "add": "To add",
+      "fits": "There is enough space on this device.",
+      "sizes": "It needs up to {needed}; {available} are free on this device.",
+      "unknown": "This browser does not say how much space is free, so it cannot be checked. You can continue.",
+      "noFit": "There may not be enough space on this device.",
+      "noFitWithout": "Without the videos it would fit.",
+      "noFitEvenWithout": "It would not fit even without the videos. Free some space first, or continue and see.",
+      "noFitFree": "Free some space first, or continue and see.",
+      "skipVideos": "Import without videos",
+      "skipVideosHint": "{size} of videos are left out. The messages stay, without their video. To add the videos later you would have to undo this import and import the chat again."
+    },
+    "confirm": {
+      "single": "{count, plural, one {Add # message to {name}} other {Add # messages to {name}}}",
+      "unassigned": "{count, plural, one {Add # message, not assigned yet} other {Add # messages, not assigned yet}}",
+      "nothing": "Finish without adding anything",
+      "more": "Confirm and go to the next file",
+      "all": "Add {count, plural, one {# message} other {# messages}} from {files} files",
+      "queueNote": "Nothing is added until you have confirmed all {files} files."
+    },
+    "run": {
+      "title": "Adding your messages",
+      "fileOf": "File {index} of {count}: {name}",
+      "preparing": "Getting ready…",
+      "reading": "Reading messages…",
+      "media": "Copying photos and files…",
+      "saving": "Saving to your archive…",
+      "readingCount": "{count, plural, one {# message} other {# messages}}",
+      "mediaCount": "{done} of {total} files",
+      "bytes": "{done} of {total}",
+      "progressLabel": "Import progress",
+      "cancel": "Cancel import",
+      "cancelling": "Cancelling…",
+      "cancelNote": "If you cancel before the messages are saved, nothing is changed. Files that were already added stay.",
+      "keepOpen": "Keep this page open until it finishes.",
+      "queue": "Files"
+    },
+    "status": {
+      "waiting": "Waiting",
+      "running": "Importing",
+      "done": "Done",
+      "failed": "Not imported",
+      "cancelled": "Cancelled",
+      "notStarted": "Not started",
+      "undone": "Import undone"
+    },
+    "done": {
+      "titleOk": "Import finished",
+      "titleProblems": "Import finished, with problems",
+      "titleCancelled": "Import cancelled",
+      "cancelledNote": "Nothing was changed for the file that was cancelled. Files that finished before stay in your archive.",
+      "retry": "Try the unfinished files again",
+      "another": "Import another chat",
+      "people": "Go to People"
+    },
+    "result": {
+      "added": "{count, plural, =0 {No new messages were added to {name}.} one {# new message added to {name}.} other {# new messages added to {name}.}}",
+      "addedUnassigned": "{count, plural, =0 {No new messages were added.} one {# new message added. It is not assigned to anyone yet.} other {# new messages added. They are not assigned to anyone yet.}}",
+      "alreadyThere": "{count, plural, one {# message was already in the archive and was not copied again.} other {# messages were already in the archive and were not copied again.}}",
+      "created": "New conversation: “{title}”.",
+      "merged": "Added to the conversation “{title}”.",
+      "media": "{count, plural, one {# photo or file saved.} other {# photos and files saved.}}",
+      "mediaKept": "{count, plural, one {# file was already stored and was not saved again.} other {# files were already stored and were not saved again.}}",
+      "mediaMissing": "{count, plural, one {# file mentioned in the chat was not in the ZIP. Its message is kept without it.} other {# files mentioned in the chat were not in the ZIP. Their messages are kept without them.}}",
+      "videosSkipped": "{count, plural, one {# video was left out, as you asked. Its message is kept without it.} other {# videos were left out, as you asked. Their messages are kept without them.}}",
+      "rawLines": "{count, plural, one {# line had a date that could not be read. It was kept as part of the message before it.} other {# lines had a date that could not be read. They were kept as part of the message before them.}}",
+      "dayFirst": "Some dates could be read in two ways. They were read with the day first.",
+      "monthFirst": "Some dates could be read in two ways. They were read with the month first.",
+      "lateCancel": "The messages were already being saved when you cancelled, so the import was completed.",
+      "openPerson": "Open {name}",
+      "openPeople": "See it in People",
+      "undo": "Undo this import",
+      "undoLabel": "Undo the import of “{title}”"
+    },
+    "undo": {
+      "title": "Undo this import?",
+      "body": "{count, plural, one {The # message} other {The # messages}} added by this import will be removed. Photos and files that no other conversation uses are removed too. Messages that were already in your archive stay.",
+      "bodyCreated": "{count, plural, one {The # message} other {The # messages}} added by this import will be removed, and so will the conversation “{title}”, which this import created. Photos and files that no other conversation uses are removed too. Anything that was in your archive before stays.",
+      "confirm": "Undo import",
+      "cancel": "Keep it",
+      "done": "The import was undone. {count, plural, one {# message was removed.} other {# messages were removed.}}",
+      "gone": "This import was already undone.",
+      "failed": "The import could not be undone. Nothing was changed. Try again."
+    },
+    "problem": {
+      "invalidExport": "This file does not look like a WhatsApp chat export. Export the chat again from WhatsApp and choose the ZIP file. Nothing was changed.",
+      "tooBig": "This export is larger than Memory Archive can read. Try exporting the chat without media. Nothing was changed.",
+      "busy": "Another task is using your archive right now, maybe in another tab. Wait for it to finish and try again. Nothing was changed.",
+      "workerFailed": "The import was interrupted. Some of it may have been added; trying again will not create duplicates.",
+      "readFailed": "Reading stopped unexpectedly. Nothing was changed. Try again.",
+      "storage": "The files could not be saved on this device. There may not be enough free space. Free some space, or try without videos, then try again. Trying again will not create duplicates.",
+      "other": "This could not be done. If part of it was added, trying again will not create duplicates.",
+      "changed": "Your archive changed while this file waited, so it is not clear where its messages belong. Nothing was imported from it. Choose again.",
+      "review": "Choose again"
+    }
   },
   "offline": {
     "title": "You are offline",

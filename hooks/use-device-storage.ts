@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   getDeviceStorageStatus,
+  discardSharedFile,
   getSharedFiles,
   prepareDeviceStorage,
+  takeSharedFile,
   type SharedFileInfo,
   type StorageStatus,
 } from '@/lib/usecases/device-storage';
@@ -27,8 +29,17 @@ export function usePrepareStorage(): () => Promise<boolean | null> {
   return useCallback(() => prepareDeviceStorage(), []);
 }
 
-/** Files shared to the app and waiting for import; `undefined` while loading. */
-export function useSharedFiles(): SharedFileInfo[] | undefined {
+export interface SharedInbox {
+  /** `undefined` while loading. */
+  files: SharedFileInfo[] | undefined;
+  /** The file's content, or `undefined` when it is gone. */
+  take(info: SharedFileInfo): Promise<File | undefined>;
+  /** Forgets the file (imported or not wanted) and updates the list. */
+  discard(key: string): Promise<void>;
+}
+
+/** The files shared to the app (Web Share Target) and what can be done with them. */
+export function useSharedInbox(): SharedInbox {
   const [files, setFiles] = useState<SharedFileInfo[]>();
   useEffect(() => {
     let alive = true;
@@ -39,5 +50,15 @@ export function useSharedFiles(): SharedFileInfo[] | undefined {
       alive = false;
     };
   }, []);
-  return files;
+  return useMemo(
+    () => ({
+      files,
+      take: (info) => takeSharedFile(info).catch(() => undefined),
+      discard: async (key) => {
+        await discardSharedFile(key).catch(() => false);
+        setFiles((current) => current?.filter((f) => f.key !== key));
+      },
+    }),
+    [files],
+  );
 }

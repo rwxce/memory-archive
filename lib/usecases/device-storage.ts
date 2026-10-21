@@ -1,5 +1,5 @@
 import { readStorageStatus, requestPersistentStorage, type StorageStatus } from '../storage/quota';
-import { listSharedFiles, type SharedFileInfo } from '../storage/share-inbox';
+import { listSharedFiles, readSharedFile, removeSharedFile, type SharedFileInfo } from '../storage/share-inbox';
 
 export type { SharedFileInfo, StorageStatus };
 
@@ -25,4 +25,22 @@ export async function getSharedFiles(
 ): Promise<SharedFileInfo[]> {
   if (!cacheStorage) return [];
   return listSharedFiles(cacheStorage);
+}
+
+/** One shared file read back as a `File` (for the import wizard); `undefined` when it is gone. */
+export async function takeSharedFile(
+  info: SharedFileInfo,
+  cacheStorage: CacheStorage | undefined = globalThis.caches,
+): Promise<File | undefined> {
+  if (!cacheStorage) return undefined;
+  return readSharedFile(cacheStorage, info);
+}
+
+/** Forget a shared file (it was imported, or the person does not want it). Never throws for a missing one. */
+export async function discardSharedFile(
+  key: string,
+  cacheStorage: CacheStorage | undefined = globalThis.caches,
+): Promise<boolean> {
+  if (!cacheStorage) return false;
+  return removeSharedFile(cacheStorage, key);
 }
