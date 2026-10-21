@@ -12,9 +12,15 @@ import {
 } from '@/lib/usecases/library';
 import type { ProfileDeps } from '@/lib/usecases/profiles';
 
+/** What running an import in its worker needs besides the deps: where the worker is and a port to the database. */
+export interface ImportAccess {
+  workerUrl: string;
+  connectPort(): MessagePort;
+}
+
 export type LibraryState =
   | { status: 'loading' }
-  | { status: 'ready'; deps: ProfileDeps }
+  | { status: 'ready'; deps: ProfileDeps; import: ImportAccess }
   | { status: 'unavailable'; problem: LibraryProblem }
   | { status: 'error' };
 
@@ -89,7 +95,11 @@ export function LibraryProvider({ children, open = defaultOpen }: { children: Re
             const opened = await openWithTimeout(() => openRef.current());
             if (!current()) return opened.close({ force: true });
             library.current = opened;
-            setState({ status: 'ready', deps: opened.deps });
+            setState({
+              status: 'ready',
+              deps: opened.deps,
+              import: { workerUrl: opened.importWorkerUrl, connectPort: () => opened.connectPort() },
+            });
             return;
           } catch (error) {
             const wait = OPEN_BACKOFF_MS[tries];

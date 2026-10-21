@@ -67,7 +67,8 @@
       "cancel": "Cancelar"
     },
     "unassignedTitle": "Aún sin asignar a nadie",
-    "unassignedHint": "Estas conversaciones están a salvo en este dispositivo. Elige a quién pertenece cada una cuando quieras."
+    "unassignedHint": "Estas conversaciones están a salvo en este dispositivo. Elige a quién pertenece cada una cuando quieras.",
+    "import": "Importar una conversación"
   },
   "library": {
     "loading": "Abriendo tu archivo…",
@@ -117,11 +118,211 @@
     "back": "Ir al inicio"
   },
   "import": {
-    "title": "Ficheros recibidos",
-    "loading": "Buscando ficheros compartidos…",
-    "none": "Todavía no se ha compartido nada con Memory Archive. En WhatsApp, abre un chat, elige Exportar chat y compártelo con Memory Archive.",
-    "received": "{count, plural, one {Se ha recibido # fichero} other {Se han recibido # ficheros}}",
-    "next": "Se guardan en este dispositivo. Añadirlos al archivo será posible en una próxima versión."
+    "title": "Importar una conversación",
+    "intro": "Trae una conversación de WhatsApp a tu archivo. En WhatsApp, abre el chat, elige Exportar chat y guarda el fichero ZIP. Todo se queda en este dispositivo.",
+    "backToPeople": "Volver a Personas",
+    "loadFailed": "No se han podido leer tus personas. No se ha cambiado nada.",
+    "choose": {
+      "pick": "Elegir ficheros ZIP",
+      "drop": "o suéltalos aquí",
+      "hint": "Cada chat de WhatsApp es un fichero ZIP. Puedes elegir varios a la vez.",
+      "listTitle": "Ficheros para importar ({count})",
+      "empty": "Aún no has elegido ningún fichero.",
+      "remove": "Quitar",
+      "removeLabel": "Quitar {name} de la lista",
+      "shared": "Compartido con Memory Archive",
+      "sharedNote": "Los ficheros compartidos desde WhatsApp se quedan aquí hasta que los importes o los quites. Los ficheros compartidos que no se pueden importar se eliminan de este dispositivo.",
+      "skipped": "{count, plural, one {Se ha dejado fuera # fichero: por ahora solo se pueden importar ficheros ZIP de WhatsApp.} other {Se han dejado fuera # ficheros: por ahora solo se pueden importar ficheros ZIP de WhatsApp.}}",
+      "start": "{count, plural, one {Continuar con # fichero} other {Continuar con # ficheros}}"
+    },
+    "wizard": {
+      "fileOf": "Fichero {index} de {count}: {name}",
+      "step": "Paso {step} de {total}",
+      "toFiles": "Volver a los ficheros",
+      "back": "Atrás",
+      "next": "Siguiente"
+    },
+    "steps": {
+      "preview": "Qué hay en este fichero",
+      "person": "¿Para quién es?",
+      "me": "¿Cuál eres tú?",
+      "check": "Qué hay de nuevo",
+      "confirm": "Revisa y confirma"
+    },
+    "preview": {
+      "loading": "Leyendo la conversación. Una conversación larga puede tardar un rato.",
+      "progress": "{count, plural, one {# mensaje leído hasta ahora} other {# mensajes leídos hasta ahora}}",
+      "chat": "Chat",
+      "type": "Tipo",
+      "group": "Chat de grupo",
+      "private": "Chat privado",
+      "messages": "Mensajes",
+      "messageCount": "{count, plural, one {# mensaje} other {# mensajes}}",
+      "period": "Periodo",
+      "media": "Fotos y ficheros",
+      "mediaNone": "Ninguno",
+      "mediaTotal": "{count, plural, one {# fichero} other {# ficheros}} ({size})",
+      "kind": {
+        "photo": "{count, plural, one {# foto} other {# fotos}}",
+        "video": "{count, plural, one {# vídeo} other {# vídeos}}",
+        "audio": "{count, plural, one {# mensaje de voz o audio} other {# mensajes de voz o audios}}",
+        "sticker": "{count, plural, one {# sticker} other {# stickers}}",
+        "document": "{count, plural, one {# documento} other {# documentos}}"
+      },
+      "missing": "{count, plural, one {# fichero mencionado en el chat no está en el ZIP. Su mensaje se guardará sin él.} other {# ficheros mencionados en el chat no están en el ZIP. Sus mensajes se guardarán sin ellos.}}",
+      "rawLines": "{count, plural, one {# línea tiene una fecha que no se puede leer. Se guardará como parte del mensaje anterior.} other {# líneas tienen una fecha que no se puede leer. Se guardarán como parte del mensaje anterior.}}",
+      "retry": "Inténtalo de nuevo",
+      "removeFile": "Quitar este fichero"
+    },
+    "person": {
+      "legend": "¿Dónde se debe guardar «{title}»?",
+      "hint": "Más adelante puedes pasarla a otra persona. Los mensajes nunca se copian.",
+      "required": "Elige una persona, o Decidir más tarde, para continuar.",
+      "noOne": "Todavía no hay nadie en tu archivo. Añade a una persona o decide más tarde.",
+      "later": "Decidir más tarde",
+      "laterHint": "La conversación espera en «Aún sin asignar a nadie», en la pantalla de Personas.",
+      "new": "Añadir una persona nueva",
+      "newHint": "Escribe con quién es este chat. Se añade a tu archivo al momento.",
+      "conversations": "{count, plural, =0 {Aún no hay conversaciones} one {# conversación} other {# conversaciones}}"
+    },
+    "me": {
+      "legend": "¿Cuál de estos eres tú en «{title}»?",
+      "hint": "Así se distinguen tus mensajes de los suyos.",
+      "guess": "Hemos supuesto este. Cámbialo si no es correcto.",
+      "count": "{count, plural, one {# mensaje} other {# mensajes}}",
+      "phone": "Parece un número de teléfono",
+      "phoneHint": "Un número de teléfono suele significar un contacto que no estaba guardado en el teléfono que exportó el chat.",
+      "none": "No estoy en este chat, o no lo sé",
+      "noneHint": "Los mensajes se guardan tal como son, sin marcar cuáles son tuyos.",
+      "truncated": "Este chat tiene mucha gente. Solo se muestran las {count} personas que más han escrito. Si no eres ninguna de ellas, elige «No estoy en este chat».",
+      "noAuthors": "Nadie ha escrito en este chat, así que no hay a quién elegir.",
+      "required": "Elige una opción para continuar."
+    },
+    "check": {
+      "loading": "Comprobando qué hay ya en tu archivo…",
+      "failed": "No se ha podido comprobar qué hay ya en tu archivo.",
+      "retry": "Inténtalo de nuevo",
+      "new": "Esta es una conversación nueva. {count, plural, one {Se añadirá su # mensaje.} other {Se añadirán los # mensajes.}}",
+      "existingTitle": "Este chat ya está en el archivo",
+      "existingBody": "Se guarda como «{title}». {count, plural, =0 {Ningún mensaje está ya allí.} one {# mensaje ya está allí y no se volverá a copiar.} other {# mensajes ya están allí y no se volverán a copiar.}}",
+      "existingNew": "{count, plural, =0 {No hay mensajes nuevos que añadir.} one {Se añadirá # mensaje nuevo.} other {Se añadirán # mensajes nuevos.}}",
+      "ambiguousTitle": "¿Es un chat que ya tienes?",
+      "reason": {
+        "sameTitle": "Tu archivo tiene más de un chat con este nombre. Elige el que continúa este fichero, o guárdalo aparte como conversación nueva.",
+        "sameTitleNoOverlap": "Tu archivo tiene un chat con este nombre, pero ninguno de sus mensajes está en este fichero. Puede ser un chat distinto.",
+        "overlap": "Algunos mensajes de este fichero ya están en un chat con otro nombre. Puede que el chat haya cambiado de nombre."
+      },
+      "candidate": "Añadir a «{title}»",
+      "candidateCount": "{count, plural, one {# mensaje guardado} other {# mensajes guardados}}",
+      "makeNew": "Crear una conversación nueva",
+      "makeNewHint": "No se une nada a los chats que ya tienes.",
+      "choose": "Elige una opción para continuar.",
+      "dateTitle": "¿Cómo se escriben las fechas en este chat?",
+      "dateBody": "Todas las fechas de este chat se pueden leer de dos maneras. Por ejemplo, la primera podría ser {dayFirst} o {monthFirst}. Elige cómo se escriben las fechas en el teléfono que exportó el chat.",
+      "dayFirst": "Primero el día: {date}",
+      "monthFirst": "Primero el mes: {date}",
+      "dateRequired": "Elige cómo se escriben las fechas para continuar."
+    },
+    "space": {
+      "summary": "Resumen",
+      "forPerson": "Para",
+      "forNobody": "Aún sin asignar a nadie",
+      "you": "Tú eres",
+      "youNone": "Sin marcar",
+      "add": "Por añadir",
+      "fits": "Hay espacio suficiente en este dispositivo.",
+      "sizes": "Necesita hasta {needed}; hay {available} libres en este dispositivo.",
+      "unknown": "Este navegador no dice cuánto espacio hay libre, así que no se puede comprobar. Puedes continuar.",
+      "noFit": "Puede que no haya espacio suficiente en este dispositivo.",
+      "noFitWithout": "Sin los vídeos sí cabría.",
+      "noFitEvenWithout": "No cabría ni sin los vídeos. Libera algo de espacio primero, o continúa y mira qué pasa.",
+      "noFitFree": "Libera algo de espacio primero, o continúa y mira qué pasa.",
+      "skipVideos": "Importar sin vídeos",
+      "skipVideosHint": "Se dejan fuera {size} de vídeos. Los mensajes se quedan, sin su vídeo. Para añadir los vídeos más adelante tendrías que deshacer esta importación y volver a importar el chat."
+    },
+    "confirm": {
+      "single": "{count, plural, one {Añadir # mensaje a {name}} other {Añadir # mensajes a {name}}}",
+      "unassigned": "{count, plural, one {Añadir # mensaje, aún sin asignar} other {Añadir # mensajes, aún sin asignar}}",
+      "nothing": "Terminar sin añadir nada",
+      "more": "Confirmar e ir al siguiente fichero",
+      "all": "Añadir {count, plural, one {# mensaje} other {# mensajes}} de {files} ficheros",
+      "queueNote": "No se añade nada hasta que hayas confirmado los {files} ficheros."
+    },
+    "run": {
+      "title": "Añadiendo tus mensajes",
+      "fileOf": "Fichero {index} de {count}: {name}",
+      "preparing": "Preparando…",
+      "reading": "Leyendo mensajes…",
+      "media": "Copiando fotos y ficheros…",
+      "saving": "Guardando en tu archivo…",
+      "readingCount": "{count, plural, one {# mensaje} other {# mensajes}}",
+      "mediaCount": "{done} de {total} ficheros",
+      "bytes": "{done} de {total}",
+      "progressLabel": "Progreso de la importación",
+      "cancel": "Cancelar la importación",
+      "cancelling": "Cancelando…",
+      "cancelNote": "Si cancelas antes de que se guarden los mensajes, no se cambia nada. Los ficheros que ya se habían añadido se quedan.",
+      "keepOpen": "Deja esta página abierta hasta que termine.",
+      "queue": "Ficheros"
+    },
+    "status": {
+      "waiting": "En espera",
+      "running": "Importando",
+      "done": "Hecho",
+      "failed": "No importado",
+      "cancelled": "Cancelado",
+      "notStarted": "Sin empezar",
+      "undone": "Importación deshecha"
+    },
+    "done": {
+      "titleOk": "Importación terminada",
+      "titleProblems": "Importación terminada, con problemas",
+      "titleCancelled": "Importación cancelada",
+      "cancelledNote": "No se ha cambiado nada del fichero que se canceló. Los ficheros que habían terminado antes se quedan en tu archivo.",
+      "retry": "Volver a probar los ficheros sin terminar",
+      "another": "Importar otra conversación",
+      "people": "Ir a Personas"
+    },
+    "result": {
+      "added": "{count, plural, =0 {No se ha añadido ningún mensaje nuevo a {name}.} one {Se ha añadido # mensaje nuevo a {name}.} other {Se han añadido # mensajes nuevos a {name}.}}",
+      "addedUnassigned": "{count, plural, =0 {No se ha añadido ningún mensaje nuevo.} one {Se ha añadido # mensaje nuevo. Aún no está asignado a nadie.} other {Se han añadido # mensajes nuevos. Aún no están asignados a nadie.}}",
+      "alreadyThere": "{count, plural, one {# mensaje ya estaba en el archivo y no se ha vuelto a copiar.} other {# mensajes ya estaban en el archivo y no se han vuelto a copiar.}}",
+      "created": "Conversación nueva: «{title}».",
+      "merged": "Añadido a la conversación «{title}».",
+      "media": "{count, plural, one {Se ha guardado # foto o fichero.} other {Se han guardado # fotos y ficheros.}}",
+      "mediaKept": "{count, plural, one {# fichero ya estaba guardado y no se ha vuelto a guardar.} other {# ficheros ya estaban guardados y no se han vuelto a guardar.}}",
+      "mediaMissing": "{count, plural, one {# fichero mencionado en el chat no estaba en el ZIP. Su mensaje se guarda sin él.} other {# ficheros mencionados en el chat no estaban en el ZIP. Sus mensajes se guardan sin ellos.}}",
+      "videosSkipped": "{count, plural, one {Se ha dejado fuera # vídeo, como pediste. Su mensaje se guarda sin él.} other {Se han dejado fuera # vídeos, como pediste. Sus mensajes se guardan sin ellos.}}",
+      "rawLines": "{count, plural, one {# línea tenía una fecha que no se podía leer. Se ha guardado como parte del mensaje anterior.} other {# líneas tenían una fecha que no se podía leer. Se han guardado como parte del mensaje anterior.}}",
+      "dayFirst": "Algunas fechas se podían leer de dos maneras. Se han leído con el día primero.",
+      "monthFirst": "Algunas fechas se podían leer de dos maneras. Se han leído con el mes primero.",
+      "lateCancel": "Los mensajes ya se estaban guardando cuando cancelaste, así que la importación se ha completado.",
+      "openPerson": "Abrir a {name}",
+      "openPeople": "Verla en Personas",
+      "undo": "Deshacer esta importación",
+      "undoLabel": "Deshacer la importación de «{title}»"
+    },
+    "undo": {
+      "title": "¿Deshacer esta importación?",
+      "body": "{count, plural, one {El # mensaje añadido} other {Los # mensajes añadidos}} por esta importación se eliminarán. Las fotos y los ficheros que ninguna otra conversación use también se eliminarán. Los mensajes que ya estaban en tu archivo se quedan.",
+      "bodyCreated": "{count, plural, one {El # mensaje añadido} other {Los # mensajes añadidos}} por esta importación se eliminarán, y también la conversación «{title}», que creó esta importación. Las fotos y los ficheros que ninguna otra conversación use también se eliminarán. Todo lo que había en tu archivo antes se queda.",
+      "confirm": "Deshacer la importación",
+      "cancel": "Conservarla",
+      "done": "Se ha deshecho la importación. {count, plural, one {Se ha eliminado # mensaje.} other {Se han eliminado # mensajes.}}",
+      "gone": "Esta importación ya estaba deshecha.",
+      "failed": "No se ha podido deshacer la importación. No se ha cambiado nada. Inténtalo de nuevo."
+    },
+    "problem": {
+      "invalidExport": "Este fichero no parece una exportación de un chat de WhatsApp. Vuelve a exportar el chat desde WhatsApp y elige el fichero ZIP. No se ha cambiado nada.",
+      "tooBig": "Esta exportación es más grande de lo que Memory Archive puede leer. Prueba a exportar el chat sin archivos multimedia. No se ha cambiado nada.",
+      "busy": "Otra tarea está usando tu archivo ahora mismo, quizá en otra pestaña. Espera a que termine e inténtalo de nuevo. No se ha cambiado nada.",
+      "workerFailed": "La importación se ha interrumpido. Puede que se haya añadido una parte; volver a intentarlo no creará duplicados.",
+      "readFailed": "La lectura se ha detenido de forma inesperada. No se ha cambiado nada. Inténtalo de nuevo.",
+      "storage": "No se han podido guardar los ficheros en este dispositivo. Puede que no haya espacio libre suficiente. Libera espacio o prueba sin vídeos y vuelve a intentarlo. Volver a intentarlo no creará duplicados.",
+      "other": "No se ha podido hacer. Si se ha añadido una parte, volver a intentarlo no creará duplicados.",
+      "changed": "Tu archivo ha cambiado mientras este fichero esperaba, así que no está claro a quién pertenecen sus mensajes. No se ha importado nada de este fichero. Vuelve a elegir.",
+      "review": "Volver a elegir"
+    }
   },
   "offline": {
     "title": "No tienes conexión",

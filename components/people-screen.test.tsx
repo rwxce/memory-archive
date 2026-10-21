@@ -54,6 +54,13 @@ describe('PeopleScreen', () => {
     expect(buttonByText(view, p.add)).not.toBeNull();
   });
 
+  test('offers a way into the import wizard next to adding a person, also when no one is there yet', async () => {
+    view = await open();
+    const link = view.container.querySelector<HTMLAnchorElement>('a[href="/import"]');
+    expect(link?.textContent).toBe(p.import);
+    expect(buttonByText(view, p.add)).not.toBeNull();
+  });
+
   test('lists active people with relationship and conversation count; archived stay hidden', async () => {
     view = await open(async ({ deps, opened }) => {
       const ana = await createProfile(deps, { displayName: 'Ana', relationship: 'mother' });

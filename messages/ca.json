@@ -67,7 +67,8 @@
       "cancel": "Cancel·la"
     },
     "unassignedTitle": "Encara no assignades a ningú",
-    "unassignedHint": "Aquestes converses són segures en aquest dispositiu. Tria de qui és cadascuna quan vulguis."
+    "unassignedHint": "Aquestes converses són segures en aquest dispositiu. Tria de qui és cadascuna quan vulguis.",
+    "import": "Importa una conversa"
   },
   "library": {
     "loading": "Obrint el teu arxiu…",
@@ -117,11 +118,211 @@
     "back": "Ves a l'inici"
   },
   "import": {
-    "title": "Fitxers rebuts",
-    "loading": "Buscant fitxers compartits…",
-    "none": "Encara no s’ha compartit res amb Memory Archive. A WhatsApp, obre un xat, tria Exporta el xat i comparteix-lo amb Memory Archive.",
-    "received": "{count, plural, one {S’ha rebut # fitxer} other {S’han rebut # fitxers}}",
-    "next": "Es guarden en aquest dispositiu. Afegir-los a l’arxiu serà possible en una propera versió."
+    "title": "Importa una conversa",
+    "intro": "Porta una conversa de WhatsApp al teu arxiu. A WhatsApp, obre el xat, tria Exporta el xat i guarda el fitxer ZIP. Tot es queda en aquest dispositiu.",
+    "backToPeople": "Torna a Persones",
+    "loadFailed": "No s’han pogut llegir les teves persones. No s’ha canviat res.",
+    "choose": {
+      "pick": "Tria fitxers ZIP",
+      "drop": "o deixa’ls anar aquí",
+      "hint": "Cada xat de WhatsApp és un fitxer ZIP. En pots triar diversos alhora.",
+      "listTitle": "Fitxers per importar ({count})",
+      "empty": "Encara no has triat cap fitxer.",
+      "remove": "Treu",
+      "removeLabel": "Treu {name} de la llista",
+      "shared": "Compartit amb Memory Archive",
+      "sharedNote": "Els fitxers compartits des de WhatsApp es queden aquí fins que els importis o els treguis. Els fitxers compartits que no es poden importar se suprimeixen d’aquest dispositiu.",
+      "skipped": "{count, plural, one {S’ha deixat fora # fitxer: de moment només es poden importar fitxers ZIP de WhatsApp.} other {S’han deixat fora # fitxers: de moment només es poden importar fitxers ZIP de WhatsApp.}}",
+      "start": "{count, plural, one {Continua amb # fitxer} other {Continua amb # fitxers}}"
+    },
+    "wizard": {
+      "fileOf": "Fitxer {index} de {count}: {name}",
+      "step": "Pas {step} de {total}",
+      "toFiles": "Torna als fitxers",
+      "back": "Enrere",
+      "next": "Següent"
+    },
+    "steps": {
+      "preview": "Què hi ha en aquest fitxer",
+      "person": "Per a qui és?",
+      "me": "Quin ets tu?",
+      "check": "Què hi ha de nou",
+      "confirm": "Revisa i confirma"
+    },
+    "preview": {
+      "loading": "Llegint la conversa. Una conversa llarga pot trigar una estona.",
+      "progress": "{count, plural, one {# missatge llegit fins ara} other {# missatges llegits fins ara}}",
+      "chat": "Xat",
+      "type": "Tipus",
+      "group": "Xat de grup",
+      "private": "Xat privat",
+      "messages": "Missatges",
+      "messageCount": "{count, plural, one {# missatge} other {# missatges}}",
+      "period": "Període",
+      "media": "Fotos i fitxers",
+      "mediaNone": "Cap",
+      "mediaTotal": "{count, plural, one {# fitxer} other {# fitxers}} ({size})",
+      "kind": {
+        "photo": "{count, plural, one {# foto} other {# fotos}}",
+        "video": "{count, plural, one {# vídeo} other {# vídeos}}",
+        "audio": "{count, plural, one {# missatge de veu o àudio} other {# missatges de veu o àudios}}",
+        "sticker": "{count, plural, one {# adhesiu} other {# adhesius}}",
+        "document": "{count, plural, one {# document} other {# documents}}"
+      },
+      "missing": "{count, plural, one {# fitxer que es menciona al xat no és al ZIP. El seu missatge es guardarà sense ell.} other {# fitxers que es mencionen al xat no són al ZIP. Els seus missatges es guardaran sense ells.}}",
+      "rawLines": "{count, plural, one {# línia té una data que no es pot llegir. Es guardarà com a part del missatge anterior.} other {# línies tenen una data que no es pot llegir. Es guardaran com a part del missatge anterior.}}",
+      "retry": "Torna-ho a provar",
+      "removeFile": "Treu aquest fitxer"
+    },
+    "person": {
+      "legend": "On s’ha de guardar «{title}»?",
+      "hint": "Més endavant la pots moure a una altra persona. Els missatges mai es copien.",
+      "required": "Tria una persona, o Decideix més tard, per continuar.",
+      "noOne": "Encara no hi ha ningú al teu arxiu. Afegeix una persona o decideix més tard.",
+      "later": "Decideix més tard",
+      "laterHint": "La conversa espera a «Encara no assignades a ningú», a la pantalla de Persones.",
+      "new": "Afegeix una persona nova",
+      "newHint": "Escriu amb qui és aquest xat. S’afegeix al teu arxiu a l’instant.",
+      "conversations": "{count, plural, =0 {Encara cap conversa} one {# conversa} other {# converses}}"
+    },
+    "me": {
+      "legend": "Quin d’aquests ets tu a «{title}»?",
+      "hint": "Així es distingeixen els teus missatges dels seus.",
+      "guess": "Hem endevinat aquest. Canvia’l si no és correcte.",
+      "count": "{count, plural, one {# missatge} other {# missatges}}",
+      "phone": "Sembla un número de telèfon",
+      "phoneHint": "Un número de telèfon sol voler dir un contacte que no estava desat al telèfon que va exportar el xat.",
+      "none": "No sóc en aquest xat, o no ho sé",
+      "noneHint": "Els missatges es guarden tal com són, sense marcar quins són teus.",
+      "truncated": "Aquest xat té molta gent. Només es mostren les {count} persones que més han escrit. Si no ets cap d’elles, tria «No sóc en aquest xat».",
+      "noAuthors": "Ningú ha escrit en aquest xat, així que no hi ha ningú per triar.",
+      "required": "Tria una opció per continuar."
+    },
+    "check": {
+      "loading": "Comprovant què hi ha ja al teu arxiu…",
+      "failed": "No s’ha pogut comprovar què hi ha ja al teu arxiu.",
+      "retry": "Torna-ho a provar",
+      "new": "Aquesta és una conversa nova. {count, plural, one {S’afegirà el seu # missatge.} other {S’afegiran tots els # missatges.}}",
+      "existingTitle": "Aquest xat ja és a l’arxiu",
+      "existingBody": "Es guarda com a «{title}». {count, plural, =0 {Cap missatge hi és ja.} one {# missatge ja hi és i no es tornarà a copiar.} other {# missatges ja hi són i no es tornaran a copiar.}}",
+      "existingNew": "{count, plural, =0 {No hi ha missatges nous per afegir.} one {S’afegirà # missatge nou.} other {S’afegiran # missatges nous.}}",
+      "ambiguousTitle": "És un xat que ja tens?",
+      "reason": {
+        "sameTitle": "El teu arxiu té més d’un xat amb aquest nom. Tria el que continua aquest fitxer, o guarda’l a part com a conversa nova.",
+        "sameTitleNoOverlap": "El teu arxiu té un xat amb aquest nom, però cap dels seus missatges és en aquest fitxer. Pot ser un xat diferent.",
+        "overlap": "Alguns missatges d’aquest fitxer ja són en un xat amb un altre nom. Potser el xat s’ha canviat de nom."
+      },
+      "candidate": "Afegeix a «{title}»",
+      "candidateCount": "{count, plural, one {# missatge desat} other {# missatges desats}}",
+      "makeNew": "Crea una conversa nova",
+      "makeNewHint": "No s’uneix res als xats que ja tens.",
+      "choose": "Tria una opció per continuar.",
+      "dateTitle": "Com s’escriuen les dates en aquest xat?",
+      "dateBody": "Totes les dates d’aquest xat es poden llegir de dues maneres. Per exemple, la primera podria ser {dayFirst} o {monthFirst}. Tria com s’escriuen les dates al telèfon que va exportar el xat.",
+      "dayFirst": "Primer el dia: {date}",
+      "monthFirst": "Primer el mes: {date}",
+      "dateRequired": "Tria com s’escriuen les dates per continuar."
+    },
+    "space": {
+      "summary": "Resum",
+      "forPerson": "Per a",
+      "forNobody": "Encara no assignada a ningú",
+      "you": "Tu ets",
+      "youNone": "Sense marcar",
+      "add": "Per afegir",
+      "fits": "Hi ha prou espai en aquest dispositiu.",
+      "sizes": "Necessita fins a {needed}; hi ha {available} lliures en aquest dispositiu.",
+      "unknown": "Aquest navegador no diu quant d’espai hi ha lliure, així que no es pot comprovar. Pots continuar.",
+      "noFit": "Pot ser que no hi hagi prou espai en aquest dispositiu.",
+      "noFitWithout": "Sense els vídeos hi cabria.",
+      "noFitEvenWithout": "No hi cabria ni sense els vídeos. Allibera una mica d’espai primer, o continua i mira què passa.",
+      "noFitFree": "Allibera una mica d’espai primer, o continua i mira què passa.",
+      "skipVideos": "Importa sense vídeos",
+      "skipVideosHint": "Es deixen fora {size} de vídeos. Els missatges es queden, sense el seu vídeo. Per afegir els vídeos més endavant hauries de desfer aquesta importació i tornar a importar el xat."
+    },
+    "confirm": {
+      "single": "{count, plural, one {Afegeix # missatge a {name}} other {Afegeix # missatges a {name}}}",
+      "unassigned": "{count, plural, one {Afegeix # missatge, encara sense assignar} other {Afegeix # missatges, encara sense assignar}}",
+      "nothing": "Acaba sense afegir res",
+      "more": "Confirma i ves al fitxer següent",
+      "all": "Afegeix {count, plural, one {# missatge} other {# missatges}} de {files} fitxers",
+      "queueNote": "No s’afegeix res fins que hagis confirmat els {files} fitxers."
+    },
+    "run": {
+      "title": "Afegint els teus missatges",
+      "fileOf": "Fitxer {index} de {count}: {name}",
+      "preparing": "Preparant…",
+      "reading": "Llegint missatges…",
+      "media": "Copiant fotos i fitxers…",
+      "saving": "Desant al teu arxiu…",
+      "readingCount": "{count, plural, one {# missatge} other {# missatges}}",
+      "mediaCount": "{done} de {total} fitxers",
+      "bytes": "{done} de {total}",
+      "progressLabel": "Progrés de la importació",
+      "cancel": "Cancel·la la importació",
+      "cancelling": "Cancel·lant…",
+      "cancelNote": "Si cancel·les abans que es desin els missatges, no es canvia res. Els fitxers que ja s’havien afegit es queden.",
+      "keepOpen": "Deixa aquesta pàgina oberta fins que acabi.",
+      "queue": "Fitxers"
+    },
+    "status": {
+      "waiting": "En espera",
+      "running": "Important",
+      "done": "Fet",
+      "failed": "No importat",
+      "cancelled": "Cancel·lat",
+      "notStarted": "No començat",
+      "undone": "Importació desfeta"
+    },
+    "done": {
+      "titleOk": "Importació acabada",
+      "titleProblems": "Importació acabada, amb problemes",
+      "titleCancelled": "Importació cancel·lada",
+      "cancelledNote": "No s’ha canviat res del fitxer que s’ha cancel·lat. Els fitxers que havien acabat abans es queden al teu arxiu.",
+      "retry": "Torna a provar els fitxers sense acabar",
+      "another": "Importa una altra conversa",
+      "people": "Ves a Persones"
+    },
+    "result": {
+      "added": "{count, plural, =0 {No s’ha afegit cap missatge nou a {name}.} one {S’ha afegit # missatge nou a {name}.} other {S’han afegit # missatges nous a {name}.}}",
+      "addedUnassigned": "{count, plural, =0 {No s’ha afegit cap missatge nou.} one {S’ha afegit # missatge nou. Encara no està assignat a ningú.} other {S’han afegit # missatges nous. Encara no estan assignats a ningú.}}",
+      "alreadyThere": "{count, plural, one {# missatge ja era a l’arxiu i no s’ha tornat a copiar.} other {# missatges ja eren a l’arxiu i no s’han tornat a copiar.}}",
+      "created": "Conversa nova: «{title}».",
+      "merged": "Afegit a la conversa «{title}».",
+      "media": "{count, plural, one {S’ha desat # foto o fitxer.} other {S’han desat # fotos i fitxers.}}",
+      "mediaKept": "{count, plural, one {# fitxer ja estava desat i no s’ha tornat a desar.} other {# fitxers ja estaven desats i no s’han tornat a desar.}}",
+      "mediaMissing": "{count, plural, one {# fitxer que es menciona al xat no era al ZIP. El seu missatge es guarda sense ell.} other {# fitxers que es mencionen al xat no eren al ZIP. Els seus missatges es guarden sense ells.}}",
+      "videosSkipped": "{count, plural, one {S’ha deixat fora # vídeo, tal com has demanat. El seu missatge es guarda sense ell.} other {S’han deixat fora # vídeos, tal com has demanat. Els seus missatges es guarden sense ells.}}",
+      "rawLines": "{count, plural, one {# línia tenia una data que no es podia llegir. S’ha guardat com a part del missatge anterior.} other {# línies tenien una data que no es podia llegir. S’han guardat com a part del missatge anterior.}}",
+      "dayFirst": "Algunes dates es podien llegir de dues maneres. S’han llegit amb el dia primer.",
+      "monthFirst": "Algunes dates es podien llegir de dues maneres. S’han llegit amb el mes primer.",
+      "lateCancel": "Els missatges ja s’estaven desant quan has cancel·lat, així que la importació s’ha completat.",
+      "openPerson": "Obre {name}",
+      "openPeople": "Mira-la a Persones",
+      "undo": "Desfés aquesta importació",
+      "undoLabel": "Desfés la importació de «{title}»"
+    },
+    "undo": {
+      "title": "Vols desfer aquesta importació?",
+      "body": "{count, plural, one {El # missatge afegit} other {Els # missatges afegits}} per aquesta importació s’eliminaran. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Els missatges que ja eren al teu arxiu es queden.",
+      "bodyCreated": "{count, plural, one {El # missatge afegit} other {Els # missatges afegits}} per aquesta importació s’eliminaran, i també la conversa «{title}», que va crear aquesta importació. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Tot el que hi havia al teu arxiu abans es queda.",
+      "confirm": "Desfés la importació",
+      "cancel": "Conserva-la",
+      "done": "S’ha desfet la importació. {count, plural, one {S’ha eliminat # missatge.} other {S’han eliminat # missatges.}}",
+      "gone": "Aquesta importació ja estava desfeta.",
+      "failed": "No s’ha pogut desfer la importació. No s’ha canviat res. Torna-ho a provar."
+    },
+    "problem": {
+      "invalidExport": "Aquest fitxer no sembla una exportació d’un xat de WhatsApp. Torna a exportar el xat des de WhatsApp i tria el fitxer ZIP. No s’ha canviat res.",
+      "tooBig": "Aquesta exportació és més gran del que Memory Archive pot llegir. Prova d’exportar el xat sense contingut multimèdia. No s’ha canviat res.",
+      "busy": "Una altra tasca està fent servir el teu arxiu ara mateix, potser en una altra pestanya. Espera que acabi i torna-ho a provar. No s’ha canviat res.",
+      "workerFailed": "La importació s’ha interromput. Pot ser que se n’hagi afegit una part; tornar-ho a provar no crearà duplicats.",
+      "readFailed": "La lectura s’ha aturat de manera inesperada. No s’ha canviat res. Torna-ho a provar.",
+      "storage": "No s’han pogut desar els fitxers en aquest dispositiu. Potser no hi ha prou espai lliure. Allibera espai o prova-ho sense vídeos i torna-ho a provar. Tornar-ho a provar no crearà duplicats.",
+      "other": "No s’ha pogut fer. Si se n’ha afegit una part, tornar-ho a provar no crearà duplicats.",
+      "changed": "El teu arxiu ha canviat mentre aquest fitxer esperava, així que no queda clar a qui pertanyen els seus missatges. No s’ha importat res d’aquest fitxer. Torna a triar.",
+      "review": "Torna a triar"
+    }
   },
   "offline": {
     "title": "No tens connexió",
