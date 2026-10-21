@@ -54,8 +54,27 @@ function u64(view: DataView, offset: number): number {
   return Number(v);
 }
 
-/** List all entries from the central directory. Throws on a non-ZIP input. */
-export async function readZipEntries(zip: Blob): Promise<ZipEntry[]> {
+/** The central directory declares more entries or bytes than the caller allows. */
+export class ZipLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ZipLimitError';
+  }
+}
+
+export interface ReadZipOptions {
+  /** Reject a declared entry count above this, before the directory is read. */
+  maxEntries?: number;
+  /** Reject a declared central directory size above this, before it is read. */
+  maxCentralDirectoryBytes?: number;
+}
+
+/**
+ * List all entries from the central directory. Throws on a non-ZIP input, and a
+ * `ZipLimitError` when the declared count or directory size exceeds the options
+ * (checked on the declared values, so nothing big is read or allocated).
+ */
+export async function readZipEntries(zip: Blob, options: ReadZipOptions = {}): Promise<ZipEntry[]> {
   const tailLen = Math.min(zip.size, EOCD_MIN + MAX_COMMENT);
   const tailStart = zip.size - tailLen;
   const tail = await readRange(zip, tailStart, zip.size);
@@ -87,6 +106,15 @@ export async function readZipEntries(zip: Blob): Promise<ZipEntry[]> {
     cdSize = u64(rec, 40);
     cdOffset = u64(rec, 48);
   }
+
+  if (options.maxEntries !== undefined && count > options.maxEntries) {
+    throw new ZipLimitError('ZIP declares too many entries');
+  }
+  if (options.maxCentralDirectoryBytes !== undefined && cdSize > options.maxCentralDirectoryBytes) {
+    throw new ZipLimitError('ZIP central directory is too large');
+  }
+  // Every record takes at least 46 bytes: a larger count cannot be real.
+  if (count * 46 > cdSize) throw new Error('ZIP central directory is corrupt');
 
   const cd = await readRange(zip, cdOffset, cdOffset + cdSize);
   const entries: ZipEntry[] = [];

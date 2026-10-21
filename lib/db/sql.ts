@@ -15,13 +15,23 @@ export interface SqlDb {
   run(sql: string, params?: readonly SqlValue[]): number;
   /** Runs one parameterized query and returns its rows as objects. */
   all<T extends object = Record<string, SqlValue>>(sql: string, params?: readonly SqlValue[]): T[];
+  /**
+   * The whole database file as bytes (SQLite's serialization). Present when the
+   * wrapper was given the SQLite C API (`wrapOo1Db(db, capi)`); used by backups.
+   */
+  serialize?(): Uint8Array;
   close(): void;
 }
 
 /** What `wrapOo1Db` needs: SQLite WASM's `oo1.DB` and `OpfsSAHPoolDb` both fit. */
-export type Oo1Db = Pick<Database, 'exec' | 'changes' | 'close'>;
+export type Oo1Db = Pick<Database, 'exec' | 'changes' | 'close' | 'pointer'>;
 
-export function wrapOo1Db(db: Oo1Db): SqlDb {
+/** The one C-API function `serialize` needs (`sqlite3.capi`). */
+export interface SerializeCapi {
+  sqlite3_js_db_export(db: NonNullable<Oo1Db['pointer']>, schema?: string): Uint8Array;
+}
+
+export function wrapOo1Db(db: Oo1Db, capi?: SerializeCapi): SqlDb {
   return {
     exec: (sql) => {
       db.exec({ sql });
@@ -37,6 +47,14 @@ export function wrapOo1Db(db: Oo1Db): SqlDb {
         rowMode: 'object',
         returnValue: 'resultRows',
       }) as unknown as T[],
+    ...(capi
+      ? {
+          serialize: () => {
+            if (db.pointer === undefined) throw new Error('database is closed');
+            return capi.sqlite3_js_db_export(db.pointer);
+          },
+        }
+      : {}),
     close: () => db.close(),
   };
 }
