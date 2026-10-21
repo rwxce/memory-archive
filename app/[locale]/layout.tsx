@@ -6,6 +6,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ServiceWorkerRegistration } from '@/components/service-worker-registration';
 import { ThemeSync } from '@/components/theme-sync';
 import { THEME_INIT_SCRIPT } from '@/hooks/theme';
+import { LibraryProvider } from '@/hooks/use-library';
 import { routing } from '@/i18n/routing';
 
 type Params = { params: Promise<{ locale: string }> };
@@ -48,7 +49,9 @@ export default async function LocaleLayout({ children, params }: Params & { chil
       <body className="min-h-dvh">
         <ThemeSync />
         <ServiceWorkerRegistration />
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider>
+          <LibraryProvider>{children}</LibraryProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

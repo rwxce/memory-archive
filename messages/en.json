@@ -17,6 +17,72 @@
     "openHint": "Already have a Memory Archive file? Open it to continue where you left off.",
     "comingSoon": "This step is not ready yet. It will arrive in a coming version."
   },
+  "people": {
+    "title": "People",
+    "intro": "The people whose conversations you keep here.",
+    "add": "Add a person",
+    "conversations": "{count, plural, =0 {No conversations yet} one {# conversation} other {# conversations}}",
+    "emptyTitle": "No one here yet",
+    "emptyBody": "Add the first person to keep their conversations, photos and voice messages together. You can bring in their messages later.",
+    "allArchivedBody": "Everyone is archived. Add a new person, or restore someone from the archived list.",
+    "archivedTitle": "Archived",
+    "showArchived": "Show archived people ({count})",
+    "hideArchived": "Hide archived people",
+    "archivedHint": "Archived people are hidden from the main list. Everything about them is still on this device.",
+    "edit": "Edit",
+    "editLabel": "Edit {name}",
+    "archive": "Archive",
+    "archiveLabel": "Archive {name}",
+    "restore": "Restore",
+    "restoreLabel": "Restore {name}",
+    "about": "About Memory Archive",
+    "loadFailed": "Your people could not be read. Nothing was deleted.",
+    "actionFailed": "Nothing was changed for {name}. Try again.",
+    "created": "{name} was added.",
+    "updated": "Changes to {name} were saved.",
+    "archived": "{name} is now archived.",
+    "restored": "{name} is back in the list.",
+    "form": {
+      "createTitle": "Add a person",
+      "editTitle": "Edit {name}",
+      "name": "Name",
+      "relationship": "Relationship (optional)",
+      "relationshipHint": "For example: mother, friend, partner.",
+      "description": "Notes (optional)",
+      "descriptionHint": "Anything you want to remember about them.",
+      "create": "Add person",
+      "save": "Save changes",
+      "cancel": "Cancel",
+      "nameRequired": "Write a name to continue.",
+      "nameTooLong": "The name can have up to {max} characters.",
+      "relationshipTooLong": "The relationship can have up to {max} characters.",
+      "descriptionTooLong": "The notes can have up to {max} characters.",
+      "invalidText": "Some of the text cannot be saved. Remove unusual characters and try again.",
+      "saveFailed": "It could not be saved. Nothing was changed. Try again."
+    },
+    "archiveConfirm": {
+      "title": "Archive {name}?",
+      "body": "{name} moves to the archived list. Their conversations, messages and photos stay on this device and in your backups. You can restore them at any time.",
+      "confirm": "Archive",
+      "cancel": "Cancel"
+    }
+  },
+  "library": {
+    "loading": "Opening your archive…",
+    "retry": "Try again",
+    "inUse": {
+      "title": "Your archive cannot be opened right now",
+      "body": "If Memory Archive is open in another tab or window, close it and try again. Otherwise this browser may not allow saving files, which can happen in private browsing. Nothing was changed."
+    },
+    "newerVersion": {
+      "title": "This archive needs a newer version",
+      "body": "It was saved by a newer version of Memory Archive. Update the app to open it. Nothing was changed."
+    },
+    "error": {
+      "title": "Your archive could not be opened",
+      "body": "Something went wrong. Nothing was deleted. Try again, and if it keeps happening, reload the page."
+    }
+  },
   "settings": {
     "title": "Settings",
     "language": {

@@ -17,6 +17,72 @@
     "openHint": "¿Ya tienes un fichero de Memory Archive? Ábrelo para seguir donde lo dejaste.",
     "comingSoon": "Este paso aún no está listo. Llegará en una próxima versión."
   },
+  "people": {
+    "title": "Personas",
+    "intro": "Las personas cuyas conversaciones guardas aquí.",
+    "add": "Añadir una persona",
+    "conversations": "{count, plural, =0 {Aún no hay conversaciones} one {# conversación} other {# conversaciones}}",
+    "emptyTitle": "Aún no hay nadie",
+    "emptyBody": "Añade a la primera persona para guardar juntas sus conversaciones, fotos y mensajes de voz. Sus mensajes podrás traerlos más adelante.",
+    "allArchivedBody": "Todas las personas están archivadas. Añade una nueva o restaura a alguien de la lista de archivadas.",
+    "archivedTitle": "Archivadas",
+    "showArchived": "Mostrar las personas archivadas ({count})",
+    "hideArchived": "Ocultar las personas archivadas",
+    "archivedHint": "Las personas archivadas no aparecen en la lista principal. Todo lo suyo sigue en este dispositivo.",
+    "edit": "Editar",
+    "editLabel": "Editar a {name}",
+    "archive": "Archivar",
+    "archiveLabel": "Archivar a {name}",
+    "restore": "Restaurar",
+    "restoreLabel": "Restaurar a {name}",
+    "about": "Sobre Memory Archive",
+    "loadFailed": "No se han podido leer tus personas. No se ha borrado nada.",
+    "actionFailed": "No se ha cambiado nada para {name}. Inténtalo de nuevo.",
+    "created": "Se ha añadido a {name}.",
+    "updated": "Se han guardado los cambios de {name}.",
+    "archived": "Se ha archivado a {name}.",
+    "restored": "Se ha restaurado a {name}.",
+    "form": {
+      "createTitle": "Añadir una persona",
+      "editTitle": "Editar a {name}",
+      "name": "Nombre",
+      "relationship": "Relación (opcional)",
+      "relationshipHint": "Por ejemplo: madre, amigo, pareja.",
+      "description": "Notas (opcional)",
+      "descriptionHint": "Cualquier cosa que quieras recordar de esta persona.",
+      "create": "Añadir persona",
+      "save": "Guardar cambios",
+      "cancel": "Cancelar",
+      "nameRequired": "Escribe un nombre para continuar.",
+      "nameTooLong": "El nombre puede tener hasta {max} caracteres.",
+      "relationshipTooLong": "La relación puede tener hasta {max} caracteres.",
+      "descriptionTooLong": "Las notas pueden tener hasta {max} caracteres.",
+      "invalidText": "Una parte del texto no se puede guardar. Quita los caracteres raros e inténtalo de nuevo.",
+      "saveFailed": "No se ha podido guardar. No se ha cambiado nada. Inténtalo de nuevo."
+    },
+    "archiveConfirm": {
+      "title": "¿Archivar a {name}?",
+      "body": "{name} pasa a la lista de archivadas. Sus conversaciones, mensajes y fotos se quedan en este dispositivo y en tus copias de seguridad. Puedes deshacerlo cuando quieras.",
+      "confirm": "Archivar",
+      "cancel": "Cancelar"
+    }
+  },
+  "library": {
+    "loading": "Abriendo tu archivo…",
+    "retry": "Inténtalo de nuevo",
+    "inUse": {
+      "title": "Tu archivo no se puede abrir ahora mismo",
+      "body": "Si Memory Archive está abierto en otra pestaña o ventana, ciérrala e inténtalo de nuevo. Si no, puede que este navegador no permita guardar ficheros, algo que pasa en la navegación privada. No se ha cambiado nada."
+    },
+    "newerVersion": {
+      "title": "Este archivo necesita una versión más nueva",
+      "body": "Se guardó con una versión más nueva de Memory Archive. Actualiza la aplicación para abrirlo. No se ha cambiado nada."
+    },
+    "error": {
+      "title": "No se ha podido abrir tu archivo",
+      "body": "Algo ha ido mal. No se ha borrado nada. Inténtalo de nuevo y, si sigue pasando, recarga la página."
+    }
+  },
   "settings": {
     "title": "Ajustes",
     "language": {
