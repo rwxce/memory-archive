@@ -82,7 +82,9 @@ test type or architecture rule means updating this file **in the same PR**.
   `node:*` imports, no `Buffer`/`process`, no React / Next.js.
   - `lib/domain/` — pure types and constants: `archive.ts` (`ARCHIVE_FORMAT_VERSION`),
     `library.ts` (profile / conversation / message types, `isUuid`, `isSha256Hex`,
-    `isLocalTimestamp`, `MESSAGE_TYPES`).
+    `isLocalTimestamp`, `MESSAGE_TYPES`), `sha256.ts` (`createSha256`: incremental SHA-256 in
+    plain TS, pinned by NIST vectors; WebCrypto has no incremental digest, so this is how
+    media is hashed while it streams, with no dependency).
   - `lib/db/` — the only code that issues SQL. `sql.ts` (`SqlDb`: the narrow sync surface
     over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1,
     `PRAGMA user_version`, forward-only, one transaction per migration, newer DB refused),
@@ -97,7 +99,12 @@ test type or architecture rule means updating this file **in the same PR**.
   - `lib/storage/` — `share-inbox.ts` (Web Share Target files in Cache Storage
     `memory-archive-share-inbox-v1`; names are metadata only, never paths), `quota.ts`
     (`requestPersistentStorage`, `readStorageStatus`), `test-cache-storage.ts` (in-memory
-    `CacheStorage` for tests).
+    `CacheStorage` for tests), `blob-store.ts` (`BlobStore` interface, `BlobStoreError`),
+    `opfs-blob-store.ts` (`openBlobStore(dir)` / `openOpfsBlobStore()`: content-addressed
+    blobs in OPFS `memory-archive-blobs/<aa>/<sha256>`, streamed hash-while-write into
+    `tmp/` then atomic `move()`, copy+verify fallback with recovery markers, sweep of
+    abandoned temp files on open, only valid 64-hex names become paths),
+    `test-opfs-directory.ts` (in-memory OPFS directory for tests).
   - `lib/usecases/device-storage.ts` — `prepareDeviceStorage`, `getDeviceStorageStatus`,
     `getSharedFiles` (called from `hooks/use-device-storage.ts`).
   - `lib/importers/whatsapp/` — `zip.ts` (single ZIP reader: central directory + ZIP64 over
@@ -147,10 +154,14 @@ test type or architecture rule means updating this file **in the same PR**.
   OPFS), `import_batches` (history, added / skipped counts; belongs to a conversation and is deleted with it, since `source_label` may hold a person's name). Foreign keys are on; ids,
   hashes, timestamps and message types are also CHECK-constrained. Fingerprint computation
   arrives with the importer (Phase 4); the database only stores and de-duplicates by it.
-- **Planned storage model** — SQLite (adds timeline events, associations, favorites,
-  annotations, meta in later migrations) +
-  **content-addressed blobs** (`blobs/sha256/ab/cd/<hash>`), immutable, paths relative to the
-  archive root. Source data is separate from user-defined associations.
+- **Storage model** — SQLite holds the structured data (later migrations add timeline
+  events, associations, favorites, annotations, meta). Media are **content-addressed blobs**,
+  implemented in `lib/storage` (`opfs-blob-store.ts`): OPFS `memory-archive-blobs/<aa>/<sha256>`
+  sharded by the first two hex characters, written through `tmp/` and published atomically
+  with `move()` (copy fallback with a `pending-<sha>` marker, re-verified on the next open).
+  `put` keeps an existing same-size blob and replaces only a size-mismatched copy;
+  same-size bit-rot is reported by `verify()`, not healed. The backup ZIP layout is separate.
+  Source data is separate from user-defined associations.
 - **Planned message fingerprint** — `sha256(conversation | normalized local timestamp |
   participant | NFC text | media hash | ordinal within the same minute)`; imports are
   idempotent.
@@ -241,6 +252,14 @@ test type or architecture rule means updating this file **in the same PR**.
   - No remote resources — `lib/exporters/legacy/legacy.test.ts` scans the generated
     `messages.html`; `pnpm smoke` scans every HTML/CSS file in `out/` and asserts `out/db/worker.js` and
     `out/db/sqlite3.wasm` exist and are precached by `out/sw.js`.
+  - Blobs — `lib/domain/sha256.test.ts` (NIST vectors, million-`a`, every length 0-200
+    against WebCrypto, chunking) and `lib/storage/opfs-blob-store.test.ts` (the OPFS adapter
+    on the in-memory directory in four capability combinations: writable / sync access
+    handle, with / without `move()`): known digest, dedupe and idempotent put, stream error
+    leaves nothing, corrupt blobs (same-size ones are left for `verify`) and truncated ones (replaced), invalid names rejected (traversal, case,
+    length), list / delete, multi-chunk streaming, concurrent puts, sweep, copy-fallback
+    crash recovery, copy-fallback failure paths (write error, corrupt copy, short write),
+    a throwing sweep. Real OPFS only exists in a browser, so it is not covered by unit tests.
   - Tooling — `scripts/block-agent-github-review-writes.test.ts` (the hook script, run end
     to end with the stdin JSON agents send), `check-i18n-parity.test.ts`,
     `serve-out.test.ts` (base path, 404, no path traversal), `eslint-architecture.test.ts`. The vendored `security-audit` validators have
