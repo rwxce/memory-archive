@@ -103,6 +103,7 @@ export default tseslint.config(
       'lab/**',
       'backup/**',
       'out/**',
+      'public/db/**',
       'output/**',
       'fixtures/**',
       'coverage/**',

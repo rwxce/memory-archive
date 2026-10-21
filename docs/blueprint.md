@@ -60,8 +60,17 @@ test type or architecture rule means updating this file **in the same PR**.
     which lists them. Phase 4 imports them.
   - **Storage**: *Start* calls `navigator.storage.persist()`; Settings → *Space on this
     device* shows `navigator.storage.estimate()` and whether storage is persistent.
-- **App (planned, Phase 2):** zod 4, SQLite WASM (`@sqlite.org/sqlite-wasm`) persisted in
-  the browser's **OPFS**.
+- **SQLite WASM** (`@sqlite.org/sqlite-wasm` 3.53.4-build2, exact pin; official SQLite
+  build, Apache-2.0, no dependencies, no install scripts, ~850 KiB `.wasm`) persisted in the
+  browser's **OPFS** through the **SAH-pool VFS** (no COOP/COEP headers, one connection at a
+  time), inside a Web Worker. `scripts/build-db-worker.mjs` (run by `pnpm dev` and `pnpm
+  build`, before `next build`) bundles `lib/db/worker.ts` with esbuild and copies the
+  `.wasm` into `public/db/` (gitignored); `next build` ships both in `out/`, same origin, and
+  the service worker precaches them (so the database opens offline). Turbopack cannot bundle
+  the package itself (its legacy worker wrapper uses a dynamic `new Worker(new URL(...))`),
+  hence the separate esbuild step. The newer 3.54.x was skipped until it passes the 7-day
+  `minimumReleaseAge`.
+- **App (planned, Phase 2):** zod 4.
 - **Hosting (planned):** Cloudflare Pages for the public URL; GitHub Pages workflow so any fork
   gets its own URL with no secrets.
 - **No backend, no accounts, no third-party APIs.** No Google Cloud, no OAuth, no telemetry.
@@ -71,7 +80,18 @@ test type or architecture rule means updating this file **in the same PR**.
 - **Platform-neutral core (`lib/`)** — runs in Node and in the browser (Web Worker in
   Phase 2). Inputs are `Blob`s, web `ReadableStream`s and async iterables of lines; no
   `node:*` imports, no `Buffer`/`process`, no React / Next.js.
-  - `lib/domain/` — pure types and constants: `archive.ts` (`ARCHIVE_FORMAT_VERSION`).
+  - `lib/domain/` — pure types and constants: `archive.ts` (`ARCHIVE_FORMAT_VERSION`),
+    `library.ts` (profile / conversation / message types, `isUuid`, `isSha256Hex`,
+    `isLocalTimestamp`, `MESSAGE_TYPES`).
+  - `lib/db/` — the only code that issues SQL. `sql.ts` (`SqlDb`: the narrow sync surface
+    over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1,
+    `PRAGMA user_version`, forward-only, one transaction per migration, newer DB refused),
+    `queries.ts` (profiles, conversations, `importMessages`, `listMessages`),
+    `protocol.ts` + `dispatch.ts` (typed request/response messages; no raw SQL crosses the
+    boundary), `open.ts` (`openMemoryDb` for Node tests, `openOpfsDb` for the worker),
+    `worker.ts` (worker entry), `client.ts` (`createDbClient`, request ids, `DbError`
+    codes; `createWorkerTransport(url)`). The same migrations and queries run against the
+    in-memory database in Node tests and the OPFS one in the browser.
   - `lib/log.ts` — `createLogger(scope)`; the only console writer outside `cli/` and
     `scripts/`. Local diagnostics only, never message content.
   - `lib/storage/` — `share-inbox.ts` (Web Share Target files in Cache Storage
@@ -120,8 +140,15 @@ test type or architecture rule means updating this file **in the same PR**.
   `lib/storage/` · `lib/importers/<source>/` · `lib/exporters/`. UI may also use
   `lib/domain` types and `i18n/`; only use cases compose db / storage / importers /
   exporters.
-- **Planned storage model** — SQLite (profiles, conversations, participants, messages,
-  media, timeline events, associations, import batches, favorites, annotations, meta) +
+- **Schema v1 (implemented, `lib/db/migrations.ts`)** — `profiles` (UUID), `conversations`
+  (UUID), `conversation_profiles` (many-to-many), `participants` (per conversation, explicit
+  optional `profile_id`), `messages` (`UNIQUE(conversation_id, fingerprint)` = idempotent
+  import, ordered by `sent_at, ordinal, id`), `blobs` (sha256 + size + mime; bytes live in
+  OPFS), `import_batches` (history, added / skipped counts; belongs to a conversation and is deleted with it, since `source_label` may hold a person's name). Foreign keys are on; ids,
+  hashes, timestamps and message types are also CHECK-constrained. Fingerprint computation
+  arrives with the importer (Phase 4); the database only stores and de-duplicates by it.
+- **Planned storage model** — SQLite (adds timeline events, associations, favorites,
+  annotations, meta in later migrations) +
   **content-addressed blobs** (`blobs/sha256/ab/cd/<hash>`), immutable, paths relative to the
   archive root. Source data is separate from user-defined associations.
 - **Planned message fingerprint** — `sha256(conversation | normalized local timestamp |
@@ -200,10 +227,20 @@ test type or architecture rule means updating this file **in the same PR**.
   - PWA — `sw/share-target.test.ts` (stores only ZIP/TXT, 303 redirect, malformed POST,
     offline page per locale, locales in sync), `lib/storage/*.test.ts` (share inbox,
     quota), `lib/usecases/device-storage.test.ts`, `scripts/generate-icons.test.ts`.
-    Offline behaviour (load once → offline → reload / navigate / fallback, share POST while
+  - Offline behaviour (load once → offline → reload / navigate / fallback, share POST while
     offline, base-path build) verified manually with Playwright; see the PR.
+  - Database — `lib/db/*.test.ts` run the real sqlite-wasm in memory under Node:
+    migrations (empty → latest, idempotent re-run, failed migration rolls back, every
+    earlier version → latest, newer version refused, frozen `sqlite_master` snapshot),
+    constraints (incl. `import_batches` cascading with its conversation), queries (re-import and
+    overlapping import add nothing twice, atomic import, hostile text, pagination), and the
+    client through a structured-clone loopback (ids, out-of-order replies, errors, worker
+    failure, throwing transport, malformed params → `invalid`). `scripts/build-db-worker.test.ts`
+    builds the worker bundle and checks it contains no remote URL. The OPFS VFS only
+    exists in a browser, so it is verified manually (headless Chrome, see the PR).
   - No remote resources — `lib/exporters/legacy/legacy.test.ts` scans the generated
-    `messages.html`; `pnpm smoke` scans every HTML/CSS file in `out/`.
+    `messages.html`; `pnpm smoke` scans every HTML/CSS file in `out/` and asserts `out/db/worker.js` and
+    `out/db/sqlite3.wasm` exist and are precached by `out/sw.js`.
   - Tooling — `scripts/block-agent-github-review-writes.test.ts` (the hook script, run end
     to end with the stdin JSON agents send), `check-i18n-parity.test.ts`,
     `serve-out.test.ts` (base path, 404, no path traversal), `eslint-architecture.test.ts`. The vendored `security-audit` validators have
