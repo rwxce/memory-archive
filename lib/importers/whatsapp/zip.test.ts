@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { Zip, ZipDeflate, ZipPassThrough, strToU8, zipSync } from 'fflate';
-import { openZipEntry, readZipEntries, readZipEntryBytes } from './zip';
+import { ZipLimitError, openZipEntry, readZipEntries, readZipEntryBytes } from './zip';
 
 const text = (b: Uint8Array) => new TextDecoder().decode(b);
 
@@ -193,5 +193,33 @@ describe('readZipEntries / openZipEntry', () => {
     await expect(readZipEntryBytes(zip, { ...entry, localHeaderOffset: 5 })).rejects.toThrow(
       /local header missing/,
     );
+  });
+
+  test('rejects a declared entry count above maxEntries before reading the directory', async () => {
+    const zip = new Blob([zipSync({ 'a.txt': strToU8('a'), 'b.txt': strToU8('b'), 'c.txt': strToU8('c') })]);
+    expect(await readZipEntries(zip, { maxEntries: 3 })).toHaveLength(3);
+    await expect(readZipEntries(zip, { maxEntries: 2 })).rejects.toBeInstanceOf(ZipLimitError);
+  });
+
+  test('rejects a ZIP64 count (u64) above maxEntries', async () => {
+    const bytes = zip64([{ name: 'a.txt', data: new Uint8Array([1]) }]);
+    const view = new DataView(bytes.buffer);
+    const at = bytes.length - 22 - 20 - 56; // EOCD64 record
+    expect(view.getUint32(at, true)).toBe(0x06064b50);
+    view.setBigUint64(at + 32, 5_000_000_000n, true);
+    await expect(readZipEntries(new Blob([bytes]), { maxEntries: 1_000_000 })).rejects.toBeInstanceOf(ZipLimitError);
+  });
+
+  test('rejects a central directory above maxCentralDirectoryBytes', async () => {
+    const zip = new Blob([zipSync({ 'a.txt': strToU8('a') })]);
+    await expect(readZipEntries(zip, { maxCentralDirectoryBytes: 10 })).rejects.toBeInstanceOf(ZipLimitError);
+    expect(await readZipEntries(zip, { maxCentralDirectoryBytes: 10_000 })).toHaveLength(1);
+  });
+
+  test('a count that cannot fit in the declared directory is corrupt', async () => {
+    const bytes = zipSync({ 'a.txt': strToU8('a') });
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    view.setUint16(bytes.length - 22 + 10, 60000, true);
+    await expect(readZipEntries(new Blob([bytes as BlobPart]))).rejects.toThrow(/corrupt/);
   });
 });

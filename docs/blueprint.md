@@ -106,7 +106,11 @@ test type or architecture rule means updating this file **in the same PR**.
     abandoned temp files on open, only valid 64-hex names become paths),
     `test-opfs-directory.ts` (in-memory OPFS directory for tests).
   - `lib/usecases/device-storage.ts` — `prepareDeviceStorage`, `getDeviceStorageStatus`,
-    `getSharedFiles` (called from `hooks/use-device-storage.ts`).
+    `getSharedFiles` (called from `hooks/use-device-storage.ts`); `lib/usecases/archive.ts` —
+    `exportArchive`, `restoreArchiveIntoEmptyLibrary` (no UI entry point yet).
+  - `lib/db/snapshot.ts` — `serializeDb`, `loadSnapshot`, `listBlobs`, `isLibraryEmpty`.
+  - `lib/exporters/archive/` — `format.ts` (manifest, limits, `ArchiveError`, path validation),
+    `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`restoreArchive`).
   - `lib/importers/whatsapp/` — `zip.ts` (single ZIP reader: central directory + ZIP64 over
     `Blob.slice`, fflate streaming inflate per entry), `lines.ts` (UTF-8 decoding + line
     splitting), `timestamp.ts`, `message.ts` (state machine), `chat.ts` (transcript entry,
@@ -160,14 +164,35 @@ test type or architecture rule means updating this file **in the same PR**.
   sharded by the first two hex characters, written through `tmp/` and published atomically
   with `move()` (copy fallback with a `pending-<sha>` marker, re-verified on the next open).
   `put` keeps an existing same-size blob and replaces only a size-mismatched copy;
-  same-size bit-rot is reported by `verify()`, not healed. The backup ZIP layout is separate.
+  same-size bit-rot is reported by `verify()`, not healed. The backup ZIP layout is separate (see Archive file).
   Source data is separate from user-defined associations.
 - **Planned message fingerprint** — `sha256(conversation | normalized local timestamp |
   participant | NFC text | media hash | ordinal within the same minute)`; imports are
   idempotent.
-- **Planned archive file** — `memory-archive-YYYY-MM-DD.zip` = database snapshot + blobs +
-  `manifest.json` (format/schema version, sha256 and size per file). Change packs for manual
-  sync use the same format with only the new import batches.
+- **Archive file (v1, implemented as a PoC in `lib/exporters/archive/`)** —
+  `memory-archive-YYYY-MM-DD.zip`: `manifest.json` first (deflated; `format`, `formatVersion`,
+  `createdAt`, `app`, `schemaVersion`, `entries[{path,size,sha256}]`), then `db/library.sqlite`
+  and `blobs/<aa>/<sha256>` per `blobs` row, all stored uncompressed (media is already
+  compressed; exact byte counts make caps simple). Export and restore share an in-process
+  busy guard per library (a second concurrent call fails with `busy`), and export reads the
+  media list, schema version and database bytes back to back so they describe one moment, then
+  refuses with `limit-exceeded` anything restore's limits would refuse (entry count, database,
+  largest blob, total, directory size; overridable via the same `limits` option).
+  Restore (`restoreArchiveIntoEmptyLibrary`) refuses a library that has rows
+  (`target-not-empty`); media files in the store without any database row are leftovers of an
+  interrupted import or restore and are swept first. It checks limits before reading anything
+  big: declared entry count and central directory size (`readZipEntries` options `maxEntries`,
+  `maxCentralDirectoryBytes`, ZIP64 included), then per entry from the directory
+  (`MAX_ENTRIES`, `MAX_TOTAL_BYTES`, `MAX_ENTRY_BYTES`, `MAX_DATABASE_BYTES` for
+  `db/library.sqlite`, `MAX_COMPRESSION_RATIO`), validates paths and the manifest, requires
+  ZIP entries and manifest to match exactly, counts and hashes real bytes while streaming,
+  loads the database last (`lib/db/snapshot.ts`: scratch copy with `trusted_schema` off,
+  triggers / views / virtual tables refused before migrating, integrity and foreign-key checks,
+  migrate, one-transaction copy with per-table row counts verified) and deletes the blobs it
+  stored if anything fails (a delete that fails is reported as `leftoverBlobs` on the error and
+  swept by the next restore). Newer `formatVersion` / `schemaVersion` are refused. PoC limits: the export is
+  assembled in memory; restore into a non-empty library (merge) and change packs for manual
+  sync are not implemented.
 - **Read-only viewer is separate from the archive** — the portable HTML viewer is an export,
   never the storage format.
 
@@ -252,6 +277,16 @@ test type or architecture rule means updating this file **in the same PR**.
   - No remote resources — `lib/exporters/legacy/legacy.test.ts` scans the generated
     `messages.html`; `pnpm smoke` scans every HTML/CSS file in `out/` and asserts `out/db/worker.js` and
     `out/db/sqlite3.wasm` exist and are precached by `out/sw.js`.
+  - Archive — `lib/exporters/archive/archive.test.ts` (round trip row by row and blob by
+    blob, layout, hostile archives: traversal / absolute / backslash / drive letter, duplicates,
+    unlisted or missing entries, tampered blob / database, size mismatch, bad manifest, newer
+    format / schema, entry / size / database / directory / ratio limits including a bomb that
+    lies about its size, truncated and corrupt ZIPs, corrupt SQLite, leftover-media sweep and
+    retry, non-empty target; each asserts the specific error code and that the target stays
+    empty), `lib/db/snapshot.test.ts` (older-schema migration with a synthetic migration list,
+    newer schema, triggers / views / virtual tables, extra / missing tables and columns,
+    foreign-key and integrity failures, negative rowids, atomic rollback),
+    `lib/usecases/archive.test.ts` (busy guard, concurrent restores).
   - Blobs — `lib/domain/sha256.test.ts` (NIST vectors, million-`a`, every length 0-200
     against WebCrypto, chunking) and `lib/storage/opfs-blob-store.test.ts` (the OPFS adapter
     on the in-memory directory in four capability combinations: writable / sync access
