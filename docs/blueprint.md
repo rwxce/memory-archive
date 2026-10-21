@@ -43,6 +43,15 @@ test type or architecture rule means updating this file **in the same PR**.
     `hooks/use-conversation-actions.ts` (rename / move / link / unlink; same reload contract).
     No dynamic route segments for ids (static export): detail screens use query params
     (`/person?id=`).
+  - **Import history** (`/[locale]/import/history/`, optional `?person=<id>`,
+    `components/import-history-screen.tsx`, `hooks/use-import-history.ts`): newest-first list of imports
+    (file name, relative + absolute date, messages added / already there, conversation title, the
+    people it is kept under as links or "not assigned yet", "created the conversation", messages that still
+    carry media), pages of 20 with "Show older imports" (`historyCursorOf`; a reload after an undo re-reads as many entries as were shown, page by page, never asking for more than the server cap of 200; a page dropped because the list changed meanwhile is not an error; an empty last page moves focus to the heading),
+    calm empty state with a link to the wizard, code-based error copy. "Undo this import" asks first
+    (what goes, what stays: other imports are untouched; the conversation goes only if this import created it and
+    nothing else is left), handles `busy` calmly, announces in the live region and focuses the heading; an import with
+    no messages left, or that added none, has no undo and says why. The Undo buttons' accessible name starts with the visible words ("Undo this import: {title}", also in the wizard). Linked from the wizard (start and finish), People, the person page and Settings.
   - **Import wizard** (`/[locale]/import/`, `components/import-screen.tsx` and its parts
     `import-choose` / `import-wizard` / `import-steps` / `import-run` / `import-types`,
     `hooks/use-import.tsx`): files picked, dropped or shared (the share inbox is offered in the
@@ -161,7 +170,7 @@ test type or architecture rule means updating this file **in the same PR**.
     over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1 + v2 + v3,
     `PRAGMA user_version`, forward-only, one transaction per migration, newer DB refused),
     `queries.ts` (profiles: create / update / archive / get / list; conversations: list / rename /
-    move / link / unlink; `importMessages` (batch, optional new conversation and "me", all in one transaction), `findImportCandidates`, `findExistingFingerprints`, `undoImportBatch`, `listMessages`),
+    move / link / unlink; `importMessages` (batch, optional new conversation and "me", all in one transaction), `findImportCandidates`, `findExistingFingerprints`, `undoImportBatch`, `listImportBatches` (read-only history: newest first, keyset `before` cursor, page <= 200, filter by conversation or profile), `listMessages`),
     `protocol.ts` + `dispatch.ts` (typed request/response messages; no raw SQL crosses the
     boundary), `open.ts` (`openMemoryDb` for Node tests, `openOpfsDb` for the worker),
     `worker.ts` (worker entry) over `serve.ts` (`createDbServer`: the request loop, plus `connect`:
@@ -317,7 +326,7 @@ test type or architecture rule means updating this file **in the same PR**.
   sampled fingerprints find no overlap is looked up once more with ALL of the export's
   non-system fingerprints (a newer export may share only a handful of messages) before
   `same-title-no-overlap`;
-  `{mode:'existing'|'new'}` is the caller's explicit choice. `undoImportBatch` removes the batch's
+  `{mode:'existing'|'new'}` is the caller's explicit choice. Import history (`usecases/import-history.ts`, no schema change): `listImportHistory` adds profile names to `listImportBatches`; a batch is listed until undone (undo deletes its row), a re-import that added nothing and created nothing is not listed, `messagesPresent` / `canUndo` come from `messages_by_batch`, per-batch media added/skipped are not recorded (only `mediaPresent`); `undoImport` is `undoImportBatch` (same guard and lock). `undoImportBatch` removes the batch's
   messages, participants only it brought (not profile-linked, not "me"), the conversation it created
   once empty, and blobs nothing else references (messages, profile photos); transactional and
   idempotent. Interruption: blobs are written before the transaction; abort (`AbortSignal`) or an
@@ -616,7 +625,9 @@ test type or architecture rule means updating this file **in the same PR**.
     library made on /en/, the language picker, a Catalan run, offline reload, no horizontal overflow and a 60-character
     unbroken name, and the import wizard (`e2e/import.spec.ts`: a synthetic ZIP built with fflate and set
     on the file input; import into a new person, summary, person page count, offline reload; same ZIP again =
-    already in the archive, 0 added; undo asks first and removes the conversation; a TXT left out; Catalan). Screenshots on failure only; `test-results/` and `playwright-report/` are
+    already in the archive, 0 added; undo asks first and removes the conversation; a TXT left out; Catalan) and the import history
+    (`e2e/history.spec.ts`: same ZIP twice = one entry and unchanged counts; a newer export adds only the difference; undo from
+    the history; Catalan; and the Phase 4 check: a 2,300-message ZIP with 300 files of 64 kB built once per worker; after a real progress signal (files copied > 0) closing the tab / reloading leaves exactly 0 conversations and an empty history, and importing again ends with every message once; the all-or-nothing guarantee itself is held by the table-state tests in `lib/usecases/import.test.ts`). Screenshots on failure only; `test-results/` and `playwright-report/` are
     git-ignored. Firefox and WebKit projects come in Phase 6 with a browser install step.
 - **Planned:** an automated run of the PRD acceptance scenario (backup → restore on a clean
   browser) in e2e.

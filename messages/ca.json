@@ -68,7 +68,8 @@
     },
     "unassignedTitle": "Encara no assignades a ningú",
     "unassignedHint": "Aquestes converses són segures en aquest dispositiu. Tria de qui és cadascuna quan vulguis.",
-    "import": "Importa una conversa"
+    "import": "Importa una conversa",
+    "history": "Historial d’importacions"
   },
   "library": {
     "loading": "Obrint el teu arxiu…",
@@ -111,6 +112,11 @@
       "unknown": "Aquest navegador no indica quant espai fa servir l’aplicació.",
       "persisted": "El teu arxiu està protegit: el navegador no l’esborrarà pel seu compte.",
       "notPersisted": "El navegador podria esborrar les dades de l’aplicació si el dispositiu es queda sense espai. Afegir l’aplicació a la pantalla d’inici ajuda a conservar-les, i també exportar-ne una còpia de tant en tant."
+    },
+    "history": {
+      "title": "Historial d’importacions",
+      "description": "Mira què ha afegit cada importació i desfés-ne una si ho necessites.",
+      "open": "Obre l’historial d’importacions"
     }
   },
   "notFound": {
@@ -281,7 +287,8 @@
       "cancelledNote": "No s’ha canviat res del fitxer que s’ha cancel·lat. Els fitxers que havien acabat abans es queden al teu arxiu.",
       "retry": "Torna a provar els fitxers sense acabar",
       "another": "Importa una altra conversa",
-      "people": "Ves a Persones"
+      "people": "Ves a Persones",
+      "history": "Mira l’historial d’importacions"
     },
     "result": {
       "added": "{count, plural, =0 {No s’ha afegit cap missatge nou a {name}.} one {S’ha afegit # missatge nou a {name}.} other {S’han afegit # missatges nous a {name}.}}",
@@ -300,7 +307,7 @@
       "openPerson": "Obre {name}",
       "openPeople": "Mira-la a Persones",
       "undo": "Desfés aquesta importació",
-      "undoLabel": "Desfés la importació de «{title}»"
+      "undoLabel": "Desfés aquesta importació: {title}"
     },
     "undo": {
       "title": "Vols desfer aquesta importació?",
@@ -322,7 +329,8 @@
       "other": "No s’ha pogut fer. Si se n’ha afegit una part, tornar-ho a provar no crearà duplicats.",
       "changed": "El teu arxiu ha canviat mentre aquest fitxer esperava, així que no queda clar a qui pertanyen els seus missatges. No s’ha importat res d’aquest fitxer. Torna a triar.",
       "review": "Torna a triar"
-    }
+    },
+    "historyLink": "Mira l’historial d’importacions"
   },
   "offline": {
     "title": "No tens connexió",
@@ -337,7 +345,8 @@
     "archivedBadge": "Arxivada",
     "archivedNote": "Aquesta persona està arxivada. Tot continua en aquest dispositiu i la pots restaurar quan vulguis.",
     "conversationsTitle": "Converses",
-    "noConversations": "Encara no hi ha cap conversa guardada a {name}. Quan portis missatges, apareixeran aquí."
+    "noConversations": "Encara no hi ha cap conversa guardada a {name}. Quan portis missatges, apareixeran aquí.",
+    "importsLink": "Importacions d’aquesta persona"
   },
   "conversations": {
     "listLabel": "Converses",
@@ -397,5 +406,37 @@
       "confirm": "Desvincula",
       "cancel": "Cancel·la"
     }
+  },
+  "history": {
+    "title": "Historial d’importacions",
+    "intro": "El que ha afegit cada importació al teu arxiu. Des d’aquí pots desfer una importació.",
+    "introPerson": "Importacions a les converses guardades sota {name}.",
+    "showAll": "Mostra totes les importacions",
+    "back": "Torna a Persones",
+    "backPerson": "Torna a {name}",
+    "listLabel": "Importacions",
+    "loadFailed": "No s’ha pogut llegir l’historial d’importacions. No s’ha canviat res.",
+    "emptyTitle": "Encara no s’ha importat res",
+    "emptyBody": "Quan importis una conversa, aquí veuràs què s’ha afegit i podràs desfer-ho.",
+    "emptyPersonTitle": "Encara no s’ha importat res per a {name}",
+    "emptyPersonBody": "Les importacions a les converses guardades sota {name} apareixeran aquí.",
+    "import": "Importa una conversa",
+    "conversationGone": "Una conversa que ja no és a l’arxiu",
+    "when": "{relative} · {absolute}",
+    "added": "{count, plural, =0 {No s’ha afegit cap missatge nou.} one {S’ha afegit # missatge nou.} other {S’han afegit # missatges nous.}}",
+    "alreadyThere": "{count, plural, one {# missatge ja era a l’arxiu.} other {# missatges ja eren a l’arxiu.}}",
+    "createdConversation": "Aquesta importació va crear la conversa.",
+    "media": "{count, plural, one {# missatge encara té la seva foto o el seu fitxer.} other {# missatges encara tenen la seva foto o el seu fitxer.}}",
+    "partlyGone": "{count, plural, one {# dels missatges afegits ja no és a l’arxiu.} other {# dels missatges afegits ja no són a l’arxiu.}}",
+    "keptUnder": "Guardada sota",
+    "unassigned": "Encara no està assignada a ningú.",
+    "nothingLeft": "Cap dels missatges que va afegir aquesta importació és ja a l’arxiu, així que no hi ha res a desfer.",
+    "undo": {
+      "body": "{count, plural, one {El # missatge que ha afegit} other {Els # missatges que ha afegit}} aquesta importació s’eliminaran, amb les fotos i els fitxers que cap altra conversa utilitzi. Els missatges d’altres importacions i tot el que ja hi havia al teu arxiu es queden.",
+      "bodyCreated": "{count, plural, one {El # missatge que ha afegit} other {Els # missatges que ha afegit}} aquesta importació s’eliminaran, amb les fotos i els fitxers que cap altra conversa utilitzi. Aquesta importació va crear «{title}», així que aquesta conversa també s’eliminarà si no hi queda res més. Els missatges d’altres importacions i tot el que ja hi havia al teu arxiu es queden."
+    },
+    "loadMore": "Mostra importacions anteriors",
+    "loadMoreFailed": "No s’han pogut llegir les importacions anteriors. Torna-ho a provar.",
+    "nothingAdded": "Aquesta importació no va afegir cap missatge, així que no hi ha res a desfer."
   }
 }

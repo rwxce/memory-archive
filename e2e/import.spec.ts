@@ -137,7 +137,7 @@ test('the same export again is "already in the archive" and adds nothing', async
   await page.getByRole('button', { name: 'Finish without adding anything' }).click();
   await expect(page.getByText('No new messages were added to Mama.')).toBeVisible();
   await expect(page.getByText('4 messages were already in the archive and were not copied again.')).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Undo the import/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Undo this import: / })).toHaveCount(0);
 
   // Still one conversation with 4 messages.
   await page.getByRole('link', { name: 'Open Mama' }).click();
@@ -152,7 +152,7 @@ test('undo asks first, then removes the conversation the import created', async 
   await importFor(page, 'Mama', 'Add 4 messages to Mama');
   await expect(page.getByText('4 new messages added to Mama.')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Undo the import of “Ana i Bo”' }).click();
+  await page.getByRole('button', { name: 'Undo this import: Ana i Bo' }).click();
   const panel = page.getByRole('group', { name: 'Undo this import?' });
   await expect(panel.getByText(/and so will the conversation “Ana i Bo”/)).toBeVisible();
   await expect(panel.getByRole('button', { name: 'Keep it' })).toBeFocused();
@@ -161,7 +161,7 @@ test('undo asks first, then removes the conversation the import created', async 
   await panel.getByRole('button', { name: 'Keep it' }).click();
   await expect(page.getByText('4 new messages added to Mama.')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Undo the import of “Ana i Bo”' }).click();
+  await page.getByRole('button', { name: 'Undo this import: Ana i Bo' }).click();
   await panel.getByRole('button', { name: 'Undo import' }).click();
   await expect(page.getByText('The import was undone. 4 messages were removed.')).toBeVisible();
 

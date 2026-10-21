@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight, FileUp, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileUp, History, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { ConversationList } from '@/components/conversation-list';
 import { LibraryNotice } from '@/components/library-notice';
@@ -195,6 +195,12 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
             <Link href="/import">
               <FileUp aria-hidden />
               {t('import')}
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/import/history">
+              <History aria-hidden />
+              {t('history')}
             </Link>
           </Button>
           <Button

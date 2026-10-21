@@ -51,3 +51,27 @@ export function formatDateRange(first: string | null, last: string | null, local
 export function formatNames(names: string[], locale: string, more = false): string {
   return new Intl.ListFormat(locale, { style: 'long', type: more ? 'unit' : 'conjunction' }).format(names);
 }
+
+const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+
+/**
+ * When something happened, for people: "3 days ago" and the exact local date and time
+ * ("12 Mar 2026, 14:05"), both in the UI language. A moment in the future (a clock that moved)
+ * reads as "now".
+ */
+export function formatWhen(iso: string, locale: string, now: number = Date.now()): { relative: string; absolute: string } {
+  const at = new Date(iso);
+  const absolute = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(at);
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  const ago = Math.max(0, now - at.getTime());
+  let relative: string;
+  if (ago < MINUTE) relative = rtf.format(0, 'second');
+  else if (ago < HOUR) relative = rtf.format(-Math.floor(ago / MINUTE), 'minute');
+  else if (ago < DAY) relative = rtf.format(-Math.floor(ago / HOUR), 'hour');
+  else if (ago < 30 * DAY) relative = rtf.format(-Math.floor(ago / DAY), 'day');
+  else if (ago < 365 * DAY) relative = rtf.format(-Math.floor(ago / (30 * DAY)), 'month');
+  else relative = rtf.format(-Math.floor(ago / (365 * DAY)), 'year');
+  return { relative, absolute };
+}

@@ -766,6 +766,133 @@ export function undoImportBatch(db: SqlDb, batchId: string): UndoImportBatchResu
   });
 }
 
+export interface ImportBatchCursor {
+  createdAt: string;
+  id: string;
+}
+
+export interface ListImportBatchesInput {
+  conversationId?: string;
+  /** Only batches whose conversation is filed under this profile. */
+  profileId?: string;
+  /** The last batch of the previous page (keyset pagination, newest first). */
+  before?: ImportBatchCursor;
+  /** Default 50, at most 200. */
+  limit?: number;
+}
+
+/** One import as the history shows it. */
+export interface ImportBatchRow {
+  id: string;
+  /** UTC instant of the import. */
+  createdAt: string;
+  source: string;
+  /** The file name the import came from. Untrusted, display only. */
+  sourceLabel: string;
+  /** Messages stored by this import when it ran. */
+  messagesAdded: number;
+  /** Messages it found already stored. */
+  messagesSkipped: number;
+  /** Messages of this batch still in the archive (an undo of another batch can remove shared ones). */
+  messagesPresent: number;
+  /** Of those, how many carry a media file. Per-batch media added/skipped counts are not recorded. */
+  mediaPresent: number;
+  createdConversation: boolean;
+  /** Null only if the conversation row is gone. */
+  conversationId: string | null;
+  conversationTitle: string | null;
+  /** Profiles the conversation is filed under now. */
+  profileIds: string[];
+  /** Undo would remove something (`messagesPresent > 0`). */
+  canUndo: boolean;
+}
+
+const MAX_BATCH_PAGE = 200;
+
+/**
+ * Import history, newest first. A batch exists until it is undone (undo deletes the row), so
+ * there are no "undone" entries. A re-import that added nothing and created nothing is not
+ * listed (it changed nothing; the row stays so the import result keeps a valid batch id).
+ * Counts of present messages come from `messages_by_batch`, one index range per listed row.
+ */
+export function listImportBatches(db: SqlDb, input: ListImportBatchesInput = {}): ImportBatchRow[] {
+  requireRecord(input, 'params');
+  if (input.conversationId !== undefined) requireUuid(input.conversationId, 'conversation id');
+  if (input.profileId !== undefined) requireUuid(input.profileId, 'profile id');
+  if (input.limit !== undefined && !Number.isFinite(input.limit)) invalid('limit must be a number');
+  if (input.before !== undefined) {
+    const b = requireRecord(input.before, 'before');
+    if (typeof b.createdAt !== 'string' || !isUuid(b.id)) invalid('before must be { createdAt, id }');
+  }
+  const limit = Math.min(Math.max(Math.trunc(input.limit ?? 50), 1), MAX_BATCH_PAGE);
+  const where: string[] = ['(b.added_count > 0 OR b.created_conversation = 1)'];
+  const params: SqlValue[] = [];
+  if (input.conversationId !== undefined) {
+    where.push('b.conversation_id = ?');
+    params.push(input.conversationId);
+  }
+  if (input.profileId !== undefined) {
+    where.push('b.conversation_id IN (SELECT conversation_id FROM conversation_profiles WHERE profile_id = ?)');
+    params.push(input.profileId);
+  }
+  if (input.before !== undefined) {
+    where.push('(b.created_at, b.id) < (?, ?)');
+    params.push(input.before.createdAt, input.before.id);
+  }
+  const rows = db.all<{
+    id: string;
+    createdAt: string;
+    source: string;
+    sourceLabel: string;
+    messagesAdded: number;
+    messagesSkipped: number;
+    messagesPresent: number;
+    mediaPresent: number;
+    created: number;
+    conversationId: string | null;
+    conversationTitle: string | null;
+  }>(
+    `SELECT b.id, b.created_at AS createdAt, b.source, b.source_label AS sourceLabel,
+            b.added_count AS messagesAdded, b.skipped_count AS messagesSkipped,
+            (SELECT COUNT(*) FROM messages m WHERE m.batch_id = b.id) AS messagesPresent,
+            (SELECT COUNT(*) FROM messages m WHERE m.batch_id = b.id AND m.media_sha256 IS NOT NULL) AS mediaPresent,
+            b.created_conversation AS created, c.id AS conversationId, c.title AS conversationTitle
+       FROM import_batches b LEFT JOIN conversations c ON c.id = b.conversation_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY b.created_at DESC, b.id DESC LIMIT ?`,
+    [...params, limit],
+  );
+  const profilesOf = new Map<string, string[]>();
+  const conversationIds = [...new Set(rows.flatMap((r) => (r.conversationId === null ? [] : [r.conversationId])))];
+  for (const ids of chunks(conversationIds)) {
+    const links = db.all<{ conversation_id: string; profile_id: string }>(
+      `SELECT conversation_id, profile_id FROM conversation_profiles
+        WHERE conversation_id IN (${ids.map(() => '?').join(',')}) ORDER BY profile_id`,
+      ids,
+    );
+    for (const l of links) {
+      const list = profilesOf.get(l.conversation_id);
+      if (list) list.push(l.profile_id);
+      else profilesOf.set(l.conversation_id, [l.profile_id]);
+    }
+  }
+  return rows.map((r) => ({
+    id: r.id,
+    createdAt: r.createdAt,
+    source: r.source,
+    sourceLabel: r.sourceLabel,
+    messagesAdded: r.messagesAdded,
+    messagesSkipped: r.messagesSkipped,
+    messagesPresent: r.messagesPresent,
+    mediaPresent: r.mediaPresent,
+    createdConversation: r.created === 1,
+    conversationId: r.conversationId,
+    conversationTitle: r.conversationTitle,
+    profileIds: (r.conversationId !== null && profilesOf.get(r.conversationId)) || [],
+    canUndo: r.messagesPresent > 0,
+  }));
+}
+
 const MAX_PAGE = 1000;
 
 interface MessageRow {

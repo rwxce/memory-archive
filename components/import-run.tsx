@@ -184,6 +184,9 @@ export function ImportDone({
         <Button variant="outline" asChild>
           <Link href="/people">{t('people')}</Link>
         </Button>
+        <Button variant="outline" asChild>
+          <Link href="/import/history">{t('history')}</Link>
+        </Button>
       </div>
     </div>
   );
