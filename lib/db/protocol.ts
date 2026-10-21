@@ -11,11 +11,15 @@ import type {
   ConversationProfileInput,
   CreateConversationInput,
   CreateProfileInput,
+  FindExistingFingerprintsInput,
+  ImportCandidates,
+  ImportCandidatesInput,
   ImportMessagesInput,
   ImportMessagesResult,
   MoveConversationInput,
   ProfileState,
   SetProfileArchivedInput,
+  UndoImportBatchResult,
   UpdateProfileInput,
 } from './queries';
 
@@ -46,6 +50,10 @@ export interface DbOps {
   unlinkConversationProfile: { params: ConversationProfileInput; result: ConversationSummary };
   listParticipants: { params: { conversationId: string }; result: Participant[] };
   importMessages: { params: ImportMessagesInput; result: ImportMessagesResult };
+  findImportCandidates: { params: ImportCandidatesInput; result: ImportCandidates };
+  findExistingFingerprints: { params: FindExistingFingerprintsInput; result: string[] };
+  undoImportBatch: { params: { batchId: string }; result: UndoImportBatchResult };
+  listBlobHashes: { params: undefined; result: string[] };
   listMessages: {
     params: { conversationId: string; after?: MessageCursor; limit?: number };
     result: StoredMessage[];

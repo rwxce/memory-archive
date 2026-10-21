@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'vitest';
+import { MIGRATIONS, migrate } from '../db/migrations';
 import { openMemoryDb } from '../db/open';
 import { createProfile } from '../db/queries';
 import { isLibraryEmpty } from '../db/snapshot';
+import { wrapOo1Db } from '../db/sql';
 import { openBlobStore } from '../storage/opfs-blob-store';
 import { createMemoryDirectory } from '../storage/test-opfs-directory';
 import { exportArchive, restoreArchiveIntoEmptyLibrary } from './archive';
@@ -64,5 +66,24 @@ describe('archive use cases', () => {
     const b = await library();
     await expect(restoreArchiveIntoEmptyLibrary(b, new Blob(['nope']))).rejects.toMatchObject({ code: 'not-an-archive' });
     await expect(restoreArchiveIntoEmptyLibrary(b, new Blob(['nope']))).rejects.toMatchObject({ code: 'not-an-archive' });
+  });
+
+  test('an archive written by schema v2 restores into the current schema', async () => {
+    const { default: init } = await import('@sqlite.org/sqlite-wasm');
+    const sqlite3 = await init();
+    const db = wrapOo1Db(new sqlite3.oo1.DB(':memory:', 'c'), sqlite3.capi);
+    db.exec('PRAGMA foreign_keys = ON');
+    migrate(db, MIGRATIONS.slice(0, 2));
+    const old = { db, blobStore: await openBlobStore(createMemoryDirectory()) };
+    const { sha256, size } = await old.blobStore.put(new Uint8Array(64).fill(3));
+    db.run('INSERT INTO blobs (sha256, size) VALUES (?, ?)', [sha256, size]);
+    db.run('INSERT INTO profiles (id, display_name, photo_sha256, created_at, updated_at) VALUES (?, ?, ?, ?, ?)', [ID, 'Ana', sha256, 't', 't']);
+    const { blob } = await exportArchive(old, { appVersion: '1' });
+    const target = await library();
+    const result = await restoreArchiveIntoEmptyLibrary(target, blob);
+    expect(result).toMatchObject({ blobCount: 1, manifest: { schemaVersion: 2 } });
+    expect(target.db.all('SELECT display_name, photo_sha256 FROM profiles')).toEqual([{ display_name: 'Ana', photo_sha256: sha256 }]);
+    expect(target.db.all('PRAGMA user_version')).toEqual([{ user_version: MIGRATIONS.length }]);
+    expect(await target.blobStore.list()).toEqual([sha256]);
   });
 });

@@ -72,3 +72,32 @@ export function matchMediaEntries<T extends { name: string }>(
   }
   return { matches, unresolved };
 }
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  heic: 'image/heic',
+  mp4: 'video/mp4',
+  mov: 'video/quicktime',
+  '3gp': 'video/3gpp',
+  mkv: 'video/x-matroska',
+  webm: 'video/webm',
+  opus: 'audio/ogg',
+  ogg: 'audio/ogg',
+  m4a: 'audio/mp4',
+  mp3: 'audio/mpeg',
+  pdf: 'application/pdf',
+};
+
+/**
+ * Media type from the file extension, or null when unknown. The name is untrusted and only
+ * a hint for display; it never decides how bytes are stored.
+ */
+export function mimeFromFileName(name: string): string | null {
+  const dot = name.lastIndexOf('.');
+  if (dot < 0) return null;
+  return MIME_BY_EXTENSION[name.slice(dot + 1).toLowerCase()] ?? null;
+}

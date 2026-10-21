@@ -77,6 +77,9 @@ function guardedStream(
       try {
         result = await reader.read();
       } catch (cause) {
+        if (cause instanceof ZipLimitError) {
+          return abort(new ArchiveError('limit-exceeded', 'an archive entry is larger than allowed', { cause }), controller);
+        }
         return abort(new ArchiveError('not-an-archive', 'an archive entry is corrupt', { cause }), controller);
       }
       if (result.done) {

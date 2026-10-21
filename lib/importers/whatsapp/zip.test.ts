@@ -223,3 +223,22 @@ describe('readZipEntries / openZipEntry', () => {
     await expect(readZipEntries(new Blob([bytes as BlobPart]))).rejects.toThrow(/corrupt/);
   });
 });
+
+describe('openZipEntry output bound', () => {
+  test('an entry that inflates beyond the size its directory declares is stopped', async () => {
+    const bomb = zipSync({ 'big.bin': [new Uint8Array(2_000_000), { level: 9 }] });
+    const view = new DataView(bomb.buffer, bomb.byteOffset, bomb.byteLength);
+    let cd = bomb.length - 22;
+    while (view.getUint32(cd, true) !== 0x02014b50) cd--;
+    view.setUint32(cd + 24, 1000, true); // the directory lies: 1000 bytes
+    const blob = new Blob([bomb as BlobPart]);
+    const [entry] = await readZipEntries(blob);
+    await expect(readZipEntryBytes(blob, entry)).rejects.toBeInstanceOf(ZipLimitError);
+  });
+
+  test('an honest entry is read completely', async () => {
+    const blob = new Blob([zipSync({ 'ok.bin': [new Uint8Array(70_000).fill(7), { level: 6 }] }) as BlobPart]);
+    const [entry] = await readZipEntries(blob);
+    expect((await readZipEntryBytes(blob, entry)).length).toBe(70_000);
+  });
+});

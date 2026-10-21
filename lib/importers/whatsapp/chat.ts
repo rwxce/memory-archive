@@ -1,6 +1,7 @@
+import { normalizeText } from '../../domain/fingerprint';
 import { linesFromStream } from './lines';
-import { openZipEntry, readZipEntries } from './zip';
-import type { ZipEntry } from './zip';
+import { ZipLimitError, openZipEntry, readZipEntries } from './zip';
+import type { ReadZipOptions, ZipEntry } from './zip';
 
 /** macOS resource-fork companions (`__MACOSX/`, `._name`): never real content. */
 export function isAppleDouble(name: string): boolean {
@@ -63,6 +64,32 @@ export function chatInfoFromEntryNames(names: string[], zipFileName: string): Ch
   return { slug, name };
 }
 
+/**
+ * Prefixes WhatsApp puts before the chat name in an export's file name, by language
+ * (`WhatsApp Chat - X`, `WhatsApp Chat with X`, `Chat de WhatsApp con X`,
+ * `Conversa do WhatsApp com X`, `Xat de WhatsApp amb X`), and the `00000068-` counter that
+ * some exports prepend.
+ */
+const TITLE_PREFIX_RE =
+  /^(?:\d{8}-)?(?:whatsapp chat\s*(?:-|with)\s*|chat de whatsapp con\s+|conversa do whatsapp com\s+|conversa de whatsapp amb\s+|xat de whatsapp amb\s+)/i;
+
+/** The chat's own name without any language's export prefix (falls back to `name` when nothing is left). */
+export function chatTitleOf(name: string): string {
+  const title = normalizeText(name).replace(/\s+/gu, ' ').replace(TITLE_PREFIX_RE, '').trim();
+  return title || normalizeText(name).trim() || 'chat';
+}
+
+/**
+ * The stable key of "the same chat" across exports: the title without the export's language
+ * prefix, case-folded. It is only a candidate filter, never proof: different chats share names
+ * (and a phone may call every export `chat.zip`). `importWhatsAppExport` merges only when the
+ * key matches AND messages of the export are already stored in that conversation; otherwise it
+ * returns `ambiguous` and the caller decides.
+ */
+export function chatKeyOf(name: string): string {
+  return chatTitleOf(name).toLowerCase();
+}
+
 export interface OpenedChatZip {
   entries: ZipEntry[];
   chatEntry: ZipEntry;
@@ -70,10 +97,17 @@ export interface OpenedChatZip {
 }
 
 /** Read the central directory and locate the transcript. */
-export async function openChatZip(zip: Blob, zipFileName: string): Promise<OpenedChatZip> {
-  const entries = await readZipEntries(zip);
+export async function openChatZip(
+  zip: Blob,
+  zipFileName: string,
+  limits: ReadZipOptions & { maxChatBytes?: number } = {},
+): Promise<OpenedChatZip> {
+  const entries = await readZipEntries(zip, limits);
   const chatEntry = findChatEntry(entries);
   if (!chatEntry) throw new Error('No _chat.txt entry found in ZIP');
+  if (limits.maxChatBytes !== undefined && chatEntry.uncompressedSize > limits.maxChatBytes) {
+    throw new ZipLimitError('the chat transcript is too large');
+  }
   return { entries, chatEntry, info: chatInfoFromEntryNames(entries.map((e) => e.name), zipFileName) };
 }
 

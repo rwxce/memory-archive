@@ -78,7 +78,12 @@ export interface Profile {
 export interface Participant {
   displayName: string;
   profileId: string | null;
+  /** The author the user said is themselves (set by an import); at most one per conversation. */
+  isMe: boolean;
 }
+
+/** A participant to register when a conversation is created. */
+export type NewParticipant = Pick<Participant, 'displayName' | 'profileId'>;
 
 /** A conversation, linked to zero or more profiles (many-to-many). */
 export interface ConversationSummary {

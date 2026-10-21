@@ -122,14 +122,14 @@ test type or architecture rule means updating this file **in the same PR**.
     controls (WhatsApp wraps unsaved-number authors in them), reject control characters and
     lone surrogates, and required ones need a visible character; `FieldError`),
     `library.ts` (profile / conversation / message types, `isUuid`, `isSha256Hex`,
-    `isLocalTimestamp`, `MESSAGE_TYPES`), `sha256.ts` (`createSha256`: incremental SHA-256 in
+    `isLocalTimestamp`, `MESSAGE_TYPES`), `fingerprint.ts` (message fingerprints, see below), `sha256.ts` (`createSha256`: incremental SHA-256 in
     plain TS, pinned by NIST vectors; WebCrypto has no incremental digest, so this is how
     media is hashed while it streams, with no dependency).
   - `lib/db/` — the only code that issues SQL. `sql.ts` (`SqlDb`: the narrow sync surface
-    over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1 + v2,
+    over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1 + v2 + v3,
     `PRAGMA user_version`, forward-only, one transaction per migration, newer DB refused),
     `queries.ts` (profiles: create / update / archive / get / list; conversations: list / rename /
-    move / link / unlink; `importMessages`, `listMessages`),
+    move / link / unlink; `importMessages` (batch, optional new conversation and "me", all in one transaction), `findImportCandidates`, `findExistingFingerprints`, `undoImportBatch`, `listMessages`),
     `protocol.ts` + `dispatch.ts` (typed request/response messages; no raw SQL crosses the
     boundary), `open.ts` (`openMemoryDb` for Node tests, `openOpfsDb` for the worker),
     `worker.ts` (worker entry), `client.ts` (`createDbClient`, request ids, `DbError`
@@ -209,8 +209,8 @@ test type or architecture rule means updating this file **in the same PR**.
   optional `profile_id`), `messages` (`UNIQUE(conversation_id, fingerprint)` = idempotent
   import, ordered by `sent_at, ordinal, id`), `blobs` (sha256 + size + mime; bytes live in
   OPFS), `import_batches` (history, added / skipped counts; belongs to a conversation and is deleted with it, since `source_label` may hold a person's name). Foreign keys are on; ids,
-  hashes, timestamps and message types are also CHECK-constrained. Fingerprint computation
-  arrives with the importer (Phase 4); the database only stores and de-duplicates by it.
+  hashes, timestamps and message types are also CHECK-constrained. The database only stores and
+  de-duplicates by the fingerprint; computing it is `lib/domain/fingerprint.ts`.
 - **Schema v2 (implemented, expand-only)** — `profiles` gains `relationship` and
   `description` (`NOT NULL DEFAULT ''`) and `photo_sha256` (nullable, `REFERENCES blobs`,
   hex CHECK): the photo is an ordinary content-addressed blob, registered in `blobs` in the
@@ -229,9 +229,86 @@ test type or architecture rule means updating this file **in the same PR**.
   `put` keeps an existing same-size blob and replaces only a size-mismatched copy;
   same-size bit-rot is reported by `verify()`, not healed. The backup ZIP layout is separate (see Archive file).
   Source data is separate from user-defined associations.
-- **Planned message fingerprint** — `sha256(conversation | normalized local timestamp |
-  participant | NFC text | media hash | ordinal within the same minute)`; imports are
-  idempotent.
+- **Schema v3 (implemented, expand-only)** — `conversations.source_key` (the importer's stable
+  "same chat" key, apart from `title` so a rename does not break matching; `''` = never matched),
+  `participants.is_me` (the author the user said is themselves; at most one per conversation),
+  `import_batches.created_conversation` (the batch created its conversation, so undo removes it
+  once empty), plus indexes `messages(batch_id)`, `messages(media_sha256)` and
+  `conversations(source, source_key)` for undo and matching. All defaulted: v1 and v2 backups
+  restore by migrating the scratch snapshot; the archive `formatVersion` stays 1 and new backups
+  carry `schemaVersion` 3.
+- **Message fingerprint (version 1, `lib/domain/fingerprint.ts`; a data format)** — SHA-256 over
+  the length-prefixed UTF-8 encoding (4-byte big-endian length + bytes per field) of
+  `[version, minute, author, type, text, mediaName, occurrence]`.
+  `minute` = local time as parsed, cut to the minute (Android has minutes, iOS seconds: the common
+  denominator; no timezone invented). `author` = NFC, bidi / format marks removed (ZWSP, LRM, RLM,
+  ALM, U+202A-E, U+2066-9, BOM; ZWJ and ZWNJ kept as content), no-break spaces to a plain space,
+  spaces collapsed, leading `~` dropped, case kept; system messages have no author.
+  `text` = NFC, same marks removed, line endings `\n`, trailing whitespace per line and blank
+  edges trimmed (the caption for media messages). `mediaName` = the attachment's base name (never
+  the bytes' hash, so a message keeps its identity with or without its file: export without media,
+  `skipVideos`, missing file). `occurrence` = how many messages with the identical key came before
+  it in the SAME export (0, 1, 2, ...): WhatsApp times have minute resolution, so two identical
+  messages in a minute stay two messages. Frozen test vectors (cross-checked with `node:crypto`)
+  pin it; changing anything is a data migration (bump `FINGERPRINT_VERSION`, keep the old
+  algorithm for old archives). Known limits (each pinned by a test): edited messages are new
+  messages; if one of several identical messages is deleted between two exports the later ones
+  shift down one occurrence, so a genuinely new identical message in that minute can be skipped
+  as already stored; an export that starts mid-minute inside such a run restarts its indexes at 0;
+  the minute is the phone's wall-clock text, so the same message exported from another time zone
+  or across a clock change imports as new; a contact exported as a number and later as a saved
+  name (or renamed) is a different author, so its messages import again; an export made without
+  media replaces the attachment line with an "omitted" marker (a different message, new
+  `omitted` rows), it does not match the earlier photo rows.
+- **Import, batches, undo (`lib/usecases/import.ts`)** — `importWhatsAppExport` parses the ZIP
+  (bounded: entries, directory, transcript, per-media size; `openZipEntry` stops an entry that
+  inflates past its declared size), decides the conversation, streams only the media that is needed
+  into the blob store (hashed on the way; identical bytes stored once across conversations and
+  profiles; media of messages already there is not read again; a file missing from the ZIP keeps
+  its message with `media_sha256` NULL), then saves in ONE transaction (`importMessages`: batch,
+  new conversation, participants, messages, `INSERT ... ON CONFLICT DO NOTHING`). Summary:
+  `added`, `alreadyThere`, `mediaAdded`, `mediaSkipped`, `mediaMissing`, `videosSkipped`,
+  `rawLines` (timestamp-shaped lines with an unusable date, kept as text). Conversation matching
+  (`auto`): same source, filed under one of the target profiles (or none), same `source_key` (the
+  chat name without the per-language export prefix, case-folded) AND at least one of up to 200
+  sampled fingerprints of the export already stored in it (a name is never proof: different chats
+  share names, and phones call exports `chat.zip`). Several key matches (`same-title`), a single
+  key match with no overlap (`same-title-no-overlap`) or no key match but overlap in another
+  conversation (`overlap`) return `ambiguous` (nothing written). A single key match whose
+  sampled fingerprints find no overlap is looked up once more with ALL of the export's
+  non-system fingerprints (a newer export may share only a handful of messages) before
+  `same-title-no-overlap`;
+  `{mode:'existing'|'new'}` is the caller's explicit choice. `undoImportBatch` removes the batch's
+  messages, participants only it brought (not profile-linked, not "me"), the conversation it created
+  once empty, and blobs nothing else references (messages, profile photos); transactional and
+  idempotent. Interruption: blobs are written before the transaction; abort (`AbortSignal`) or an
+  error before the save leaves the database untouched and removes the blobs this run wrote; a lost
+  connection at the save is ambiguous, so those blobs stay until `sweepOrphanBlobs` (deletes store
+  blobs with no `blobs` row). Import, undo, sweep, export, restore and profile writes that carry
+  a photo all take the same `withArchiveGuard(blobStore, work, lock?)` (second concurrent call in
+  this tab: `busy`). The cross-tab part is an injected `ArchiveLock` (`deps.lock`, try-lock
+  semantics, `{held:false}` = typed `busy`); `openLibrary` wires `navigator.locks` when it exists
+  (`webArchiveLock`), and the guard lives in `archive-guard.ts` so UI code can import it without
+  pulling SQLite. Sweep guarantees: never deletes a blob the database references and never
+  overlaps another archive operation; it does NOT protect a photo blob stored but not yet saved
+  with its profile, and nothing calls it yet (a start-up sweep is a follow-up). Date reading: the day/month order is decided from the WHOLE transcript
+  (`createFormatDetector`, a first constant-memory pass): one date with a component >= 13
+  anywhere settles it. Only a genuine tie (every date reads both ways) is `ambiguous`; in `auto`
+  mode that returns `ambiguous` / `date-format` BEFORE any write, with both readings of the first
+  such date (`datePreview`), and the caller passes `dayFirst` or `monthFirst` (both together:
+  `invalid`). An explicit conversation target does not refuse a tie; `dateFormat
+  {dayFirst, ambiguous}` reports it. Lines whose date fails under the chosen order are kept as
+  text of the previous message and counted in `rawLines` (one before the first message is counted
+  but has nowhere to attach). Hostile ZIPs: a ZIP problem in any phase is a typed `ImportError`
+  (`limit-exceeded` for a size lie or bound, `invalid-export` for a damaged entry), with the
+  database unchanged and this run's blobs removed. Progress callback:
+  `{phase: reading | media | saving, done, total}`.
+  Known limits: re-import never fills media a message was stored without (`skipVideos`, files
+  missing from the ZIP): undo and import again; undoing the batch that created a conversation
+  removes the messages a later overlapping export re-contained, and undoing the first of several
+  batches can leave an empty conversation; `maxChatBytes` (256 MiB) is far too high for a phone
+  and all messages cross the worker boundary in one request (memory risks: lower the browser
+  default, chunk requests).
 - **Archive file (v1, implemented as a PoC in `lib/exporters/archive/`)** —
   `memory-archive-YYYY-MM-DD.zip`: `manifest.json` first (deflated; `format`, `formatVersion`,
   `createdAt`, `app`, `schemaVersion`, `entries[{path,size,sha256}]`), then `db/library.sqlite`
@@ -341,8 +418,14 @@ test type or architecture rule means updating this file **in the same PR**.
     overlapping import add nothing twice, atomic import, hostile text, pagination), and the
     client through a structured-clone loopback (ids, out-of-order replies, errors, worker
     failure, throwing transport, malformed params → `invalid`, unknown targets → `not-found`).
-    Schema v2: v1 → v2 migration keeps rows, v1 snapshot restores into v2, v1 DDL snapshot is
-    frozen and the latest snapshot is pinned separately. Use cases (`lib/usecases/profiles.test.ts`,
+    Schema v2/v3: v1 → v2 and v2 → v3 migrations keep rows and default the new columns, v1 and v2
+    snapshots restore into v3, a failed migration rolls back, v1 and v2 DDL snapshots are frozen
+    and the latest is pinned separately. `lib/domain/fingerprint.test.ts` holds the frozen
+    fingerprint vectors and the stability / distinctness cases;
+    `lib/usecases/import.test.ts` covers same ZIP twice, newer export, same-minute repeats,
+    cross-format match, media dedupe, missing media, `skipVideos`, ambiguity, abort / thrown error /
+    database refusal / lost connection, sweep, undo (shared blobs, merges, idempotence), the busy
+    guard against restore, and a backup round trip with imported data. Use cases (`lib/usecases/profiles.test.ts`,
     `conversations.test.ts`) run on in-memory SQLite: validation bounds, archive / unarchive,
     move / link / unlink with message counts and rows unchanged, group chats, archived targets. `scripts/build-db-worker.test.ts`
     builds the worker bundle and checks it contains no remote URL. The OPFS VFS only

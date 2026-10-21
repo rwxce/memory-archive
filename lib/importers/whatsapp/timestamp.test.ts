@@ -127,3 +127,22 @@ test('TS_RE has no seconds group when absent — sec defaults to 0', () => {
   assert.equal(m[6], undefined);
   assert.equal(parseTimestamp('[23/07/2026, 09:47] N: x')!.sec, 0);
 });
+
+test('detectFormat reports a tie as ambiguous, evidence and overrides as not', () => {
+  const tie = ['[03/04/2026, 10:00:00] A: x', '[05/06/2026, 10:00:00] A: x'];
+  assert.equal(detectFormat(tie).ambiguous, true);
+  assert.equal(detectFormat([...tie, '[25/12/2026, 10:00:00] A: x']).ambiguous, false);
+  assert.equal(detectFormat(tie, { monthFirst: true }).ambiguous, false);
+  assert.equal(detectFormat([]).ambiguous, false);
+});
+
+test('detectFormat uses the whole transcript, not the first 50 dates', () => {
+  const lines = Array.from({ length: 80 }, () => '[03/04/2026, 10:00:00] A: x');
+  assert.equal(detectFormat(lines).ambiguous, true);
+  assert.deepEqual(detectFormat(lines).preview, { dayFirst: '2026-04-03', monthFirst: '2026-03-04' });
+  assert.equal(detectFormat([...lines, '[03/25/2026, 10:00:00] A: x']).dayFirst, false); // month 25 is impossible
+  assert.equal(detectFormat([...lines, '[25/03/2026, 10:00:00] A: x']).dayFirst, true);
+  assert.equal(detectFormat([...lines, '[25/03/2026, 10:00:00] A: x']).ambiguous, false);
+  // Lines that read the same either way (05/05) are no ambiguity at all.
+  assert.equal(detectFormat(['[05/05/2026, 10:00:00] A: x']).ambiguous, false);
+});

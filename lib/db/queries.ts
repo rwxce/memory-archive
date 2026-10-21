@@ -7,6 +7,7 @@ import {
   type ConversationSummary,
   type MessageCursor,
   type NewMessage,
+  type NewParticipant,
   type Participant,
   type Profile,
   type StoredMessage,
@@ -224,8 +225,33 @@ export interface CreateConversationInput {
   /** Profiles the conversation belongs to (may be empty: not assigned yet). */
   profileIds: string[];
   /** Participants known up front; more are added as messages are imported. */
-  participants: Participant[];
+  participants: NewParticipant[];
+  /** The importer's stable key for "the same chat" (see `chatKeyOf`); '' when none. */
+  sourceKey?: string;
   now: string;
+}
+
+/** Inserts the conversation, its profile links and participants. The caller owns the transaction. */
+function insertConversation(db: SqlDb, input: CreateConversationInput): void {
+  db.run('INSERT INTO conversations (id, title, source, source_key, is_group, created_at) VALUES (?, ?, ?, ?, ?, ?)', [
+    input.id,
+    input.title,
+    input.source,
+    input.sourceKey ?? '',
+    input.isGroup ? 1 : 0,
+    input.now,
+  ]);
+  for (const profileId of new Set(input.profileIds)) {
+    db.run('INSERT INTO conversation_profiles (conversation_id, profile_id) VALUES (?, ?)', [input.id, profileId]);
+  }
+  for (const p of input.participants) {
+    if (p.profileId !== null) requireUuid(p.profileId, 'participant profile id');
+    db.run('INSERT INTO participants (conversation_id, display_name, profile_id) VALUES (?, ?, ?)', [
+      input.id,
+      p.displayName,
+      p.profileId,
+    ]);
+  }
 }
 
 export function createConversation(db: SqlDb, input: CreateConversationInput): void {
@@ -234,30 +260,12 @@ export function createConversation(db: SqlDb, input: CreateConversationInput): v
   requireString(input.title, 'title');
   requireString(input.source, 'source');
   requireString(input.now, 'now');
+  if (input.sourceKey !== undefined) requireString(input.sourceKey, 'sourceKey');
   for (const profileId of requireArray(input.profileIds, 'profileIds')) requireUuid(profileId, 'profile id');
   for (const p of requireArray(input.participants, 'participants')) {
     requireString(requireRecord(p, 'participant').displayName, 'participant displayName');
   }
-  transaction(db, () => {
-    db.run('INSERT INTO conversations (id, title, source, is_group, created_at) VALUES (?, ?, ?, ?, ?)', [
-      input.id,
-      input.title,
-      input.source,
-      input.isGroup ? 1 : 0,
-      input.now,
-    ]);
-    for (const profileId of new Set(input.profileIds)) {
-      db.run('INSERT INTO conversation_profiles (conversation_id, profile_id) VALUES (?, ?)', [input.id, profileId]);
-    }
-    for (const p of input.participants) {
-      if (p.profileId !== null) requireUuid(p.profileId, 'participant profile id');
-      db.run('INSERT INTO participants (conversation_id, display_name, profile_id) VALUES (?, ?, ?)', [
-        input.id,
-        p.displayName,
-        p.profileId,
-      ]);
-    }
-  });
+  transaction(db, () => insertConversation(db, input));
 }
 
 interface ConversationRow {
@@ -416,17 +424,20 @@ export function moveConversation(db: SqlDb, input: MoveConversationInput): Conve
 
 export function listParticipants(db: SqlDb, conversationId: string): Participant[] {
   requireUuid(conversationId, 'conversation id');
-  return db.all<Participant>(
-    `SELECT display_name AS displayName, profile_id AS profileId
-       FROM participants WHERE conversation_id = ? ORDER BY id`,
-    [conversationId],
-  );
+  return db
+    .all<{ displayName: string; profileId: string | null; isMe: number }>(
+      `SELECT display_name AS displayName, profile_id AS profileId, is_me AS isMe
+         FROM participants WHERE conversation_id = ? ORDER BY id`,
+      [conversationId],
+    )
+    .map((p) => ({ displayName: p.displayName, profileId: p.profileId, isMe: p.isMe === 1 }));
 }
 
 // ---------------------------------------------------------------- messages
 
 export interface ImportMessagesInput {
   batchId: string;
+  /** The conversation to add to; with `newConversation` it is created under this id. */
   conversationId: string;
   source: string;
   /** Free-text origin shown in history (e.g. the ZIP name). Untrusted. */
@@ -435,6 +446,14 @@ export interface ImportMessagesInput {
   /** Media referenced by `messages`, already stored by hash. */
   blobs: BlobRef[];
   messages: NewMessage[];
+  /**
+   * The conversation does not exist yet: it is created in the same transaction as the
+   * messages (so a failed import leaves no empty conversation) and the batch is marked as
+   * its creator (undoing the batch removes it again once empty).
+   */
+  newConversation?: { title: string; sourceKey: string; isGroup: boolean; profileIds: string[] };
+  /** The author the user said is themselves (a name as in `messages`); marks that participant. */
+  meAuthor?: string | null;
 }
 
 export interface ImportMessagesResult {
@@ -442,13 +461,26 @@ export interface ImportMessagesResult {
   added: number;
   /** Messages already in the conversation (same fingerprint): not stored again. */
   skipped: number;
+  /**
+   * Blobs of `input.blobs` that no message (and no profile photo) refers to after the import,
+   * e.g. media of messages that were already there. Their rows were removed in the same
+   * transaction; the caller deletes the bytes.
+   */
+  unreferencedBlobs: string[];
+}
+
+function isReferenced(db: SqlDb, sha256: string): boolean {
+  return (
+    db.all('SELECT 1 FROM messages WHERE media_sha256 = ? LIMIT 1', [sha256]).length > 0 ||
+    db.all('SELECT 1 FROM profiles WHERE photo_sha256 = ? LIMIT 1', [sha256]).length > 0
+  );
 }
 
 /**
  * Stores one import in a single transaction. Idempotent: a message whose
  * fingerprint is already in the conversation is skipped, so re-importing the
  * same export, or a newer export that overlaps it, adds only what is new. If
- * anything fails, nothing is stored (not even the batch row).
+ * anything fails, nothing is stored (not even the batch row or the conversation).
  */
 export function importMessages(db: SqlDb, input: ImportMessagesInput): ImportMessagesResult {
   requireRecord(input, 'params');
@@ -457,6 +489,13 @@ export function importMessages(db: SqlDb, input: ImportMessagesInput): ImportMes
   requireString(input.source, 'source');
   requireString(input.sourceLabel, 'sourceLabel');
   requireString(input.now, 'now');
+  if (input.meAuthor !== undefined && input.meAuthor !== null) requireString(input.meAuthor, 'meAuthor');
+  if (input.newConversation !== undefined) {
+    const c = requireRecord(input.newConversation, 'newConversation');
+    requireString(c.title, 'newConversation title');
+    requireString(c.sourceKey, 'newConversation sourceKey');
+    for (const profileId of requireArray(c.profileIds, 'newConversation profileIds')) requireUuid(profileId, 'profile id');
+  }
   for (const b of requireArray(input.blobs, 'blobs') as BlobRef[]) {
     requireRecord(b, 'blob');
     if (!isSha256Hex(b.sha256)) invalid('blob sha256 must be 64 lowercase hex characters');
@@ -475,13 +514,26 @@ export function importMessages(db: SqlDb, input: ImportMessagesInput): ImportMes
   }
 
   return transaction(db, () => {
-    db.run('INSERT INTO import_batches (id, conversation_id, source, source_label, created_at) VALUES (?, ?, ?, ?, ?)', [
-      input.batchId,
-      input.conversationId,
-      input.source,
-      input.sourceLabel,
-      input.now,
-    ]);
+    const created = input.newConversation !== undefined;
+    if (input.newConversation) {
+      insertConversation(db, {
+        id: input.conversationId,
+        title: input.newConversation.title,
+        source: input.source,
+        sourceKey: input.newConversation.sourceKey,
+        isGroup: input.newConversation.isGroup,
+        profileIds: input.newConversation.profileIds,
+        participants: [],
+        now: input.now,
+      });
+    } else if (db.all('SELECT 1 FROM conversations WHERE id = ?', [input.conversationId]).length === 0) {
+      notFound('conversation');
+    }
+    db.run(
+      `INSERT INTO import_batches (id, conversation_id, source, source_label, created_at, created_conversation)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [input.batchId, input.conversationId, input.source, input.sourceLabel, input.now, created ? 1 : 0],
+    );
     for (const b of input.blobs) {
       db.run('INSERT OR IGNORE INTO blobs (sha256, size, mime) VALUES (?, ?, ?)', [b.sha256, b.size, b.mime]);
     }
@@ -525,9 +577,192 @@ export function importMessages(db: SqlDb, input: ImportMessagesInput): ImportMes
         ],
       );
     }
+    if (input.meAuthor !== undefined && input.meAuthor !== null) {
+      db.run('UPDATE participants SET is_me = (id = ?) WHERE conversation_id = ?', [
+        participantId(input.meAuthor),
+        input.conversationId,
+      ]);
+    }
     const skipped = input.messages.length - added;
     db.run('UPDATE import_batches SET added_count = ?, skipped_count = ? WHERE id = ?', [added, skipped, input.batchId]);
-    return { batchId: input.batchId, added, skipped };
+
+    const unreferencedBlobs: string[] = [];
+    for (const sha256 of new Set(input.blobs.map((b) => b.sha256))) {
+      if (isReferenced(db, sha256)) continue;
+      db.run('DELETE FROM blobs WHERE sha256 = ?', [sha256]);
+      unreferencedBlobs.push(sha256);
+    }
+    return { batchId: input.batchId, added, skipped, unreferencedBlobs };
+  });
+}
+
+/** Max bound parameters per statement (SQLite's default limit is 32766; stay well below). */
+const CHUNK = 500;
+
+function chunks<T>(items: readonly T[], size = CHUNK): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+export interface FindExistingFingerprintsInput {
+  conversationId: string;
+  fingerprints: string[];
+}
+
+/** Which of `fingerprints` are already stored in the conversation (so their media need not be read). */
+export function findExistingFingerprints(db: SqlDb, input: FindExistingFingerprintsInput): string[] {
+  requireRecord(input, 'params');
+  requireUuid(input.conversationId, 'conversation id');
+  const found: string[] = [];
+  for (const group of chunks(requireArray(input.fingerprints, 'fingerprints') as string[])) {
+    for (const f of group) if (!isSha256Hex(f)) invalid('fingerprint must be 64 lowercase hex characters');
+    found.push(
+      ...db
+        .all<{ fingerprint: string }>(
+          `SELECT fingerprint FROM messages WHERE conversation_id = ? AND fingerprint IN (${group.map(() => '?').join(',')})`,
+          [input.conversationId, ...group],
+        )
+        .map((r) => r.fingerprint),
+    );
+  }
+  return found;
+}
+
+export interface ImportCandidatesInput {
+  source: string;
+  /** The export's stable chat key; '' never matches by key. */
+  sourceKey: string;
+  /** The profiles the import is for; empty = only conversations not filed under any profile. */
+  profileIds: string[];
+  /** A sample of the export's fingerprints, to spot a chat renamed since its last import. */
+  sampleFingerprints: string[];
+}
+
+export interface ImportCandidate {
+  id: string;
+  title: string;
+  messageCount: number;
+  /** How many of the sampled fingerprints this conversation already holds. */
+  overlap: number;
+}
+
+export interface ImportCandidates {
+  /** In scope and with the same `source_key`. */
+  keyed: ImportCandidate[];
+  /** In scope, other key, but already holding some of the sampled fingerprints. */
+  overlapping: ImportCandidate[];
+}
+
+/**
+ * The conversations an import could belong to. Scope: same `source`, filed under one of
+ * `profileIds` (or under none when the list is empty). Nothing here decides; the use case does.
+ */
+export function findImportCandidates(db: SqlDb, input: ImportCandidatesInput): ImportCandidates {
+  requireRecord(input, 'params');
+  requireString(input.source, 'source');
+  requireString(input.sourceKey, 'sourceKey');
+  for (const id of requireArray(input.profileIds, 'profileIds')) requireUuid(id, 'profile id');
+  for (const f of requireArray(input.sampleFingerprints, 'sampleFingerprints')) {
+    if (!isSha256Hex(f)) invalid('fingerprint must be 64 lowercase hex characters');
+  }
+  const profileIds = [...new Set(input.profileIds)];
+  const scope =
+    profileIds.length === 0
+      ? 'NOT EXISTS (SELECT 1 FROM conversation_profiles cp WHERE cp.conversation_id = c.id)'
+      : `EXISTS (SELECT 1 FROM conversation_profiles cp WHERE cp.conversation_id = c.id AND cp.profile_id IN (${profileIds.map(() => '?').join(',')}))`;
+  const rows = db.all<{ id: string; title: string; sourceKey: string; messageCount: number }>(
+    `SELECT c.id, c.title, c.source_key AS sourceKey,
+            (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS messageCount
+       FROM conversations c WHERE c.source = ? AND ${scope} ORDER BY c.created_at, c.id`,
+    [input.source, ...profileIds],
+  );
+  const keyed = input.sourceKey === '' ? [] : rows.filter((r) => r.sourceKey === input.sourceKey);
+  const keyedIds = new Set(keyed.map((r) => r.id));
+  const hits = new Map<string, number>();
+  if (rows.length > 0) {
+    for (const group of chunks([...new Set(input.sampleFingerprints)])) {
+      for (const some of chunks(rows, 50)) {
+        for (const r of db.all<{ conversationId: string; n: number }>(
+          `SELECT conversation_id AS conversationId, COUNT(*) AS n FROM messages
+            WHERE conversation_id IN (${some.map(() => '?').join(',')})
+              AND fingerprint IN (${group.map(() => '?').join(',')})
+            GROUP BY conversation_id`,
+          [...some.map((o) => o.id), ...group],
+        )) {
+          hits.set(r.conversationId, (hits.get(r.conversationId) ?? 0) + r.n);
+        }
+      }
+    }
+  }
+  const toCandidate = (r: (typeof rows)[number]): ImportCandidate => ({
+    id: r.id,
+    title: r.title,
+    messageCount: r.messageCount,
+    overlap: hits.get(r.id) ?? 0,
+  });
+  return {
+    keyed: keyed.map(toCandidate),
+    overlapping: rows.filter((r) => !keyedIds.has(r.id) && (hits.get(r.id) ?? 0) > 0).map(toCandidate),
+  };
+}
+
+export interface UndoImportBatchResult {
+  /** False when no such batch exists (already undone, or never there): nothing was changed. */
+  found: boolean;
+  removedMessages: number;
+  /** The batch had created its conversation and nothing else was left in it: it is gone too. */
+  removedConversation: boolean;
+  /** Blobs no message or profile photo refers to any more; rows removed, the caller deletes the bytes. */
+  unreferencedBlobs: string[];
+}
+
+/**
+ * Removes an import batch in one transaction: its messages, the participants only it brought
+ * (no remaining messages, not linked to a profile, not marked "me"), the batch row, the
+ * conversation if the batch created it and it is now empty, and the `blobs` rows nothing
+ * refers to any more. Blobs shared with another batch, conversation or a profile photo stay.
+ * Idempotent: a second call finds nothing and changes nothing.
+ */
+export function undoImportBatch(db: SqlDb, batchId: string): UndoImportBatchResult {
+  requireUuid(batchId, 'batch id');
+  return transaction(db, () => {
+    const [batch] = db.all<{ conversationId: string; created: number }>(
+      'SELECT conversation_id AS conversationId, created_conversation AS created FROM import_batches WHERE id = ?',
+      [batchId],
+    );
+    if (!batch) return { found: false, removedMessages: 0, removedConversation: false, unreferencedBlobs: [] };
+
+    const blobs = db
+      .all<{ sha256: string }>('SELECT DISTINCT media_sha256 AS sha256 FROM messages WHERE batch_id = ? AND media_sha256 IS NOT NULL', [batchId])
+      .map((r) => r.sha256);
+    const participants = db
+      .all<{ id: number }>('SELECT DISTINCT participant_id AS id FROM messages WHERE batch_id = ? AND participant_id IS NOT NULL', [batchId])
+      .map((r) => r.id);
+    const removedMessages = db.run('DELETE FROM messages WHERE batch_id = ?', [batchId]);
+    for (const id of participants) {
+      db.run(
+        `DELETE FROM participants WHERE id = ? AND profile_id IS NULL AND is_me = 0
+            AND NOT EXISTS (SELECT 1 FROM messages WHERE participant_id = participants.id)`,
+        [id],
+      );
+    }
+    const [{ n }] = db.all<{ n: number }>('SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ?', [batch.conversationId]);
+    const removedConversation = batch.created === 1 && n === 0;
+    if (removedConversation) {
+      // Its other batches added nothing (no message is left), so they go with it.
+      db.run('DELETE FROM import_batches WHERE conversation_id = ?', [batch.conversationId]);
+      db.run('DELETE FROM conversations WHERE id = ?', [batch.conversationId]);
+    } else {
+      db.run('DELETE FROM import_batches WHERE id = ?', [batchId]);
+    }
+    const unreferencedBlobs: string[] = [];
+    for (const sha256 of blobs) {
+      if (isReferenced(db, sha256)) continue;
+      db.run('DELETE FROM blobs WHERE sha256 = ?', [sha256]);
+      unreferencedBlobs.push(sha256);
+    }
+    return { found: true, removedMessages, removedConversation, unreferencedBlobs };
   });
 }
 

@@ -2,6 +2,8 @@ import { describe, expect, test } from 'vitest';
 import { strToU8, zipSync } from 'fflate';
 import {
   chatInfoFromEntryNames,
+  chatKeyOf,
+  chatTitleOf,
   chatLines,
   findChatEntry,
   isAppleDouble,
@@ -14,6 +16,33 @@ async function collect<T>(it: AsyncIterable<T>): Promise<T[]> {
   for await (const x of it) out.push(x);
   return out;
 }
+
+describe('chat title and key', () => {
+  test('every language prefix gives the same title and key', () => {
+    for (const name of [
+      'WhatsApp Chat - Maria Pau',
+      'WhatsApp Chat with Maria Pau',
+      'Chat de WhatsApp con Maria Pau',
+      'Conversa do WhatsApp com Maria Pau',
+      'Xat de WhatsApp amb Maria Pau',
+      '00000068-Conversa do WhatsApp com Maria Pau',
+      'Maria Pau',
+    ]) {
+      expect(chatTitleOf(name)).toBe('Maria Pau');
+      expect(chatKeyOf(name)).toBe('maria pau');
+    }
+  });
+
+  test('case, spacing, composition and invisible marks do not change the key; other names do', () => {
+    expect(chatKeyOf('WhatsApp Chat - \u200eMar\u00eda  PAU')).toBe(chatKeyOf('Chat de WhatsApp con Mari\u0301a pau'));
+    expect(chatKeyOf('Maria')).not.toBe(chatKeyOf('Mario'));
+  });
+
+  test('never empty', () => {
+    expect(chatTitleOf('WhatsApp Chat - ')).toBeTruthy();
+    expect(chatKeyOf('')).toBe('chat');
+  });
+});
 
 describe('chat entry helpers', () => {
   test('slugifyChatName strips the prefix, diacritics and punctuation', () => {
@@ -68,5 +97,14 @@ describe('chat entry helpers', () => {
   test('openChatZip rejects archives without a transcript', async () => {
     const zip = new Blob([zipSync({ 'a.jpg': new Uint8Array([1]) })]);
     await expect(openChatZip(zip, 'x.zip')).rejects.toThrow('No _chat.txt entry found in ZIP');
+  });
+});
+
+describe('openChatZip limits', () => {
+  test('refuses a transcript larger than maxChatBytes and a ZIP with too many entries', async () => {
+    const zip = new Blob([zipSync({ '_chat.txt': strToU8('x'.repeat(100)), 'a.jpg': strToU8('1') }) as BlobPart]);
+    await expect(openChatZip(zip, 'x.zip', { maxChatBytes: 50 })).rejects.toMatchObject({ name: 'ZipLimitError' });
+    await expect(openChatZip(zip, 'x.zip', { maxEntries: 1 })).rejects.toMatchObject({ name: 'ZipLimitError' });
+    await expect(openChatZip(zip, 'x.zip', { maxChatBytes: 100, maxEntries: 2 })).resolves.toBeDefined();
   });
 });

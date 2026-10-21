@@ -4,6 +4,8 @@ import type { DbOpName, DbOps, DbRequest, DbResponse } from './protocol';
 import {
   createConversation,
   createProfile,
+  findExistingFingerprints,
+  findImportCandidates,
   getProfile,
   importMessages,
   linkConversationProfile,
@@ -14,9 +16,11 @@ import {
   moveConversation,
   renameConversation,
   setProfileArchived,
+  undoImportBatch,
   unlinkConversationProfile,
   updateProfile,
 } from './queries';
+import { listBlobs } from './snapshot';
 
 type Handlers = { [K in DbOpName]: (opened: OpenedDb, params: DbOps[K]['params']) => DbOps[K]['result'] };
 
@@ -44,6 +48,10 @@ const HANDLERS: Handlers = {
   unlinkConversationProfile: ({ db }, p) => unlinkConversationProfile(db, p),
   listParticipants: ({ db }, p) => listParticipants(db, requireParams(p).conversationId as string),
   importMessages: ({ db }, p) => importMessages(db, p),
+  findImportCandidates: ({ db }, p) => findImportCandidates(db, p),
+  findExistingFingerprints: ({ db }, p) => findExistingFingerprints(db, p),
+  undoImportBatch: ({ db }, p) => undoImportBatch(db, requireParams(p).batchId as string),
+  listBlobHashes: ({ db }) => listBlobs(db).map((b) => b.sha256),
   listMessages: ({ db }, p) => {
     const params = requireParams(p);
     return listMessages(db, params.conversationId as string, {

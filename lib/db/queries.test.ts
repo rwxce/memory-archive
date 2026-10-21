@@ -5,11 +5,14 @@ import { openMemoryDb } from './open';
 import {
   createConversation,
   createProfile,
+  findExistingFingerprints,
+  findImportCandidates,
   importMessages,
   listConversations,
   listMessages,
   listParticipants,
   listProfiles,
+  undoImportBatch,
 } from './queries';
 import type { SqlDb } from './sql';
 
@@ -119,9 +122,9 @@ describe('conversations', () => {
       [uuid(11), [uuid(1), uuid(2)], true],
     ]);
     expect(listParticipants(db, uuid(11))).toEqual([
-      { displayName: 'Ana', profileId: uuid(1) },
-      { displayName: 'Bo', profileId: uuid(2) },
-      { displayName: 'Unknown cousin', profileId: null },
+      { displayName: 'Ana', profileId: uuid(1), isMe: false },
+      { displayName: 'Bo', profileId: uuid(2), isMe: false },
+      { displayName: 'Unknown cousin', profileId: null, isMe: false },
     ]);
   });
 
@@ -158,7 +161,7 @@ describe('conversations', () => {
 describe('importMessages', () => {
   test('stores messages in chronological order with their authors', () => {
     const result = importMessages(db, importInput([msg(2), msg(1, { participantName: 'Me' }), msg(3, { participantName: null, type: 'system' })]));
-    expect(result).toEqual({ batchId: uuid(100), added: 3, skipped: 0 });
+    expect(result).toEqual({ batchId: uuid(100), added: 3, skipped: 0, unreferencedBlobs: [] });
     expect(listMessages(db, uuid(10)).map((m) => [m.body, m.participantName, m.type])).toEqual([
       ['synthetic message 1', 'Me', 'text'],
       ['synthetic message 2', 'Ana', 'text'],
@@ -171,7 +174,7 @@ describe('importMessages', () => {
     const export1 = [msg(1), msg(2), msg(3)];
     importMessages(db, importInput(export1, 100));
     const again = importMessages(db, importInput(export1, 101));
-    expect(again).toEqual({ batchId: uuid(101), added: 0, skipped: 3 });
+    expect(again).toEqual({ batchId: uuid(101), added: 0, skipped: 3, unreferencedBlobs: [] });
     expect(listMessages(db, uuid(10))).toHaveLength(3);
     expect(db.all<{ added_count: number; skipped_count: number }>('SELECT added_count, skipped_count FROM import_batches ORDER BY created_at, id')).toEqual([
       { added_count: 3, skipped_count: 0 },
@@ -217,7 +220,7 @@ describe('importMessages', () => {
   });
 
   test('an unknown conversation is rejected', () => {
-    expect(codeOf(() => importMessages(db, { ...importInput([msg(1)]), conversationId: uuid(99) }))).toBe('constraint');
+    expect(codeOf(() => importMessages(db, { ...importInput([msg(1)]), conversationId: uuid(99) }))).toBe('not-found');
     expect(db.all('SELECT * FROM import_batches')).toHaveLength(0);
   });
 
@@ -273,5 +276,103 @@ describe('listMessages', () => {
   test('returns nothing for a conversation without messages', () => {
     expect(listMessages(db, uuid(10))).toEqual([]);
     expect(codeOf(() => listMessages(db, 'nope'))).toBe('invalid');
+  });
+});
+
+describe('importMessages: new conversation, me, unreferenced media', () => {
+  const NEW = { title: 'Chat', sourceKey: 'chat', isGroup: false, profileIds: [uuid(1)] };
+
+  test('creates the conversation in the same transaction and marks the batch as its creator', () => {
+    const input = { ...importInput([msg(1)]), conversationId: uuid(20), newConversation: NEW, meAuthor: 'Ana' };
+    importMessages(db, input);
+    expect(db.all('SELECT title, source_key FROM conversations WHERE id = ?', [uuid(20)])).toEqual([{ title: 'Chat', source_key: 'chat' }]);
+    expect(db.all('SELECT created_conversation FROM import_batches WHERE id = ?', [uuid(100)])).toEqual([{ created_conversation: 1 }]);
+    expect(listConversations(db, { profileId: uuid(1) }).map((c) => c.id)).toContain(uuid(20));
+    expect(listParticipants(db, uuid(20))).toEqual([{ displayName: 'Ana', profileId: null, isMe: true }]);
+  });
+
+  test('a failure after the conversation was written leaves no conversation', () => {
+    const input = { ...importInput([msg(1, { type: 'photo', mediaSha256: PHOTO })]), conversationId: uuid(20), newConversation: NEW };
+    expect(codeOf(() => importMessages(db, input))).toBe('constraint');
+    expect(listConversations(db).map((c) => c.id)).toEqual([uuid(10)]);
+  });
+
+  test('"me" moves to the newest choice and is unique per conversation', () => {
+    importMessages(db, { ...importInput([msg(1), msg(2, { participantName: 'Bo' })], 100), meAuthor: 'Ana' });
+    importMessages(db, { ...importInput([msg(3)], 101), meAuthor: 'Bo' });
+    expect(listParticipants(db, uuid(10)).map((p) => [p.displayName, p.isMe])).toEqual([['Ana', false], ['Bo', true]]);
+  });
+
+  test('media of messages that were already there is reported and its row removed', () => {
+    const blob = { sha256: PHOTO, size: 3, mime: null };
+    importMessages(db, importInput([msg(1)], 100));
+    const again = importMessages(db, importInput([msg(1, { type: 'photo', mediaSha256: PHOTO })], 101, [blob]));
+    expect(again).toMatchObject({ added: 0, skipped: 1, unreferencedBlobs: [PHOTO] });
+    expect(db.all('SELECT * FROM blobs')).toHaveLength(0);
+  });
+
+  test('an unreferenced blob row that a profile photo uses is kept', () => {
+    const blob = { sha256: PHOTO, size: 3, mime: 'image/jpeg' };
+    createProfile(db, { id: uuid(2), displayName: 'Bo', photo: blob, now: NOW });
+    expect(importMessages(db, importInput([msg(1)], 100, [blob])).unreferencedBlobs).toEqual([]);
+    expect(db.all('SELECT * FROM blobs')).toHaveLength(1);
+  });
+});
+
+describe('findImportCandidates / findExistingFingerprints', () => {
+  const find = (over: Partial<Parameters<typeof findImportCandidates>[1]> = {}) =>
+    findImportCandidates(db, { source: 'whatsapp', sourceKey: 'chat', profileIds: [uuid(1)], sampleFingerprints: [], ...over });
+
+  beforeEach(() => {
+    importMessages(db, { ...importInput([msg(1), msg(2)], 100), conversationId: uuid(20), newConversation: { title: 'Chat', sourceKey: 'chat', isGroup: false, profileIds: [uuid(1)] } });
+    importMessages(db, { ...importInput([msg(3)], 101), conversationId: uuid(21), newConversation: { title: 'Loose', sourceKey: 'loose', isGroup: false, profileIds: [] } });
+  });
+
+  test('matches by key within the profile scope, and an empty key never matches', () => {
+    expect(find().keyed).toEqual([{ id: uuid(20), title: 'Chat', messageCount: 2, overlap: 0 }]);
+    expect(find({ sourceKey: '' }).keyed).toEqual([]);
+    expect(find({ profileIds: [uuid(2)] }).keyed).toEqual([]);
+    expect(find({ source: 'telegram' }).keyed).toEqual([]);
+  });
+
+  test('no profile means only conversations filed under no profile', () => {
+    expect(find({ profileIds: [], sourceKey: 'loose' }).keyed.map((c) => c.id)).toEqual([uuid(21)]);
+    expect(find({ profileIds: [], sourceKey: 'chat' }).keyed).toEqual([]);
+  });
+
+  test('a sample reveals a renamed chat as overlapping, never as keyed', () => {
+    const found = find({ sourceKey: 'renamed', sampleFingerprints: [fp(2), fp(99)] });
+    expect(found.keyed).toEqual([]);
+    expect(found.overlapping).toEqual([{ id: uuid(20), title: 'Chat', messageCount: 2, overlap: 1 }]);
+    const keyed = find({ sampleFingerprints: [fp(1), fp(2), fp(2), fp(3)] });
+    expect(keyed.keyed).toEqual([{ id: uuid(20), title: 'Chat', messageCount: 2, overlap: 2 }]); // counts distinct sampled messages held
+    expect(keyed.overlapping).toEqual([]); // keyed ones are not repeated, and fp(3) is in the unscoped conversation
+  });
+
+  test('findExistingFingerprints returns only the stored ones, in any chunk size', () => {
+    const many = Array.from({ length: 1200 }, (_, i) => fp(i + 1000));
+    expect(findExistingFingerprints(db, { conversationId: uuid(20), fingerprints: [fp(1), fp(3), ...many] })).toEqual([fp(1)]);
+    expect(codeOf(() => findExistingFingerprints(db, { conversationId: uuid(20), fingerprints: ['x'] }))).toBe('invalid');
+  });
+});
+
+describe('undoImportBatch', () => {
+  test('removes the batch, an empty created conversation and unreferenced blob rows in one go', () => {
+    const blob = { sha256: PHOTO, size: 3, mime: null };
+    importMessages(db, { ...importInput([msg(1, { type: 'photo', mediaSha256: PHOTO })], 100, [blob]), conversationId: uuid(20), newConversation: { title: 'C', sourceKey: 'c', isGroup: false, profileIds: [uuid(1)] } });
+    expect(undoImportBatch(db, uuid(100))).toEqual({ found: true, removedMessages: 1, removedConversation: true, unreferencedBlobs: [PHOTO] });
+    for (const t of ['messages', 'blobs', 'participants', 'import_batches']) expect(db.all(`SELECT * FROM ${t}`)).toHaveLength(0);
+    expect(listConversations(db).map((c) => c.id)).toEqual([uuid(10)]);
+    expect(undoImportBatch(db, uuid(100))).toMatchObject({ found: false });
+  });
+
+  test('a conversation that existed before the batch stays, even when it ends up empty', () => {
+    importMessages(db, importInput([msg(1)], 100));
+    expect(undoImportBatch(db, uuid(100))).toMatchObject({ found: true, removedConversation: false });
+    expect(listConversations(db).map((c) => c.id)).toEqual([uuid(10)]);
+  });
+
+  test('rejects a malformed id', () => {
+    expect(codeOf(() => undoImportBatch(db, 'nope'))).toBe('invalid');
   });
 });
