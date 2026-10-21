@@ -119,7 +119,10 @@ test('no horizontal overflow on welcome, People, form and person page', async ({
 
 test('a long unbroken name does not overflow the list, the edit form or the person page', async ({ page }) => {
   const long = 'W'.repeat(60);
+  // Wide monospace with letter spacing on everything: the check must not depend on which fallback font the machine has.
+  const wideFont = () => page.addStyleTag({ content: '* { font-family: monospace !important; letter-spacing: 1em !important; }' });
   await startFresh(page);
+  await wideFont();
   await addPerson(page, long);
   expect(await overflowsHorizontally(page)).toBe(false);
 
@@ -135,5 +138,11 @@ test('a long unbroken name does not overflow the list, the edit form or the pers
 
   await page.getByRole('link', { name: long }).click();
   await expect(page.getByRole('heading', { level: 1, name: long })).toBeVisible();
+  await wideFont();
+  expect(await overflowsHorizontally(page)).toBe(false);
+
+  // The same confirmation on the person page.
+  await page.getByRole('button', { name: `Archive ${long}` }).click();
+  await expect(page.getByText(`Archive ${long}?`)).toBeVisible();
   expect(await overflowsHorizontally(page)).toBe(false);
 });

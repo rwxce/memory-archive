@@ -203,7 +203,7 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
         </Button>
       </div>
 
-      <p role="alert" className="text-destructive text-sm empty:hidden">
+      <p role="alert" className="text-destructive text-sm break-words empty:hidden">
         {problem}
       </p>
 
@@ -281,7 +281,7 @@ function PersonCard({
   const Name = archived ? 'h3' : 'h2';
 
   return (
-    <li className="bg-card flex flex-col gap-4 rounded-xl border p-4 sm:p-5">
+    <li className="bg-card flex min-w-0 flex-col gap-4 rounded-xl border p-4 sm:p-5">
       <div className="flex items-center gap-4">
         <span
           aria-hidden

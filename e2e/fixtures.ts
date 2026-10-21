@@ -33,9 +33,14 @@ export const test = base.extend<{ page: Page; foreignRequests: string[]; allowFo
 
 export { expect };
 
-/** True when the page scrolls sideways. */
+/**
+ * True when the page is wider than the configured viewport. It compares with
+ * the viewport size, not window.innerWidth: mobile emulation widens the layout
+ * viewport to fit overflowing content, which would hide the overflow.
+ */
 export async function overflowsHorizontally(page: Page): Promise<boolean> {
-  return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  const width = page.viewportSize()?.width ?? 0;
+  return page.evaluate((max) => document.documentElement.scrollWidth > max, width);
 }
 
 /** First run: welcome, Start, and the (empty) People screen. */

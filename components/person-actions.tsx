@@ -46,7 +46,7 @@ export function PersonActions({
       <div
         role="group"
         aria-labelledby={titleId}
-        className="bg-muted flex flex-col gap-3 rounded-lg p-4"
+        className="bg-muted flex min-w-0 flex-col gap-3 rounded-lg p-4"
         onKeyDown={(event) => {
           if (event.key === 'Escape' && !event.nativeEvent.isComposing) {
             event.stopPropagation();
@@ -54,10 +54,10 @@ export function PersonActions({
           }
         }}
       >
-        <p id={titleId} className="font-semibold">
+        <p id={titleId} className="font-semibold break-words">
           {t('archiveConfirm.title', { name: person.displayName })}
         </p>
-        <p className="text-muted-foreground text-sm leading-relaxed">{t('archiveConfirm.body', { name: person.displayName })}</p>
+        <p className="text-muted-foreground text-sm leading-relaxed break-words">{t('archiveConfirm.body', { name: person.displayName })}</p>
         {/* Same order on screen and for Tab: Cancel first (it takes focus), then Archive. */}
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button ref={cancelRef} variant="outline" className={busyClass} aria-disabled={ariaBusy} onClick={unlessBusy(onCancelArchive)}>

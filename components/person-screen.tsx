@@ -183,7 +183,7 @@ function PersonContent({ onRetry }: { onRetry: () => void }) {
         </div>
       </header>
 
-      {archived && <p className="text-muted-foreground text-sm leading-relaxed">{t('archivedNote')}</p>}
+      {archived && <p className="text-muted-foreground text-sm leading-relaxed break-words">{t('archivedNote')}</p>}
       {person.description && <p className="leading-relaxed break-words whitespace-pre-line">{person.description}</p>}
 
       <PersonActions
@@ -217,7 +217,7 @@ function PersonContent({ onRetry }: { onRetry: () => void }) {
           if (await run('restored', () => profiles.unarchive(person.id))) restoreFocus();
         }}
       />
-      <p role="alert" className="text-destructive text-sm empty:hidden">
+      <p role="alert" className="text-destructive text-sm break-words empty:hidden">
         {problem}
       </p>
 
@@ -235,7 +235,7 @@ function PersonContent({ onRetry }: { onRetry: () => void }) {
             onGone={() => conversationsRef.current?.focus()}
           />
         ) : (
-          <p className="bg-card text-muted-foreground rounded-xl border p-5 leading-relaxed">{t('noConversations', { name: person.displayName })}</p>
+          <p className="bg-card text-muted-foreground rounded-xl border p-5 leading-relaxed break-words">{t('noConversations', { name: person.displayName })}</p>
         )}
       </section>
     </Shell>
