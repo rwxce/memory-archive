@@ -372,8 +372,18 @@ test type or architecture rule means updating this file **in the same PR**.
     to end with the stdin JSON agents send), `check-i18n-parity.test.ts`,
     `serve-out.test.ts` (base path, 404, no path traversal), `eslint-architecture.test.ts`. The vendored `security-audit` validators have
     their own `node --test` suite.
-- **Planned:** Playwright checks of the PWA at 390 px and 1440 px, an automated run of the PRD
-  acceptance scenario (backup → restore on a clean browser).
+  - End to end — `e2e/*.spec.ts` (Playwright `@playwright/test`, not part of `pnpm check`):
+    `pnpm build` then `pnpm e2e` drives the built `out/` served by `pnpm preview`, in the
+    system Google Chrome (`channel: 'chrome'`, no browser download), projects `mobile-390`
+    (390x844, touch) and `desktop-1440`. Each test has a fresh context (fresh OPFS); the shared
+    fixture in `e2e/fixtures.ts` listens on the browser context (pages, workers, service worker) and fails a test on any request Chrome makes to a non-local origin; `e2e/guard.spec.ts` proves it can fail. It says nothing about traffic outside the browser. Covers
+    welcome → Start → People, create + reload (OPFS persistence), edit, archive with
+    confirmation, restore, person page empty state, Escape closes the form, a cold open of /ca/ finds the
+    library made on /en/, the language picker, a Catalan run, offline reload, no horizontal overflow and a 60-character
+    unbroken name. Screenshots on failure only; `test-results/` and `playwright-report/` are
+    git-ignored. Firefox and WebKit projects come in Phase 6 with a browser install step.
+- **Planned:** an automated run of the PRD acceptance scenario (backup → restore on a clean
+  browser) in e2e.
 
 ## 5. CI/CD and branches
 
@@ -381,7 +391,9 @@ test type or architecture rule means updating this file **in the same PR**.
   `release: vX.Y.Z` (squash) → tag. `main` only contains release commits
   ([`branching-and-releases.md`](branching-and-releases.md)).
 - **`ci.yml`** — on PRs to `dev`/`main` and pushes to `dev`: pnpm install (frozen lockfile,
-  7-day release age) → `pnpm check`.
+  7-day release age) → `pnpm check`. A separate `e2e` job installs, builds and runs
+  `pnpm e2e` (Chrome preinstalled on `ubuntu-latest`); on failure it uploads the Playwright
+  report and screenshots as an artifact.
 - **`branch-policy-guard.yml`** — `pull_request_target`; `main` only accepts PRs from `dev`
   titled `release: vX.Y.Z`.
 - **`release.yml`** — on push to `main`: reads the version from the commit subject, creates the
@@ -407,6 +419,8 @@ test type or architecture rule means updating this file **in the same PR**.
   of 7 days** (`pnpm-workspace.yaml`, 10080 minutes), exact security **`overrides`**,
   **`allowBuilds`** allowlist for install scripts, `only-allow pnpm` (`preinstall`).
 - New dependencies need a reason in the PR description; prefer no dependency.
+- `@playwright/test` (devDependency, exact pin) runs the e2e suite against system Chrome:
+  it needs no install script and no browser download, and sends no telemetry.
 - `ajv` is a direct devDependency only as a workaround: pnpm 11 drops `ajv-formats`' optional
   peer and `rulesync` crashes without it. Remove when upstream fixes the peer.
 - Install scripts denied with a reason in `allowBuilds`: `@swc/core`, `@parcel/watcher`

@@ -186,6 +186,7 @@ pnpm cli import-legacy <messages.json|.html|.csv>   # Rebuild CSV + outputs from
 pnpm cli render <dir>   # Re-render outputs from messages.csv
 pnpm build              # Viewer scripts, CLI → dist/ (tsup), app → out/ (next build), out/sw.js
 pnpm smoke              # Built CLI on the fixture ZIP + static export, manifest, sw.js checks
+pnpm e2e                # Playwright (system Chrome) on the built out/ at 390 and 1440 px; run pnpm build first; not part of check
 pnpm icons              # Regenerate app icons (scripts/generate-icons.mjs, no image tools)
 pnpm i18n:check         # messages/{ca,es,en}.json have the same keys and placeholders
 pnpm lint               # ESLint

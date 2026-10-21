@@ -20,3 +20,7 @@ public/db/
 .next/
 next-env.d.ts
 *.tsbuildinfo
+
+# Playwright
+test-results/
+playwright-report/
