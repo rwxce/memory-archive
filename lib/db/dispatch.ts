@@ -4,11 +4,18 @@ import type { DbOpName, DbOps, DbRequest, DbResponse } from './protocol';
 import {
   createConversation,
   createProfile,
+  getProfile,
   importMessages,
+  linkConversationProfile,
   listConversations,
   listMessages,
   listParticipants,
   listProfiles,
+  moveConversation,
+  renameConversation,
+  setProfileArchived,
+  unlinkConversationProfile,
+  updateProfile,
 } from './queries';
 
 type Handlers = { [K in DbOpName]: (opened: OpenedDb, params: DbOps[K]['params']) => DbOps[K]['result'] };
@@ -22,12 +29,19 @@ function requireParams(p: unknown): Record<string, unknown> {
 const HANDLERS: Handlers = {
   status: ({ info }) => info,
   createProfile: ({ db }, p) => createProfile(db, p),
-  listProfiles: ({ db }) => listProfiles(db),
+  getProfile: ({ db }, p) => getProfile(db, requireParams(p).id as string),
+  updateProfile: ({ db }, p) => updateProfile(db, p),
+  setProfileArchived: ({ db }, p) => setProfileArchived(db, p),
+  listProfiles: ({ db }, p) => listProfiles(db, p === undefined ? {} : requireParams(p)),
   createConversation: ({ db }, p) => {
     createConversation(db, p);
     return null;
   },
   listConversations: ({ db }, p) => listConversations(db, p === undefined ? {} : requireParams(p)),
+  renameConversation: ({ db }, p) => renameConversation(db, p),
+  moveConversation: ({ db }, p) => moveConversation(db, p),
+  linkConversationProfile: ({ db }, p) => linkConversationProfile(db, p),
+  unlinkConversationProfile: ({ db }, p) => unlinkConversationProfile(db, p),
   listParticipants: ({ db }, p) => listParticipants(db, requireParams(p).conversationId as string),
   importMessages: ({ db }, p) => importMessages(db, p),
   listMessages: ({ db }, p) => {

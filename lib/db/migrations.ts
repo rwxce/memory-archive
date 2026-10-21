@@ -98,7 +98,28 @@ CREATE TABLE messages (
 CREATE INDEX messages_timeline ON messages(conversation_id, sent_at, ordinal, id);
 `;
 
-export const MIGRATIONS: readonly Migration[] = [{ version: 1, sql: V1 }];
+/**
+ * v2 (expand only): the profile details of Phase 3. Every column is added with
+ * a default, so existing rows stay valid and a v1 backup restores by migrating.
+ *
+ * `photo_sha256` references `blobs`: the photo is an ordinary content-addressed
+ * media blob (bytes in OPFS), so a profile can never point at a hash the
+ * library does not know, and the same photo is stored once. Nothing deletes
+ * blobs, and profiles are archived, never deleted, so the reference cannot
+ * dangle. Length bounds are enforced by the application (`domain/profile.ts`),
+ * not by CHECK, so they can change without a migration.
+ */
+const V2 = `
+ALTER TABLE profiles ADD COLUMN relationship TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN description TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN photo_sha256 TEXT REFERENCES blobs(sha256)
+  CHECK (photo_sha256 IS NULL OR (length(photo_sha256) = 64 AND photo_sha256 NOT GLOB '*[^0-9a-f]*'));
+`;
+
+export const MIGRATIONS: readonly Migration[] = [
+  { version: 1, sql: V1 },
+  { version: 2, sql: V2 },
+];
 
 /** Schema version this build produces and understands. */
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

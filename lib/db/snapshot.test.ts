@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { MIGRATIONS, migrate, type Migration } from './migrations';
+import { MIGRATIONS, SCHEMA_VERSION, migrate, type Migration } from './migrations';
 import { openMemoryDb } from './open';
 import { createConversation, createProfile } from './queries';
 import { isLibraryEmpty, listBlobs, loadSnapshot, serializeDb } from './snapshot';
@@ -8,7 +8,9 @@ import { wrapOo1Db, type SqlDb } from './sql';
 const NOW = '2026-02-01T12:00:00Z';
 const ID1 = '3f2b8c1e-5d4a-4b6f-9a7e-0c1d2e3f4a5b';
 const ID2 = '7a1c2d3e-4f50-4a61-8b72-93a4b5c6d7e8';
-const V2: readonly Migration[] = [MIGRATIONS[0], { version: 2, sql: 'ALTER TABLE profiles ADD COLUMN note TEXT' }];
+/** The released migrations plus a hypothetical next one: a database one version ahead of this build. */
+const NEXT: readonly Migration[] = [...MIGRATIONS, { version: SCHEMA_VERSION + 1, sql: 'ALTER TABLE profiles ADD COLUMN note TEXT' }];
+const V1_ONLY = MIGRATIONS.slice(0, 1);
 
 /** A bare in-memory database (same engine as production), optionally migrated. */
 async function bareDb(migrations?: readonly Migration[]): Promise<SqlDb> {
@@ -52,7 +54,7 @@ describe('loadSnapshot', () => {
     const source = (await openMemoryDb()).db;
     profile(source, ID1);
     const target = (await openMemoryDb()).db;
-    expect(await loadSnapshot(target, serializeDb(source))).toEqual({ from: 1, to: 1 });
+    expect(await loadSnapshot(target, serializeDb(source))).toEqual({ from: SCHEMA_VERSION, to: SCHEMA_VERSION });
     expect(target.all('SELECT * FROM profiles')).toEqual(source.all('SELECT * FROM profiles'));
   });
 
@@ -60,16 +62,32 @@ describe('loadSnapshot', () => {
     const source = (await openMemoryDb()).db;
     profile(source, ID1);
     profile(source, ID2);
-    const target = await bareDb(V2);
-    expect(await loadSnapshot(target, serializeDb(source), { migrations: V2 })).toEqual({ from: 1, to: 2 });
+    const target = await bareDb(NEXT);
+    expect(await loadSnapshot(target, serializeDb(source), { migrations: NEXT })).toEqual({ from: SCHEMA_VERSION, to: SCHEMA_VERSION + 1 });
     expect(target.all('SELECT id, display_name, note FROM profiles ORDER BY id')).toEqual([
       { id: ID1, display_name: 'Ana', note: null },
       { id: ID2, display_name: 'Ana', note: null },
     ]);
   });
 
+  test('a schema v1 snapshot (profile, conversation, message, media) restores by migrating to v2', async () => {
+    const v1 = await bareDb(V1_ONLY);
+    v1.run('INSERT INTO profiles (id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)', [ID1, 'Ana', NOW, NOW]);
+    v1.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [ID2, 'Chat', 'whatsapp', NOW]);
+    v1.run('INSERT INTO conversation_profiles VALUES (?, ?)', [ID2, ID1]);
+    v1.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
+    v1.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
+    const target = (await openMemoryDb()).db;
+    expect(await loadSnapshot(target, serializeDb(v1))).toEqual({ from: 1, to: SCHEMA_VERSION });
+    expect(target.all('SELECT id, display_name, relationship, description, photo_sha256, archived_at FROM profiles')).toEqual([
+      { id: ID1, display_name: 'Ana', relationship: '', description: '', photo_sha256: null, archived_at: null },
+    ]);
+    expect(target.all('SELECT conversation_id, profile_id FROM conversation_profiles')).toEqual([{ conversation_id: ID2, profile_id: ID1 }]);
+    expect(target.all('SELECT id FROM messages')).toHaveLength(1);
+  });
+
   test('refuses a snapshot from a newer schema and leaves the target alone', async () => {
-    const newer = await bareDb(V2);
+    const newer = await bareDb(NEXT);
     profile(newer, ID1);
     const target = (await openMemoryDb()).db;
     expect(await code(loadSnapshot(target, serializeDb(newer)))).toBe('newer-schema');
@@ -102,13 +120,13 @@ describe('loadSnapshot', () => {
     const source = (await openMemoryDb()).db;
     profile(source, ID1);
     source.exec("CREATE TRIGGER sneaky AFTER UPDATE ON profiles BEGIN UPDATE profiles SET display_name = 'pwned'; END");
-    const target = await bareDb(V2);
+    const target = await bareDb(NEXT);
     await expectInvalid(source, /triggers, views/, target);
   });
 
   test('refuses when the target schema is not the snapshot schema after migration', async () => {
     const source = (await openMemoryDb()).db;
-    const target = await bareDb(V2);
+    const target = await bareDb(NEXT);
     await expectInvalid(source, /schema version differs/, target);
   });
 
@@ -161,7 +179,7 @@ describe('loadSnapshot', () => {
     source.run('INSERT INTO blobs (sha256, size) VALUES (?, 1)', ['ab'.repeat(32)]);
     const target = (await openMemoryDb()).db;
     expect(await code(loadSnapshot(target, serializeDb(source), { expectBlobs: [] }))).toBe('invalid');
-    expect(await loadSnapshot(target, serializeDb(source), { expectBlobs: [{ sha256: 'ab'.repeat(32), size: 1 }] })).toEqual({ from: 1, to: 1 });
+    expect(await loadSnapshot(target, serializeDb(source), { expectBlobs: [{ sha256: 'ab'.repeat(32), size: 1 }] })).toEqual({ from: SCHEMA_VERSION, to: SCHEMA_VERSION });
   });
 
   test('is atomic: a conflict halfway rolls everything back', async () => {

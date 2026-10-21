@@ -58,6 +58,12 @@ export function isMessageType(value: unknown): value is MessageType {
 export interface Profile {
   id: string;
   displayName: string;
+  /** How the user relates to this person ("mother", "friend"); '' when not set. */
+  relationship: string;
+  /** Free-text note about the person; '' when not set. */
+  description: string;
+  /** SHA-256 of the profile photo (a stored blob), or null. */
+  photoSha256: string | null;
   /** UTC instant when the profile was archived, or null while active. */
   archivedAt: string | null;
   createdAt: string;
