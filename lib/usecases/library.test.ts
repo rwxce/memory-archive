@@ -3,7 +3,7 @@ import type { DbClient } from '../db/client';
 import { DbError } from '../db/errors';
 import { createConversation } from '../db/queries';
 import { archiveProfile, createProfile } from './profiles';
-import { LibraryOpenTimeout, libraryProblemOf, listPeople, openLibrary, openWithTimeout, type Library } from './library';
+import { LibraryOpenTimeout, libraryProblemOf, getPersonDetails, listPeople, openLibrary, openWithTimeout, type Library } from './library';
 import { createTestLibrary } from './test-client';
 
 function fakeClient(call: DbClient['call']) {
@@ -18,7 +18,7 @@ describe('openLibrary', () => {
     const result = await openLibrary({ workerUrl: '/db/worker.js', createClient, openBlobStore: async () => lib.deps.blobStore });
     expect(createClient).toHaveBeenCalledWith('/db/worker.js');
     expect(result.deps.client).toBe(lib.client);
-    expect(await listPeople(result.deps)).toEqual({ active: [], archived: [] });
+    expect(await listPeople(result.deps)).toEqual({ active: [], archived: [], unassigned: [] });
   });
 
   test('a database that cannot open rejects with its error and is closed', async () => {
@@ -81,6 +81,49 @@ describe('listPeople', () => {
       ['Cy', 0],
     ]);
     expect(people.archived.map((p) => [p.displayName, p.conversationCount])).toEqual([['Bo', 1]]);
+  });
+});
+
+describe('listPeople: unassigned conversations', () => {
+  test('lists conversations filed under nobody, with participants, and none when every one is filed', async () => {
+    const { deps, opened } = await createTestLibrary();
+    const ana = await createProfile(deps, { displayName: 'Ana' });
+    const make = (id: string, profileIds: string[], isGroup = false) =>
+      createConversation(opened.db, { id, title: id.slice(-2), source: 'whatsapp', isGroup, profileIds, participants: [{ displayName: 'Zed', profileId: null }], now: '2026-03-01T10:00:00.000Z' });
+    make('00000000-0000-4000-8000-0000000000a1', [ana.id]);
+    expect((await listPeople(deps)).unassigned).toEqual([]);
+    make('00000000-0000-4000-8000-0000000000a2', [], true);
+    const { unassigned } = await listPeople(deps);
+    expect(unassigned).toMatchObject([{ title: 'a2', isGroup: true, profileIds: [], participants: ['Zed'] }]);
+  });
+});
+
+describe('getPersonDetails', () => {
+  test('returns the person (archived too), their conversations with participants, and everyone', async () => {
+    const { deps, opened } = await createTestLibrary();
+    const ana = await createProfile(deps, { displayName: 'Ana' });
+    const bo = await createProfile(deps, { displayName: 'Bo' });
+    await archiveProfile(deps, bo.id);
+    createConversation(opened.db, { id: '00000000-0000-4000-8000-0000000000a1', title: 'Group', source: 'whatsapp', isGroup: true, profileIds: [ana.id, bo.id], participants: [{ displayName: 'Ana', profileId: ana.id }], now: '2026-03-01T10:00:00.000Z' });
+    const details = await getPersonDetails(deps, bo.id);
+    expect(details?.person).toMatchObject({ displayName: 'Bo', conversationCount: 1 });
+    expect(details?.person.archivedAt).not.toBeNull();
+    expect(details?.conversations).toMatchObject([{ title: 'Group', participants: ['Ana'], profileIds: [ana.id, bo.id] }]);
+    expect(details?.people.active.map((p) => p.displayName)).toEqual(['Ana']);
+  });
+
+  test('an unknown, malformed or empty id is undefined, not an error', async () => {
+    const { deps } = await createTestLibrary();
+    await createProfile(deps, { displayName: 'Ana' });
+    for (const id of ['00000000-0000-4000-8000-00000000ffff', 'not-a-uuid', '', "' OR 1=1 --"]) {
+      expect(await getPersonDetails(deps, id)).toBeUndefined();
+    }
+  });
+
+  test('other failures still reject', async () => {
+    const { deps } = await createTestLibrary();
+    const broken = { ...deps, client: { call: () => Promise.reject(new DbError('internal', 'x')) } as unknown as DbClient };
+    await expect(getPersonDetails(broken, '00000000-0000-4000-8000-0000000000a1')).rejects.toMatchObject({ code: 'internal' });
   });
 });
 

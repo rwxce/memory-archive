@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type { NewMessage } from '../domain/library';
 import {
   linkConversationToProfile,
+  listConversationRows,
   listConversations,
   moveConversation,
   renameConversation,
@@ -175,5 +176,18 @@ describe('link and unlink', () => {
     const { deps } = await setup();
     await archiveProfile(deps, CY);
     expect((await linkConversationToProfile(deps, PRIVATE, CY)).profileIds).toEqual([ANA, CY]);
+  });
+});
+
+describe('listConversationRows', () => {
+  test('adds distinct participant names (including message authors) in the order they were first seen', async () => {
+    const { deps } = await setup();
+    const rows = await listConversationRows(deps);
+    expect(rows.map((r) => [r.title, r.participants])).toEqual([
+      ['Chat with Ana', ['Ana', 'Bo']],
+      ['Group', ['Bo', 'Ana']],
+    ]);
+    expect(rows[1]).toMatchObject({ isGroup: true, messageCount: 3, firstMessageAt: '2026-01-01T10:01:00', lastMessageAt: '2026-01-01T10:03:00' });
+    expect((await listConversationRows(deps, { profileId: BO })).map((r) => r.title)).toEqual(['Group']);
   });
 });

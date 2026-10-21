@@ -65,7 +65,9 @@
       "body": "{name} passa a la llista d'arxivades. Les converses, els missatges i les fotos es queden en aquest dispositiu i a les teves còpies de seguretat. Ho pots desfer quan vulguis.",
       "confirm": "Arxiva",
       "cancel": "Cancel·la"
-    }
+    },
+    "unassignedTitle": "Encara no assignades a ningú",
+    "unassignedHint": "Aquestes converses són segures en aquest dispositiu. Tria de qui és cadascuna quan vulguis."
   },
   "library": {
     "loading": "Obrint el teu arxiu…",
@@ -125,5 +127,74 @@
     "title": "No tens connexió",
     "body": "Aquesta pàgina encara no s’ha desat en aquest dispositiu. Les pàgines que ja has obert continuen funcionant sense connexió.",
     "home": "Ves a l’inici"
+  },
+  "person": {
+    "back": "Torna a Persones",
+    "loadFailed": "No s'ha pogut llegir aquesta persona. No s'ha esborrat res.",
+    "notFoundTitle": "No trobem aquesta persona",
+    "notFoundBody": "Pot ser que l'enllaç estigui desactualitzat. No s'ha esborrat res.",
+    "archivedBadge": "Arxivada",
+    "archivedNote": "Aquesta persona està arxivada. Tot continua en aquest dispositiu i la pots restaurar quan vulguis.",
+    "conversationsTitle": "Converses",
+    "noConversations": "Encara no hi ha cap conversa guardada a {name}. Quan portis missatges, apareixeran aquí."
+  },
+  "conversations": {
+    "listLabel": "Converses",
+    "group": "Xat de grup",
+    "messageCount": "{count, plural, =0 {Encara cap missatge} one {# missatge} other {# missatges}}",
+    "participants": "Amb {names}",
+    "participantsMore": "Amb {names} i {count, plural, one {# persona més} other {# persones més}}",
+    "alsoUnder": "També guardada a {names}",
+    "rename": "Canvia el nom",
+    "renameLabel": "Canvia el nom de «{title}»",
+    "move": "Mou a una altra persona",
+    "moveLabel": "Mou a una altra persona: «{title}»",
+    "link": "Guarda-la també a…",
+    "linkLabel": "Guarda-la també a…: «{title}»",
+    "assign": "Assigna a…",
+    "assignLabel": "Assigna a…: «{title}»",
+    "unlink": "Desvincula",
+    "unlinkLabel": "Desvincula «{title}» de la persona {name}",
+    "renamed": "S'ha canviat el nom a «{title}».",
+    "moved": "«{title}» ara es guarda a {name}. Els missatges no han canviat.",
+    "linked": "«{title}» ara també es guarda a {name}. Els missatges no han canviat.",
+    "assigned": "«{title}» ara es guarda a {name}. Els missatges no han canviat.",
+    "unlinked": "«{title}» ja no es guarda a {name}. Els missatges es queden tal com són.",
+    "unlinkedLast": "«{title}» ja no es guarda a {name}. Continua al teu arxiu, encara sense assignar a ningú.",
+    "actionFailed": "No s'ha canviat res a «{title}». Torna-ho a provar.",
+    "renameForm": {
+      "label": "Nom de la conversa",
+      "save": "Desa el nom",
+      "cancel": "Cancel·la",
+      "required": "Escriu un nom per continuar.",
+      "tooLong": "El nom pot tenir fins a {max} caràcters.",
+      "invalid": "Una part del text no es pot desar. Treu-ne els caràcters estranys i torna-ho a provar.",
+      "failed": "No s'ha pogut desar. No s'ha canviat res. Torna-ho a provar."
+    },
+    "pick": {
+      "choose": "Tria una persona",
+      "required": "Tria una persona per continuar.",
+      "archivedGroup": "Persones arxivades",
+      "nobody": "No hi ha ningú més per triar. Afegeix primer una persona.",
+      "cancel": "Cancel·la",
+      "moveLabel": "Mou «{title}» a",
+      "moveHint": "Només canvia on es guarda la conversa. Els missatges es queden tal com són i no se'n copia res.",
+      "moveHintGroup": "Continua sent un xat de grup. Els missatges es queden tal com són i no se'n copia res.",
+      "moveConfirm": "Mou la conversa",
+      "linkLabel": "Guarda «{title}» també a",
+      "linkHint": "Apareixerà també a aquesta persona. Només n'hi ha una còpia: els missatges i les fotos no es copien ni canvien.",
+      "linkConfirm": "Vincula la conversa",
+      "assignLabel": "Assigna «{title}» a",
+      "assignHint": "Els missatges i les fotos no es copien ni canvien.",
+      "assignConfirm": "Assigna",
+      "failed": "No s'ha pogut desar. No s'ha canviat res. Torna-ho a provar."
+    },
+    "unlinkConfirm": {
+      "title": "Vols desvincular «{title}» de la persona {name}?",
+      "body": "Només desapareix de la pàgina de la persona {name}. La conversa continua al teu arxiu i els missatges es queden tal com són.",
+      "bodyLast": "{name} és l'última persona a qui està vinculada. La conversa continua al teu arxiu, encara sense assignar a ningú, i els missatges es queden tal com són. Després la podràs tornar a assignar des de Persones.",
+      "confirm": "Desvincula",
+      "cancel": "Cancel·la"
+    }
   }
 }

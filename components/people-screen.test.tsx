@@ -435,6 +435,95 @@ describe('PeopleScreen', () => {
     const link = [...view.container.querySelectorAll('a')].find((a) => a.textContent === p.about);
     expect(link?.getAttribute('href')).toBe('/welcome');
   });
+  test('a name links to the person page', async () => {
+    let id = '';
+    view = await open(async ({ deps }) => {
+      id = (await createProfile(deps, { displayName: 'Ana' })).id;
+    });
+    const link = view.container.querySelector('li h2 a')!;
+    expect(link.getAttribute('href')).toBe(`/person?id=${id}`);
+    expect(link.textContent).toBe('Ana');
+    // Edit and Archive stay on the card.
+    expect(buttonByLabel(view, 'Edit Ana')).not.toBeNull();
+    expect(buttonByLabel(view, 'Archive Ana')).not.toBeNull();
+  });
+
+  describe('conversations that belong to no one', () => {
+    const chat = '00000000-0000-4000-8000-0000000000c1';
+    const group = '00000000-0000-4000-8000-0000000000c2';
+    const seedUnassigned = async ({ deps, client }: View['lib']) => {
+      await createProfile(deps, { displayName: 'Ana' });
+      await client.call('createConversation', { id: chat, title: 'Old chat', source: 'whatsapp', isGroup: false, profileIds: [], participants: [{ displayName: 'Zed', profileId: null }], now: '2026-03-01T10:00:00.000Z' });
+      await client.call('createConversation', { id: group, title: 'Old group', source: 'whatsapp', isGroup: true, profileIds: [], participants: [], now: '2026-03-01T10:00:00.000Z' });
+    };
+    const section = (v: Rendered) => [...v.container.querySelectorAll('section')].find((x) => x.querySelector('h2')?.textContent === p.unassignedTitle);
+
+    test('are listed under "Not assigned to anyone yet", and the section is absent when there are none', async () => {
+      view = await open(async ({ deps }) => void (await createProfile(deps, { displayName: 'Ana' })));
+      expect(section(view)).toBeUndefined();
+      view.unmount();
+      view = await open(seedUnassigned);
+      expect([...section(view)!.querySelectorAll('li h3')].map((h) => h.textContent)).toEqual(['Old chat', 'Old group']);
+      expect(section(view)!.textContent).toContain(en.conversations.group);
+      expect(section(view)!.textContent).toContain('With Zed');
+      // The people list itself still holds only people.
+      expect([...view.container.querySelectorAll('li h2')].map((h) => h.textContent)).toEqual(['Ana']);
+    });
+
+    test('are shown even when there is no one yet, instead of the welcome', async () => {
+      view = await open(
+        async ({ client }) => {
+          await client.call('createConversation', { id: chat, title: 'Old chat', source: 'whatsapp', isGroup: false, profileIds: [], participants: [], now: '2026-03-01T10:00:00.000Z' });
+        },
+        { whenNoProfiles: <p>welcome-here</p> },
+      );
+      expect(view.container.textContent).not.toContain('welcome-here');
+      expect(section(view)).toBeDefined();
+    });
+
+    test('can be assigned to a person; focus goes to the section while others remain, then to the title', async () => {
+      view = await open(seedUnassigned);
+      await click(buttonByLabel(view, 'Assign to…: “Old chat”'));
+      const select = view.container.querySelector('select')!;
+      expect(document.activeElement).toBe(select);
+      await act(async () => {
+        select.value = (await (view as View).lib.deps.client.call('listProfiles'))[0].id;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      await submit(view.container.querySelector('form'));
+      await settle();
+      expect(status(view)).toBe('“Old chat” now belongs to Ana. The messages were not changed.');
+      expect([...section(view)!.querySelectorAll('li h3')].map((h) => h.textContent)).toEqual(['Old group']);
+      expect(view.container.querySelector('li')!.textContent).toContain('1 conversation');
+      expect(document.activeElement).toBe(section(view)!.querySelector('h2'));
+
+      await click(buttonByLabel(view, 'Assign to…: “Old group”'));
+      await act(async () => {
+        const again = view!.container.querySelector('select')!;
+        again.value = (await (view as View).lib.deps.client.call('listProfiles'))[0].id;
+        again.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      await submit(view.container.querySelector('form'));
+      await settle();
+      expect(section(view)).toBeUndefined();
+      expect(document.activeElement).toBe(view.container.querySelector('h1'));
+    });
+
+    test('can be renamed in place and cannot be assigned to no one', async () => {
+      view = await open(seedUnassigned);
+      await click(buttonByLabel(view, 'Assign to…: “Old chat”'));
+      await submit(view.container.querySelector('form'));
+      expect([...view.container.querySelectorAll('[role="alert"]')].map((a) => a.textContent)).toContain(en.conversations.pick.required);
+      await click(buttonByText(view, en.conversations.pick.cancel));
+      await settle();
+      await click(buttonByLabel(view, 'Rename “Old chat”'));
+      await type(view.container.querySelector('form input'), 'Kept chat');
+      await submit(view.container.querySelector('form'));
+      await settle();
+      expect(status(view)).toBe('Renamed to “Kept chat”.');
+      expect([...section(view)!.querySelectorAll('li h3')].map((h) => h.textContent)).toEqual(['Kept chat', 'Old group']);
+    });
+  });
 });
 
 describe('Home when the library cannot open on first run', () => {

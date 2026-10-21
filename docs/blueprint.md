@@ -38,8 +38,11 @@ test type or architecture rule means updating this file **in the same PR**.
     Try again never waits behind a hung worker. States: loading / ready / unavailable (open in another tab or no
     private storage; retry) / newer version / error. `hooks/use-people.ts` (`usePeople`,
     `useProfileActions`) — an action resolves only after the lists on screen have reloaded, so the
-    form closes onto the new list (no stale or empty-state flash). No dynamic route segments for
-    ids (static export): detail screens will use query params (`/person?id=`).
+    form closes onto the new list (no stale or empty-state flash). `hooks/use-person-details.ts`
+    (`usePersonDetails(id)`: loading / ready / not-found / error) and
+    `hooks/use-conversation-actions.ts` (rename / move / link / unlink; same reload contract).
+    No dynamic route segments for ids (static export): detail screens use query params
+    (`/person?id=`).
   - Pages: `/[locale]/` home (People once the library holds any profile, the welcome while it
     is empty — the switch runs on the device; if the library cannot open on first run it still shows
     the welcome with the reason and a retry beneath it, never only an error; while loading it
@@ -47,7 +50,18 @@ test type or architecture rule means updating this file **in the same PR**.
     relationship and conversation count, collapsed Archived section, inline create / edit form,
     archive with a confirmation that says what is kept (Escape closes it and the form), restore;
     one polite status region stays mounted in every state; busy buttons use `aria-disabled` (they keep focus); Escape is ignored during IME composition; person names are h2 under the page h1; initials avatar, no photo
-    upload yet), `/[locale]/welcome/` (always reachable; *Start* asks for persistent storage and
+    upload yet; a name links to the person page; a "Not assigned to anyone yet" section appears only
+    while some conversation belongs to no one, with Rename and *Assign to…*), `/[locale]/person/?id=`
+    (Person: name, relationship, notes, archived badge, the same Edit / Archive / Restore as the
+    list (`person-actions.tsx`), and the person's conversations (`conversation-list.tsx`: title,
+    *Group chat* badge, message count, first–last day, participants, "also kept under"). Per
+    conversation: inline rename (same validation as profiles), *Move to another person*, and for
+    group / shared chats *Also keep under…* and *Unlink* (confirmation; unlinking the last person
+    leaves it unassigned). Targets are active people, archived ones in their own labelled group;
+    every panel says messages and photos are not copied or changed. Failures are explained once, by the panel's own alert (the unlink confirmation carries its own; cleared on cancel); with nobody to choose, focus goes to Cancel. Move / Also keep under… / Assign to… aria-labels start with the visible text (WCAG 2.5.3); long unbroken names wrap (`break-words`). An unknown, malformed or
+    missing id is a calm not-found with the way back. Focus returns to the opener, or to the
+    section heading when the chat left the list; results are announced in the status region;
+    wrapped in `Suspense` because of `useSearchParams`), `/[locale]/welcome/` (always reachable; *Start* asks for persistent storage and
     goes to People), `/[locale]/settings/` (language, appearance, app version + archive format version),
     `not-found` → `out/404.html`.
   - Next.js telemetry disabled (`NEXT_TELEMETRY_DISABLED` in scripts, CI and
@@ -143,7 +157,10 @@ test type or architecture rule means updating this file **in the same PR**.
     `invalid` / `not-found`. `test-client.ts` is the structured-clone loopback for their tests.
     `lib/usecases/library.ts` — `openLibrary` (worker + database check + blob store, with test
     seams), `libraryProblemOf` (error → reason the UI explains), `listPeople` (profiles split
-    active / archived with conversation counts); the UI never imports `lib/db`.
+    active / archived with conversation counts, plus `unassigned` conversations), `getPersonDetails`
+    (one person + their conversations + everyone; `undefined` for an unknown or malformed id);
+    `conversations.ts` also has `listConversationRows` / `withParticipants` (summaries with
+    participant names; read-only compositions); the UI never imports `lib/db`.
   - `lib/db/snapshot.ts` — `serializeDb`, `loadSnapshot`, `listBlobs`, `isLibraryEmpty`.
   - `lib/exporters/archive/` — `format.ts` (manifest, limits, `ArchiveError`, path validation),
     `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`restoreArchive`).
@@ -303,8 +320,11 @@ test type or architecture rule means updating this file **in the same PR**.
     `regressions` (one block per fixed known bug).
   - Packaging — `scripts/build-viewer-script.test.ts` (bundle fresh and self-contained) and
     `pnpm smoke` (built CLI).
-  - UI — `components/people-screen.test.tsx` (list / empty / create / validate / edit /
-    archive with confirmation / restore / failures / welcome switch / library unavailable, over
+  - UI — `components/person-screen.test.tsx` (details, not-found, archived person, edit, archive,
+    rename validation / double submit / failure / Escape and IME, move, link, unlink incl. the last
+    person, busy guard, focus and live-region behaviour), `components/people-screen.test.tsx`
+    (list / link to the person / empty / create / validate / edit /
+    archive with confirmation / restore / failures / welcome switch / unassigned section / library unavailable, over
     the real use cases on in-memory SQLite via `renderWithLibrary`), `hooks/use-library.test.tsx`
     (provider states, lazy open, retry), `components/*.test.tsx` (welcome actions incl.
     persistence request and navigation, theme picker / sync, `redirectPath` allow-list, `formatBytes`), `hooks/theme.test.ts` (the inline theme
