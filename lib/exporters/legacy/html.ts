@@ -3,6 +3,7 @@ import type { MediaEntry, RenderOptions } from './media';
 import { buildEnvelope, dayOf, timeOf } from './json';
 import { getAccentColor, initials } from './colors';
 import { linkifyHtml, deriveTitle } from './js/linkify.js';
+import { sha256 } from './sha256';
 import { VIEWER_SCRIPT } from './js/viewer-script.generated';
 
 function escapeHtml(s: string): string {
@@ -139,7 +140,7 @@ function renderBubble(
 
   const lines = group
     .map(async (m) => {
-      const time = timeOf(m.timestamp_iso).slice(0, 5);
+      const time = escapeHtml(timeOf(m.timestamp_iso).slice(0, 5));
       let body: string;
       const resolve = (u: string) => m.urlTitles?.[u] ?? deriveTitle(u);
       if (m.type === 'system' || m.type === 'deleted' || m.type === 'omitted') {
@@ -282,57 +283,7 @@ export interface HtmlRenderOptions extends RenderOptions {
   me?: string;
 }
 
-/** `messages.html` content: a standalone, WhatsApp-like page. */
-export async function renderHtml(
-  messages: Message[],
-  chatName: string,
-  opts: HtmlRenderOptions = {},
-): Promise<string> {
-  const media = opts.media ?? new Map<string, MediaEntry>();
-  const envelope = buildEnvelope(messages, chatName, media);
-  const self = resolveSelfAuthor(messages, opts.me);
-  const transcript = await renderTranscript(messages, media, opts, self);
-
-  // Escape `</` in serialized JSON so message text containing </script> cannot
-  // break the document (D-32 landmine).
-  const islandJson = JSON.stringify(envelope).replace(/<\//g, '<\\/');
-
-  // Self-contained bundle (see scripts/build-viewer-script.mjs); `</script`
-  // can never appear literally inside the inline script.
-  const js = VIEWER_SCRIPT.replace(/<\/script/gi, '<\\/script');
-
-  const authors = [...new Set(messages.map((m) => m.author))].sort();
-  const authorOptions = authors
-    .map((a) => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`)
-    .join('');
-
-  const html = `<!DOCTYPE html>
-<html lang="pt-BR" data-theme="light">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(chatName)} — WhatsApp Backup</title>
-<style>${CSS}</style>
-</head>
-<body>
-<div id="toolbar">
-  <div class="chat-title" id="chat-title">${escapeHtml(chatName)}</div>
-  <input id="search" type="search" placeholder="Buscar…" aria-label="Buscar mensagens">
-  <select id="sender-filter" aria-label="Filtrar por remetente">
-    <option value="">Todos os contatos</option>
-    ${authorOptions}
-  </select>
-  <button id="theme-toggle" type="button">🌓 Tema</button>
-</div>
-<div id="transcript" data-me="${escapeHtml(self)}">
-${transcript}
-</div>
-<script type="application/json" id="chat-data">${islandJson}</script>
-<script>
-${js}
-</script>
-<div class="lightbox" id="lightbox"><img alt=""></div>
-<script>
+const LIGHTBOX_JS = `
   (function(){
     var lb = document.getElementById('lightbox');
     var img = lb && lb.querySelector('img');
@@ -349,8 +300,9 @@ ${js}
       if (e.key === 'Escape' && lb) lb.classList.remove('open');
     });
   })();
-</script>
-<script>
+`;
+
+const THEME_JS = `
   (function(){
     function applyTheme(t){
       document.documentElement.setAttribute('data-theme', t);
@@ -366,8 +318,9 @@ ${js}
       applyTheme(cur === 'dark' ? 'light' : 'dark');
     });
   })();
-</script>
-<script>
+`;
+
+const FILTER_JS = `
   (function(){
     function applyFilter() {
       var searchEl = document.getElementById('search');
@@ -399,7 +352,91 @@ ${js}
     if (searchEl) searchEl.addEventListener('input', applyFilter);
     if (senderEl) senderEl.addEventListener('change', applyFilter);
   })();
-</script>
+`;
+
+function sha256Base64(text: string): string {
+  const bytes = sha256(new TextEncoder().encode(text));
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+/**
+ * Content-Security-Policy for the standalone page: no network at all, scripts
+ * only by hash of the exact inline blocks. Inline `style=` attributes (accent
+ * colours) need 'unsafe-inline' for styles; scripts stay locked down.
+ * `file:` is listed because 'self' does not match local files in every browser.
+ */
+export function buildCsp(scripts: string[]): string {
+  const hashes = scripts.map((x) => `'sha256-${sha256Base64(x)}'`).join(' ');
+  return [
+    "default-src 'none'",
+    `script-src ${hashes}`,
+    "style-src 'unsafe-inline'",
+    "img-src 'self' file: data: blob:",
+    "media-src 'self' file: data: blob:",
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join('; ');
+}
+
+/** `messages.html` content: a standalone, WhatsApp-like page. */
+export async function renderHtml(
+  messages: Message[],
+  chatName: string,
+  opts: HtmlRenderOptions = {},
+): Promise<string> {
+  const media = opts.media ?? new Map<string, MediaEntry>();
+  const envelope = buildEnvelope(messages, chatName, media);
+  const self = resolveSelfAuthor(messages, opts.me);
+  const transcript = await renderTranscript(messages, media, opts, self);
+
+  // Escape `<` (covers `</script>` and `<!--`) and the JS line separators in
+  // serialized JSON so message text cannot break out of the island.
+  const islandJson = JSON.stringify(envelope)
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+
+  // Self-contained bundle (see scripts/build-viewer-script.mjs); `</script`
+  // can never appear literally inside the inline script.
+  const js = VIEWER_SCRIPT.replace(/<\/script/gi, '<\\/script');
+  const viewerJs = `\n${js}\n`;
+  const csp = buildCsp([viewerJs, LIGHTBOX_JS, THEME_JS, FILTER_JS]);
+
+  const authors = [...new Set(messages.map((m) => m.author))].sort();
+  const authorOptions = authors
+    .map((a) => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`)
+    .join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="${csp}">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(chatName)} — WhatsApp Backup</title>
+<style>${CSS}</style>
+</head>
+<body>
+<div id="toolbar">
+  <div class="chat-title" id="chat-title">${escapeHtml(chatName)}</div>
+  <input id="search" type="search" placeholder="Buscar…" aria-label="Buscar mensagens">
+  <select id="sender-filter" aria-label="Filtrar por remetente">
+    <option value="">Todos os contatos</option>
+    ${authorOptions}
+  </select>
+  <button id="theme-toggle" type="button">🌓 Tema</button>
+</div>
+<div id="transcript" data-me="${escapeHtml(self)}">
+${transcript}
+</div>
+<script type="application/json" id="chat-data">${islandJson}</script>
+<script>${viewerJs}</script>
+<div class="lightbox" id="lightbox"><img alt=""></div>
+<script>${LIGHTBOX_JS}</script>
+<script>${THEME_JS}</script>
+<script>${FILTER_JS}</script>
 </body>
 </html>
 `;
