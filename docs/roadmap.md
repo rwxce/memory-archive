@@ -37,6 +37,8 @@ is guessed by message count; timestamps carry no timezone; dedupe uses raw text.
 
 ## Phase 0 — Tooling and docs
 
+**Status: done.**
+
 - pnpm 11, Node 24, exact pins, `minimumReleaseAge` 7 days, Dependabot cooldown 7 days.
 - CI (`pnpm check`), branch policy guard, release workflow, CODEOWNERS, PR template.
 - rulesync as the single source of agent rules, skills, commands, subagents, hooks and
@@ -45,6 +47,8 @@ is guessed by message count; timestamps carry no timezone; dedupe uses raw text.
 - **Verify:** `pnpm rulesync:check` clean; the hook blocks `gh pr comment`; CI green.
 
 ## Phase 1 — Reusable core (Node + browser) and fixes
+
+**Status: done.**
 
 - Move `src/` into `lib/importers/whatsapp/` and `lib/exporters/legacy/`; web streams /
   `Blob` instead of `fs`; one ZIP reader (fflate, ZIP64).
@@ -58,6 +62,9 @@ is guessed by message count; timestamps carry no timezone; dedupe uses raw text.
   browser-like environment; a smoke test runs the built CLI.
 
 ## Phase 2 — PWA skeleton, local database, backup/restore proof of concept
+
+**Status: done, except preview deploys (needs a Cloudflare account and secret, owner decision) and the
+on-device checks below (iPhone, Android, airplane mode, a second browser).**
 
 - Next.js 16 static export, `app/[locale]/`, next-intl, shadcn, Zliding-style ESLint
   (boundaries, no-cycle, no-console, no literal strings).
