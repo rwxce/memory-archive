@@ -77,8 +77,17 @@ describe('profiles', () => {
 
   test('reject malformed ids, blank names and duplicates', () => {
     expect(codeOf(() => createProfile(db, { id: 'not-a-uuid', displayName: 'X', now: NOW }))).toBe('invalid');
-    expect(codeOf(() => createProfile(db, { id: uuid(3), displayName: '  ', now: NOW }))).toBe('constraint');
+    expect(codeOf(() => createProfile(db, { id: uuid(3), displayName: '  ', now: NOW }))).toBe('invalid');
     expect(codeOf(() => createProfile(db, { id: uuid(1), displayName: 'Dup', now: NOW }))).toBe('constraint');
+  });
+
+  test('the database CHECK still rejects a blank name written around the validation', () => {
+    const insert = (name: string) =>
+      db.run('INSERT INTO profiles (id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)', [uuid(7), name, NOW, NOW]);
+    expect(() => insert('')).toThrow(/CHECK/);
+    expect(() => insert('   ')).toThrow(/CHECK/);
+    expect(() => db.run('UPDATE profiles SET display_name = ? WHERE id = ?', ['  ', uuid(1)])).toThrow(/CHECK/);
+    expect(listProfiles(db).map((p) => p.displayName)).toEqual(['Ana']);
   });
 
   test('two profiles may share a display name (identity is the UUID)', () => {

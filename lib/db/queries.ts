@@ -11,8 +11,16 @@ import {
   type Profile,
   type StoredMessage,
 } from '../domain/library';
+import {
+  FieldError,
+  isMimeType,
+  normalizeConversationTitle,
+  normalizeDescription,
+  normalizeProfileName,
+  normalizeRelationship,
+} from '../domain/profile';
 import { DbError } from './errors';
-import { transaction, type SqlDb } from './sql';
+import { transaction, type SqlDb, type SqlValue } from './sql';
 
 /**
  * The only module that issues SQL for archive data. Every function takes the
@@ -48,33 +56,162 @@ function requireRecord(value: unknown, field: string): Record<string, unknown> {
 
 // ---------------------------------------------------------------- profiles
 
+/** Runs a domain normalizer; its `FieldError` becomes an `invalid` request error. */
+function field<T>(normalize: (value: unknown) => T, value: unknown): T {
+  try {
+    return normalize(value);
+  } catch (error) {
+    if (error instanceof FieldError) invalid(error.message);
+    throw error;
+  }
+}
+
+function notFound(what: string): never {
+  throw new DbError('not-found', `${what} not found`);
+}
+
+/** Checks the shape of an optional photo reference before anything is written. */
+function checkPhoto(photo: unknown): BlobRef | null {
+  if (photo === null) return null;
+  const b = requireRecord(photo, 'photo') as unknown as BlobRef;
+  if (!isSha256Hex(b.sha256)) invalid('photo sha256 must be 64 lowercase hex characters');
+  if (!Number.isSafeInteger(b.size) || b.size < 0) invalid('photo size must be a non-negative integer');
+  if (b.mime !== null && !isMimeType(b.mime)) invalid('photo mime must be a type/subtype media type or null');
+  return b;
+}
+
+/**
+ * Registers the photo as a blob row (the bytes are already stored by hash) so
+ * `profiles.photo_sha256` can reference it. Runs inside the caller's transaction.
+ */
+function registerPhoto(db: SqlDb, photo: BlobRef | null): string | null {
+  if (photo === null) return null;
+  db.run('INSERT OR IGNORE INTO blobs (sha256, size, mime) VALUES (?, ?, ?)', [photo.sha256, photo.size, photo.mime]);
+  return photo.sha256;
+}
+
 export interface CreateProfileInput {
   id: string;
   displayName: string;
+  relationship?: string;
+  description?: string;
+  /** Photo already stored by hash; null or absent for none. */
+  photo?: BlobRef | null;
   /** UTC instant (ISO 8601). */
   now: string;
+}
+
+const PROFILE_SELECT = `SELECT id, display_name AS displayName, relationship, description,
+       photo_sha256 AS photoSha256, archived_at AS archivedAt,
+       created_at AS createdAt, updated_at AS updatedAt
+  FROM profiles`;
+
+function readProfile(db: SqlDb, id: string): Profile {
+  const [row] = db.all<Profile>(`${PROFILE_SELECT} WHERE id = ?`, [id]);
+  if (!row) notFound('profile');
+  return row;
 }
 
 export function createProfile(db: SqlDb, input: CreateProfileInput): Profile {
   requireRecord(input, 'params');
   requireUuid(input.id, 'profile id');
-  requireString(input.displayName, 'displayName');
   requireString(input.now, 'now');
-  db.run('INSERT INTO profiles (id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)', [
-    input.id,
-    input.displayName,
-    input.now,
-    input.now,
-  ]);
-  return { id: input.id, displayName: input.displayName, archivedAt: null, createdAt: input.now, updatedAt: input.now };
+  const displayName = field(normalizeProfileName, input.displayName);
+  const relationship = field(normalizeRelationship, input.relationship ?? '');
+  const description = field(normalizeDescription, input.description ?? '');
+  const photo = checkPhoto(input.photo ?? null);
+  return transaction(db, () => {
+    const photoSha256 = registerPhoto(db, photo);
+    db.run(
+      `INSERT INTO profiles (id, display_name, relationship, description, photo_sha256, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [input.id, displayName, relationship, description, photoSha256, input.now, input.now],
+    );
+    return readProfile(db, input.id);
+  });
 }
 
-export function listProfiles(db: SqlDb): Profile[] {
-  return db.all<Profile>(
-    `SELECT id, display_name AS displayName, archived_at AS archivedAt,
-            created_at AS createdAt, updated_at AS updatedAt
-       FROM profiles ORDER BY created_at, id`,
-  );
+export interface UpdateProfileInput {
+  id: string;
+  now: string;
+  /** Absent fields are left as they are. */
+  displayName?: string;
+  relationship?: string;
+  description?: string;
+  /** A photo replaces the current one, null removes it, absent keeps it. */
+  photo?: BlobRef | null;
+}
+
+export function updateProfile(db: SqlDb, input: UpdateProfileInput): Profile {
+  requireRecord(input, 'params');
+  requireUuid(input.id, 'profile id');
+  requireString(input.now, 'now');
+  const sets: string[] = [];
+  const values: SqlValue[] = [];
+  if (input.displayName !== undefined) {
+    sets.push('display_name = ?');
+    values.push(field(normalizeProfileName, input.displayName));
+  }
+  if (input.relationship !== undefined) {
+    sets.push('relationship = ?');
+    values.push(field(normalizeRelationship, input.relationship));
+  }
+  if (input.description !== undefined) {
+    sets.push('description = ?');
+    values.push(field(normalizeDescription, input.description));
+  }
+  const photo = input.photo === undefined ? undefined : checkPhoto(input.photo);
+  return transaction(db, () => {
+    readProfile(db, input.id);
+    if (photo !== undefined) {
+      sets.push('photo_sha256 = ?');
+      values.push(registerPhoto(db, photo));
+    }
+    if (sets.length > 0) {
+      db.run(`UPDATE profiles SET ${sets.join(', ')}, updated_at = ? WHERE id = ?`, [...values, input.now, input.id]);
+    }
+    return readProfile(db, input.id);
+  });
+}
+
+export interface SetProfileArchivedInput {
+  id: string;
+  archived: boolean;
+  now: string;
+}
+
+/** Archive or unarchive. Setting the state a profile already has changes nothing. */
+export function setProfileArchived(db: SqlDb, input: SetProfileArchivedInput): Profile {
+  requireRecord(input, 'params');
+  requireUuid(input.id, 'profile id');
+  requireString(input.now, 'now');
+  if (typeof input.archived !== 'boolean') invalid('archived must be a boolean');
+  return transaction(db, () => {
+    const current = readProfile(db, input.id);
+    if ((current.archivedAt !== null) !== input.archived) {
+      db.run('UPDATE profiles SET archived_at = ?, updated_at = ? WHERE id = ?', [
+        input.archived ? input.now : null,
+        input.now,
+        input.id,
+      ]);
+    }
+    return readProfile(db, input.id);
+  });
+}
+
+export function getProfile(db: SqlDb, id: string): Profile {
+  requireUuid(id, 'profile id');
+  return readProfile(db, id);
+}
+
+export type ProfileState = 'active' | 'archived' | 'all';
+
+export function listProfiles(db: SqlDb, filter: { state?: ProfileState } = {}): Profile[] {
+  requireRecord(filter, 'params');
+  const state = filter.state ?? 'all';
+  if (state !== 'active' && state !== 'archived' && state !== 'all') invalid('state must be active, archived or all');
+  const where = state === 'all' ? '' : state === 'active' ? 'WHERE archived_at IS NULL' : 'WHERE archived_at IS NOT NULL';
+  return db.all<Profile>(`${PROFILE_SELECT} ${where} ORDER BY created_at, id`);
 }
 
 // ----------------------------------------------------------- conversations
@@ -134,19 +271,15 @@ interface ConversationRow {
   last_message_at: string | null;
 }
 
-/** Conversations, optionally only those linked to `profileId`, oldest first. */
-export function listConversations(db: SqlDb, filter: { profileId?: string } = {}): ConversationSummary[] {
-  requireRecord(filter, 'params');
-  if (filter.profileId !== undefined) requireUuid(filter.profileId, 'profile id');
+function selectConversations(db: SqlDb, where: string, params: readonly SqlValue[]): ConversationSummary[] {
   const rows = db.all<ConversationRow>(
     `SELECT c.id, c.title, c.source, c.is_group, c.created_at,
             (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS message_count,
             (SELECT MIN(m.sent_at) FROM messages m WHERE m.conversation_id = c.id) AS first_message_at,
             (SELECT MAX(m.sent_at) FROM messages m WHERE m.conversation_id = c.id) AS last_message_at
-       FROM conversations c
-      ${filter.profileId === undefined ? '' : 'WHERE c.id IN (SELECT conversation_id FROM conversation_profiles WHERE profile_id = ?)'}
+       FROM conversations c ${where}
       ORDER BY c.created_at, c.id`,
-    filter.profileId === undefined ? undefined : [filter.profileId],
+    params,
   );
   const links = db.all<{ conversation_id: string; profile_id: string }>(
     'SELECT conversation_id, profile_id FROM conversation_profiles ORDER BY profile_id',
@@ -168,6 +301,117 @@ export function listConversations(db: SqlDb, filter: { profileId?: string } = {}
     firstMessageAt: r.first_message_at,
     lastMessageAt: r.last_message_at,
   }));
+}
+
+/** Conversations, optionally only those linked to `profileId`, oldest first. */
+export function listConversations(db: SqlDb, filter: { profileId?: string } = {}): ConversationSummary[] {
+  requireRecord(filter, 'params');
+  if (filter.profileId !== undefined) requireUuid(filter.profileId, 'profile id');
+  return filter.profileId === undefined
+    ? selectConversations(db, '', [])
+    : selectConversations(db, 'WHERE c.id IN (SELECT conversation_id FROM conversation_profiles WHERE profile_id = ?)', [
+        filter.profileId,
+      ]);
+}
+
+function readConversation(db: SqlDb, id: string): ConversationSummary {
+  const [row] = selectConversations(db, 'WHERE c.id = ?', [id]);
+  if (!row) notFound('conversation');
+  return row;
+}
+
+function requireProfileExists(db: SqlDb, id: string): void {
+  if (db.all('SELECT 1 FROM profiles WHERE id = ?', [id]).length === 0) notFound('profile');
+}
+
+export function renameConversation(db: SqlDb, input: { conversationId: string; title: string }): ConversationSummary {
+  requireRecord(input, 'params');
+  requireUuid(input.conversationId, 'conversation id');
+  const title = field(normalizeConversationTitle, input.title);
+  return transaction(db, () => {
+    readConversation(db, input.conversationId);
+    db.run('UPDATE conversations SET title = ? WHERE id = ?', [title, input.conversationId]);
+    return readConversation(db, input.conversationId);
+  });
+}
+
+export interface ConversationProfileInput {
+  conversationId: string;
+  profileId: string;
+}
+
+/** Adds a profile to the conversation's profiles (already linked: nothing changes). */
+export function linkConversationProfile(db: SqlDb, input: ConversationProfileInput): ConversationSummary {
+  requireRecord(input, 'params');
+  requireUuid(input.conversationId, 'conversation id');
+  requireUuid(input.profileId, 'profile id');
+  return transaction(db, () => {
+    readConversation(db, input.conversationId);
+    requireProfileExists(db, input.profileId);
+    db.run('INSERT OR IGNORE INTO conversation_profiles (conversation_id, profile_id) VALUES (?, ?)', [
+      input.conversationId,
+      input.profileId,
+    ]);
+    return readConversation(db, input.conversationId);
+  });
+}
+
+/**
+ * Removes a profile from the conversation's profiles (not linked: nothing
+ * changes). The conversation may end up with no profile; its messages stay.
+ * `participants.profile_id` is not touched (see `moveConversation`).
+ */
+export function unlinkConversationProfile(db: SqlDb, input: ConversationProfileInput): ConversationSummary {
+  requireRecord(input, 'params');
+  requireUuid(input.conversationId, 'conversation id');
+  requireUuid(input.profileId, 'profile id');
+  return transaction(db, () => {
+    readConversation(db, input.conversationId);
+    db.run('DELETE FROM conversation_profiles WHERE conversation_id = ? AND profile_id = ?', [
+      input.conversationId,
+      input.profileId,
+    ]);
+    return readConversation(db, input.conversationId);
+  });
+}
+
+export interface MoveConversationInput {
+  conversationId: string;
+  fromProfileId: string;
+  toProfileId: string;
+}
+
+/**
+ * Moves a conversation from one of its profiles to another: one transaction
+ * that edits `conversation_profiles` rows only. Messages, media, participants
+ * and `is_group` are never touched, so nothing is copied or re-imported.
+ * `participants.profile_id` is deliberately left as it is: participant links
+ * are independent of how a conversation is filed, so a move does not remap them
+ * (remapping on move is a follow-up). The
+ * target may be archived. Moving to the profile it is already under changes
+ * nothing; a missing conversation, target, or source link is `not-found`.
+ */
+export function moveConversation(db: SqlDb, input: MoveConversationInput): ConversationSummary {
+  requireRecord(input, 'params');
+  requireUuid(input.conversationId, 'conversation id');
+  requireUuid(input.fromProfileId, 'source profile id');
+  requireUuid(input.toProfileId, 'target profile id');
+  return transaction(db, () => {
+    const conversation = readConversation(db, input.conversationId);
+    requireProfileExists(db, input.toProfileId);
+    if (!conversation.profileIds.includes(input.fromProfileId)) notFound('conversation link to the source profile');
+    if (input.fromProfileId !== input.toProfileId) {
+      db.run('INSERT OR IGNORE INTO conversation_profiles (conversation_id, profile_id) VALUES (?, ?)', [
+        input.conversationId,
+        input.toProfileId,
+      ]);
+      db.run('DELETE FROM conversation_profiles WHERE conversation_id = ? AND profile_id = ?', [
+        input.conversationId,
+        input.fromProfileId,
+      ]);
+    }
+    return readConversation(db, input.conversationId);
+  });
 }
 
 export function listParticipants(db: SqlDb, conversationId: string): Participant[] {

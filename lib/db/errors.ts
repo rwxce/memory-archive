@@ -12,6 +12,8 @@ export type DbErrorCode =
   | 'constraint'
   /** The request itself is malformed (bad id, unknown operation, ...). */
   | 'invalid'
+  /** The profile or conversation a request refers to does not exist (or is not linked). */
+  | 'not-found'
   /** The worker went away before answering. */
   | 'closed'
   | 'internal';

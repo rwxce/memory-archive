@@ -81,14 +81,19 @@ test type or architecture rule means updating this file **in the same PR**.
   Phase 2). Inputs are `Blob`s, web `ReadableStream`s and async iterables of lines; no
   `node:*` imports, no `Buffer`/`process`, no React / Next.js.
   - `lib/domain/` — pure types and constants: `archive.ts` (`ARCHIVE_FORMAT_VERSION`),
+    `profile.ts` (input bounds and trimming for profile and conversation text: name 100,
+    relationship 60, description 2000, title 200; trimmed; single-line fields strip bidi
+    controls (WhatsApp wraps unsaved-number authors in them), reject control characters and
+    lone surrogates, and required ones need a visible character; `FieldError`),
     `library.ts` (profile / conversation / message types, `isUuid`, `isSha256Hex`,
     `isLocalTimestamp`, `MESSAGE_TYPES`), `sha256.ts` (`createSha256`: incremental SHA-256 in
     plain TS, pinned by NIST vectors; WebCrypto has no incremental digest, so this is how
     media is hashed while it streams, with no dependency).
   - `lib/db/` — the only code that issues SQL. `sql.ts` (`SqlDb`: the narrow sync surface
-    over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1,
+    over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1 + v2,
     `PRAGMA user_version`, forward-only, one transaction per migration, newer DB refused),
-    `queries.ts` (profiles, conversations, `importMessages`, `listMessages`),
+    `queries.ts` (profiles: create / update / archive / get / list; conversations: list / rename /
+    move / link / unlink; `importMessages`, `listMessages`),
     `protocol.ts` + `dispatch.ts` (typed request/response messages; no raw SQL crosses the
     boundary), `open.ts` (`openMemoryDb` for Node tests, `openOpfsDb` for the worker),
     `worker.ts` (worker entry), `client.ts` (`createDbClient`, request ids, `DbError`
@@ -107,7 +112,13 @@ test type or architecture rule means updating this file **in the same PR**.
     `test-opfs-directory.ts` (in-memory OPFS directory for tests).
   - `lib/usecases/device-storage.ts` — `prepareDeviceStorage`, `getDeviceStorageStatus`,
     `getSharedFiles` (called from `hooks/use-device-storage.ts`); `lib/usecases/archive.ts` —
-    `exportArchive`, `restoreArchiveIntoEmptyLibrary` (no UI entry point yet).
+    `exportArchive`, `restoreArchiveIntoEmptyLibrary` (no UI entry point yet);
+    `lib/usecases/profiles.ts` (`createProfile`, `updateProfile`, `archiveProfile`,
+    `unarchiveProfile`, `listProfiles`, `getProfileDetails`) and `conversations.ts`
+    (`listConversations`, `renameConversation`, `moveConversation`,
+    `linkConversationToProfile`, `unlinkConversationFromProfile`): they take a `DbClient`
+    (worker protocol), an injectable UUID source and clock, and fail with `DbError` codes
+    `invalid` / `not-found`. `test-client.ts` is the structured-clone loopback for their tests.
   - `lib/db/snapshot.ts` — `serializeDb`, `loadSnapshot`, `listBlobs`, `isLibraryEmpty`.
   - `lib/exporters/archive/` — `format.ts` (manifest, limits, `ArchiveError`, path validation),
     `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`restoreArchive`).
@@ -158,6 +169,16 @@ test type or architecture rule means updating this file **in the same PR**.
   OPFS), `import_batches` (history, added / skipped counts; belongs to a conversation and is deleted with it, since `source_label` may hold a person's name). Foreign keys are on; ids,
   hashes, timestamps and message types are also CHECK-constrained. Fingerprint computation
   arrives with the importer (Phase 4); the database only stores and de-duplicates by it.
+- **Schema v2 (implemented, expand-only)** — `profiles` gains `relationship` and
+  `description` (`NOT NULL DEFAULT ''`) and `photo_sha256` (nullable, `REFERENCES blobs`,
+  hex CHECK): the photo is an ordinary content-addressed blob, registered in `blobs` in the
+  same transaction as the profile write. Length bounds live in `lib/domain/profile.ts`, not in
+  CHECKs, so they can change without a migration. Profiles are archived (`archived_at`), never
+  deleted. Moving a conversation edits `conversation_profiles` rows only (one transaction);
+  messages, media, participants and `is_group` are never touched (participant links are
+  independent of how a conversation is filed; remapping on move is a follow-up). A v1 archive restores by
+  migrating the scratch snapshot (`loadSnapshot`); the archive `formatVersion` stays 1 and the
+  manifest `schemaVersion` is now 2 for new backups.
 - **Storage model** — SQLite holds the structured data (later migrations add timeline
   events, associations, favorites, annotations, meta). Media are **content-addressed blobs**,
   implemented in `lib/storage` (`opfs-blob-store.ts`): OPFS `memory-archive-blobs/<aa>/<sha256>`
@@ -271,7 +292,11 @@ test type or architecture rule means updating this file **in the same PR**.
     constraints (incl. `import_batches` cascading with its conversation), queries (re-import and
     overlapping import add nothing twice, atomic import, hostile text, pagination), and the
     client through a structured-clone loopback (ids, out-of-order replies, errors, worker
-    failure, throwing transport, malformed params → `invalid`). `scripts/build-db-worker.test.ts`
+    failure, throwing transport, malformed params → `invalid`, unknown targets → `not-found`).
+    Schema v2: v1 → v2 migration keeps rows, v1 snapshot restores into v2, v1 DDL snapshot is
+    frozen and the latest snapshot is pinned separately. Use cases (`lib/usecases/profiles.test.ts`,
+    `conversations.test.ts`) run on in-memory SQLite: validation bounds, archive / unarchive,
+    move / link / unlink with message counts and rows unchanged, group chats, archived targets. `scripts/build-db-worker.test.ts`
     builds the worker bundle and checks it contains no remote URL. The OPFS VFS only
     exists in a browser, so it is verified manually (headless Chrome, see the PR).
   - No remote resources — `lib/exporters/legacy/legacy.test.ts` scans the generated

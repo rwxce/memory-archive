@@ -1,10 +1,11 @@
 import { Zip, ZipPassThrough, strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { sha256Hex } from '../../domain/sha256';
+import { SCHEMA_VERSION, migrate, MIGRATIONS } from '../../db/migrations';
 import { openMemoryDb } from '../../db/open';
 import { createConversation, createProfile, importMessages } from '../../db/queries';
-import { isLibraryEmpty } from '../../db/snapshot';
-import type { SqlDb } from '../../db/sql';
+import { isLibraryEmpty, serializeDb } from '../../db/snapshot';
+import { wrapOo1Db, type SqlDb } from '../../db/sql';
 import { readZipEntries } from '../../importers/whatsapp/zip';
 import { openBlobStore } from '../../storage/opfs-blob-store';
 import { createMemoryDirectory } from '../../storage/test-opfs-directory';
@@ -20,6 +21,8 @@ const NOW = '2026-02-01T12:00:00Z';
 const PHOTO = enc('synthetic photo bytes '.repeat(50));
 const VIDEO = new Uint8Array(70_000).map((_, i) => (i * 31) % 251);
 const NOTE = enc('synthetic voice note');
+/** Referenced only by a profile photo, never by a message. */
+const AVATAR = enc('synthetic avatar bytes');
 
 async function newLibrary(): Promise<ArchiveLibrary> {
   return { db: (await openMemoryDb()).db, blobStore: await openBlobStore(createMemoryDirectory()) };
@@ -31,7 +34,8 @@ async function seed({ db, blobStore }: ArchiveLibrary): Promise<void> {
     const { sha256, size } = await blobStore.put(bytes);
     blobs.push({ sha256, size, mime: bytes === PHOTO ? 'image/jpeg' : bytes === VIDEO ? 'video/mp4' : null });
   }
-  createProfile(db, { id: uuid(1), displayName: 'Ana', now: NOW });
+  const avatar = await blobStore.put(AVATAR);
+  createProfile(db, { id: uuid(1), displayName: 'Ana', relationship: 'friend', description: 'Met at school.\nSynthetic.', photo: { ...avatar, mime: 'image/png' }, now: NOW });
   createProfile(db, { id: uuid(2), displayName: 'Bo', now: NOW });
   createProfile(db, { id: uuid(3), displayName: 'Zoë 山田', now: NOW });
   db.run('UPDATE profiles SET archived_at = ? WHERE id = ?', ['2026-02-02T00:00:00Z', uuid(3)]);
@@ -105,13 +109,20 @@ describe('export and restore', () => {
   test('round trip restores every table row by row and every blob', async () => {
     const target = await newLibrary();
     const result = await restoreArchiveIntoEmptyLibrary(target, source.blob);
-    expect(result.blobCount).toBe(3);
+    expect(result.blobCount).toBe(4);
     expect(dump(target.db)).toEqual(dump(source.lib.db));
     expect(await target.blobStore.list()).toEqual(await source.lib.blobStore.list());
     expect(dump(target.db).messages).toHaveLength(6);
     expect(target.db.all('SELECT body FROM messages WHERE body LIKE ?', ['Hola%'])).toEqual([{ body: 'Hola, què tal? ñandú — 日本語 😀 café' }]);
     expect(target.db.all('SELECT display_name, archived_at FROM profiles WHERE id = ?', [uuid(3)])).toEqual([{ display_name: 'Zoë 山田', archived_at: '2026-02-02T00:00:00Z' }]);
-    expect(target.db.all('SELECT mime FROM blobs ORDER BY mime')).toEqual([{ mime: null }, { mime: 'image/jpeg' }, { mime: 'video/mp4' }]);
+    expect(target.db.all('SELECT relationship, description, photo_sha256 FROM profiles WHERE id = ?', [uuid(1)])).toEqual([
+      { relationship: 'friend', description: 'Met at school.\nSynthetic.', photo_sha256: sha256Hex(AVATAR) },
+    ]);
+    expect(target.db.all('SELECT mime FROM blobs ORDER BY mime')).toEqual([{ mime: null }, { mime: 'image/jpeg' }, { mime: 'image/png' }, { mime: 'video/mp4' }]);
+    // The avatar is referenced by the profile photo only, and survives backup and restore.
+    expect(await target.blobStore.verify(sha256Hex(AVATAR))).toBe('ok');
+    expect(target.db.all('SELECT sha256 FROM blobs WHERE sha256 = ?', [sha256Hex(AVATAR)])).toHaveLength(1);
+    expect(target.db.all('SELECT 1 FROM messages WHERE media_sha256 = ?', [sha256Hex(AVATAR)])).toEqual([]);
     expect(target.db.all('SELECT display_name, profile_id FROM participants WHERE profile_id IS NOT NULL')).toEqual([{ display_name: 'Ana', profile_id: uuid(1) }]);
     expect(dump(target.db).messages.some((m) => (m as { media_sha256: unknown }).media_sha256 === null)).toBe(true);
     for (const sha of await target.blobStore.list()) expect(await target.blobStore.verify(sha)).toBe('ok');
@@ -124,10 +135,32 @@ describe('export and restore', () => {
     expect(entries[1].name).toBe(DB_PATH);
     expect(entries.slice(1).every((e) => e.compression === 0)).toBe(true);
     const manifest = manifestOf(partsOf(source.bytes));
-    expect(manifest).toMatchObject({ format: 'memory-archive', formatVersion: 1, schemaVersion: 1, createdAt: '2026-03-04T05:06:07.000Z', app: { name: 'memory-archive', version: '0.0.0-test' } });
+    expect(manifest).toMatchObject({ format: 'memory-archive', formatVersion: 1, schemaVersion: SCHEMA_VERSION, createdAt: '2026-03-04T05:06:07.000Z', app: { name: 'memory-archive', version: '0.0.0-test' } });
     expect(manifest.entries.map((e) => e.path)).toEqual(entries.slice(1).map((e) => e.name));
     expect(manifest.entries[0].sha256).toBe(sha256Hex(partsOf(source.bytes)[DB_PATH]));
     expect(manifest.entries.slice(1).map((e) => e.path)).toContain(blobPath(sha256Hex(PHOTO)));
+  });
+
+  test('an archive made by schema v1 (before profile details) still restores, migrated to the current schema', async () => {
+    const { default: init } = await import('@sqlite.org/sqlite-wasm');
+    const sqlite3 = await init();
+    const v1 = wrapOo1Db(new sqlite3.oo1.DB(':memory:', 'c'), sqlite3.capi);
+    v1.exec('PRAGMA foreign_keys = ON');
+    migrate(v1, MIGRATIONS.slice(0, 1));
+    v1.run('INSERT INTO profiles (id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)', [uuid(1), 'Ana', NOW, NOW]);
+    const blob = await writeArchive({
+      app: { name: 'memory-archive', version: '0.0.0-v1' },
+      createdAt: new Date('2026-03-04T05:06:07Z'),
+      schemaVersion: 1,
+      database: serializeDb(v1),
+      blobs: [],
+      openBlob: async () => new Blob([]).stream(),
+    });
+    const target = await newLibrary();
+    await restoreArchiveIntoEmptyLibrary(target, blob);
+    expect(target.db.all('SELECT display_name, relationship, description, photo_sha256 FROM profiles')).toEqual([
+      { display_name: 'Ana', relationship: '', description: '', photo_sha256: null },
+    ]);
   });
 
   test('export names the file by UTC date', async () => {
@@ -155,20 +188,20 @@ describe('export and restore', () => {
     };
     const { blob, blobCount } = await exportArchive({ db: lib.db, blobStore: racing }, { appVersion: '1' });
     expect(inserted).toBe(true);
-    expect(blobCount).toBe(3);
+    expect(blobCount).toBe(4);
     const target = await newLibrary();
     await restoreArchiveIntoEmptyLibrary(target, blob);
-    expect(target.db.all('SELECT sha256 FROM blobs')).toHaveLength(3);
+    expect(target.db.all('SELECT sha256 FROM blobs')).toHaveLength(4);
     expect(await target.blobStore.list()).toEqual(await source.lib.blobStore.list());
   });
 
   test('an export restore would refuse fails up front, for every limit', async () => {
-    for (const limits of [{ maxEntries: 4 }, { maxDatabaseBytes: 1000 }, { maxEntryBytes: 1000 }, { maxTotalBytes: 1000 }, { maxCentralDirectoryBytes: 100 }]) {
+    for (const limits of [{ maxEntries: 5 }, { maxDatabaseBytes: 1000 }, { maxEntryBytes: 1000 }, { maxTotalBytes: 1000 }, { maxCentralDirectoryBytes: 100 }]) {
       await expect(exportArchive(source.lib, { appVersion: '1', limits }), JSON.stringify(limits)).rejects.toMatchObject({ code: 'limit-exceeded' });
     }
     // the same limits that block the export are the ones restore applies
-    const limits = { maxEntries: 5 };
-    await expect(exportArchive(source.lib, { appVersion: '1', limits })).resolves.toMatchObject({ blobCount: 3 });
+    const limits = { maxEntries: 6 };
+    await expect(exportArchive(source.lib, { appVersion: '1', limits })).resolves.toMatchObject({ blobCount: 4 });
   });
 
   test('export aborts when a blob no longer matches its hash', async () => {
@@ -281,7 +314,7 @@ describe('restore rejects hostile or damaged archives and leaves the target empt
   });
 
   test('newer schema version is refused with a clear code', async () => {
-    await expectRejected(zipped(partsOf(source.bytes), (m) => ({ ...m, schemaVersion: 2 })), 'newer-schema');
+    await expectRejected(zipped(partsOf(source.bytes), (m) => ({ ...m, schemaVersion: SCHEMA_VERSION + 1 })), 'newer-schema');
   });
 
   test('too many entries', async () => {
@@ -412,9 +445,9 @@ describe('restore rejects hostile or damaged archives and leaves the target empt
     const bad = zipped(parts, (m) => ({ ...m, entries: m.entries.map((e) => (e.path === DB_PATH ? { ...e, size: garbage.length, sha256: sha256Hex(garbage) } : e)) }));
     const stuck: BlobStore = { ...target.blobStore, delete: async () => { throw new Error('io'); } };
     const error = await restoreArchiveIntoEmptyLibrary({ db: target.db, blobStore: stuck }, bad).then(() => undefined, (e: unknown) => e);
-    expect(error).toMatchObject({ code: 'invalid-database', leftoverBlobs: 3 });
+    expect(error).toMatchObject({ code: 'invalid-database', leftoverBlobs: 4 });
     expect(isLibraryEmpty(target.db)).toBe(true);
-    expect(await target.blobStore.list()).toHaveLength(3);
+    expect(await target.blobStore.list()).toHaveLength(4);
     await restoreArchiveIntoEmptyLibrary(target, source.blob);
     expect(dump(target.db)).toEqual(dump(source.lib.db));
     expect(await target.blobStore.list()).toEqual(await source.lib.blobStore.list());
@@ -446,10 +479,10 @@ describe('format helpers', () => {
   });
 
   test('parseManifest refuses a database entry that is missing or repeated', () => {
-    const base = { format: 'memory-archive', formatVersion: 1, createdAt: NOW, app: { name: 'a', version: '1' }, schemaVersion: 1 };
+    const base = { format: 'memory-archive', formatVersion: 1, createdAt: NOW, app: { name: 'a', version: '1' }, schemaVersion: SCHEMA_VERSION };
     const entry = { path: DB_PATH, size: 1, sha256: 'a'.repeat(64) };
     for (const [entries, code] of [[[], 'invalid-manifest'], [[entry, entry], 'duplicate-entry']] as const) {
-      expect(() => parseManifest(enc(JSON.stringify({ ...base, entries })), 1)).toThrowError(expect.objectContaining({ code }));
+      expect(() => parseManifest(enc(JSON.stringify({ ...base, entries })), SCHEMA_VERSION)).toThrowError(expect.objectContaining({ code }));
     }
   });
 });

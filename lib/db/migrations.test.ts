@@ -84,22 +84,22 @@ describe('migrate', () => {
     ]);
     const broken: Migration[] = [
       ...MIGRATIONS,
-      { version: 2, sql: 'ALTER TABLE profiles ADD COLUMN note TEXT; INSERT INTO missing_table VALUES (1);' },
+      { version: SCHEMA_VERSION + 1, sql: 'ALTER TABLE profiles ADD COLUMN note TEXT; INSERT INTO missing_table VALUES (1);' },
     ];
     expect(() => migrate(db, broken)).toThrow();
-    expect(readUserVersion(db)).toBe(1);
+    expect(readUserVersion(db)).toBe(SCHEMA_VERSION);
     expect(db.all("SELECT name FROM pragma_table_info('profiles') WHERE name = 'note'")).toHaveLength(0);
 
-    const fixed: Migration[] = [...MIGRATIONS, { version: 2, sql: 'ALTER TABLE profiles ADD COLUMN note TEXT;' }];
-    expect(migrate(db, fixed)).toEqual({ from: 1, to: 2 });
+    const fixed: Migration[] = [...MIGRATIONS, { version: SCHEMA_VERSION + 1, sql: 'ALTER TABLE profiles ADD COLUMN note TEXT;' }];
+    expect(migrate(db, fixed)).toEqual({ from: SCHEMA_VERSION, to: SCHEMA_VERSION + 1 });
     expect(db.all('SELECT id, note FROM profiles')).toEqual([{ id: PROFILE, note: null }]);
   });
 
   test('migrates from every earlier version, keeping existing rows', async () => {
     const steps: Migration[] = [
       ...MIGRATIONS,
-      { version: 2, sql: 'ALTER TABLE profiles ADD COLUMN a TEXT;' },
-      { version: 3, sql: 'ALTER TABLE profiles ADD COLUMN b TEXT;' },
+      { version: SCHEMA_VERSION + 1, sql: 'ALTER TABLE profiles ADD COLUMN a TEXT;' },
+      { version: SCHEMA_VERSION + 2, sql: 'ALTER TABLE profiles ADD COLUMN b TEXT;' },
     ];
     for (let start = 1; start <= steps.length; start++) {
       const db = await emptyDb();
@@ -212,13 +212,66 @@ describe('openOpfsDb', () => {
   });
 });
 
+describe('migration v1 to v2 (profile details)', () => {
+  const V1_ONLY = MIGRATIONS.slice(0, 1);
+  const HASH2 = 'cd'.repeat(32);
+
+  async function v1WithData() {
+    const db = await emptyDb();
+    db.exec('PRAGMA foreign_keys = ON');
+    migrate(db, V1_ONLY);
+    db.run('INSERT INTO profiles (id, display_name, archived_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?)', [PROFILE, 'Ana', '2026-01-02T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z']);
+    db.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [CONVERSATION, 'Chat', 'whatsapp', 't']);
+    db.run('INSERT INTO conversation_profiles VALUES (?, ?)', [CONVERSATION, PROFILE]);
+    return db;
+  }
+
+  test('keeps every existing row and gives the new columns their defaults', async () => {
+    const db = await v1WithData();
+    expect(migrate(db)).toEqual({ from: 1, to: 2 });
+    expect(readUserVersion(db)).toBe(2);
+    expect(db.all('SELECT * FROM profiles')).toEqual([
+      {
+        id: PROFILE,
+        display_name: 'Ana',
+        archived_at: '2026-01-02T00:00:00Z',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+        relationship: '',
+        description: '',
+        photo_sha256: null,
+      },
+    ]);
+    expect(db.all('SELECT * FROM conversation_profiles')).toHaveLength(1);
+  });
+
+  test('photo_sha256 must be a stored blob and valid hex', async () => {
+    const db = await v1WithData();
+    migrate(db);
+    expect(() => db.run('UPDATE profiles SET photo_sha256 = ?', [HASH2])).toThrow(/FOREIGN KEY/);
+    expect(() => db.run('UPDATE profiles SET photo_sha256 = ?', ['XY'.repeat(32)])).toThrow(/CHECK/);
+    db.run('INSERT INTO blobs (sha256, size) VALUES (?, 1)', [HASH2]);
+    expect(db.run('UPDATE profiles SET photo_sha256 = ?', [HASH2])).toBe(1);
+  });
+
+  test('a failure in v2 leaves the v1 database as it was', async () => {
+    const db = await v1WithData();
+    db.run('INSERT INTO blobs (sha256, size) VALUES (?, 1)', [HASH2]);
+    const broken: Migration[] = [MIGRATIONS[0], { version: 2, sql: `${MIGRATIONS[1].sql} INSERT INTO missing_table VALUES (1);` }];
+    expect(() => migrate(db, broken)).toThrow();
+    expect(readUserVersion(db)).toBe(1);
+    expect(db.all("SELECT name FROM pragma_table_info('profiles') WHERE name = 'relationship'")).toHaveLength(0);
+    expect(migrate(db)).toEqual({ from: 1, to: 2 });
+  });
+});
+
 describe('frozen schema', () => {
   // Released migrations are never edited: a schema change is a NEW migration.
-  // While v1 is unreleased this snapshot is re-pinned with it; once v1 ships,
-  // any diff here means someone edited a released migration.
-  test('sqlite_master after migrate() matches the pinned snapshot', async () => {
+  // The v1 snapshot below must never change; the latest-schema snapshot is
+  // re-pinned only by adding a migration.
+  test('schema v1 (released) is unchanged', async () => {
     const db = await emptyDb();
-    migrate(db);
+    migrate(db, MIGRATIONS.slice(0, 1));
     const rows = db.all<{ type: string; name: string; sql: string }>(
       "SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name",
     );
@@ -290,6 +343,33 @@ describe('frozen schema', () => {
         created_at   TEXT NOT NULL,
         updated_at   TEXT NOT NULL
       ) STRICT"
+    `);
+  });
+
+  test('schema v2 (latest) matches the pinned snapshot, whether created fresh or migrated from v1', async () => {
+    const fresh = await emptyDb();
+    migrate(fresh);
+    const migrated = await emptyDb();
+    migrate(migrated, MIGRATIONS.slice(0, 1));
+    migrate(migrated);
+    const dump = (db: SqlDb) =>
+      db
+        .all<{ type: string; name: string; sql: string }>(
+          "SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name",
+        )
+        .map((r) => `-- ${r.type} ${r.name}\n${r.sql}`)
+        .join('\n');
+    expect(dump(migrated)).toBe(dump(fresh));
+    expect(dump(fresh).split('-- table profiles')[1]).toMatchInlineSnapshot(`
+      "
+      CREATE TABLE profiles (
+        id           TEXT PRIMARY KEY CHECK (length(id) = 36 AND id = lower(id)),
+        display_name TEXT NOT NULL CHECK (length(trim(display_name)) > 0),
+        archived_at  TEXT,
+        created_at   TEXT NOT NULL,
+        updated_at   TEXT NOT NULL
+      , relationship TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', photo_sha256 TEXT REFERENCES blobs(sha256)
+        CHECK (photo_sha256 IS NULL OR (length(photo_sha256) = 64 AND photo_sha256 NOT GLOB '*[^0-9a-f]*'))) STRICT"
     `);
   });
 });

@@ -133,4 +133,44 @@ describe('db client', () => {
     expect(bad('listMessages', { conversationId: uuid(4), limit: 'many' })).toMatchObject(invalid);
     expect(bad('listMessages', { conversationId: uuid(4), after: { sentAt: 1 } })).toMatchObject(invalid);
   });
+
+  test('profile and conversation ops reject malformed params as invalid and unknown targets as not-found', async () => {
+    const opened = await openMemoryDb();
+    const bad = (op: string, params: unknown) =>
+      handleDbRequest(opened, { id: 1, op: op as 'status', params: params as undefined });
+    const invalid = { ok: false, error: { code: 'invalid' } };
+    const notFound = { ok: false, error: { code: 'not-found' } };
+    const ops = ['getProfile', 'updateProfile', 'setProfileArchived', 'renameConversation', 'moveConversation', 'linkConversationProfile', 'unlinkConversationProfile'];
+    for (const op of ops) {
+      for (const params of [undefined, null, 'x', 7, [], {}]) expect(bad(op, params), `${op} ${JSON.stringify(params)}`).toMatchObject(invalid);
+    }
+    for (const params of [null, 'x', 7, [], { state: 'deleted' }]) expect(bad('listProfiles', params)).toMatchObject(invalid);
+    expect(bad('listProfiles', undefined)).toMatchObject({ ok: true });
+
+    expect(bad('setProfileArchived', { id: uuid(1), archived: 'yes', now: 't' })).toMatchObject(invalid);
+    expect(bad('updateProfile', { id: uuid(1), now: 't', photo: 'abc' })).toMatchObject(invalid);
+    expect(bad('updateProfile', { id: uuid(1), now: 't', displayName: 5 })).toMatchObject(invalid);
+    expect(bad('createProfile', { id: uuid(2), displayName: 'A', relationship: 5, now: 't' })).toMatchObject(invalid);
+
+    expect(bad('getProfile', { id: uuid(1) })).toMatchObject(notFound);
+    expect(bad('updateProfile', { id: uuid(1), now: 't' })).toMatchObject(notFound);
+    expect(bad('setProfileArchived', { id: uuid(1), archived: true, now: 't' })).toMatchObject(notFound);
+    expect(bad('renameConversation', { conversationId: uuid(1), title: 'T' })).toMatchObject(notFound);
+    expect(bad('moveConversation', { conversationId: uuid(1), fromProfileId: uuid(2), toProfileId: uuid(3) })).toMatchObject(notFound);
+    expect(bad('linkConversationProfile', { conversationId: uuid(1), profileId: uuid(2) })).toMatchObject(notFound);
+    expect(bad('unlinkConversationProfile', { conversationId: uuid(1), profileId: uuid(2) })).toMatchObject(notFound);
+  });
+
+  test('new ops round-trip through the client with typed results', async () => {
+    const { transport } = loopback(await openMemoryDb());
+    const client = createDbClient(transport);
+    await client.call('createProfile', { id: uuid(1), displayName: 'Ana', now: 't' });
+    await client.call('createProfile', { id: uuid(2), displayName: 'Bo', now: 't' });
+    await client.call('createConversation', { id: uuid(10), title: 'C', source: 'whatsapp', isGroup: false, profileIds: [uuid(1)], participants: [], now: 't' });
+    expect((await client.call('getProfile', { id: uuid(1) })).displayName).toBe('Ana');
+    expect((await client.call('setProfileArchived', { id: uuid(2), archived: true, now: 'u' })).archivedAt).toBe('u');
+    expect((await client.call('listProfiles', { state: 'active' })).map((p) => p.displayName)).toEqual(['Ana']);
+    expect((await client.call('moveConversation', { conversationId: uuid(10), fromProfileId: uuid(1), toProfileId: uuid(2) })).profileIds).toEqual([uuid(2)]);
+    expect((await client.call('renameConversation', { conversationId: uuid(10), title: ' New ' })).title).toBe('New');
+  });
 });
