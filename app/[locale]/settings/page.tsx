@@ -5,6 +5,8 @@ import { AppHeader } from '@/components/app-header';
 import { LanguagePicker } from '@/components/language-picker';
 import { StorageCard } from '@/components/storage-card';
 import { ThemePicker } from '@/components/theme-picker';
+import { Button } from '@/components/ui/button';
+import { Link } from '@/i18n/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ARCHIVE_FORMAT_VERSION } from '@/lib/domain/archive';
 
@@ -41,6 +43,18 @@ export default function SettingsPage({ params }: { params: Promise<{ locale: str
         </Card>
 
         <StorageCard />
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('history.title')}</CardTitle>
+            <CardDescription>{t('history.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" asChild>
+              <Link href="/import/history">{t('history.open')}</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

@@ -10,6 +10,7 @@ import {
   importMessages,
   linkConversationProfile,
   listConversations,
+  listImportBatches,
   listMessages,
   listParticipants,
   listProfiles,
@@ -50,6 +51,7 @@ const HANDLERS: Handlers = {
   importMessages: ({ db }, p) => importMessages(db, p),
   findImportCandidates: ({ db }, p) => findImportCandidates(db, p),
   findExistingFingerprints: ({ db }, p) => findExistingFingerprints(db, p),
+  listImportBatches: ({ db }, p) => listImportBatches(db, p === undefined ? {} : requireParams(p)),
   undoImportBatch: ({ db }, p) => undoImportBatch(db, requireParams(p).batchId as string),
   listBlobHashes: ({ db }) => listBlobs(db).map((b) => b.sha256),
   listMessages: ({ db }, p) => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { formatBytes, formatDateRange, formatNames, initialsOf } from './format';
+import { formatBytes, formatDateRange, formatNames, formatWhen, initialsOf } from './format';
 
 describe('formatBytes', () => {
   test('decimal units, one decimal below 10, localized separators', () => {
@@ -37,5 +37,27 @@ describe('formatNames', () => {
     expect(formatNames(['Ana', 'Bo', 'Cy'], 'en')).toBe('Ana, Bo, and Cy');
     expect(formatNames(['Ana', 'Bo'], 'es')).toBe('Ana y Bo');
     expect(formatNames(['Ana', 'Bo', 'Cy'], 'en', true)).toBe('Ana, Bo, Cy');
+  });
+});
+
+describe('formatWhen', () => {
+  const NOW = Date.UTC(2026, 5, 15, 12, 0, 0);
+  const ago = (ms: number) => new Date(NOW - ms).toISOString();
+  const MIN = 60_000;
+  const DAY = 24 * 60 * MIN;
+
+  test('says how long ago in the language, with the exact date next to it', () => {
+    expect(formatWhen(ago(10_000), 'en', NOW).relative).toBe('now');
+    expect(formatWhen(ago(5 * MIN), 'en', NOW).relative).toBe('5 minutes ago');
+    expect(formatWhen(ago(3 * 60 * MIN), 'en', NOW).relative).toBe('3 hours ago');
+    expect(formatWhen(ago(1 * DAY), 'en', NOW).relative).toBe('yesterday');
+    expect(formatWhen(ago(3 * DAY), 'es', NOW).relative).toBe('hace 3 días');
+    expect(formatWhen(ago(70 * DAY), 'ca', NOW).relative).toBe('fa 2 mesos');
+    expect(formatWhen(ago(800 * DAY), 'en', NOW).relative).toBe('2 years ago');
+    expect(formatWhen(ago(3 * DAY), 'en', NOW).absolute).toMatch(/^Jun 12, 2026/);
+  });
+
+  test('a moment in the future reads as now', () => {
+    expect(formatWhen(new Date(NOW + 5 * MIN).toISOString(), 'en', NOW).relative).toBe('now');
   });
 });

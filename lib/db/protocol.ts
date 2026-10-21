@@ -12,10 +12,12 @@ import type {
   CreateConversationInput,
   CreateProfileInput,
   FindExistingFingerprintsInput,
+  ImportBatchRow,
   ImportCandidates,
   ImportCandidatesInput,
   ImportMessagesInput,
   ImportMessagesResult,
+  ListImportBatchesInput,
   MoveConversationInput,
   ProfileState,
   SetProfileArchivedInput,
@@ -52,6 +54,7 @@ export interface DbOps {
   importMessages: { params: ImportMessagesInput; result: ImportMessagesResult };
   findImportCandidates: { params: ImportCandidatesInput; result: ImportCandidates };
   findExistingFingerprints: { params: FindExistingFingerprintsInput; result: string[] };
+  listImportBatches: { params: ListImportBatchesInput | undefined; result: ImportBatchRow[] };
   undoImportBatch: { params: { batchId: string }; result: UndoImportBatchResult };
   listBlobHashes: { params: undefined; result: string[] };
   listMessages: {

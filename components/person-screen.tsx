@@ -237,6 +237,14 @@ function PersonContent({ onRetry }: { onRetry: () => void }) {
         ) : (
           <p className="bg-card text-muted-foreground rounded-xl border p-5 leading-relaxed break-words">{t('noConversations', { name: person.displayName })}</p>
         )}
+        {conversations.length > 0 && (
+          <Link
+            href={`/import/history?person=${encodeURIComponent(person.id)}`}
+            className="text-primary focus-visible:ring-ring/50 flex min-h-11 w-fit items-center rounded-md text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px]"
+          >
+            {t('importsLink')}
+          </Link>
+        )}
       </section>
     </Shell>
   );

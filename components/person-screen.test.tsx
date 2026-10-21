@@ -119,6 +119,7 @@ describe('PersonScreen', () => {
     expect(group.textContent).toContain('Also kept under Bo');
     expect(view.container.textContent).not.toMatch(/private/i);
     expect(view.container.querySelector('a[href="/people"]')).not.toBeNull();
+    expect(view.container.querySelector('a[href^="/import/history?person="]')?.textContent).toBe(en.person.importsLink);
   });
 
   test('renders in Catalan too (plural, quotes, list of names)', async () => {

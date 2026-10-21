@@ -68,7 +68,8 @@
     },
     "unassignedTitle": "Not assigned to anyone yet",
     "unassignedHint": "These conversations are safe on this device. Choose who each one belongs to whenever you like.",
-    "import": "Import a chat"
+    "import": "Import a chat",
+    "history": "Import history"
   },
   "library": {
     "loading": "Opening your archive…",
@@ -111,6 +112,11 @@
       "unknown": "This browser does not say how much space the app uses.",
       "persisted": "Your archive is protected: the browser will not delete it on its own.",
       "notPersisted": "The browser may clear this app’s data if the device runs out of space. Adding the app to your home screen helps keep it safe, and so does exporting a copy from time to time."
+    },
+    "history": {
+      "title": "Import history",
+      "description": "See what each import added, and undo one if you need to.",
+      "open": "Open import history"
     }
   },
   "notFound": {
@@ -281,7 +287,8 @@
       "cancelledNote": "Nothing was changed for the file that was cancelled. Files that finished before stay in your archive.",
       "retry": "Try the unfinished files again",
       "another": "Import another chat",
-      "people": "Go to People"
+      "people": "Go to People",
+      "history": "See import history"
     },
     "result": {
       "added": "{count, plural, =0 {No new messages were added to {name}.} one {# new message added to {name}.} other {# new messages added to {name}.}}",
@@ -300,7 +307,7 @@
       "openPerson": "Open {name}",
       "openPeople": "See it in People",
       "undo": "Undo this import",
-      "undoLabel": "Undo the import of “{title}”"
+      "undoLabel": "Undo this import: {title}"
     },
     "undo": {
       "title": "Undo this import?",
@@ -322,7 +329,8 @@
       "other": "This could not be done. If part of it was added, trying again will not create duplicates.",
       "changed": "Your archive changed while this file waited, so it is not clear where its messages belong. Nothing was imported from it. Choose again.",
       "review": "Choose again"
-    }
+    },
+    "historyLink": "See import history"
   },
   "offline": {
     "title": "You are offline",
@@ -337,7 +345,8 @@
     "archivedBadge": "Archived",
     "archivedNote": "This person is archived. Everything is still on this device, and you can restore them at any time.",
     "conversationsTitle": "Conversations",
-    "noConversations": "No conversations are kept under {name} yet. When you bring in messages, they will appear here."
+    "noConversations": "No conversations are kept under {name} yet. When you bring in messages, they will appear here.",
+    "importsLink": "Imports for this person"
   },
   "conversations": {
     "listLabel": "Conversations",
@@ -397,5 +406,37 @@
       "confirm": "Unlink",
       "cancel": "Cancel"
     }
+  },
+  "history": {
+    "title": "Import history",
+    "intro": "What each import added to your archive. You can take an import back here.",
+    "introPerson": "Imports into the conversations kept under {name}.",
+    "showAll": "Show all imports",
+    "back": "Back to People",
+    "backPerson": "Back to {name}",
+    "listLabel": "Imports",
+    "loadFailed": "The import history could not be read. Nothing was changed.",
+    "emptyTitle": "Nothing has been imported yet",
+    "emptyBody": "When you import a chat, you will see here what was added, and you can undo it.",
+    "emptyPersonTitle": "Nothing has been imported for {name} yet",
+    "emptyPersonBody": "Imports into the conversations kept under {name} will appear here.",
+    "import": "Import a chat",
+    "conversationGone": "A conversation that is no longer in the archive",
+    "when": "{relative} · {absolute}",
+    "added": "{count, plural, =0 {No new messages were added.} one {# new message added.} other {# new messages added.}}",
+    "alreadyThere": "{count, plural, one {# message was already in the archive.} other {# messages were already in the archive.}}",
+    "createdConversation": "This import created the conversation.",
+    "media": "{count, plural, one {# message still has its photo or file.} other {# messages still have their photo or file.}}",
+    "partlyGone": "{count, plural, one {# of the added messages is no longer in the archive.} other {# of the added messages are no longer in the archive.}}",
+    "keptUnder": "Kept under",
+    "unassigned": "Not assigned to anyone yet.",
+    "nothingLeft": "None of the messages this import added are in the archive any more, so there is nothing to undo.",
+    "undo": {
+      "body": "{count, plural, one {The # message} other {The # messages}} this import added will be removed, with the photos and files that no other conversation uses. Messages from other imports, and anything that was in your archive before, stay.",
+      "bodyCreated": "{count, plural, one {The # message} other {The # messages}} this import added will be removed, with the photos and files that no other conversation uses. This import created “{title}”, so that conversation is removed too if nothing else is left in it. Messages from other imports, and anything that was in your archive before, stay."
+    },
+    "loadMore": "Show older imports",
+    "loadMoreFailed": "Older imports could not be read. Try again.",
+    "nothingAdded": "This import added no messages, so there is nothing to undo."
   }
 }

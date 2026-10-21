@@ -60,6 +60,12 @@ export function ImportChoose({
           {t('title')}
         </h1>
         <p className="text-muted-foreground leading-relaxed">{t('intro')}</p>
+        <Link
+          href="/import/history"
+          className="text-primary focus-visible:ring-ring/50 flex min-h-11 w-fit items-center rounded-md text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px]"
+        >
+          {t('historyLink')}
+        </Link>
       </div>
 
       <div
