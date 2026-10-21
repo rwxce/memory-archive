@@ -4,6 +4,9 @@ import {
   isSha256Hex,
   isUuid,
   type BlobRef,
+  type ConversationBounds,
+  type ConversationDay,
+  type ConversationMessage,
   type ConversationSummary,
   type MessageCursor,
   type NewMessage,
@@ -943,4 +946,97 @@ export function listMessages(
         limit,
       ])
     : db.all<MessageRow>(`${MESSAGE_SELECT} ${order}`, [conversationId, limit]);
+}
+
+// ------------------------------------------------- conversation view reads
+
+/** Most messages one window returns; callers ask for less and page by offset. */
+export const MAX_WINDOW = 500;
+/** Most days `listConversationDays` returns (a century); a chat cannot get near it. */
+export const MAX_DAYS = 36_600;
+
+function requireConversation(db: SqlDb, conversationId: unknown): string {
+  const id = requireUuid(conversationId, 'conversation id');
+  if (db.all('SELECT 1 FROM conversations WHERE id = ?', [id]).length === 0) notFound('conversation');
+  return id;
+}
+
+/** True for a real calendar date written `YYYY-MM-DD`. */
+function isLocalDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(value);
+}
+
+/** Message count and first/last time of a conversation. `not-found` when it does not exist. */
+export function getConversationBounds(db: SqlDb, conversationId: string): ConversationBounds {
+  const id = requireConversation(db, conversationId);
+  // min/max over the (conversation, sent_at, ...) index are two index probes, count is a covering range scan.
+  const [row] = db.all<{ count: number; first: string | null; last: string | null }>(
+    `SELECT count(*) AS count, min(sent_at) AS first, max(sent_at) AS last FROM messages WHERE conversation_id = ?`,
+    [id],
+  );
+  return { count: row.count, firstSentAt: row.first, lastSentAt: row.last };
+}
+
+export function countMessages(db: SqlDb, conversationId: string): number {
+  return getConversationBounds(db, conversationId).count;
+}
+
+/** The ids of one window, straight off `messages_timeline` (covering: no table lookups, no sort). */
+export const WINDOW_IDS_SQL = `SELECT id FROM messages WHERE conversation_id = ? ORDER BY sent_at, ordinal, id LIMIT ? OFFSET ?`;
+
+/** Window ids first, then only those rows are joined: the OFFSET skip never touches the table. */
+export const MESSAGE_WINDOW_SQL = `
+  SELECT m.id, m.sent_at AS sentAt, m.ordinal, m.type, p.display_name AS participantName,
+         COALESCE(p.is_me, 0) AS isMe, m.body, m.media_sha256 AS mediaSha256,
+         m.media_name AS mediaName, b.mime AS mediaMime
+    FROM (${WINDOW_IDS_SQL}) w
+    JOIN messages m ON m.id = w.id
+    LEFT JOIN participants p ON p.id = m.participant_id
+    LEFT JOIN blobs b ON b.sha256 = m.media_sha256
+   ORDER BY m.sent_at, m.ordinal, m.id`;
+
+/**
+ * `limit` messages starting at position `offset` in chronological order (sent_at, ordinal, id).
+ * `limit` is clamped to 1..MAX_WINDOW; an offset past the end gives an empty window. Positions
+ * shift when an import adds older messages: a view that stays open re-reads its window.
+ */
+export function getMessageWindow(db: SqlDb, conversationId: string, offset: number, limit: number): ConversationMessage[] {
+  const id = requireConversation(db, conversationId);
+  if (!Number.isSafeInteger(offset) || offset < 0) invalid('offset must be a non-negative integer');
+  if (!Number.isFinite(limit)) invalid('limit must be a number');
+  const n = Math.min(Math.max(Math.trunc(limit), 1), MAX_WINDOW);
+  return db
+    .all<Omit<ConversationMessage, 'isMe' | 'isSystem'> & { isMe: number }>(MESSAGE_WINDOW_SQL, [id, n, offset])
+    .map((m) => ({ ...m, isMe: m.isMe === 1, isSystem: m.type === 'system' }));
+}
+
+/**
+ * Offset of the first message on or after the local date `YYYY-MM-DD`, or `null` when every
+ * message is earlier (nothing to jump to). A date before the first message gives 0.
+ */
+export function findMessageOffsetByDate(db: SqlDb, conversationId: string, date: string): number | null {
+  const id = requireConversation(db, conversationId);
+  if (!isLocalDate(date)) invalid('date must be a calendar date YYYY-MM-DD');
+  const from = `${date}T00:00:00`;
+  // Both are range scans on messages_timeline: the count stops at the date, the probe at one row.
+  if (db.all('SELECT 1 FROM messages WHERE conversation_id = ? AND sent_at >= ? LIMIT 1', [id, from]).length === 0) return null;
+  const [row] = db.all<{ before: number }>('SELECT count(*) AS before FROM messages WHERE conversation_id = ? AND sent_at < ?', [id, from]);
+  return row.before;
+}
+
+/**
+ * Every local day with messages, in order, with its count and the offset of its first message
+ * (the running total of the days before it). One pass over the index; at most MAX_DAYS rows.
+ */
+export function listConversationDays(db: SqlDb, conversationId: string): ConversationDay[] {
+  const id = requireConversation(db, conversationId);
+  return db.all<ConversationDay>(
+    `SELECT date, count, SUM(count) OVER (ORDER BY date) - count AS firstOffset
+       FROM (SELECT substr(sent_at, 1, 10) AS date, count(*) AS count
+               FROM messages WHERE conversation_id = ? GROUP BY date)
+      ORDER BY date LIMIT ?`,
+    [id, MAX_DAYS],
+  );
 }

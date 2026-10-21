@@ -405,7 +405,9 @@
       "bodyLast": "{name} es la última persona con la que está vinculada. La conversación sigue en tu archivo, aún sin asignar a nadie, y los mensajes se quedan tal como están. Podrás asignarla de nuevo desde Personas.",
       "confirm": "Desvincular",
       "cancel": "Cancelar"
-    }
+    },
+    "open": "Abrir",
+    "openLabel": "Abrir «{title}»"
   },
   "history": {
     "title": "Historial de importaciones",
@@ -438,5 +440,44 @@
     "loadMore": "Mostrar importaciones anteriores",
     "loadMoreFailed": "No se han podido leer las importaciones anteriores. Inténtalo de nuevo.",
     "nothingAdded": "Esta importación no añadió ningún mensaje, así que no hay nada que deshacer."
+  },
+  "conversation": {
+    "back": "Volver a {name}",
+    "notFoundTitle": "No encontramos esta conversación",
+    "notFoundBody": "Puede que el enlace esté desactualizado. No se ha borrado nada.",
+    "loadFailed": "No se ha podido leer esta conversación. No se ha borrado nada.",
+    "messageCount": "{count, plural, one {# mensaje} other {# mensajes}}",
+    "keptUnder": "Guardada con {names}",
+    "unassigned": "Aún sin asignar a nadie",
+    "empty": "Aún no hay mensajes en esta conversación.",
+    "feedLabel": "Mensajes de «{title}»",
+    "toolbarLabel": "Moverse por la conversación",
+    "toStart": "Ir al principio",
+    "toEnd": "Ir a lo más reciente",
+    "date": "Ir a la fecha",
+    "jumped": "Mostrando el primer mensaje a partir del {date}.",
+    "noneAfter": "No hay mensajes a partir del {date}.",
+    "loadingMessages": "Cargando mensajes…",
+    "pagesFailed": "Algunos mensajes no se han podido leer. No se ha borrado nada.",
+    "retry": "Inténtalo de nuevo",
+    "messageLabel": "{author}, {when}",
+    "noticeLabel": "Aviso, {when}",
+    "deleted": "Este mensaje se eliminó.",
+    "omitted": "Una foto, un vídeo o un archivo no se incluyó en la exportación.",
+    "media": {
+      "photo": "Foto",
+      "sticker": "Sticker",
+      "video": "Vídeo",
+      "audio": "Mensaje de voz",
+      "document": "Archivo",
+      "loading": "Cargando {name}…",
+      "missing": "Este archivo no se guardó.",
+      "error": "No se ha podido abrir este archivo.",
+      "playLabel": "Reproducir {name}",
+      "play": "Reproducir",
+      "saveLabel": "Guardar {name}",
+      "save": "Guardar"
+    },
+    "backToPeople": "Volver a Personas"
   }
 }

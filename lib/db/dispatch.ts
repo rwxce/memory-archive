@@ -3,12 +3,17 @@ import type { OpenedDb } from './open';
 import type { DbOpName, DbOps, DbRequest, DbResponse } from './protocol';
 import {
   createConversation,
+  countMessages,
   createProfile,
   findExistingFingerprints,
   findImportCandidates,
+  findMessageOffsetByDate,
+  getConversationBounds,
+  getMessageWindow,
   getProfile,
   importMessages,
   linkConversationProfile,
+  listConversationDays,
   listConversations,
   listImportBatches,
   listMessages,
@@ -61,6 +66,17 @@ const HANDLERS: Handlers = {
       limit: params.limit as number | undefined,
     });
   },
+  getConversationBounds: ({ db }, p) => getConversationBounds(db, requireParams(p).conversationId as string),
+  countMessages: ({ db }, p) => countMessages(db, requireParams(p).conversationId as string),
+  getMessageWindow: ({ db }, p) => {
+    const params = requireParams(p);
+    return getMessageWindow(db, params.conversationId as string, params.offset as number, params.limit as number);
+  },
+  findMessageOffsetByDate: ({ db }, p) => {
+    const params = requireParams(p);
+    return findMessageOffsetByDate(db, params.conversationId as string, params.date as string);
+  },
+  listConversationDays: ({ db }, p) => listConversationDays(db, requireParams(p).conversationId as string),
 };
 
 /**

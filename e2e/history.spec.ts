@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { strToU8, zipSync } from 'fflate';
 import type { Page } from '@playwright/test';
-import { addPerson, expect, overflowsHorizontally, startFresh, test } from './fixtures';
+import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test, walkImport as walk } from './fixtures';
 
 /**
  * Import history and the Phase 4 checks against the built app with the real workers and OPFS:
@@ -28,32 +28,6 @@ function exportZip(lines: string[] = BASE) {
 
 const heading = (page: Page, name: string | RegExp) => page.getByRole('heading', { level: 2, name });
 const next = (page: Page) => page.getByRole('button', { name: 'Next' }).click();
-
-/** The wizard from the file chooser to the confirmation, for a person who already exists. */
-async function walk(page: Page, file: string | { name: string; mimeType: string; buffer: Buffer }, person: string, confirm: string | RegExp) {
-  await page.getByTestId('import-file-input').setInputFiles(file);
-  await page.getByRole('button', { name: 'Continue with 1 file' }).click();
-  await expect(heading(page, /What is in this file/)).toBeFocused();
-  await expect(page.getByText(/^[\d,]+ messages?$/)).toBeVisible({ timeout: 60_000 });
-  await next(page);
-  await expect(heading(page, /Who is this for/)).toBeFocused();
-  await page.getByRole('radio', { name: new RegExp(`^${person}`) }).check();
-  await next(page);
-  await expect(heading(page, /Which one is you/)).toBeFocused();
-  await page.getByRole('radio', { name: /^Ana/ }).check();
-  await next(page);
-  await expect(heading(page, /What is new/)).toBeFocused({ timeout: 30_000 });
-  await next(page);
-  await expect(heading(page, /Check and confirm/)).toBeFocused();
-  await page.getByRole('button', { name: confirm }).click();
-}
-
-/** From People to the chooser, walk the wizard and wait for the result. */
-async function importFromPeople(page: Page, file: Parameters<typeof walk>[1], person: string, confirm: string | RegExp) {
-  await page.getByRole('link', { name: 'Import a chat' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Import a chat' })).toBeVisible();
-  await walk(page, file, person, confirm);
-}
 
 const importAnother = async (page: Page, file: Parameters<typeof walk>[1], person: string, confirm: string | RegExp) => {
   await page.getByRole('button', { name: 'Import another chat' }).click();

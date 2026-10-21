@@ -405,7 +405,9 @@
       "bodyLast": "{name} és l'última persona a qui està vinculada. La conversa continua al teu arxiu, encara sense assignar a ningú, i els missatges es queden tal com són. Després la podràs tornar a assignar des de Persones.",
       "confirm": "Desvincula",
       "cancel": "Cancel·la"
-    }
+    },
+    "open": "Obre",
+    "openLabel": "Obre «{title}»"
   },
   "history": {
     "title": "Historial d’importacions",
@@ -438,5 +440,44 @@
     "loadMore": "Mostra importacions anteriors",
     "loadMoreFailed": "No s’han pogut llegir les importacions anteriors. Torna-ho a provar.",
     "nothingAdded": "Aquesta importació no va afegir cap missatge, així que no hi ha res a desfer."
+  },
+  "conversation": {
+    "back": "Torna a {name}",
+    "notFoundTitle": "No trobem aquesta conversa",
+    "notFoundBody": "Pot ser que l'enllaç estigui desactualitzat. No s'ha esborrat res.",
+    "loadFailed": "No s'ha pogut llegir aquesta conversa. No s'ha esborrat res.",
+    "messageCount": "{count, plural, one {# missatge} other {# missatges}}",
+    "keptUnder": "Guardada a {names}",
+    "unassigned": "Encara no assignada a ningú",
+    "empty": "Encara no hi ha cap missatge en aquesta conversa.",
+    "feedLabel": "Missatges de «{title}»",
+    "toolbarLabel": "Moure's per la conversa",
+    "toStart": "Ves a l'inici",
+    "toEnd": "Ves al més recent",
+    "date": "Ves a la data",
+    "jumped": "Es mostra el primer missatge a partir del {date}.",
+    "noneAfter": "No hi ha cap missatge a partir del {date}.",
+    "loadingMessages": "Carregant missatges…",
+    "pagesFailed": "Alguns missatges no s'han pogut llegir. No s'ha esborrat res.",
+    "retry": "Torna-ho a provar",
+    "messageLabel": "{author}, {when}",
+    "noticeLabel": "Avís, {when}",
+    "deleted": "Aquest missatge es va esborrar.",
+    "omitted": "Una foto, un vídeo o un fitxer no es va incloure a l'exportació.",
+    "media": {
+      "photo": "Foto",
+      "sticker": "Enganxina",
+      "video": "Vídeo",
+      "audio": "Missatge de veu",
+      "document": "Fitxer",
+      "loading": "Carregant {name}…",
+      "missing": "Aquest fitxer no s'ha desat.",
+      "error": "No s'ha pogut obrir aquest fitxer.",
+      "playLabel": "Reprodueix {name}",
+      "play": "Reprodueix",
+      "saveLabel": "Desa {name}",
+      "save": "Desa"
+    },
+    "backToPeople": "Torna a Persones"
   }
 }

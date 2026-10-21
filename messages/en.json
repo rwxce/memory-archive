@@ -405,7 +405,9 @@
       "bodyLast": "{name} is the last person it is kept under. The conversation stays in your archive, not assigned to anyone yet, and the messages stay exactly as they are. You can assign it again from the People screen.",
       "confirm": "Unlink",
       "cancel": "Cancel"
-    }
+    },
+    "open": "Open",
+    "openLabel": "Open “{title}”"
   },
   "history": {
     "title": "Import history",
@@ -438,5 +440,44 @@
     "loadMore": "Show older imports",
     "loadMoreFailed": "Older imports could not be read. Try again.",
     "nothingAdded": "This import added no messages, so there is nothing to undo."
+  },
+  "conversation": {
+    "back": "Back to {name}",
+    "notFoundTitle": "We could not find this conversation",
+    "notFoundBody": "The link may be out of date. Nothing was deleted.",
+    "loadFailed": "This conversation could not be read. Nothing was deleted.",
+    "messageCount": "{count, plural, one {# message} other {# messages}}",
+    "keptUnder": "Kept under {names}",
+    "unassigned": "Not assigned to anyone yet",
+    "empty": "There are no messages in this conversation yet.",
+    "feedLabel": "Messages in “{title}”",
+    "toolbarLabel": "Move around the conversation",
+    "toStart": "Go to start",
+    "toEnd": "Go to latest",
+    "date": "Go to date",
+    "jumped": "Showing the first message on or after {date}.",
+    "noneAfter": "There are no messages on or after {date}.",
+    "loadingMessages": "Loading messages…",
+    "pagesFailed": "Some messages could not be read. Nothing was deleted.",
+    "retry": "Try again",
+    "messageLabel": "{author}, {when}",
+    "noticeLabel": "Notice, {when}",
+    "deleted": "This message was deleted.",
+    "omitted": "A photo, video or file was not included in the export.",
+    "media": {
+      "photo": "Photo",
+      "sticker": "Sticker",
+      "video": "Video",
+      "audio": "Voice message",
+      "document": "File",
+      "loading": "Loading {name}…",
+      "missing": "This file was not saved.",
+      "error": "This file could not be opened.",
+      "playLabel": "Play {name}",
+      "play": "Play",
+      "saveLabel": "Save {name}",
+      "save": "Save"
+    },
+    "backToPeople": "Back to People"
   }
 }

@@ -126,6 +126,41 @@ export interface StoredMessage {
   mediaName: string;
 }
 
+/** A message as the conversation view shows it: who wrote it (and whether that is the user) and its media. */
+export interface ConversationMessage {
+  id: number;
+  sentAt: string;
+  ordinal: number;
+  type: MessageType;
+  /** `type === 'system'`: a notice from the source, not something a person wrote. */
+  isSystem: boolean;
+  participantName: string | null;
+  /** The author is the participant the user said is themselves. */
+  isMe: boolean;
+  body: string;
+  mediaSha256: string | null;
+  /** Original file name (untrusted, display only), or ''. */
+  mediaName: string;
+  /** Media type recorded for the blob at import time, or null when unknown. */
+  mediaMime: string | null;
+}
+
+/** First/last message and total of a conversation (`null` bounds when it has no messages). */
+export interface ConversationBounds {
+  count: number;
+  firstSentAt: string | null;
+  lastSentAt: string | null;
+}
+
+/** One local calendar day with messages: how many, and the position of its first one. */
+export interface ConversationDay {
+  /** `YYYY-MM-DD`, the local date of `sentAt`. */
+  date: string;
+  count: number;
+  /** Offset of the day's first message in chronological order (what `getMessageWindow` takes). */
+  firstOffset: number;
+}
+
 /** Position of a message in chronological order, for keyset pagination. */
 export interface MessageCursor {
   sentAt: string;

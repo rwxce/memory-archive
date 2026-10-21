@@ -75,3 +75,9 @@ export function formatWhen(iso: string, locale: string, now: number = Date.now()
   else relative = rtf.format(-Math.floor(ago / (365 * DAY)), 'year');
   return { relative, absolute };
 }
+
+/** A day written out in the UI language ("Tuesday, 17 March 2026"), from a wall-clock stamp, never shifted. */
+export function formatFullDay(stamp: string, locale: string): string {
+  const [year, month, day] = stamp.slice(0, 10).split('-').map(Number);
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, day)));
+}

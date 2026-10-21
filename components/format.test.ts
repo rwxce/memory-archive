@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { formatBytes, formatDateRange, formatNames, formatWhen, initialsOf } from './format';
+import { formatBytes, formatDateRange, formatFullDay, formatNames, formatWhen, initialsOf } from './format';
 
 describe('formatBytes', () => {
   test('decimal units, one decimal below 10, localized separators', () => {
@@ -59,5 +59,13 @@ describe('formatWhen', () => {
 
   test('a moment in the future reads as now', () => {
     expect(formatWhen(new Date(NOW + 5 * MIN).toISOString(), 'en', NOW).relative).toBe('now');
+  });
+});
+
+describe('formatFullDay', () => {
+  test('the weekday and the whole date in the UI language, never shifted by a timezone', () => {
+    expect(formatFullDay('2026-03-17T00:05:00', 'en')).toBe('Tuesday, March 17, 2026');
+    expect(formatFullDay('2026-03-17', 'es')).toMatch(/^martes,? 17 de marzo de 2026$/);
+    expect(formatFullDay('2026-03-17T23:59:59', 'ca')).toMatch(/dimarts.*17.*març.*2026/);
   });
 });
