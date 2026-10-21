@@ -14,3 +14,15 @@ export function formatBytes(bytes: number, locale: string): string {
     maximumFractionDigits: value < 10 && i > 0 ? 1 : 0,
   }).format(value);
 }
+
+/**
+ * Up to two letters for an avatar: the first letter of the first and last word
+ * of a name ("Ana Maria Puig" → "AP"). Works on whole characters, so emoji and
+ * accented letters are never cut in half. Never empty ("?" for a blank name).
+ */
+export function initialsOf(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const first = (word: string | undefined) => (word ? (Array.from(word)[0] ?? '') : '');
+  const letters = words.length > 1 ? first(words[0]) + first(words[words.length - 1]) : first(words[0]);
+  return letters ? letters.toLocaleUpperCase() : '?';
+}

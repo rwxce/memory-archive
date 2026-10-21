@@ -17,6 +17,72 @@
     "openHint": "Ja tens un fitxer de Memory Archive? Obre'l per continuar on ho vas deixar.",
     "comingSoon": "Aquest pas encara no està llest. Arribarà en una propera versió."
   },
+  "people": {
+    "title": "Persones",
+    "intro": "Les persones de les quals guardes les converses aquí.",
+    "add": "Afegeix una persona",
+    "conversations": "{count, plural, =0 {Encara cap conversa} one {# conversa} other {# converses}}",
+    "emptyTitle": "Encara no hi ha ningú",
+    "emptyBody": "Afegeix la primera persona per guardar junts les seves converses, fotos i missatges de veu. Els seus missatges els podràs afegir més endavant.",
+    "allArchivedBody": "Totes les persones estan arxivades. Afegeix-ne una de nova o restaura algú de la llista d'arxivades.",
+    "archivedTitle": "Arxivades",
+    "showArchived": "Mostra les persones arxivades ({count})",
+    "hideArchived": "Amaga les persones arxivades",
+    "archivedHint": "Les persones arxivades no surten a la llista principal. Tot el que les envolta continua en aquest dispositiu.",
+    "edit": "Edita",
+    "editLabel": "Edita {name}",
+    "archive": "Arxiva",
+    "archiveLabel": "Arxiva {name}",
+    "restore": "Restaura",
+    "restoreLabel": "Restaura {name}",
+    "about": "Sobre Memory Archive",
+    "loadFailed": "No s'han pogut llegir les teves persones. No s'ha esborrat res.",
+    "actionFailed": "No s'ha canviat res per a {name}. Torna-ho a provar.",
+    "created": "S'ha afegit {name}.",
+    "updated": "S'han desat els canvis de {name}.",
+    "archived": "S'ha arxivat {name}.",
+    "restored": "S'ha restaurat {name}.",
+    "form": {
+      "createTitle": "Afegeix una persona",
+      "editTitle": "Edita {name}",
+      "name": "Nom",
+      "relationship": "Relació (opcional)",
+      "relationshipHint": "Per exemple: mare, amic, parella.",
+      "description": "Notes (opcional)",
+      "descriptionHint": "Qualsevol cosa que vulguis recordar d'aquesta persona.",
+      "create": "Afegeix la persona",
+      "save": "Desa els canvis",
+      "cancel": "Cancel·la",
+      "nameRequired": "Escriu un nom per continuar.",
+      "nameTooLong": "El nom pot tenir fins a {max} caràcters.",
+      "relationshipTooLong": "La relació pot tenir fins a {max} caràcters.",
+      "descriptionTooLong": "Les notes poden tenir fins a {max} caràcters.",
+      "invalidText": "Una part del text no es pot desar. Treu-ne els caràcters estranys i torna-ho a provar.",
+      "saveFailed": "No s'ha pogut desar. No s'ha canviat res. Torna-ho a provar."
+    },
+    "archiveConfirm": {
+      "title": "Vols arxivar {name}?",
+      "body": "{name} passa a la llista d'arxivades. Les converses, els missatges i les fotos es queden en aquest dispositiu i a les teves còpies de seguretat. Ho pots desfer quan vulguis.",
+      "confirm": "Arxiva",
+      "cancel": "Cancel·la"
+    }
+  },
+  "library": {
+    "loading": "Obrint el teu arxiu…",
+    "retry": "Torna-ho a provar",
+    "inUse": {
+      "title": "El teu arxiu no es pot obrir ara mateix",
+      "body": "Si Memory Archive és obert en una altra pestanya o finestra, tanca'l i torna-ho a provar. Si no, pot ser que aquest navegador no permeti desar fitxers, cosa que passa en la navegació privada. No s'ha canviat res."
+    },
+    "newerVersion": {
+      "title": "Aquest arxiu necessita una versió més nova",
+      "body": "Es va desar amb una versió més nova de Memory Archive. Actualitza l'aplicació per obrir-lo. No s'ha canviat res."
+    },
+    "error": {
+      "title": "No s'ha pogut obrir el teu arxiu",
+      "body": "Alguna cosa ha anat malament. No s'ha esborrat res. Torna-ho a provar i, si continua passant, recarrega la pàgina."
+    }
+  },
   "settings": {
     "title": "Configuració",
     "language": {

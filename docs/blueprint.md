@@ -25,8 +25,30 @@ test type or architecture rule means updating this file **in the same PR**.
   - Theme: `.dark` class on `<html>` set before first paint by `THEME_INIT_SCRIPT`
     (`hooks/theme.ts`; device preference or the choice in `localStorage`), `useTheme`,
     `ThemeSync` (re-applies after a client-side locale switch).
-  - Pages: `/[locale]/` welcome (Start / Open an archive, placeholders for now),
-    `/[locale]/settings/` (language, appearance, app version + archive format version),
+  - Library connection: `hooks/use-library.tsx` (`LibraryProvider` in the locale layout,
+    `useLibrary`) opens the db worker (`${NEXT_PUBLIC_BASE_PATH}/db/worker.js`) and the blob
+    store lazily, when the first screen that needs them mounts (Settings never holds the
+    library; only one tab can). Each attempt has a generation number: the provider closes the
+    library on unmount, and an open that finishes after an unmount or a retry is closed and
+    ignored (StrictMode mount → cleanup → mount leaves one live library). The library is also
+    closed on `pagehide` (and reopened on a back/forward-cache restore), so a full page
+    navigation or locale switch hands it over early; "in use" is retried automatically with a
+    250 ms → 4 s backoff (about 8 s) while the screen shows loading, and each open is raced
+    against a 10 s timeout (`lib/usecases/library.ts`: `OPEN_BACKOFF_MS`, `openWithTimeout`), so
+    Try again never waits behind a hung worker. States: loading / ready / unavailable (open in another tab or no
+    private storage; retry) / newer version / error. `hooks/use-people.ts` (`usePeople`,
+    `useProfileActions`) — an action resolves only after the lists on screen have reloaded, so the
+    form closes onto the new list (no stale or empty-state flash). No dynamic route segments for
+    ids (static export): detail screens will use query params (`/person?id=`).
+  - Pages: `/[locale]/` home (People once the library holds any profile, the welcome while it
+    is empty — the switch runs on the device; if the library cannot open on first run it still shows
+    the welcome with the reason and a retry beneath it, never only an error; while loading it
+    shows a neutral shell with the welcome's spacing), `/[locale]/people/` (People: active list with
+    relationship and conversation count, collapsed Archived section, inline create / edit form,
+    archive with a confirmation that says what is kept (Escape closes it and the form), restore;
+    one polite status region stays mounted in every state; busy buttons use `aria-disabled` (they keep focus); Escape is ignored during IME composition; person names are h2 under the page h1; initials avatar, no photo
+    upload yet), `/[locale]/welcome/` (always reachable; *Start* asks for persistent storage and
+    goes to People), `/[locale]/settings/` (language, appearance, app version + archive format version),
     `not-found` → `out/404.html`.
   - Next.js telemetry disabled (`NEXT_TELEMETRY_DISABLED` in scripts, CI and
     `next.config.ts`; `.npmrc` `shell-emulator=true` makes the env prefix work on Windows).
@@ -119,6 +141,9 @@ test type or architecture rule means updating this file **in the same PR**.
     `linkConversationToProfile`, `unlinkConversationFromProfile`): they take a `DbClient`
     (worker protocol), an injectable UUID source and clock, and fail with `DbError` codes
     `invalid` / `not-found`. `test-client.ts` is the structured-clone loopback for their tests.
+    `lib/usecases/library.ts` — `openLibrary` (worker + database check + blob store, with test
+    seams), `libraryProblemOf` (error → reason the UI explains), `listPeople` (profiles split
+    active / archived with conversation counts); the UI never imports `lib/db`.
   - `lib/db/snapshot.ts` — `serializeDb`, `loadSnapshot`, `listBlobs`, `isLibraryEmpty`.
   - `lib/exporters/archive/` — `format.ts` (manifest, limits, `ArchiveError`, path validation),
     `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`restoreArchive`).
@@ -278,8 +303,11 @@ test type or architecture rule means updating this file **in the same PR**.
     `regressions` (one block per fixed known bug).
   - Packaging — `scripts/build-viewer-script.test.ts` (bundle fresh and self-contained) and
     `pnpm smoke` (built CLI).
-  - UI — `components/*.test.tsx` (welcome actions incl. persistence request, theme picker /
-    sync, `redirectPath` allow-list, `formatBytes`), `hooks/theme.test.ts` (the inline theme
+  - UI — `components/people-screen.test.tsx` (list / empty / create / validate / edit /
+    archive with confirmation / restore / failures / welcome switch / library unavailable, over
+    the real use cases on in-memory SQLite via `renderWithLibrary`), `hooks/use-library.test.tsx`
+    (provider states, lazy open, retry), `components/*.test.tsx` (welcome actions incl.
+    persistence request and navigation, theme picker / sync, `redirectPath` allow-list, `formatBytes`), `hooks/theme.test.ts` (the inline theme
     script), `i18n/routing.test.ts` (`pickLocale`).
   - PWA — `sw/share-target.test.ts` (stores only ZIP/TXT, 303 redirect, malformed POST,
     offline page per locale, locales in sync), `lib/storage/*.test.ts` (share inbox,
