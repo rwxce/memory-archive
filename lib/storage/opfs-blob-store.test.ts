@@ -210,6 +210,26 @@ describe.each(VARIANTS)('blob store on %s', (_label, capabilities) => {
     expect(await reopened.list()).toEqual([ABC]);
     expect(await reopened.verify(ABC)).toBe('ok');
   });
+
+  test('a second opener with sweep:false leaves another thread\'s in-flight temp files alone', async () => {
+    const { root, store } = await setup();
+    await store.put(enc('abc'));
+    const base = await root.getDirectoryHandle(BLOBS_DIRECTORY);
+    const tmp = await base.getDirectoryHandle('tmp');
+    await tmp.getFileHandle('in-flight.tmp', { create: true });
+
+    const second = await openBlobStore(root, { sweep: false });
+    expect(await tmpEntries(root)).toEqual(['in-flight.tmp']);
+    // It still reads and writes the same content-addressed store, and cleans only its own temp files.
+    expect(await second.list()).toEqual([ABC]);
+    const info = await second.put(enc('hello'));
+    expect(await store.has(info.sha256)).toBe(true);
+    expect(await tmpEntries(root)).toEqual(['in-flight.tmp']);
+
+    // The owner's next open (default) recovers whatever a crashed writer left.
+    await openBlobStore(root);
+    expect(await tmpEntries(root)).toEqual([]);
+  });
 });
 
 describe('copy fallback recovery', () => {

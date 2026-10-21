@@ -8,7 +8,7 @@ import { createTestLibrary } from './test-client';
 
 function fakeClient(call: DbClient['call']) {
   const close = vi.fn<() => void>();
-  return { client: { call, close } as DbClient, close };
+  return { client: { call, close, connectPort: () => { throw new Error('unused'); } } as DbClient, close };
 }
 
 describe('openLibrary', () => {

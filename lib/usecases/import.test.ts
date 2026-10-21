@@ -1,6 +1,6 @@
 import { strToU8, zipSync } from 'fflate';
 import { ArchiveError } from '../exporters/archive/format';
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { DbError } from '../db/errors';
 import type { OpenedDb } from '../db/open';
 import { createTestLibrary } from './test-client';
@@ -822,5 +822,91 @@ describe('importWhatsAppExport: documented limits', () => {
     await undoImportBatch(lib.deps, first.batchId);
     const again = await imported(run(lib, zip));
     expect((await messagesOf(lib, again.conversationId)).find((m) => m.type === 'video')?.mediaSha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+describe('importWhatsAppExport: media progress by bytes (throttled)', () => {
+  afterEach(() => vi.useRealTimers());
+
+  /**
+   * The ZIP as a Blob whose entry streams come in 16 KiB chunks, `stepMs` of fake time apart:
+   * what a slow disk or a big video looks like to the import.
+   */
+  function slowBlob(blob: Blob, stepMs: number, counter: { chunks: number }): Blob {
+    const chunked = (slice: Blob) => ({
+      size: slice.size,
+      arrayBuffer: () => slice.arrayBuffer(),
+      stream: () => {
+        const reader = slice.stream().getReader();
+        let rest = new Uint8Array(0);
+        return new ReadableStream<Uint8Array>({
+          async pull(controller) {
+            if (rest.length === 0) {
+              const next = await reader.read();
+              if (next.done) return controller.close();
+              rest = next.value;
+            }
+            const piece = rest.subarray(0, 16 * 1024);
+            rest = rest.subarray(piece.length);
+            counter.chunks++;
+            if (stepMs) vi.advanceTimersByTime(stepMs);
+            controller.enqueue(piece);
+          },
+        });
+      },
+    });
+    return { size: blob.size, slice: (a: number, b: number) => chunked(blob.slice(a, b)), arrayBuffer: () => blob.arrayBuffer() } as unknown as Blob;
+  }
+
+  const SIZES = [1024 * 1024, 600 * 1024];
+  const TOTAL = SIZES[0] + SIZES[1];
+  const bigZip = () =>
+    new Blob([
+      zipSync({
+        '_chat.txt': strToU8(['[17/03/2026, 13:17:05] Ana: hi', `[17/03/2026, 13:20:00] Ana: <attached: ${PHOTO}>`, `[17/03/2026, 13:21:00] Ana: <attached: ${PHOTO2}>`].join('\n')),
+        [PHOTO]: [bytes(1, SIZES[0]), { level: 0 }],
+        [PHOTO2]: [bytes(2, SIZES[1]), { level: 0 }],
+      } as never) as BlobPart,
+    ]);
+
+  async function runWith(stepMs: number) {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const lib = await setup();
+    const events: { done: number; bytes: number; totalBytes: number; t: number }[] = [];
+    const counter = { chunks: 0 };
+    await imported(
+      importWhatsAppExport(lib.deps, {
+        zip: slowBlob(bigZip(), stepMs, counter),
+        fileName: NAME,
+        profileIds: [lib.profile.id],
+        meAuthor: 'Ana',
+        onProgress: (p) => p.phase === 'media' && events.push({ done: p.done, bytes: p.bytes!, totalBytes: p.totalBytes!, t: Date.now() }),
+      }),
+    );
+    return { events, counter };
+  }
+
+  test('reports within 200 ms of the last one are dropped, boundaries always report, the last has bytes === totalBytes', async () => {
+    const { events, counter } = await runWith(50);
+    expect(counter.chunks).toBeGreaterThanOrEqual(100); // 16 KiB chunks, 50 ms apart
+    const last = events.at(-1)!;
+    expect(last).toMatchObject({ done: 2, bytes: TOTAL, totalBytes: TOTAL });
+    expect(events.length).toBeLessThan(counter.chunks / 3); // throttled: about one report per 4 chunks
+    expect(events.length).toBeGreaterThan(3); // but progress inside the files is reported
+    events.forEach((e, i) => {
+      const boundary = i === 0 || e.done !== events[i - 1].done || e === last;
+      if (!boundary) expect(e.t - events[i - 1].t).toBeGreaterThanOrEqual(200);
+    });
+    // File boundaries always report: done 0 (before file 1), 1 (before file 2), 2 (after the last).
+    expect(new Set(events.map((e) => e.done))).toEqual(new Set([0, 1, 2]));
+    expect(events.map((e) => e.done)).toEqual([...events.map((e) => e.done)].sort());
+    expect(events.every((e) => e.bytes <= e.totalBytes)).toBe(true);
+  });
+
+  test('chunks arriving within 200 ms report only at the file boundaries', async () => {
+    const { events, counter } = await runWith(0);
+    expect(counter.chunks).toBeGreaterThanOrEqual(100);
+    expect(events.map((e) => e.done)).toEqual([0, 1, 2]);
+    expect(events.at(-1)!.bytes).toBe(TOTAL);
   });
 });

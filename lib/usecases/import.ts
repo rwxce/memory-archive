@@ -51,7 +51,13 @@ export const DEFAULT_IMPORT_LIMITS: ImportLimits = {
   maxMediaBytes: 4 * 1024 * 1024 * 1024,
 };
 
-export type ImportErrorCode = 'invalid-export' | 'limit-exceeded' | 'unknown-author' | 'invalid';
+export type ImportErrorCode =
+  | 'invalid-export'
+  | 'limit-exceeded'
+  | 'unknown-author'
+  | 'invalid'
+  /** The import worker crashed or could not start (see `import-client.ts`): the archive is unchanged or holds the whole batch, never half of it. */
+  | 'worker-failed';
 
 /** A problem with the import request or the file. Messages never contain chat text or names. */
 export class ImportError extends Error {
@@ -69,7 +75,13 @@ export interface ImportProgress {
   phase: ImportPhase;
   done: number;
   total: number;
+  /** `media` phase only: uncompressed bytes copied so far (also within a big file) and in total. */
+  bytes?: number;
+  totalBytes?: number;
 }
+
+/** At most this often within one big file (`media` progress by bytes); file boundaries always report. */
+const BYTES_PROGRESS_INTERVAL_MS = 200;
 
 /**
  * Which conversation the messages go to.
@@ -200,6 +212,7 @@ function entryStream(
   stream: ReadableStream<Uint8Array>,
   signal: AbortSignal | undefined,
   failure: { error?: unknown },
+  onBytes?: (n: number) => void,
 ): ReadableStream<Uint8Array> {
   const reader = stream.getReader();
   return new ReadableStream<Uint8Array>({
@@ -208,7 +221,10 @@ function entryStream(
         signal?.throwIfAborted();
         const chunk = await reader.read();
         if (chunk.done) controller.close();
-        else controller.enqueue(chunk.value);
+        else {
+          controller.enqueue(chunk.value);
+          onBytes?.(chunk.value.length);
+        }
       } catch (error) {
         if (!signal?.aborted) failure.error ??= error;
         reader.cancel().catch(() => undefined);
@@ -220,7 +236,7 @@ function entryStream(
 }
 
 /** A ZIP problem as the typed error the caller can act on. */
-function zipProblem(cause: unknown): ImportError {
+export function zipProblem(cause: unknown): ImportError {
   if (cause instanceof ZipLimitError) return new ImportError('limit-exceeded', 'the export is larger than allowed', { cause });
   return new ImportError('invalid-export', 'this file is not a readable WhatsApp export', { cause });
 }
@@ -367,16 +383,28 @@ async function importNow(deps: ProfileDeps, input: ImportWhatsAppInput): Promise
   const blobByName = new Map<string, BlobRef>();
   let mediaAdded = 0;
   let done = 0;
+  let bytes = 0;
+  let lastReport = 0;
+  const totalBytes = [...needed.values()].reduce((sum, m) => sum + m.entry.uncompressedSize, 0);
+  const reportMedia = () => {
+    lastReport = Date.now();
+    onProgress?.({ phase: 'media', done, total: needed.size, bytes, totalBytes });
+  };
+  // Byte reports within a file are throttled; file boundaries always report (and restart the clock).
+  const onBytes = (n: number) => {
+    bytes += n;
+    if (Date.now() - lastReport >= BYTES_PROGRESS_INTERVAL_MS) reportMedia();
+  };
   let saving = false;
   const entryFailure: { error?: unknown } = {};
   try {
     for (const [name, match] of needed) {
       signal?.throwIfAborted();
-      onProgress?.({ phase: 'media', done, total: needed.size });
+      reportMedia();
       if (match.entry.uncompressedSize > limits.maxMediaBytes) {
         throw new ImportError('limit-exceeded', 'a media file is too large; import without videos to skip the biggest ones');
       }
-      const info = await deps.blobStore.put(entryStream(openZipEntry(input.zip, match.entry), signal, entryFailure));
+      const info = await deps.blobStore.put(entryStream(openZipEntry(input.zip, match.entry), signal, entryFailure, onBytes));
       blobByName.set(name, { sha256: info.sha256, size: info.size, mime: mimeFromFileName(match.fileName) });
       if (stored.has(info.sha256)) mediaSkipped++;
       else {
@@ -386,7 +414,7 @@ async function importNow(deps: ProfileDeps, input: ImportWhatsAppInput): Promise
       }
       done++;
     }
-    onProgress?.({ phase: 'media', done, total: needed.size });
+    reportMedia();
     signal?.throwIfAborted();
 
     // 4. save, in one transaction

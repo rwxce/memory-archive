@@ -16,8 +16,12 @@
  * Sinks: `createWritable()` when the browser has it (its swap file only replaces content
  * on `close()`), else `createSyncAccessHandle()` (workers only). At least one must exist.
  *
- * One owner at a time: `openBlobStore` sweeps `tmp/`, so it must run in the single worker
- * that owns the library (the same rule as the SQLite SAH-pool connection).
+ * One sweeper at a time: `openBlobStore` sweeps `tmp/` by default, which deletes every
+ * temp file in it, so only the thread that owns the library (the page) opens with the
+ * default. A second thread that writes blobs at the same time (the import worker) opens with
+ * `{ sweep: false }`: it must not delete the other's in-flight temp files, and the page's next
+ * open removes whatever a crashed worker left. Their temp names are random UUIDs, so two live
+ * stores never collide in `tmp/`.
  *
  * The structural handle types below are the subset used, so the adapter runs against the
  * in-memory directory in `test-opfs-directory.ts` under Node.
@@ -153,8 +157,13 @@ async function ignore(promise: Promise<unknown>): Promise<void> {
   await promise.catch(() => undefined);
 }
 
-/** Open the store in `root` (any OPFS-shaped directory) and sweep abandoned writes. */
-export async function openBlobStore(root: OpfsDirectoryHandle): Promise<BlobStore> {
+export interface OpenBlobStoreOptions {
+  /** Sweep abandoned writes in `tmp/` on open (default). `false` for a second, concurrent opener. */
+  sweep?: boolean;
+}
+
+/** Open the store in `root` (any OPFS-shaped directory) and sweep abandoned writes (see `sweep`). */
+export async function openBlobStore(root: OpfsDirectoryHandle, options: OpenBlobStoreOptions = {}): Promise<BlobStore> {
   const base = await root.getDirectoryHandle(BLOBS_DIRECTORY, { create: true });
   const tmp = await base.getDirectoryHandle(TMP_DIRECTORY, { create: true });
 
@@ -276,7 +285,7 @@ export async function openBlobStore(root: OpfsDirectoryHandle): Promise<BlobStor
     return result;
   }
 
-  await sweep();
+  if (options.sweep !== false) await sweep();
 
   return {
     put,
@@ -307,8 +316,8 @@ export async function openBlobStore(root: OpfsDirectoryHandle): Promise<BlobStor
 }
 
 /** The real OPFS of this origin. Browser only (window or worker). */
-export async function openOpfsBlobStore(): Promise<BlobStore> {
+export async function openOpfsBlobStore(options: OpenBlobStoreOptions = {}): Promise<BlobStore> {
   const storage = typeof navigator === 'undefined' ? undefined : navigator.storage;
   if (!storage?.getDirectory) throw new BlobStoreError('unsupported', 'the origin-private file system is not available');
-  return openBlobStore((await storage.getDirectory()) as unknown as OpfsDirectoryHandle);
+  return openBlobStore((await storage.getDirectory()) as unknown as OpfsDirectoryHandle, options);
 }
