@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { createHash } from 'node:crypto';
 import { sha256 } from './sha256';
 import { accentHue } from './colors';
-import { mergeMessages, parseCsv, serializeCsv } from './csv';
+import { csvField, mergeMessages, parseCsv, parseCsvRecords, serializeCsv, unescapeField } from './csv';
 import { buildMediaMap, bytesToBase64, extOf } from './media';
 import { renderHtml, resolveSelfAuthor, transcriptItems } from './html';
 import { renderMarkdown } from './md';
@@ -39,6 +39,38 @@ describe('csv (pure)', () => {
   test('serialize -> parse round-trip', () => {
     const rows = [{ ...msg('2026-01-01T00:00:00', 'A,B', 'line\nwith "quotes"'), urlTitles: {} }];
     expect(parseCsv(serializeCsv(rows))).toEqual(rows);
+  });
+
+  test.each([
+    '=HYPERLINK("http://x","y")',
+    '@SUM(1)',
+    '+1',
+    '-1',
+    '+55 11 91234-5678',
+    '\tTAB',
+    '\rCR',
+    "'=x",
+    "''+1",
+    "'plain",
+    '=a\nb',
+    'a=b',
+  ])('csv round-trips %j unchanged and neutralises formulas', (value) => {
+    const row = { ...msg('2026-01-01T00:00:00', value, value), media: value, urlTitles: { u: value } };
+    expect(parseCsv(serializeCsv([row]))).toEqual([row]);
+    const line = serializeCsv([row]).split('\n')[1];
+    const cells = parseCsvRecords(line + '\n')[0];
+    for (const cell of cells.slice(2, 5)) expect(cell).not.toMatch(/^[=+\-@\t\r]/);
+  });
+
+  test('csvField prefixes a single quote on formula-looking values only', () => {
+    expect(csvField('=1+1')).toBe("'=1+1");
+    expect(csvField('+55')).toBe("'+55");
+    expect(csvField('hello')).toBe('hello');
+    expect(csvField("it's")).toBe("it's");
+    expect(unescapeField("'=1+1")).toBe('=1+1');
+    // Pre-fix backups (no guard) stay readable.
+    expect(unescapeField('=1+1')).toBe('=1+1');
+    expect(unescapeField('+55')).toBe('+55');
   });
 
   test('mergeMessages dedupes and sorts stably', () => {

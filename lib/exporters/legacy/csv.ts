@@ -5,13 +5,21 @@ import type { Message } from '../../importers/whatsapp/types';
  * string out; reading and writing files belongs to the caller.
  */
 
+// A cell starting with one of these is a formula to Excel/Sheets/LibreOffice.
+const FORMULA_TRIGGER = /^'*[=+\-@\t\r]/;
+const FORMULA_PREFIXED = /^'+[=+\-@\t\r]/;
+
 /**
  * Escape a field so EVERY row occupies exactly ONE physical line (G-01-4):
  * backslash -> `\\` first, then CR/LF -> literal `\n` / `\r`. RFC-4180 quoting
  * then only needs to handle quotes and commas.
+ *
+ * Spreadsheet formula injection: a value starting with `= + - @ TAB CR` (after
+ * any run of `'`) gets one leading `'`. `unescapeField` strips exactly one, so
+ * the mapping is a bijection and every value round-trips unchanged.
  */
 export function csvField(s: string): string {
-  const escaped = s
+  const escaped = (FORMULA_TRIGGER.test(s) ? "'" + s : s)
     .replace(/\\/g, '\\\\')
     .replace(/\r\n/g, '\\n')
     .replace(/\r/g, '\\r')
@@ -21,7 +29,8 @@ export function csvField(s: string): string {
 }
 
 /** Exact inverse of `csvField`'s escaping (single left-to-right pass so
- * `\\n` never double-unescapes). Applied after RFC-4180 field parsing. */
+ * `\\n` never double-unescapes) plus the formula-guard `'`. Applied after
+ * RFC-4180 field parsing. */
 export function unescapeField(s: string): string {
   let out = '';
   for (let i = 0; i < s.length; i++) {
@@ -33,7 +42,7 @@ export function unescapeField(s: string): string {
     }
     out += s[i];
   }
-  return out;
+  return FORMULA_PREFIXED.test(out) ? out.slice(1) : out;
 }
 
 function jsonOrEmpty(s: string): Record<string, string> {

@@ -8,7 +8,7 @@ import { createServer } from 'node:http';
 import { runParser } from './pipeline';
 import { slugifyChatName } from '@/lib/importers/whatsapp';
 // The real CSV reader (raw, still-escaped records), not a copy.
-import { parseCsvRecords as parseCsv } from '@/lib/exporters/legacy';
+import { parseCsvRecords as parseCsv, unescapeField } from '@/lib/exporters/legacy';
 
 const ROOT = process.cwd();
 const WK = 'WhatsApp Chat - Plataforma WK';
@@ -69,7 +69,7 @@ test('Plataforma WK: authoritative end-to-end assertions', async () => {
   const src9 = fs.readFileSync(path.join(ROOT, 'fixtures', WK, '_chat.txt'), 'utf8')
     .split('\n').find((l) => l.includes('99951'))!;
   const rawAuthor = src9.match(/\] (.+?): /)![1];
-  assert.ok(records.some((r) => r[0] === '2026-07-23T12:15:28' && r[2] === rawAuthor));
+  assert.ok(records.some((r) => r[0] === '2026-07-23T12:15:28' && unescapeField(r[2]) === rawAuthor));
 
   // Every timestamp is local ISO.
   for (const r of records) assert.match(r[0], ISO_RE);
