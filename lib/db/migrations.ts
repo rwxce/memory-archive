@@ -116,9 +116,31 @@ ALTER TABLE profiles ADD COLUMN photo_sha256 TEXT REFERENCES blobs(sha256)
   CHECK (photo_sha256 IS NULL OR (length(photo_sha256) = 64 AND photo_sha256 NOT GLOB '*[^0-9a-f]*'));
 `;
 
+/**
+ * v3 (expand only): what incremental import and undo need. Every column has a default, so a
+ * v1 or v2 backup restores by migrating and nothing existing changes meaning.
+ *
+ * - `conversations.source_key`: the importer's stable key for "the same chat" (a normalized
+ *   chat title, see `chatKeyOf`), kept apart from `title` because the user may rename a
+ *   conversation. '' = no key (never matched by an import).
+ * - `participants.is_me`: the author the user said is themselves (set by an import).
+ * - `import_batches.created_conversation`: this batch created its conversation, so undoing it
+ *   removes the conversation too once it is empty.
+ * - indexes: undo finds a batch's messages and a blob's referrers without scanning.
+ */
+const V3 = `
+ALTER TABLE conversations ADD COLUMN source_key TEXT NOT NULL DEFAULT '';
+ALTER TABLE participants ADD COLUMN is_me INTEGER NOT NULL DEFAULT 0 CHECK (is_me IN (0, 1));
+ALTER TABLE import_batches ADD COLUMN created_conversation INTEGER NOT NULL DEFAULT 0 CHECK (created_conversation IN (0, 1));
+CREATE INDEX conversations_by_source_key ON conversations(source, source_key) WHERE source_key <> '';
+CREATE INDEX messages_by_batch ON messages(batch_id);
+CREATE INDEX messages_by_media ON messages(media_sha256) WHERE media_sha256 IS NOT NULL;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, sql: V1 },
   { version: 2, sql: V2 },
+  { version: 3, sql: V3 },
 ];
 
 /** Schema version this build produces and understands. */

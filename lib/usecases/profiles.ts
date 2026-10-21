@@ -4,6 +4,7 @@ import type { ProfileState } from '../db/queries';
 import { isMimeType } from '../domain/profile';
 import { isSha256Hex, type BlobRef, type ConversationSummary, type Profile } from '../domain/library';
 import type { BlobStore } from '../storage/blob-store';
+import { withArchiveGuard, type ArchiveLock } from './archive-guard';
 
 export type { ProfileState };
 
@@ -24,6 +25,8 @@ export interface LibraryDeps {
 /** Profile writes that may carry a photo also need the blob store holding its bytes. */
 export interface ProfileDeps extends LibraryDeps {
   blobStore: BlobStore;
+  /** Cross-tab lock for archive operations (see `ArchiveLock`); absent = this tab only. */
+  lock?: ArchiveLock;
 }
 
 /**
@@ -66,14 +69,28 @@ export interface ProfileDetails {
   conversations: ConversationSummary[];
 }
 
-export async function createProfile(deps: ProfileDeps, input: NewProfile): Promise<Profile> {
-  await assertPhotoStored(deps, input.photo);
-  return deps.client.call('createProfile', { ...input, id: newIdOf(deps), now: nowOf(deps) });
+/**
+ * A write that carries a photo registers a blob, so it runs under the archive busy guard like
+ * every other operation that touches media (a restore's leftover sweep, an import's cleanup or
+ * an orphan sweep must not run between the check and the write). Writes without a photo do not
+ * touch media and stay unguarded.
+ */
+function guardedWhenPhoto<T>(deps: ProfileDeps, photo: BlobRef | null | undefined, work: () => Promise<T>): Promise<T> {
+  return photo ? withArchiveGuard(deps.blobStore, work, deps.lock) : work();
 }
 
-export async function updateProfile(deps: ProfileDeps, id: string, patch: ProfilePatch): Promise<Profile> {
-  await assertPhotoStored(deps, patch.photo);
-  return deps.client.call('updateProfile', { ...patch, id, now: nowOf(deps) });
+export function createProfile(deps: ProfileDeps, input: NewProfile): Promise<Profile> {
+  return guardedWhenPhoto(deps, input.photo, async () => {
+    await assertPhotoStored(deps, input.photo);
+    return deps.client.call('createProfile', { ...input, id: newIdOf(deps), now: nowOf(deps) });
+  });
+}
+
+export function updateProfile(deps: ProfileDeps, id: string, patch: ProfilePatch): Promise<Profile> {
+  return guardedWhenPhoto(deps, patch.photo, async () => {
+    await assertPhotoStored(deps, patch.photo);
+    return deps.client.call('updateProfile', { ...patch, id, now: nowOf(deps) });
+  });
 }
 
 /** Hides the profile from the active list. Its conversations and messages stay. */

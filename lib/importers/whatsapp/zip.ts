@@ -220,6 +220,17 @@ export function openZipEntry(zip: Blob, entry: ZipEntry): ReadableStream<Uint8Ar
     entry.compression === 8
       ? inflateRaw()
       : new TransformStream<Uint8Array, Uint8Array>();
+  const declared = entry.uncompressedSize;
+  let produced = 0;
+  // A valid entry never inflates beyond the size its central directory declares: stop a
+  // decompression bomb (a tiny entry claiming little and expanding to gigabytes) at the declared size.
+  const bounded = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      produced += chunk.length;
+      if (produced > declared) throw new ZipLimitError('ZIP entry is larger than it declares');
+      controller.enqueue(chunk);
+    },
+  });
   dataOffset(zip, entry)
     .then((start) => {
       const end = start + entry.compressedSize;
@@ -231,7 +242,7 @@ export function openZipEntry(zip: Blob, entry: ZipEntry): ReadableStream<Uint8Ar
       // header errors that happen before piping starts.
       sink.writable.abort(err).catch(() => undefined);
     });
-  return sink.readable;
+  return sink.readable.pipeThrough(bounded);
 }
 
 /** Read a (small) entry fully into memory. */

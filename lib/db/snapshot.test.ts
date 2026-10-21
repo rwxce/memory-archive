@@ -86,6 +86,22 @@ describe('loadSnapshot', () => {
     expect(target.all('SELECT id FROM messages')).toHaveLength(1);
   });
 
+  test('a schema v2 snapshot (profile details, import batch) restores by migrating to v3 with defaults', async () => {
+    const v2 = await bareDb(MIGRATIONS.slice(0, 2));
+    v2.run('INSERT INTO profiles (id, display_name, relationship, created_at, updated_at) VALUES (?, ?, ?, ?, ?)', [ID1, 'Ana', 'friend', NOW, NOW]);
+    v2.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [ID2, 'Chat', 'whatsapp', NOW]);
+    v2.run('INSERT INTO participants (conversation_id, display_name) VALUES (?, ?)', [ID2, 'Ana']);
+    v2.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
+    v2.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
+    const target = (await openMemoryDb()).db;
+    expect(await loadSnapshot(target, serializeDb(v2))).toEqual({ from: 2, to: SCHEMA_VERSION });
+    expect(target.all('SELECT relationship FROM profiles')).toEqual([{ relationship: 'friend' }]);
+    expect(target.all('SELECT source_key FROM conversations')).toEqual([{ source_key: '' }]);
+    expect(target.all('SELECT display_name, is_me FROM participants')).toEqual([{ display_name: 'Ana', is_me: 0 }]);
+    expect(target.all('SELECT created_conversation FROM import_batches')).toEqual([{ created_conversation: 0 }]);
+    expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
+  });
+
   test('refuses a snapshot from a newer schema and leaves the target alone', async () => {
     const newer = await bareDb(NEXT);
     profile(newer, ID1);

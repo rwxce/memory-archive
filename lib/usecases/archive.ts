@@ -14,10 +14,16 @@ import {
 } from '../exporters/archive/format';
 import { writeArchive } from '../exporters/archive/write';
 import type { BlobStore } from '../storage/blob-store';
+import { withArchiveGuard, type ArchiveLock } from './archive-guard';
+
+export { ARCHIVE_LOCK_NAME, webArchiveLock, withArchiveGuard } from './archive-guard';
+export type { ArchiveLock } from './archive-guard';
 
 export interface ArchiveLibrary {
   db: SqlDb;
   blobStore: BlobStore;
+  /** Cross-tab lock, when the app has one (see `ArchiveLock`). */
+  lock?: ArchiveLock;
 }
 
 export interface ExportArchiveResult {
@@ -27,23 +33,7 @@ export interface ExportArchiveResult {
   blobCount: number;
 }
 
-/**
- * Libraries with an export or restore in flight (in this thread). A second one
- * on the same library is refused with `busy`: two restores would otherwise
- * interleave their blob writes and cleanups. The flag is set before the first
- * `await`, released in `finally`.
- */
-const running = new WeakSet<object>();
-
-async function exclusive<T>(library: ArchiveLibrary, work: () => Promise<T>): Promise<T> {
-  if (running.has(library.db)) throw new ArchiveError('busy', 'another backup or restore is already running');
-  running.add(library.db);
-  try {
-    return await work();
-  } finally {
-    running.delete(library.db);
-  }
-}
+const exclusive = <T>(library: ArchiveLibrary, work: () => Promise<T>) => withArchiveGuard(library.blobStore, work, library.lock);
 
 /**
  * An export must never succeed when restore would refuse it: the same limits
@@ -121,8 +111,9 @@ async function restoreNow(library: ArchiveLibrary, zip: Blob, options: { limits?
   if (!isLibraryEmpty(library.db)) {
     throw new ArchiveError('target-not-empty', 'this device already has an archive; restore only works on an empty one');
   }
-  // The busy guard (`exclusive`) is the ONLY protection against a concurrent writer here:
-  // the future import use case must take the same guard, or this sweep could delete its blobs.
+  // The busy guard (`withArchiveGuard`, shared with import, undo and the orphan sweep) is the
+  // ONLY protection against a concurrent writer here: without it this sweep could delete the
+  // blobs of an import that has written them but not yet committed.
   // No row means no media is referenced: whatever the store holds is left over
   // from an interrupted import or restore. Sweep it so a retry can succeed.
   for (const sha256 of await library.blobStore.list()) {

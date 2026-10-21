@@ -3,6 +3,7 @@ import { DbError, toDbError } from '../db/errors';
 import { isUuid, type Profile } from '../domain/library';
 import type { BlobStore } from '../storage/blob-store';
 import { openOpfsBlobStore } from '../storage/opfs-blob-store';
+import { webArchiveLock } from './archive-guard';
 import { listConversations, withParticipants, listConversationRows, type ConversationRow } from './conversations';
 import { listProfiles, type ProfileDeps } from './profiles';
 
@@ -32,7 +33,8 @@ export async function openLibrary(options: OpenLibraryOptions): Promise<Library>
   try {
     await client.call('status');
     const blobStore = await (options.openBlobStore ?? openOpfsBlobStore)();
-    return { deps: { client, blobStore }, close: () => client.close() };
+    const lock = typeof navigator !== 'undefined' && 'locks' in navigator ? webArchiveLock : undefined;
+    return { deps: { client, blobStore, ...(lock ? { lock } : {}) }, close: () => client.close() };
   } catch (error) {
     client.close();
     // Not being able to open the file store means private storage is unavailable here.

@@ -228,7 +228,7 @@ describe('migration v1 to v2 (profile details)', () => {
 
   test('keeps every existing row and gives the new columns their defaults', async () => {
     const db = await v1WithData();
-    expect(migrate(db)).toEqual({ from: 1, to: 2 });
+    expect(migrate(db, MIGRATIONS.slice(0, 2))).toEqual({ from: 1, to: 2 });
     expect(readUserVersion(db)).toBe(2);
     expect(db.all('SELECT * FROM profiles')).toEqual([
       {
@@ -247,7 +247,7 @@ describe('migration v1 to v2 (profile details)', () => {
 
   test('photo_sha256 must be a stored blob and valid hex', async () => {
     const db = await v1WithData();
-    migrate(db);
+    migrate(db, MIGRATIONS.slice(0, 2));
     expect(() => db.run('UPDATE profiles SET photo_sha256 = ?', [HASH2])).toThrow(/FOREIGN KEY/);
     expect(() => db.run('UPDATE profiles SET photo_sha256 = ?', ['XY'.repeat(32)])).toThrow(/CHECK/);
     db.run('INSERT INTO blobs (sha256, size) VALUES (?, 1)', [HASH2]);
@@ -261,7 +261,7 @@ describe('migration v1 to v2 (profile details)', () => {
     expect(() => migrate(db, broken)).toThrow();
     expect(readUserVersion(db)).toBe(1);
     expect(db.all("SELECT name FROM pragma_table_info('profiles') WHERE name = 'relationship'")).toHaveLength(0);
-    expect(migrate(db)).toEqual({ from: 1, to: 2 });
+    expect(migrate(db, MIGRATIONS.slice(0, 2))).toEqual({ from: 1, to: 2 });
   });
 });
 
@@ -346,12 +346,12 @@ describe('frozen schema', () => {
     `);
   });
 
-  test('schema v2 (latest) matches the pinned snapshot, whether created fresh or migrated from v1', async () => {
+  test('schema v2 (released) matches the pinned snapshot, whether created fresh or migrated from v1', async () => {
     const fresh = await emptyDb();
-    migrate(fresh);
+    migrate(fresh, MIGRATIONS.slice(0, 2));
     const migrated = await emptyDb();
     migrate(migrated, MIGRATIONS.slice(0, 1));
-    migrate(migrated);
+    migrate(migrated, MIGRATIONS.slice(0, 2));
     const dump = (db: SqlDb) =>
       db
         .all<{ type: string; name: string; sql: string }>(
@@ -371,5 +371,105 @@ describe('frozen schema', () => {
       , relationship TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', photo_sha256 TEXT REFERENCES blobs(sha256)
         CHECK (photo_sha256 IS NULL OR (length(photo_sha256) = 64 AND photo_sha256 NOT GLOB '*[^0-9a-f]*'))) STRICT"
     `);
+  });
+
+  test('schema v3 (latest) matches the pinned snapshot, whether created fresh or migrated from v2', async () => {
+    const fresh = await emptyDb();
+    migrate(fresh);
+    const migrated = await emptyDb();
+    migrate(migrated, MIGRATIONS.slice(0, 1));
+    migrate(migrated, MIGRATIONS.slice(0, 2));
+    migrate(migrated);
+    const dump = (db: SqlDb) =>
+      db
+        .all<{ type: string; name: string; sql: string }>(
+          "SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name",
+        )
+        .map((r) => `-- ${r.type} ${r.name}\n${r.sql}`)
+        .join('\n');
+    expect(dump(migrated)).toBe(dump(fresh));
+    const latest = dump(fresh);
+    const pick = (from: string, to: string) => latest.slice(latest.indexOf(from), latest.indexOf(to));
+    expect(pick('-- index conversations_by_source_key', '-- index messages_timeline')).toMatchInlineSnapshot(`
+      "-- index conversations_by_source_key
+      CREATE INDEX conversations_by_source_key ON conversations(source, source_key) WHERE source_key <> ''
+      -- index messages_by_batch
+      CREATE INDEX messages_by_batch ON messages(batch_id)
+      -- index messages_by_media
+      CREATE INDEX messages_by_media ON messages(media_sha256) WHERE media_sha256 IS NOT NULL
+      "
+    `);
+    expect(pick('-- table conversations', '-- table messages')).toMatchInlineSnapshot(`
+      "-- table conversations
+      CREATE TABLE conversations (
+        id         TEXT PRIMARY KEY CHECK (length(id) = 36 AND id = lower(id)),
+        title      TEXT NOT NULL,
+        source     TEXT NOT NULL CHECK (length(source) > 0),
+        is_group   INTEGER NOT NULL DEFAULT 0 CHECK (is_group IN (0, 1)),
+        created_at TEXT NOT NULL
+      , source_key TEXT NOT NULL DEFAULT '') STRICT
+      -- table import_batches
+      CREATE TABLE import_batches (
+        id            TEXT PRIMARY KEY CHECK (length(id) = 36 AND id = lower(id)),
+        -- source_label can hold a person's name: it goes away with the conversation.
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        source        TEXT NOT NULL CHECK (length(source) > 0),
+        source_label  TEXT NOT NULL DEFAULT '',
+        created_at    TEXT NOT NULL,
+        added_count   INTEGER NOT NULL DEFAULT 0 CHECK (added_count >= 0),
+        skipped_count INTEGER NOT NULL DEFAULT 0 CHECK (skipped_count >= 0)
+      , created_conversation INTEGER NOT NULL DEFAULT 0 CHECK (created_conversation IN (0, 1))) STRICT
+      "
+    `);
+    expect(latest.slice(latest.indexOf('-- table participants'), latest.indexOf('-- table profiles'))).toMatchInlineSnapshot(`
+      "-- table participants
+      CREATE TABLE participants (
+        id              INTEGER PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        display_name    TEXT NOT NULL,
+        profile_id      TEXT REFERENCES profiles(id) ON DELETE SET NULL, is_me INTEGER NOT NULL DEFAULT 0 CHECK (is_me IN (0, 1)),
+        UNIQUE (conversation_id, display_name)
+      ) STRICT
+      "
+    `);
+  });
+});
+
+describe('migration v2 to v3 (incremental import)', () => {
+  async function v2WithData() {
+    const db = await emptyDb();
+    db.exec('PRAGMA foreign_keys = ON');
+    migrate(db, MIGRATIONS.slice(0, 2));
+    db.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [CONVERSATION, 'Chat', 'whatsapp', 't']);
+    db.run('INSERT INTO participants (conversation_id, display_name) VALUES (?, ?)', [CONVERSATION, 'Ana']);
+    db.run('INSERT INTO import_batches (id, conversation_id, source, created_at, added_count) VALUES (?, ?, ?, ?, 1)', [BATCH, CONVERSATION, 'whatsapp', 't']);
+    db.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [CONVERSATION, BATCH, HASH, '2026-01-01T10:00:00', 'text']);
+    return db;
+  }
+
+  test('keeps every existing row and gives the new columns their defaults', async () => {
+    const db = await v2WithData();
+    expect(migrate(db)).toEqual({ from: 2, to: 3 });
+    expect(readUserVersion(db)).toBe(3);
+    expect(db.all('SELECT title, source_key FROM conversations')).toEqual([{ title: 'Chat', source_key: '' }]);
+    expect(db.all('SELECT display_name, is_me FROM participants')).toEqual([{ display_name: 'Ana', is_me: 0 }]);
+    expect(db.all('SELECT added_count, created_conversation FROM import_batches')).toEqual([{ added_count: 1, created_conversation: 0 }]);
+    expect(db.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: HASH }]);
+  });
+
+  test('the new flags only accept 0 and 1', async () => {
+    const db = await v2WithData();
+    migrate(db);
+    expect(() => db.run('UPDATE participants SET is_me = 2')).toThrow(/CHECK/);
+    expect(() => db.run('UPDATE import_batches SET created_conversation = 2')).toThrow(/CHECK/);
+  });
+
+  test('a failure in v3 leaves the v2 database as it was, and a retry succeeds', async () => {
+    const db = await v2WithData();
+    const broken: Migration[] = [...MIGRATIONS.slice(0, 2), { version: 3, sql: `${MIGRATIONS[2].sql} INSERT INTO missing_table VALUES (1);` }];
+    expect(() => migrate(db, broken)).toThrow();
+    expect(readUserVersion(db)).toBe(2);
+    expect(db.all("SELECT name FROM pragma_table_info('conversations') WHERE name = 'source_key'")).toHaveLength(0);
+    expect(migrate(db)).toEqual({ from: 2, to: 3 });
   });
 });

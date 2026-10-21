@@ -45,6 +45,14 @@ export interface Detection {
   example?: string;
   /** True when CLI flags short-circuited the day/month vote (D-07). */
   overridden?: boolean;
+  /**
+   * True when the day/month vote was a tie (every sampled date reads validly both ways, e.g. all
+   * days <= 12) and no override was given: the order is a guess. Two exports of one chat could
+   * then be read differently, so importers surface this instead of hiding it.
+   */
+  ambiguous?: boolean;
+  /** When `ambiguous`: the first such date read both ways, `YYYY-MM-DD`. */
+  preview?: { dayFirst: string; monthFirst: string };
 }
 
 export interface DetectOptions {
@@ -84,60 +92,77 @@ function isValidYmd(year: number, month: number, day: number): boolean {
 }
 
 /**
- * Decide day/month order + 12h/24h for ONE file (PARSE-03).
+ * Decide day/month order + 12h/24h for ONE file (PARSE-03), from ALL the lines given.
  *
  * - `--day-first` / `--month-first` short-circuit the vote (D-01).
- * - Otherwise: majority vote over ambiguous timestamped lines among the first
- *   ~50 samples — whichever ordering yields more VALID calendar dates wins;
- *   tie defaults to DAY-FIRST (pt-BR, assumption A2), except when the clock
- *   uses upper-case `AM`/`PM` without dots: that is the en-US style, which
- *   writes month first (en-GB/AU write `am`/`pm`, es/ca write `p. m.`).
- * - `is12h`: ANY sampled line carries an AM/PM token (D-02).
+ * - Otherwise: majority vote over every timestamped line that is not already settled
+ *   by itself. A first component >= 13 can only be a day and a second one >= 13 can only be
+ *   a day of a month-first date, so a single such line anywhere in the file settles the order
+ *   (the vote counts how many lines are VALID under each reading); a tie defaults to
+ *   DAY-FIRST (pt-BR, assumption A2), except when the clock uses upper-case `AM`/`PM` without
+ *   dots: that is the en-US style, which writes month first (en-GB/AU write `am`/`pm`, es/ca
+ *   write `p. m.`).
+ * - `ambiguous`: the vote was a tie AND some line really reads as two different dates
+ *   (`03/04/2026`); `preview` then holds both readings of the first such line.
  */
-export function detectFormat(
-  lines: string[],
-  opts: DetectOptions = {},
-): Detection {
-  const overridden = Boolean(opts.dayFirst || opts.monthFirst);
+export function detectFormat(lines: Iterable<string>, opts: DetectOptions = {}): Detection {
+  const detector = createFormatDetector();
+  for (const line of lines) detector.add(line);
+  return detector.result(opts);
+}
 
-  const sampled: RegExpExecArray[] = [];
+export interface FormatDetector {
+  /** Feed one transcript line (constant memory: only counters are kept). */
+  add(line: string): void;
+  /** True once at least one timestamp-shaped line was seen. */
+  seenTimestamp(): boolean;
+  result(opts?: DetectOptions): Detection;
+}
+
+export function createFormatDetector(): FormatDetector {
   let example: string | undefined;
-  for (const raw of lines) {
-    const s = stripInvisible(raw);
-    const m = TS_RE.exec(s);
-    if (!m) continue;
-    if (sampled.length === 0) example = s.slice(0, m[0].length);
-    sampled.push(m);
-    if (sampled.length >= 50) break;
-  }
+  let seen = false;
+  let is12h = false;
+  let enUsClock = false;
+  let dfValid = 0;
+  let mfValid = 0;
+  let preview: Detection['preview'];
+  const pad = (n: number) => String(n).padStart(2, '0');
 
-  const is12h = sampled.some((m) => Boolean(m[7]));
-
-  let dayFirst: boolean;
-  if (opts.dayFirst) {
-    dayFirst = true;
-  } else if (opts.monthFirst) {
-    dayFirst = false;
-  } else {
-    let dfValid = 0;
-    let mfValid = 0;
-    for (const m of sampled) {
+  return {
+    add(line) {
+      const s = stripInvisible(line);
+      const m = TS_RE.exec(s);
+      if (!m) return;
+      if (!seen) example = s.slice(0, m[0].length);
+      seen = true;
+      if (m[7]) is12h = true;
+      if (m[7] === 'AM' || m[7] === 'PM') enUsClock = true;
       const a = parseInt(m[1], 10);
       const b = parseInt(m[2], 10);
-      if (a > 12 && b > 12) continue; // not ambiguous
+      if (a > 12 && b > 12) return; // not ambiguous
       const year = resolveYear(parseInt(m[3], 10));
       if (isValidYmd(year, b, a)) dfValid += 1; // a=day, b=month
       if (isValidYmd(year, a, b)) mfValid += 1; // b=day, a=month
-    }
-    if (dfValid !== mfValid) {
-      dayFirst = dfValid > mfValid;
-    } else {
-      const enUsClock = sampled.some((m) => m[7] === 'AM' || m[7] === 'PM');
-      dayFirst = !enUsClock; // tie -> day-first (A2), unless en-US clock
-    }
-  }
-
-  return { dayFirst, is12h, example, overridden };
+      if (a <= 12 && b <= 12 && a !== b && !preview && isValidYmd(year, b, a) && isValidYmd(year, a, b)) {
+        preview = { dayFirst: `${year}-${pad(b)}-${pad(a)}`, monthFirst: `${year}-${pad(a)}-${pad(b)}` };
+      }
+    },
+    seenTimestamp: () => seen,
+    result(opts = {}) {
+      const overridden = Boolean(opts.dayFirst || opts.monthFirst);
+      let dayFirst: boolean;
+      let ambiguous = false;
+      if (opts.dayFirst) dayFirst = true;
+      else if (opts.monthFirst) dayFirst = false;
+      else if (dfValid !== mfValid) dayFirst = dfValid > mfValid;
+      else {
+        dayFirst = !enUsClock; // tie -> day-first (A2), unless en-US clock
+        ambiguous = preview !== undefined;
+      }
+      return { dayFirst, is12h, example, overridden, ambiguous, ...(ambiguous ? { preview } : {}) };
+    },
+  };
 }
 
 /**

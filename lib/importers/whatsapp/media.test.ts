@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { isSafeFileName, matchMediaEntries, normalizeMediaName } from './media';
+import { isSafeFileName, matchMediaEntries, mimeFromFileName, normalizeMediaName } from './media';
 
 describe('media matching', () => {
   test('normalizeMediaName tolerates case, (1) and separators', () => {
@@ -26,5 +26,13 @@ describe('media matching', () => {
       { ref: 'IMG-1.jpg', entry: { name: 'c/IMG-1 (1).jpg' }, fileName: 'IMG-1 (1).jpg' },
     ]);
     expect(res.unresolved).toEqual(['VID-2.mp4', '..']);
+  });
+
+  test('mimeFromFileName maps known extensions case-insensitively and is null otherwise', () => {
+    expect(mimeFromFileName('IMG-1.JPG')).toBe('image/jpeg');
+    expect(mimeFromFileName('a.b.mp4')).toBe('video/mp4');
+    expect(mimeFromFileName('voice.opus')).toBe('audio/ogg');
+    expect(mimeFromFileName('archive.zip')).toBeNull();
+    expect(mimeFromFileName('noextension')).toBeNull();
   });
 });
