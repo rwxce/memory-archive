@@ -1,9 +1,9 @@
 import { createDbClient, createWorkerTransport, type DbClient } from '../db/client';
 import { DbError, toDbError } from '../db/errors';
-import type { Profile } from '../domain/library';
+import { isUuid, type Profile } from '../domain/library';
 import type { BlobStore } from '../storage/blob-store';
 import { openOpfsBlobStore } from '../storage/opfs-blob-store';
-import { listConversations } from './conversations';
+import { listConversations, withParticipants, listConversationRows, type ConversationRow } from './conversations';
 import { listProfiles, type ProfileDeps } from './profiles';
 
 /** An open library: what every profile and conversation use case needs, and a way to let go of it. */
@@ -63,6 +63,8 @@ export interface Person extends Profile {
 export interface People {
   active: Person[];
   archived: Person[];
+  /** Conversations filed under nobody (for instance after the last link was removed). They are never hidden. */
+  unassigned: ConversationRow[];
 }
 
 /** Every profile, split into active and archived, each with its number of conversations. */
@@ -72,14 +74,39 @@ export async function listPeople(deps: ProfileDeps): Promise<People> {
   for (const conversation of conversations) {
     for (const id of conversation.profileIds) counts.set(id, (counts.get(id) ?? 0) + 1);
   }
-  const people: People = { active: [], archived: [] };
+  const people: People = { active: [], archived: [], unassigned: [] };
   for (const profile of profiles) {
     (profile.archivedAt === null ? people.active : people.archived).push({
       ...profile,
       conversationCount: counts.get(profile.id) ?? 0,
     });
   }
+  people.unassigned = await withParticipants(
+    deps,
+    conversations.filter((conversation) => conversation.profileIds.length === 0),
+  );
   return people;
+}
+
+export interface PersonDetails {
+  person: Person;
+  /** Conversations filed under this person, shared and group chats included. */
+  conversations: ConversationRow[];
+  /** Everyone in the library, to choose where a conversation goes. */
+  people: People;
+}
+
+/**
+ * One person with their conversations. `undefined` when there is no such person
+ * (an unknown or malformed id, e.g. from an old link): the caller shows a calm
+ * "not found", not an error. Other failures reject.
+ */
+export async function getPersonDetails(deps: ProfileDeps, id: string): Promise<PersonDetails | undefined> {
+  if (!isUuid(id)) return undefined;
+  const people = await listPeople(deps);
+  const person = [...people.active, ...people.archived].find((candidate) => candidate.id === id);
+  if (!person) return undefined;
+  return { person, conversations: await listConversationRows(deps, { profileId: id }), people };
 }
 
 /**

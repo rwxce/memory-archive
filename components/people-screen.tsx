@@ -1,44 +1,21 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { Archive, ArchiveRestore, ChevronDown, Pencil, Plus } from 'lucide-react';
+import { useId, useRef, useState, type ReactNode } from 'react';
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { AppHeader } from '@/components/app-header';
+import { ConversationList } from '@/components/conversation-list';
 import { LibraryNotice } from '@/components/library-notice';
+import { PersonActions } from '@/components/person-actions';
 import { ProfileForm, type ProfileFormValues } from '@/components/profile-form';
+import { Shell } from '@/components/screen-shell';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/utils';
+import { useConversationActions } from '@/hooks/use-conversation-actions';
 import { useLibrary } from '@/hooks/use-library';
 import { usePeople, useProfileActions } from '@/hooks/use-people';
 import { Link } from '@/i18n/navigation';
 import type { Person } from '@/lib/usecases/library';
 import { initialsOf } from './format';
-
-/**
- * Same top spacing as the Welcome, so nothing jumps between them. The polite
- * status region lives here, in every state of the screen, so a message set
- * while the form closes is announced by a region that was already on screen.
- */
-function Shell({ children, message = '' }: { children: ReactNode; message?: string }) {
-  const t = useTranslations('people');
-  return (
-    <>
-      <AppHeader />
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pt-10 pb-16 sm:px-6 sm:pt-20">
-        <div role="status" aria-live="polite" className="text-muted-foreground min-h-5 text-sm">
-          {message}
-        </div>
-        {children}
-        <Link
-          href="/welcome"
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex min-h-11 w-fit items-center rounded-md text-sm underline underline-offset-4 outline-none focus-visible:ring-[3px]"
-        >
-          {t('about')}
-        </Link>
-      </main>
-    </>
-  );
-}
 
 /**
  * The People screen. `whenNoProfiles` (the welcome, on the home page) takes
@@ -66,6 +43,8 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
   const tl = useTranslations('library');
   const result = usePeople();
   const actions = useProfileActions();
+  const conversationActions = useConversationActions();
+  const unassignedRef = useRef<HTMLHeadingElement>(null);
   const [editing, setEditing] = useState<Editing>();
   const [confirming, setConfirming] = useState<string>();
   const [showArchived, setShowArchived] = useState(false);
@@ -114,8 +93,8 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
     );
   }
 
-  const { active, archived } = result.people;
-  if (active.length + archived.length === 0 && whenNoProfiles && !editing) return <>{whenNoProfiles}</>;
+  const { active, archived, unassigned } = result.people;
+  if (active.length + archived.length + unassigned.length === 0 && whenNoProfiles && !editing) return <>{whenNoProfiles}</>;
 
   /** Runs a change from the list; true when it was stored. */
   const run = async (name: string, done: string, work: () => Promise<unknown>) => {
@@ -164,7 +143,7 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
     const title = editing.mode === 'create' ? t('form.createTitle') : t('form.editTitle', { name: editing.person.displayName });
     return (
       <Shell message={message}>
-        <h1 ref={headingRef} tabIndex={-1} className="font-serif text-3xl outline-none">
+        <h1 ref={headingRef} tabIndex={-1} className="font-serif text-3xl break-words outline-none">
           {title}
         </h1>
         <ProfileForm initial={editing.mode === 'edit' ? editing.person : undefined} onSubmit={submitForm} onCancel={closeForm} />
@@ -239,6 +218,24 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
         </section>
       )}
 
+      {unassigned.length > 0 && (
+        <section className="flex flex-col gap-3" aria-labelledby={`${archivedId}-unassigned`}>
+          <div className="flex flex-col gap-1">
+            <h2 id={`${archivedId}-unassigned`} ref={unassignedRef} tabIndex={-1} className="text-xl font-semibold outline-none">
+              {t('unassignedTitle')}
+            </h2>
+            <p className="text-muted-foreground text-sm leading-relaxed">{t('unassignedHint')}</p>
+          </div>
+          <ConversationList
+            conversations={unassigned}
+            people={result.people}
+            actions={conversationActions}
+            announce={setMessage}
+            onGone={() => (unassignedRef.current ?? headingRef.current)?.focus()}
+          />
+        </section>
+      )}
+
       {archived.length > 0 && (
         <section className="flex flex-col gap-3" aria-labelledby={`${archivedId}-title`}>
           <h2 id={`${archivedId}-title`} className="sr-only">
@@ -267,13 +264,7 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
 function PersonCard({
   person,
   archived,
-  busy,
-  confirming,
-  onEdit,
-  onAskArchive,
-  onCancelArchive,
-  onArchive,
-  onRestore,
+  ...actions
 }: {
   person: Person;
   archived: boolean;
@@ -286,19 +277,8 @@ function PersonCard({
   onRestore: () => void;
 }) {
   const t = useTranslations('people');
-  const titleId = useId();
-  const cancelRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (confirming) cancelRef.current?.focus();
-  }, [confirming]);
   // Active people are h2 under the page title; the archived ones sit one level down, under their section's h2.
   const Name = archived ? 'h3' : 'h2';
-  // aria-disabled, not disabled: a busy button keeps focus (a disabled one drops it).
-  const busyClass = 'aria-disabled:pointer-events-none aria-disabled:opacity-50';
-  const ariaBusy = busy || undefined;
-  const unlessBusy = (action: () => void) => () => {
-    if (!busy) action();
-  };
 
   return (
     <li className="bg-card flex flex-col gap-4 rounded-xl border p-4 sm:p-5">
@@ -309,80 +289,21 @@ function PersonCard({
         >
           {initialsOf(person.displayName)}
         </span>
-        <div className="min-w-0">
-          <Name className="truncate text-lg leading-tight font-semibold">{person.displayName}</Name>
+        <div className="min-w-0 flex-1">
+          <Name className="text-lg leading-tight font-semibold">
+            <Link
+              href={`/person?id=${encodeURIComponent(person.id)}`}
+              className="focus-visible:ring-ring/50 -my-2 block truncate rounded-md py-2 underline-offset-4 outline-none hover:underline focus-visible:ring-[3px]"
+            >
+              {person.displayName}
+            </Link>
+          </Name>
           {person.relationship && <p className="text-muted-foreground truncate text-sm">{person.relationship}</p>}
           <p className="text-muted-foreground text-sm">{t('conversations', { count: person.conversationCount })}</p>
         </div>
+        <ChevronRight className="text-muted-foreground size-5 shrink-0" aria-hidden />
       </div>
-
-      {confirming ? (
-        <div
-          role="group"
-          aria-labelledby={titleId}
-          className="bg-muted flex flex-col gap-3 rounded-lg p-4"
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              event.stopPropagation();
-              if (!busy) onCancelArchive();
-            }
-          }}
-        >
-          <p id={titleId} className="font-semibold">
-            {t('archiveConfirm.title', { name: person.displayName })}
-          </p>
-          <p className="text-muted-foreground text-sm leading-relaxed">{t('archiveConfirm.body', { name: person.displayName })}</p>
-          {/* Same order on screen and for Tab: Cancel first (it takes focus), then Archive. */}
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button ref={cancelRef} variant="outline" className={busyClass} aria-disabled={ariaBusy} onClick={unlessBusy(onCancelArchive)}>
-              {t('archiveConfirm.cancel')}
-            </Button>
-            <Button className={busyClass} aria-disabled={ariaBusy} onClick={unlessBusy(onArchive)}>
-              <Archive aria-hidden />
-              {t('archiveConfirm.confirm')}
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            id={`${person.id}-edit`}
-            variant="outline"
-            className={busyClass}
-            aria-disabled={ariaBusy}
-            aria-label={t('editLabel', { name: person.displayName })}
-            onClick={unlessBusy(onEdit)}
-          >
-            <Pencil aria-hidden />
-            {t('edit')}
-          </Button>
-          {archived ? (
-            <Button
-              id={`${person.id}-restore`}
-              variant="outline"
-              className={busyClass}
-              aria-disabled={ariaBusy}
-              aria-label={t('restoreLabel', { name: person.displayName })}
-              onClick={unlessBusy(onRestore)}
-            >
-              <ArchiveRestore aria-hidden />
-              {t('restore')}
-            </Button>
-          ) : (
-            <Button
-              id={`${person.id}-archive`}
-              variant="ghost"
-              className={busyClass}
-              aria-disabled={ariaBusy}
-              aria-label={t('archiveLabel', { name: person.displayName })}
-              onClick={unlessBusy(onAskArchive)}
-            >
-              <Archive aria-hidden />
-              {t('archive')}
-            </Button>
-          )}
-        </div>
-      )}
+      <PersonActions person={person} archived={archived} {...actions} />
     </li>
   );
 }

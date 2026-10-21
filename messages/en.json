@@ -65,7 +65,9 @@
       "body": "{name} moves to the archived list. Their conversations, messages and photos stay on this device and in your backups. You can restore them at any time.",
       "confirm": "Archive",
       "cancel": "Cancel"
-    }
+    },
+    "unassignedTitle": "Not assigned to anyone yet",
+    "unassignedHint": "These conversations are safe on this device. Choose who each one belongs to whenever you like."
   },
   "library": {
     "loading": "Opening your archive…",
@@ -125,5 +127,74 @@
     "title": "You are offline",
     "body": "This page has not been saved on this device yet. The pages you already opened keep working without a connection.",
     "home": "Go to the start"
+  },
+  "person": {
+    "back": "Back to People",
+    "loadFailed": "This person could not be read. Nothing was deleted.",
+    "notFoundTitle": "We could not find this person",
+    "notFoundBody": "The link may be out of date. Nothing was deleted.",
+    "archivedBadge": "Archived",
+    "archivedNote": "This person is archived. Everything is still on this device, and you can restore them at any time.",
+    "conversationsTitle": "Conversations",
+    "noConversations": "No conversations are kept under {name} yet. When you bring in messages, they will appear here."
+  },
+  "conversations": {
+    "listLabel": "Conversations",
+    "group": "Group chat",
+    "messageCount": "{count, plural, =0 {No messages yet} one {# message} other {# messages}}",
+    "participants": "With {names}",
+    "participantsMore": "With {names} and {count, plural, one {# other} other {# others}}",
+    "alsoUnder": "Also kept under {names}",
+    "rename": "Rename",
+    "renameLabel": "Rename “{title}”",
+    "move": "Move to another person",
+    "moveLabel": "Move to another person: “{title}”",
+    "link": "Also keep under…",
+    "linkLabel": "Also keep under…: “{title}”",
+    "assign": "Assign to…",
+    "assignLabel": "Assign to…: “{title}”",
+    "unlink": "Unlink",
+    "unlinkLabel": "Unlink “{title}” from {name}",
+    "renamed": "Renamed to “{title}”.",
+    "moved": "“{title}” now belongs to {name}. The messages were not changed.",
+    "linked": "“{title}” is now also kept under {name}. The messages were not changed.",
+    "assigned": "“{title}” now belongs to {name}. The messages were not changed.",
+    "unlinked": "“{title}” is no longer kept under {name}. The messages stay as they are.",
+    "unlinkedLast": "“{title}” is no longer kept under {name}. It is still in your archive, not assigned to anyone yet.",
+    "actionFailed": "Nothing was changed for “{title}”. Try again.",
+    "renameForm": {
+      "label": "Conversation name",
+      "save": "Save name",
+      "cancel": "Cancel",
+      "required": "Write a name to continue.",
+      "tooLong": "The name can have up to {max} characters.",
+      "invalid": "Some of the text cannot be saved. Remove unusual characters and try again.",
+      "failed": "It could not be saved. Nothing was changed. Try again."
+    },
+    "pick": {
+      "choose": "Choose a person",
+      "required": "Choose a person to continue.",
+      "archivedGroup": "Archived people",
+      "nobody": "There is no one else to choose. Add a person first.",
+      "cancel": "Cancel",
+      "moveLabel": "Move “{title}” to",
+      "moveHint": "Only where this conversation is kept changes. The messages stay exactly as they are, and nothing is copied.",
+      "moveHintGroup": "It stays a group chat. The messages stay exactly as they are, and nothing is copied.",
+      "moveConfirm": "Move conversation",
+      "linkLabel": "Also keep “{title}” under",
+      "linkHint": "It will appear under that person too. There is still only one copy: the messages and photos are not copied or changed.",
+      "linkConfirm": "Link conversation",
+      "assignLabel": "Assign “{title}” to",
+      "assignHint": "The messages and photos are not copied or changed.",
+      "assignConfirm": "Assign",
+      "failed": "It could not be saved. Nothing was changed. Try again."
+    },
+    "unlinkConfirm": {
+      "title": "Unlink “{title}” from {name}?",
+      "body": "It disappears from {name}'s page only. The conversation stays in your archive and the messages stay exactly as they are.",
+      "bodyLast": "{name} is the last person it is kept under. The conversation stays in your archive, not assigned to anyone yet, and the messages stay exactly as they are. You can assign it again from the People screen.",
+      "confirm": "Unlink",
+      "cancel": "Cancel"
+    }
   }
 }

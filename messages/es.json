@@ -65,7 +65,9 @@
       "body": "{name} pasa a la lista de archivadas. Sus conversaciones, mensajes y fotos se quedan en este dispositivo y en tus copias de seguridad. Puedes deshacerlo cuando quieras.",
       "confirm": "Archivar",
       "cancel": "Cancelar"
-    }
+    },
+    "unassignedTitle": "Aún sin asignar a nadie",
+    "unassignedHint": "Estas conversaciones están a salvo en este dispositivo. Elige a quién pertenece cada una cuando quieras."
   },
   "library": {
     "loading": "Abriendo tu archivo…",
@@ -125,5 +127,74 @@
     "title": "No tienes conexión",
     "body": "Esta página aún no se ha guardado en este dispositivo. Las páginas que ya abriste siguen funcionando sin conexión.",
     "home": "Ir al inicio"
+  },
+  "person": {
+    "back": "Volver a Personas",
+    "loadFailed": "No se ha podido leer a esta persona. No se ha borrado nada.",
+    "notFoundTitle": "No encontramos a esta persona",
+    "notFoundBody": "Puede que el enlace esté desactualizado. No se ha borrado nada.",
+    "archivedBadge": "Archivada",
+    "archivedNote": "Esta persona está archivada. Todo sigue en este dispositivo y puedes restaurarla cuando quieras.",
+    "conversationsTitle": "Conversaciones",
+    "noConversations": "Aún no hay conversaciones guardadas con {name}. Cuando traigas mensajes, aparecerán aquí."
+  },
+  "conversations": {
+    "listLabel": "Conversaciones",
+    "group": "Chat de grupo",
+    "messageCount": "{count, plural, =0 {Aún no hay mensajes} one {# mensaje} other {# mensajes}}",
+    "participants": "Con {names}",
+    "participantsMore": "Con {names} y {count, plural, one {# persona más} other {# personas más}}",
+    "alsoUnder": "También guardada con {names}",
+    "rename": "Cambiar nombre",
+    "renameLabel": "Cambiar el nombre de «{title}»",
+    "move": "Mover a otra persona",
+    "moveLabel": "Mover a otra persona: «{title}»",
+    "link": "Guardar también con…",
+    "linkLabel": "Guardar también con…: «{title}»",
+    "assign": "Asignar a…",
+    "assignLabel": "Asignar a…: «{title}»",
+    "unlink": "Desvincular",
+    "unlinkLabel": "Desvincular «{title}» de {name}",
+    "renamed": "Se ha cambiado el nombre a «{title}».",
+    "moved": "«{title}» ahora se guarda con {name}. Los mensajes no han cambiado.",
+    "linked": "«{title}» ahora también se guarda con {name}. Los mensajes no han cambiado.",
+    "assigned": "«{title}» ahora se guarda con {name}. Los mensajes no han cambiado.",
+    "unlinked": "«{title}» ya no se guarda con {name}. Los mensajes se quedan tal como están.",
+    "unlinkedLast": "«{title}» ya no se guarda con {name}. Sigue en tu archivo, aún sin asignar a nadie.",
+    "actionFailed": "No se ha cambiado nada en «{title}». Inténtalo de nuevo.",
+    "renameForm": {
+      "label": "Nombre de la conversación",
+      "save": "Guardar nombre",
+      "cancel": "Cancelar",
+      "required": "Escribe un nombre para continuar.",
+      "tooLong": "El nombre puede tener hasta {max} caracteres.",
+      "invalid": "Una parte del texto no se puede guardar. Quita los caracteres raros e inténtalo de nuevo.",
+      "failed": "No se ha podido guardar. No se ha cambiado nada. Inténtalo de nuevo."
+    },
+    "pick": {
+      "choose": "Elige una persona",
+      "required": "Elige una persona para continuar.",
+      "archivedGroup": "Personas archivadas",
+      "nobody": "No hay nadie más para elegir. Añade primero a una persona.",
+      "cancel": "Cancelar",
+      "moveLabel": "Mover «{title}» a",
+      "moveHint": "Solo cambia dónde se guarda la conversación. Los mensajes se quedan tal como están y no se copia nada.",
+      "moveHintGroup": "Sigue siendo un chat de grupo. Los mensajes se quedan tal como están y no se copia nada.",
+      "moveConfirm": "Mover conversación",
+      "linkLabel": "Guardar «{title}» también con",
+      "linkHint": "Aparecerá también en esa persona. Solo hay una copia: los mensajes y las fotos no se copian ni cambian.",
+      "linkConfirm": "Vincular conversación",
+      "assignLabel": "Asignar «{title}» a",
+      "assignHint": "Los mensajes y las fotos no se copian ni cambian.",
+      "assignConfirm": "Asignar",
+      "failed": "No se ha podido guardar. No se ha cambiado nada. Inténtalo de nuevo."
+    },
+    "unlinkConfirm": {
+      "title": "¿Desvincular «{title}» de {name}?",
+      "body": "Solo desaparece de la página de {name}. La conversación sigue en tu archivo y los mensajes se quedan tal como están.",
+      "bodyLast": "{name} es la última persona con la que está vinculada. La conversación sigue en tu archivo, aún sin asignar a nadie, y los mensajes se quedan tal como están. Podrás asignarla de nuevo desde Personas.",
+      "confirm": "Desvincular",
+      "cancel": "Cancelar"
+    }
   }
 }
