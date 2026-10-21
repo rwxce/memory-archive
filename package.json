@@ -28,9 +28,9 @@
   },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "dev": "NEXT_TELEMETRY_DISABLED=1 next dev",
+    "dev": "node scripts/build-db-worker.mjs && NEXT_TELEMETRY_DISABLED=1 next dev",
     "cli": "tsx cli/index.ts",
-    "build": "node scripts/build-viewer-script.mjs && tsup && NEXT_TELEMETRY_DISABLED=1 next build && node scripts/build-sw.mjs",
+    "build": "node scripts/build-viewer-script.mjs && tsup && node scripts/build-db-worker.mjs && NEXT_TELEMETRY_DISABLED=1 next build && node scripts/build-sw.mjs",
     "preview": "node scripts/serve-out.mjs",
     "smoke": "node scripts/smoke.mjs",
     "i18n:check": "node scripts/check-i18n-parity.mjs",
@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@radix-ui/react-slot": "1.5.0",
+    "@sqlite.org/sqlite-wasm": "3.53.4-build2",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "commander": "15.0.0",

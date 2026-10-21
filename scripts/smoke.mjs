@@ -133,6 +133,13 @@ if (sw.includes('self.__SW_MANIFEST')) fail('out/sw.js still has the un-injected
 for (const page of pages) {
   if (!sw.includes(JSON.stringify(page))) fail(`out/sw.js does not precache ${page}`);
 }
+
+// Database: the worker bundle and the SQLite binary ship in out/db/ and are
+// precached, so the library opens offline.
+for (const f of ['db/worker.js', 'db/sqlite3.wasm']) {
+  if (!fs.existsSync(path.join(OUT, f)) || fs.statSync(path.join(OUT, f)).size === 0) fail(`out/${f} missing or empty`);
+  if (!sw.includes(JSON.stringify(f))) fail(`out/sw.js does not precache ${f}`);
+}
 console.log(
   `[smoke] OK: static export has ${pages.length} pages; ${scanned} HTML/CSS files load nothing remote; manifest + sw.js precache every page`,
 );
