@@ -5,10 +5,10 @@ import { CalendarDays, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { savePosition } from '@/hooks/conversation-position';
-import type { OpenConversation } from '@/hooks/use-conversation';
+import type { ConversationDay, ConversationMessage, PersonTimelineMessage } from '@/lib/domain/library';
 import { useConversationDays } from '@/hooks/use-conversation-days';
 import { useMessagePages } from '@/hooks/use-message-pages';
-import { useVirtualList } from '@/hooks/use-virtual-list';
+import { useVirtualList, type ListStart } from '@/hooks/use-virtual-list';
 import { ConversationCalendar } from './conversation-calendar';
 import { formatDay } from './format';
 import { MessageRow, PlaceholderRow } from './message-row';
@@ -17,29 +17,50 @@ const inputClass =
   'bg-background border-input h-11 min-w-0 rounded-md border px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]';
 
 /**
+ * What the feed shows, by position: one conversation, or a person's timeline across all of theirs.
+ * The functions must be stable between renders (memoize them).
+ */
+export interface FeedSource {
+  /** Identifies the feed: the saved reading position and the page cache are kept per key. */
+  id: string;
+  /** Accessible name of the feed. */
+  label: string;
+  count: number;
+  firstSentAt: string | null;
+  lastSentAt: string | null;
+  start: ListStart;
+  readWindow(offset: number, limit: number): Promise<ConversationMessage[]>;
+  findOffset(date: string): Promise<number | null>;
+  listDays(): Promise<ConversationDay[]>;
+  /**
+   * A person's timeline: rows carry their conversation (`PersonTimelineMessage`); the title is
+   * shown above a message when it comes from another conversation than the previous one, linking
+   * to that conversation on that day, coming back to `personId`. Without it, the conversation id
+   * of the rows is `id`.
+   */
+  timeline?: { personId: string };
+}
+
+const isTimelineMessage = (message: ConversationMessage): message is PersonTimelineMessage => 'conversationId' in message;
+
+/**
  * The jump controls and the virtualized feed. Only the rows near the view are in the DOM
  * (see `useVirtualList`); their messages come a page at a time (`useMessagePages`). Render it
- * with `key={conversation id}`: a new conversation starts with fresh state.
+ * with `key={source.id}`: a new feed starts with fresh state.
  */
-export function ConversationBody({
-  conversation,
-  findOffset,
-}: {
-  conversation: OpenConversation;
-  findOffset: (date: string) => Promise<number | null>;
-}) {
+export function ConversationBody({ source }: { source: FeedSource }) {
+  const kind = source.timeline ? 'timeline' : 'conversation';
   const t = useTranslations('conversation');
+  const tt = useTranslations('timeline');
   const locale = useLocale();
-  const { view, start } = conversation;
-  const id = view.conversation.id;
-  const count = view.bounds.count;
+  const { id, count, start, findOffset, listDays } = source;
   const list = useVirtualList({ count, start });
-  const pages = useMessagePages(id, count);
+  const pages = useMessagePages(id, count, source.readWindow);
   const [status, setStatus] = useState('');
   const [day, setDay] = useState('');
   const [calendarOpen, setCalendarOpen] = useState(false);
   const calendarButton = useRef<HTMLButtonElement>(null);
-  const calendar = useConversationDays(id, calendarOpen);
+  const calendar = useConversationDays(listDays, calendarOpen);
 
   const { start: from, end: to } = list.range;
   const { request } = pages;
@@ -89,13 +110,13 @@ export function ConversationBody({
     return <p className="bg-card text-muted-foreground m-4 rounded-xl border p-5 leading-relaxed break-words">{t('empty')}</p>;
   }
 
-  const firstDay = view.bounds.firstSentAt?.slice(0, 10);
-  const lastDay = view.bounds.lastSentAt?.slice(0, 10);
+  const firstDay = source.firstSentAt?.slice(0, 10);
+  const lastDay = source.lastSentAt?.slice(0, 10);
   const waiting = list.items.some((item) => !pages.at(item.index));
 
   return (
     <>
-      <div role="group" aria-label={t('toolbarLabel')} className="flex shrink-0 flex-wrap items-center gap-2 px-3 pb-2 sm:px-4">
+      <div role="group" aria-label={kind === 'timeline' ? tt('toolbarLabel') : t('toolbarLabel')} className="flex shrink-0 flex-wrap items-center gap-2 px-3 pb-2 sm:px-4">
         <Button variant="outline" onClick={list.scrollToStart}>
           <ChevronsUp aria-hidden />
           {t('toStart')}
@@ -130,6 +151,7 @@ export function ConversationBody({
           }}
           onClose={closeCalendar}
           onRetry={calendar.retry}
+          label={kind === 'timeline' ? tt('calendarLabel') : undefined}
         />
       )}
       <div role="status" aria-live="polite" className="text-muted-foreground min-h-5 shrink-0 px-3 pb-1 text-sm break-words sm:px-4">
@@ -151,7 +173,7 @@ export function ConversationBody({
         }}
         role="feed"
         tabIndex={0}
-        aria-label={t('feedLabel', { title: view.conversation.title })}
+        aria-label={source.label}
         aria-busy={waiting || pages.busy}
         data-testid="message-feed"
         className="focus-visible:ring-ring/50 relative min-h-0 flex-1 overflow-y-auto overscroll-contain border-t [overflow-anchor:none] focus-visible:ring-[3px] focus-visible:ring-inset"
@@ -159,10 +181,28 @@ export function ConversationBody({
         <div style={{ height: list.totalHeight }} className="relative w-full">
           {list.items.map(({ index, top }) => {
             const found = pages.at(index);
-            return found ? (
-              <MessageRow key={index} conversationId={id} index={index} count={count} top={top} message={found.message} previous={found.previous} rowRef={list.rowRef} />
-            ) : (
-              <PlaceholderRow key={index} index={index} top={top} rowRef={list.rowRef} />
+            if (!found) return <PlaceholderRow key={index} index={index} top={top} rowRef={list.rowRef} />;
+            const { message, previous } = found;
+            const own = isTimelineMessage(message) ? message : null;
+            // On a timeline a message from another conversation than the one before names its own.
+            const named = own && source.timeline && (!previous || !isTimelineMessage(previous) || previous.conversationId !== own.conversationId) ? own : null;
+            return (
+              <MessageRow
+                key={index}
+                conversationId={own?.conversationId ?? id}
+                index={index}
+                count={count}
+                top={top}
+                message={message}
+                previous={previous}
+                rowRef={list.rowRef}
+                conversationTitle={named?.conversationTitle}
+                conversationHref={
+                  named && source.timeline
+                    ? `/conversation?id=${encodeURIComponent(named.conversationId)}&from=${encodeURIComponent(source.timeline.personId)}&date=${named.sentAt.slice(0, 10)}`
+                    : undefined
+                }
+              />
             );
           })}
         </div>

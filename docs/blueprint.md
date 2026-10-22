@@ -43,8 +43,20 @@ test type or architecture rule means updating this file **in the same PR**.
     `hooks/use-conversation-actions.ts` (rename / move / link / unlink; same reload contract).
     No dynamic route segments for ids (static export): detail screens use query params
     (`/person?id=`).
+  - **Person timeline** (`/[locale]/person/timeline/?id=<uuid>[&date=YYYY-MM-DD]`,
+    `components/person-timeline-screen.tsx`, `hooks/use-person-timeline.ts`, first in
+    `person-sections.tsx`): the person's whole history as one virtualized feed across all their
+    conversations, in the conversation view's own components. `ConversationBody` takes a `FeedSource`
+    (`id`, `count`, `readWindow`, `findOffset`, `listDays`, `start`, optional `timeline`) instead of a
+    conversation, so `useMessagePages` and `useConversationDays` read through functions and the
+    conversation screen builds its source from the same use cases. On a timeline a row from another
+    conversation than the one before gets a link chip with the title (`MessageRow` `conversationTitle` /
+    `conversationHref` -> `/conversation?id=&from=&date=`), and each row uses its own `conversationId`
+    (message details). `isMe` is decided per message by its conversation's "me" author, so outgoing
+    stays on the right everywhere; sender colour is a hash of the author name, so one name keeps one
+    colour across conversations. The reading position is saved under `timeline:<personId>`.
   - **Person gallery** (`/[locale]/person/gallery/?id=<uuid>`, `components/person-gallery-screen.tsx` /
-    `person-gallery-tile.tsx`, listed first in `person-sections.tsx`): every photo and video (stickers
+    `person-gallery-tile.tsx`, listed after Timeline in `person-sections.tsx`): every photo and video (stickers
     excluded) of the person's conversations, oldest first, as a square-tile grid (3 columns at 375 px up to
     6 at 1440) under month headings (`components/group-by-month.ts`, shared with Audio), from
     `usePersonMedia(['photo','video'])`: 50 tiles then "Show more", a plain paged grid, not virtualized
@@ -641,6 +653,7 @@ test type or architecture rule means updating this file **in the same PR**.
   - Packaging — `scripts/build-viewer-script.test.ts` (bundle fresh and self-contained) and
     `pnpm smoke` (built CLI).
   - Thumbnails — `lib/storage/opfs-thumb-store.test.ts` (hash/size validation, get/put/delete/clear, cap and LRU eviction, partial write never served, failed write, no-`move()`, tmp sweep, separate from blobs), `thumbnail.test.ts` (fake `createImageBitmap` / `OffscreenCanvas`: orientation, webp / jpeg fallback, undecodable, closing), `lib/usecases/tile-image.test.ts`, `hooks/use-tile-image.test.tsx`, and in `import.test.ts` / `archive.test.ts` (thumbs deleted with their blob, not in the exported ZIP, restore from an empty or stale cache).
+  - UI — `components/person-timeline-screen.test.tsx` and `hooks/use-person-timeline.test.tsx` (merge order across two conversations, label only where the conversation changes with hrefs, hostile title as text, "me" alignment, date jump, saved position, empty / not-found / error + retry, start at date / saved position / end, Catalan); e2e `e2e/person-timeline.spec.ts` (two chats imported into one person, order, labels, date jump, calendar, Back, small DOM at 390 and 1440).
   - UI — `components/person-gallery-screen.test.tsx` (kinds, month groups, near-screen reads and URL revoke with a driven IntersectionObserver, video reads nothing, missing and undecodable, Show more, empty / not-found / error + retry, Catalan), `components/person-gallery-lightbox.test.tsx` (dialog stub for happy-dom: open, arrows, ends, missing, read-ahead and revoke, focus return, next page and its failure), `hooks/use-near-viewport.test.tsx`, `e2e/person-gallery.spec.ts` (real PNGs and a video, lazy loading on scroll, keyboard, lightbox open / arrows / Escape / next page / open in the conversation, at 390 and 1440 px);
   - UI — `components/person-audio-screen.test.tsx` and `hooks/use-person-media.test.tsx` (month groups, Open-in-conversation hrefs, one player at a time, missing file, Show more, empty / not-found / error + retry, Catalan; paging, kinds, failed page, ids), `e2e/person-audio.spec.ts` (import, sections link, play one at a time, open in the conversation, at 390 and 1440 px); `components/person-screen.test.tsx` (details, not-found, archived person, edit, archive,
     rename validation / double submit / failure / Escape and IME, move, link, unlink incl. the last

@@ -1,7 +1,9 @@
 'use client';
 
 import { memo, useId, useMemo, useState, type CSSProperties } from 'react';
+import { MessagesSquare } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import type { ConversationMessage } from '@/lib/domain/library';
 import { splitLinks } from '@/lib/usecases/message-text';
 import { cn } from '@/components/ui/utils';
@@ -49,6 +51,9 @@ export interface MessageRowProps {
   message: ConversationMessage;
   /** The message before this one, to know whether the day or the sender changed. */
   previous: ConversationMessage | null;
+  /** On a person's timeline: the conversation this message comes from, when it differs from the row before. */
+  conversationTitle?: string;
+  conversationHref?: string;
   rowRef: (element: HTMLElement | null) => void | (() => void);
 }
 
@@ -61,7 +66,7 @@ const rowClass = 'absolute inset-x-0 top-0 px-3 py-0.5 sm:px-4';
  * quiet centered notice. The article carries its place in the feed and an accessible name with the
  * author and the time.
  */
-export const MessageRow = memo(function MessageRow({ conversationId, index, count, top, message, previous, rowRef }: MessageRowProps) {
+export const MessageRow = memo(function MessageRow({ conversationId, index, count, top, message, previous, conversationTitle, conversationHref, rowRef }: MessageRowProps) {
   const t = useTranslations('conversation');
   const locale = useLocale();
   const newDay = previous === null || day(previous.sentAt) !== day(message.sentAt);
@@ -78,6 +83,16 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
       <span className="bg-muted text-muted-foreground rounded-full px-3 py-1 text-center text-xs">{formatFullDay(message.sentAt, locale)}</span>
     </div>
   );
+  const fromConversation = conversationTitle !== undefined && conversationHref !== undefined && (
+    <Link
+      href={conversationHref}
+      className="bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring/50 mx-auto mt-2 mb-1 flex min-h-11 w-fit max-w-full items-center gap-1.5 rounded-full px-3 text-xs outline-none focus-visible:ring-[3px]"
+    >
+      <MessagesSquare className="size-3.5 shrink-0" aria-hidden />
+      <span dir="auto" className="min-w-0 truncate">{conversationTitle}</span>
+      <span className="sr-only">{t('openFromTimeline')}</span>
+    </Link>
+  );
   const common = { 'data-index': index, ref: rowRef, 'aria-posinset': index + 1, 'aria-setsize': count, style: rowStyle(top), className: rowClass };
 
   if (notice) {
@@ -85,6 +100,7 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
     return (
       <article {...common} aria-label={t('noticeLabel', { when })}>
         {separator}
+      {fromConversation}
         <p dir="auto" className="text-muted-foreground mx-auto max-w-[90%] text-center text-sm whitespace-pre-wrap italic [overflow-wrap:anywhere]">
           <RichText text={message.body || fallback} />
         </p>
@@ -98,6 +114,7 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
   return (
     <article {...common} aria-label={author ? t('messageLabel', { author, when }) : when}>
       {separator}
+      {fromConversation}
       <div className={cn('group/row flex items-center', message.isMe ? 'justify-end' : 'justify-start')}>
         {message.isMe && button}
         <div

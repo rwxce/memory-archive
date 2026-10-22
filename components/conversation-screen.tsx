@@ -1,15 +1,17 @@
 'use client';
 
+import { useMemo } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { ConversationBody } from '@/components/conversation-body';
+import { ConversationBody, type FeedSource } from '@/components/conversation-body';
 import { LibraryNotice } from '@/components/library-notice';
 import { Shell } from '@/components/screen-shell';
 import { Button } from '@/components/ui/button';
-import { isDateParam, useConversation } from '@/hooks/use-conversation';
-import { useLibrary } from '@/hooks/use-library';
+import { isDateParam, useConversation, type OpenConversation } from '@/hooks/use-conversation';
+import { useLibrary, useLibraryDeps } from '@/hooks/use-library';
 import { Link } from '@/i18n/navigation';
+import { findMessageOffsetByDate, getMessageWindow, listConversationDays } from '@/lib/usecases/conversation-view';
 import { formatDateRange, formatNames } from './format';
 
 const backLinkClass =
@@ -42,7 +44,7 @@ function ConversationContent({ onRetry }: { onRetry: () => void }) {
   const id = params.get('id');
   const date = params.get('date');
   const from = params.get('from');
-  const { state, findOffset, retry } = useConversation(id, isDateParam(date) ? date : null);
+  const { state, retry } = useConversation(id, isDateParam(date) ? date : null);
 
   if (state.status === 'loading') {
     return (
@@ -101,7 +103,31 @@ function ConversationContent({ onRetry }: { onRetry: () => void }) {
           {people.length > 0 ? t('keptUnder', { names: formatNames(people.map((person) => person.name), locale) }) : t('unassigned')}
         </p>
       </header>
-      <ConversationBody key={view.conversation.id} conversation={conversation} findOffset={findOffset} />
+      <ConversationFeed key={view.conversation.id} conversation={conversation} />
     </div>
   );
+}
+
+/** The conversation's feed: its own reads, handed to the shared body. */
+function ConversationFeed({ conversation }: { conversation: OpenConversation }) {
+  const t = useTranslations('conversation');
+  const deps = useLibraryDeps()!;
+  const { view, start } = conversation;
+  const id = view.conversation.id;
+  const title = view.conversation.title;
+  const source = useMemo<FeedSource>(
+    () => ({
+      id,
+      label: t('feedLabel', { title }),
+      count: view.bounds.count,
+      firstSentAt: view.bounds.firstSentAt,
+      lastSentAt: view.bounds.lastSentAt,
+      start,
+      readWindow: (offset, limit) => getMessageWindow(deps, id, offset, limit),
+      findOffset: (date) => findMessageOffsetByDate(deps, id, date),
+      listDays: () => listConversationDays(deps, id),
+    }),
+    [deps, id, title, view.bounds, start, t],
+  );
+  return <ConversationBody source={source} />;
 }

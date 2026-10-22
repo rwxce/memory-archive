@@ -1,10 +1,10 @@
 'use client';
 
-import { Images, Mic } from 'lucide-react';
+import { History, Images, Mic } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 
-export type PersonSection = 'audio' | 'gallery';
+export type PersonSection = 'audio' | 'gallery' | 'timeline';
 
 /**
  * The places a person's page leads to, as links: shown on the person's page and on each of those
@@ -14,6 +14,7 @@ export type PersonSection = 'audio' | 'gallery';
 export function PersonSections({ personId, current }: { personId: string; current?: PersonSection }) {
   const t = useTranslations('person');
   const sections = [
+    { id: 'timeline' as const, href: `/person/timeline?id=${encodeURIComponent(personId)}`, label: t('sectionTimeline'), Icon: History },
     { id: 'gallery' as const, href: `/person/gallery?id=${encodeURIComponent(personId)}`, label: t('sectionGallery'), Icon: Images },
     { id: 'audio' as const, href: `/person/audio?id=${encodeURIComponent(personId)}`, label: t('sectionAudio'), Icon: Mic },
   ];

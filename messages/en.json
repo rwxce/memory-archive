@@ -350,7 +350,8 @@
     "backToPerson": "Back to this person",
     "sectionsLabel": "Sections",
     "sectionAudio": "Audio",
-    "sectionGallery": "Gallery"
+    "sectionGallery": "Gallery",
+    "sectionTimeline": "Timeline"
   },
   "personAudio": {
     "title": "Audio",
@@ -553,6 +554,17 @@
       "sources": {
         "whatsapp": "WhatsApp"
       }
-    }
+    },
+    "openFromTimeline": "Open this conversation on this day"
+  },
+  "timeline": {
+    "back": "Back to {name}",
+    "eyebrow": "Timeline",
+    "summary": "{count, plural, one {# message} other {# messages}} in {conversations, plural, one {# conversation} other {# conversations}}",
+    "loadFailed": "This timeline could not be read. Nothing was deleted.",
+    "empty": "There are no messages under {name} yet. When you bring in a chat, it will appear here.",
+    "feedLabel": "Messages of {name}, from all conversations",
+    "toolbarLabel": "Move around the timeline",
+    "calendarLabel": "Calendar of this timeline"
   }
 }

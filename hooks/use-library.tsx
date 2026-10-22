@@ -184,3 +184,9 @@ export function useLibraryInternals() {
   const { state, register, refresh } = useLibraryContext();
   return { state, register, refresh };
 }
+
+/** The use-case dependencies once the library is ready (`undefined` before), for screens that read through use cases. */
+export function useLibraryDeps(): ProfileDeps | undefined {
+  const { state } = useLibraryContext();
+  return state.status === 'ready' ? state.deps : undefined;
+}

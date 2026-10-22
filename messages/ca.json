@@ -350,7 +350,8 @@
     "backToPerson": "Torna a aquesta persona",
     "sectionsLabel": "Seccions",
     "sectionAudio": "Àudio",
-    "sectionGallery": "Galeria"
+    "sectionGallery": "Galeria",
+    "sectionTimeline": "Cronologia"
   },
   "personAudio": {
     "title": "Àudio",
@@ -553,6 +554,17 @@
       "sources": {
         "whatsapp": "WhatsApp"
       }
-    }
+    },
+    "openFromTimeline": "Obre aquesta conversa en aquest dia"
+  },
+  "timeline": {
+    "back": "Torna a {name}",
+    "eyebrow": "Cronologia",
+    "summary": "{count, plural, one {# missatge} other {# missatges}} en {conversations, plural, one {# conversa} other {# converses}}",
+    "loadFailed": "No s'ha pogut llegir aquesta cronologia. No s'ha esborrat res.",
+    "empty": "Encara no hi ha missatges de {name}. Quan portis un xat, apareixerà aquí.",
+    "feedLabel": "Missatges de {name}, de totes les converses",
+    "toolbarLabel": "Moure's per la cronologia",
+    "calendarLabel": "Calendari d'aquesta cronologia"
   }
 }
