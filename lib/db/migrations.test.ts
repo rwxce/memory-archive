@@ -38,6 +38,7 @@ describe('migrate', () => {
       'blobs',
       'conversation_profiles',
       'conversations',
+      'favorites',
       'import_batches',
       'messages',
       'participants',
@@ -490,7 +491,7 @@ describe('migration v3 to v4 (person timeline index)', () => {
     const db = await v3WithData();
     const tables = () => db.all("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
     const before = tables();
-    expect(migrate(db)).toEqual({ from: 3, to: 4 });
+    expect(migrate(db, MIGRATIONS.slice(0, 4))).toEqual({ from: 3, to: 4 });
     expect(readUserVersion(db)).toBe(4);
     expect(tables()).toEqual(before);
     expect(db.all('SELECT fingerprint, sent_at FROM messages')).toEqual([{ fingerprint: HASH, sent_at: '2026-01-01T10:00:00' }]);
@@ -498,7 +499,7 @@ describe('migration v3 to v4 (person timeline index)', () => {
       { sql: 'CREATE INDEX messages_by_time ON messages(sent_at, ordinal, conversation_id)' },
     ]);
     const fresh = await emptyDb();
-    migrate(fresh);
+    migrate(fresh, MIGRATIONS.slice(0, 4));
     const dump = (d: SqlDb) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
     expect(dump(db)).toEqual(dump(fresh));
   });
@@ -509,6 +510,71 @@ describe('migration v3 to v4 (person timeline index)', () => {
     expect(() => migrate(db, broken)).toThrow();
     expect(readUserVersion(db)).toBe(3);
     expect(db.all("SELECT name FROM sqlite_master WHERE name = 'messages_by_time'")).toHaveLength(0);
-    expect(migrate(db)).toEqual({ from: 3, to: 4 });
+    expect(migrate(db, MIGRATIONS.slice(0, 4))).toEqual({ from: 3, to: 4 });
+  });
+});
+
+describe('migration v4 to v5 (favorites)', () => {
+  async function v4WithData() {
+    const db = await emptyDb();
+    db.exec('PRAGMA foreign_keys = ON');
+    migrate(db, MIGRATIONS.slice(0, 4));
+    db.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [CONVERSATION, 'Chat', 'whatsapp', 't']);
+    db.run('INSERT INTO import_batches (id, conversation_id, source, created_at, added_count) VALUES (?, ?, ?, ?, 1)', [BATCH, CONVERSATION, 'whatsapp', 't']);
+    db.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [CONVERSATION, BATCH, HASH, '2026-01-01T10:00:00', 'text']);
+    return db;
+  }
+
+  test('adds only the favorites table: existing tables and rows are untouched, and the schema is the same fresh or migrated', async () => {
+    const db = await v4WithData();
+    const before = db.all("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
+    expect(migrate(db)).toEqual({ from: 4, to: 5 });
+    expect(readUserVersion(db)).toBe(5);
+    const after = db.all<{ name: string }>("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
+    expect(after.filter((t) => t.name !== 'favorites')).toEqual(before);
+    expect(db.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: HASH }]);
+    expect(db.all('SELECT * FROM favorites')).toEqual([]);
+    const fresh = await emptyDb();
+    migrate(fresh);
+    const dump = (d: SqlDb) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
+    expect(dump(db)).toEqual(dump(fresh));
+  });
+
+  test('schema of the favorites table is pinned (keyed by conversation and fingerprint, no link to messages)', async () => {
+    const db = await emptyDb();
+    migrate(db);
+    expect(db.all<{ sql: string }>("SELECT sql FROM sqlite_master WHERE name = 'favorites'")[0].sql).toMatchInlineSnapshot(`
+      "CREATE TABLE favorites (
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        fingerprint     TEXT NOT NULL CHECK (length(fingerprint) = 64 AND fingerprint NOT GLOB '*[^0-9a-f]*'),
+        created_at      TEXT NOT NULL,
+        PRIMARY KEY (conversation_id, fingerprint)
+      ) STRICT"
+    `);
+  });
+
+  test('one row per message, a malformed fingerprint is refused and a favorite goes with its conversation', async () => {
+    const db = await v4WithData();
+    migrate(db);
+    const add = (fp: string) => db.run('INSERT INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [CONVERSATION, fp, 't']);
+    add(HASH);
+    expect(() => add(HASH)).toThrow(/UNIQUE|PRIMARY/);
+    expect(() => add('AB'.repeat(32))).toThrow(/CHECK/);
+    expect(() => add('ab')).toThrow(/CHECK/);
+    expect(() => db.run('INSERT INTO favorites VALUES (?, ?, ?)', [PROFILE, HASH, 't'])).toThrow(/FOREIGN/);
+    db.run('DELETE FROM messages');
+    expect(db.all('SELECT fingerprint FROM favorites')).toEqual([{ fingerprint: HASH }]);
+    db.run('DELETE FROM import_batches');
+    db.run('DELETE FROM conversations');
+    expect(db.all('SELECT * FROM favorites')).toEqual([]);
+  });
+
+  test('a failure in v5 leaves the v4 database as it was, and a retry succeeds', async () => {
+    const db = await v4WithData();
+    const broken: Migration[] = [...MIGRATIONS.slice(0, 4), { version: 5, sql: `${MIGRATIONS[4].sql} INSERT INTO missing_table VALUES (1);` }];
+    expect(() => migrate(db, broken)).toThrow();
+    expect(readUserVersion(db)).toBe(4);
+    expect(db.all("SELECT name FROM sqlite_master WHERE name = 'favorites'")).toHaveLength(0);
+    expect(migrate(db)).toEqual({ from: 4, to: 5 });
   });
 });

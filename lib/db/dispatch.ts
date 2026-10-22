@@ -6,6 +6,7 @@ import {
   createConversation,
   countMessages,
   countPersonMedia,
+  countFavorites,
   createProfile,
   findExistingFingerprints,
   findImportCandidates,
@@ -21,6 +22,7 @@ import {
   linkConversationProfile,
   listConversationDays,
   listConversations,
+  listFavorites,
   listImportBatches,
   listMessages,
   listPersonMedia,
@@ -29,10 +31,12 @@ import {
   listProfiles,
   moveConversation,
   renameConversation,
+  setFavorite,
   setProfileArchived,
   undoImportBatch,
   unlinkConversationProfile,
   updateProfile,
+  type FavoriteScope,
 } from './queries';
 import { listBlobs } from './snapshot';
 
@@ -107,6 +111,12 @@ const HANDLERS: Handlers = {
     return findPersonTimelineOffsetByDate(db, params.profileId as string, params.date as string);
   },
   listPersonTimelineDays: ({ db }, p) => listPersonTimelineDays(db, requireParams(p).profileId as string),
+  setFavorite: ({ db }, p) => setFavorite(db, p),
+  countFavorites: ({ db }, p) => countFavorites(db, p === undefined ? undefined : (requireParams(p).scope as FavoriteScope | undefined)),
+  listFavorites: ({ db }, p) => {
+    const params = requireParams(p);
+    return listFavorites(db, params.scope as FavoriteScope | undefined, params.offset as number, params.limit as number);
+  },
 };
 
 /**
