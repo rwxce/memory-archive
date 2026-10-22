@@ -62,17 +62,30 @@ export class ZipLimitError extends Error {
   }
 }
 
+/** Compressed sizes below this count as this much, so tiny entries get a little ratio slack. */
+export const COMPRESSION_RATIO_FLOOR_BYTES = 1024;
+
 export interface ReadZipOptions {
   /** Reject a declared entry count above this, before the directory is read. */
   maxEntries?: number;
   /** Reject a declared central directory size above this, before it is read. */
   maxCentralDirectoryBytes?: number;
+  /** Reject an entry whose declared uncompressed size is above this. */
+  maxEntryBytes?: number;
+  /** Reject a directory whose declared uncompressed sizes add up to more than this. */
+  maxTotalBytes?: number;
+  /**
+   * Reject a deflated entry that declares more than this many times its compressed size (a
+   * zip bomb), counting compressed sizes under `COMPRESSION_RATIO_FLOOR_BYTES` as that floor.
+   */
+  maxCompressionRatio?: number;
 }
 
 /**
  * List all entries from the central directory. Throws on a non-ZIP input, and a
- * `ZipLimitError` when the declared count or directory size exceeds the options
- * (checked on the declared values, so nothing big is read or allocated).
+ * `ZipLimitError` when the declared count, directory size, entry sizes or compression ratio
+ * exceed the options (checked on the declared values, so nothing big is read or allocated; the
+ * declared sizes themselves are enforced while an entry streams, see `openZipEntry`).
  */
 export async function readZipEntries(zip: Blob, options: ReadZipOptions = {}): Promise<ZipEntry[]> {
   const tailLen = Math.min(zip.size, EOCD_MIN + MAX_COMMENT);
@@ -118,6 +131,7 @@ export async function readZipEntries(zip: Blob, options: ReadZipOptions = {}): P
 
   const cd = await readRange(zip, cdOffset, cdOffset + cdSize);
   const entries: ZipEntry[] = [];
+  let totalBytes = 0;
   let p = 0;
   for (let n = 0; n < count; n++) {
     if (p + 46 > cd.byteLength || cd.getUint32(p, true) !== SIG_CENTRAL) {
@@ -158,6 +172,21 @@ export async function readZipEntries(zip: Blob, options: ReadZipOptions = {}): P
         }
       }
       e += 4 + size;
+    }
+
+    if (options.maxEntryBytes !== undefined && uncompressedSize > options.maxEntryBytes) {
+      throw new ZipLimitError('ZIP entry is larger than allowed');
+    }
+    totalBytes += uncompressedSize;
+    if (options.maxTotalBytes !== undefined && totalBytes > options.maxTotalBytes) {
+      throw new ZipLimitError('ZIP is larger than allowed');
+    }
+    if (
+      options.maxCompressionRatio !== undefined &&
+      compression !== 0 &&
+      uncompressedSize > Math.max(compressedSize, COMPRESSION_RATIO_FLOOR_BYTES) * options.maxCompressionRatio
+    ) {
+      throw new ZipLimitError('ZIP entry expands suspiciously (zip bomb)');
     }
 
     entries.push({
@@ -222,13 +251,18 @@ export function openZipEntry(zip: Blob, entry: ZipEntry): ReadableStream<Uint8Ar
       : new TransformStream<Uint8Array, Uint8Array>();
   const declared = entry.uncompressedSize;
   let produced = 0;
-  // A valid entry never inflates beyond the size its central directory declares: stop a
-  // decompression bomb (a tiny entry claiming little and expanding to gigabytes) at the declared size.
+  // A valid entry inflates to exactly the size its central directory declares: stop a
+  // decompression bomb (a tiny entry claiming little and expanding to gigabytes) at the declared
+  // size, and refuse an entry that ends short of it (the declared size would be a lie, which
+  // the size and ratio limits rely on).
   const bounded = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
       produced += chunk.length;
       if (produced > declared) throw new ZipLimitError('ZIP entry is larger than it declares');
       controller.enqueue(chunk);
+    },
+    flush() {
+      if (produced !== declared) throw new Error('ZIP entry is smaller than it declares');
     },
   });
   dataOffset(zip, entry)

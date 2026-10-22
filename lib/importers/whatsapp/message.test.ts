@@ -128,3 +128,37 @@ describe('format coverage (PR 3 fixes)', () => {
     expect(msgs).toHaveLength(2);
   });
 });
+
+/** Adversarial input must finish fast: these used to take seconds (quadratic regexes). */
+const MAX_MS = 50;
+const N = 60_000;
+
+describe('hostile lines are parsed in linear time', () => {
+  const ts = '[12/03/2024, 10:00:00] ';
+  const cases: Array<[string, string]> = [
+    ['spaces in the body', `${ts}Ana: ${' '.repeat(N)}x`],
+    ['"<" and spaces', `${ts}Ana: <${' '.repeat(N)}x`],
+    ['"media" then spaces', `${ts}Ana: media${' '.repeat(N)}x`],
+    ['repeated attachment openers', `${ts}Ana: ${'<attached:'.repeat(N / 10)}`],
+    ['attachment opener, spaces', `${ts}Ana: <attached:${' '.repeat(N)}`],
+    ['android marker then spaces', `${ts}Ana: x.png (file attached)${' '.repeat(N)}x`],
+    ['repeated android marker starts', `${ts}Ana: ${'a.b '.repeat(N / 4)}`],
+    ['invisible run in the middle', `${ts}Ana: ${'\u200e'.repeat(N / 2)}x${'\u200e'.repeat(N / 2)}x`],
+    ['many colons', `${ts}${'a:'.repeat(N / 2)}`],
+    ['spaces before a dash (Android system line)', `${ts}${' '.repeat(N)}-`],
+  ];
+  test.each(cases)('%s', async (_name, line) => {
+    const start = performance.now();
+    await parse(`${line}\n${line}`);
+    expect(performance.now() - start).toBeLessThan(MAX_MS);
+  });
+
+  test('attachment markers and omitted markers still parse', async () => {
+    const [a, b, c] = await parse(
+      [`${ts}Ana: <attached:   IMG-1.jpg  > caption`, `${ts}Ana: <Media omitted>`, `${ts}Ana: image   omitted`].join('\n'),
+    );
+    expect(a).toMatchObject({ type: 'photo', media: 'IMG-1.jpg', text: 'caption' });
+    expect(b.type).toBe('omitted');
+    expect(c.type).toBe('omitted');
+  });
+});

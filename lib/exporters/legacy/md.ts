@@ -120,5 +120,9 @@ export async function renderMarkdown(
     lines.push('');
   }
 
-  return lines.join('\n').replace(/\n+$/, '\n');
+  // Not `.replace(/\n+$/, '\n')`: quadratic on a long run of newlines inside a message.
+  const out = lines.join('\n');
+  let end = out.length;
+  while (end > 0 && out[end - 1] === '\n') end--;
+  return end === out.length ? out : out.slice(0, end) + '\n';
 }

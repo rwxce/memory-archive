@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { detectFormat, parseTimestamp, resolveYear, TS_RE } from './timestamp';
+import { detectFormat, parseTimestamp, resolveYear, trimInvisible, TS_RE } from './timestamp';
 
 test('12h detection: PM token converts to 24h (D-02)', () => {
   // Day 13 keeps the order unambiguous (an all-ambiguous en-US "PM" sample now reads month-first).
@@ -145,4 +145,22 @@ test('detectFormat uses the whole transcript, not the first 50 dates', () => {
   assert.equal(detectFormat([...lines, '[25/03/2026, 10:00:00] A: x']).ambiguous, false);
   // Lines that read the same either way (05/05) are no ambiguity at all.
   assert.equal(detectFormat(['[05/05/2026, 10:00:00] A: x']).ambiguous, false);
+});
+
+/** Adversarial input must finish fast: these used to take seconds (quadratic regexes). */
+const MAX_MS = 50;
+const N = 60_000;
+const elapsed = (fn: () => unknown): number => {
+  const start = performance.now();
+  fn();
+  return performance.now() - start;
+};
+
+test('trimInvisible: linear time, same result', () => {
+  const run = '\u200e'.repeat(N);
+  assert.ok(elapsed(() => trimInvisible(`${run}x${run}x`)) < MAX_MS);
+  assert.ok(elapsed(() => trimInvisible(`x${run}`)) < MAX_MS);
+  assert.equal(trimInvisible('\u200e\ufeffa\u200e b\u200b\u2069'), 'a\u200e b');
+  assert.equal(trimInvisible('\u200e\u200f'), '');
+  assert.equal(trimInvisible(''), '');
 });

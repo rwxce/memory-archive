@@ -15,7 +15,7 @@ import type { Detection } from './timestamp';
 const SENDER_RE = /^(?:\s*-\s*)?(.+?):(?:\s|$)([\s\S]*)$/;
 /** iOS media marker, per export language: `<attached: F>` (en),
  * `<adjunto: F>` (es), `<anexado: F>` (pt), `<adjunt: F>` (ca). */
-const ATTACHED_RE = /<(?:attached|adjunto|anexado|adjunt):\s*([^>]+?)>/;
+const ATTACHED_RE = /<(?:attached|adjunto|anexado|adjunt):([^>]+)>/;
 /** Android media marker: the whole first line is `F (file attached)`, with
  * the caption (if any) on the following lines. */
 const FILE_ATTACHED_RE =
@@ -29,8 +29,9 @@ const OMIT_MEDIA =
 const OMIT_WORD = '(?:omitted|omitid[oa]s?|ocult[oa]|ocultad[oa]|om[eè]s|omes[ao]s?)';
 /** `<Media omitted>` / `image omitted` / `<Mídia oculta>` / `<Multimedia omitido>` /
  *  `*.pdf • N páginas document omitted` — brackets are OPTIONAL because real
- *  Android exports drop them (MEDIA-04). */
-const OMITTED_RE = new RegExp(`<?\\s*${OMIT_MEDIA}\\s+${OMIT_WORD}\\s*>?`, 'i');
+ *  Android exports drop them (MEDIA-04), so the pattern is just `media omitted`: it is only
+ *  ever `test`ed, and an optional leading `<\s*` would make it quadratic on a run of spaces. */
+const OMITTED_RE = new RegExp(`${OMIT_MEDIA}\\s+${OMIT_WORD}`, 'i');
 /** Deleted-message markers (en, pt, es, ca), whole-body match (D-15). */
 const DELETED_RE = new RegExp(
   '^(?:message deleted|this message was deleted|you deleted this message|' +
@@ -89,7 +90,9 @@ export function classifyType(
 
 /** Find an attachment marker in a message body: `{ media, text }` or null. */
 export function extractAttachment(body: string): { media: string; text: string } | null {
-  const ios = body.match(ATTACHED_RE);
+  // Without a `>` after the last marker start the match cannot succeed, and trying every
+  // `<attached:` start would rescan the rest of the line each time (quadratic).
+  const ios = body.includes('>') ? body.slice(0, body.lastIndexOf('>') + 1).match(ATTACHED_RE) : null;
   if (ios) {
     return { media: ios[1].trim(), text: trimInvisible(body.replace(ATTACHED_RE, '')).trim() };
   }

@@ -190,3 +190,27 @@ describe('documented limits (pinned: they are behaviour, not bugs to fix quietly
     expect(fingerprintOf({ ...ok, sentAt: '2026-03-17T14:17:05' }, 0)).not.toBe(fingerprintOf(ok, 0));
   });
 });
+
+/** Adversarial input must finish fast: these used to take seconds (quadratic regexes). */
+const MAX_MS = 50;
+const N = 60_000;
+const elapsed = (fn: () => unknown): number => {
+  const start = performance.now();
+  fn();
+  return performance.now() - start;
+};
+
+describe('normalizeText: linear time on hostile lines', () => {
+  test.each([
+    ['spaces then text', ' '.repeat(N) + 'x'],
+    ['text then spaces', 'x' + ' '.repeat(N)],
+    ['spaces between lines', `a${' '.repeat(N)}b\n${' '.repeat(N)}c`],
+    ['mixed Unicode whitespace', '\u00a0\u2003 '.repeat(N / 3) + 'x'],
+  ])('%s', (_name, input) => {
+    expect(elapsed(() => normalizeText(input))).toBeLessThan(MAX_MS);
+  });
+
+  test('still strips every kind of trailing whitespace, per line, and keeps inner spacing', () => {
+    expect(normalizeText('a \t\u00a0\u3000\ufeff\nb  c \u2028\n')).toBe('a\nb  c');
+  });
+});

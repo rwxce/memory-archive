@@ -676,7 +676,9 @@ describe('importWhatsAppExport: more interruption cases', () => {
     const before = tableState(lib.opened);
     const controller = new AbortController();
     const deps = { ...lib.deps, blobStore: wrapStore(lib.deps.blobStore, (n) => { if (n === 1) controller.abort(); }) };
-    const big = { [PHOTO]: new Uint8Array(400_000).map((_, i) => (i * 31) % 253), [PHOTO2]: bytes(2) };
+    // Pseudo-random, like a real photo: a periodic pattern would deflate past the ratio limit.
+    let seed = 1;
+    const big = { [PHOTO]: new Uint8Array(400_000).map(() => ((seed = (seed * 1103515245 + 12345) >>> 0) >>> 16) & 0xff), [PHOTO2]: bytes(2) };
     await expect(importWhatsAppExport(deps, { zip: exportZip(lines, big), fileName: NAME, profileIds: [lib.profile.id], meAuthor: 'Ana', signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' });
     expect(tableState(lib.opened)).toBe(before);
     expect(await lib.deps.blobStore.list()).toEqual([]);
@@ -908,5 +910,28 @@ describe('importWhatsAppExport: media progress by bytes (throttled)', () => {
     expect(counter.chunks).toBeGreaterThanOrEqual(100);
     expect(events.map((e) => e.done)).toEqual([0, 1, 2]);
     expect(events.at(-1)!.bytes).toBe(TOTAL);
+  });
+});
+
+describe('importWhatsAppExport: compression-ratio guard', () => {
+  test('a media entry that deflates absurdly well is refused from the directory, nothing is written', async () => {
+    const lib = await setup();
+    const before = tableState(lib.opened);
+    const zip = new Blob([zipBytes([...BASE], { [PHOTO]: new Uint8Array(5_000_000) }) as BlobPart]);
+    await expect(run(lib, zip)).rejects.toMatchObject({ name: 'ImportError', code: 'limit-exceeded' });
+    expect(tableState(lib.opened)).toBe(before);
+    expect(await lib.deps.blobStore.list()).toEqual([]);
+  });
+
+  test('the ratio is a limit like the others: raising it admits the same file', async () => {
+    const lib = await setup();
+    const zip = new Blob([zipBytes([...BASE], { [PHOTO]: new Uint8Array(5_000_000) }) as BlobPart]);
+    expect((await run(lib, zip, { limits: { maxCompressionRatio: 1_000_000 } })).status).toBe('imported');
+  });
+
+  test('ordinary exports (text transcript, varied media) are unaffected', async () => {
+    const lib = await setup();
+    const zip = new Blob([zipBytes([...BASE], { [PHOTO]: bytes(1, 4000) }) as BlobPart]);
+    expect((await run(lib, zip)).status).toBe('imported');
   });
 });

@@ -71,8 +71,7 @@ export const MAX_DATABASE_BYTES = 512 * 1024 ** 2;
 export const MAX_CENTRAL_DIRECTORY_BYTES = 64 * 1024 ** 2;
 export const MAX_MANIFEST_BYTES = 64 * 1024 ** 2;
 export const MAX_COMPRESSION_RATIO = 100;
-/** Compressed sizes below this count as this much, so tiny entries get a little slack. */
-export const COMPRESSION_RATIO_FLOOR_BYTES = 1024;
+export { COMPRESSION_RATIO_FLOOR_BYTES } from '../../importers/whatsapp/zip';
 
 export const DEFAULT_LIMITS: ArchiveLimits = {
   maxEntries: MAX_ENTRIES,

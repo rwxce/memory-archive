@@ -18,7 +18,6 @@ const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/120.0 Safari/537.36';
 
-const TITLE_RE = /<title[^>]*>([\s\S]*?)<\/title>/i;
 const MAX_REDIRECTS = 3;
 /** Only the start of a page is read; titles live in `<head>`. */
 const MAX_BODY_BYTES = 512 * 1024;
@@ -180,34 +179,62 @@ function cleanTitle(s: string): string {
     .slice(0, 300);
 }
 
+/**
+ * The text between each `<meta` and its closing `>`. The page is untrusted and up to 512 KiB:
+ * patterns like `<meta[^>]+...` retried at every `<meta` start rescan the rest of the page each
+ * time (quadratic), so tags are cut out with `indexOf` and the patterns only ever see one tag.
+ */
+function metaTags(html: string): string[] {
+  const tags: string[] = [];
+  const lower = html.toLowerCase();
+  // `toLowerCase` can change a string's length (e.g. U+0130); then the offsets no longer line up.
+  const src = lower.length === html.length ? lower : html;
+  for (let at = src.indexOf('<meta'); at !== -1; at = src.indexOf('<meta', at + 5)) {
+    const end = html.indexOf('>', at + 5);
+    if (end === -1) break; // no `>` left: no later tag can close either
+    if (end > at + 5) tags.push(html.slice(at + 5, end));
+  }
+  return tags;
+}
+
+const CONTENT_RE = /content=["']([^"']*)["']/i;
+
 /** Read a `<meta property|name="key" content="...">` value (either attribute
  * order) and unescape common HTML entities. */
-function metaContent(html: string, key: string): string | null {
-  const patterns = [
-    new RegExp(
-      `<meta[^>]+(?:property|name)=["']${key}["'][^>]*content=["']([^"']*)["']`,
-      'i',
-    ),
-    new RegExp(
-      `<meta[^>]+content=["']([^"']*)["'][^>]*(?:property|name)=["']${key}["']`,
-      'i',
-    ),
-  ];
-  for (const re of patterns) {
-    const m = html.match(re);
-    if (m) return cleanTitle(m[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"'));
+function metaContent(tags: string[], key: string): string | null {
+  const keyRe = new RegExp(`(?:property|name)=["']${key}["']`, 'i');
+  // Pass 1: `content` after the key; pass 2: `content` before it (same priority as before).
+  for (const pass of [1, 2]) {
+    for (const tag of tags) {
+      const k = keyRe.exec(tag);
+      if (!k) continue;
+      const m = pass === 1 ? CONTENT_RE.exec(tag.slice(k.index + k[0].length)) : CONTENT_RE.exec(tag.slice(0, k.index));
+      if (m) return cleanTitle(m[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"'));
+    }
   }
   return null;
+}
+
+/** The text of the first `<title ...>...</title>`, found with three linear scans. */
+function titleText(html: string): string | null {
+  const open = /<title/gi.exec(html);
+  if (!open) return null;
+  const gt = html.indexOf('>', open.index + open[0].length);
+  if (gt === -1) return null;
+  const closeRe = /<\/title>/gi;
+  closeRe.lastIndex = gt + 1;
+  const close = closeRe.exec(html);
+  return close ? html.slice(gt + 1, close.index) : null;
 }
 
 /** Pull a page title: prefer `og:title` / `twitter:title`, fall back to the
  * document `<title>`. Returns null if neither is present. */
 export function extractTitle(html: string): string | null {
-  const meta = metaContent(html, 'og:title') ?? metaContent(html, 'twitter:title');
+  const tags = metaTags(html);
+  const meta = metaContent(tags, 'og:title') ?? metaContent(tags, 'twitter:title');
   if (meta) return meta;
-  const m = html.match(TITLE_RE);
-  if (!m) return null;
-  return cleanTitle(m[1]);
+  const title = titleText(html);
+  return title === null ? null : cleanTitle(title);
 }
 
 export type Platform =
