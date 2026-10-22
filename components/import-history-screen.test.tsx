@@ -169,7 +169,8 @@ describe('the import history screen', () => {
     expect(buttonNamed(view, h.loadMore)).toBeNull();
     // The first of the new entries has the focus (moved after the DOM settles): wait for it
     // instead of sleeping, a slow runner needs more than a fixed few milliseconds.
-    await vi.waitFor(() => expect(document.activeElement).toBe(entries(view)[20].querySelector('h2')), { timeout: 3000 });
+    const shown = view;
+    await vi.waitFor(() => expect(document.activeElement).toBe(entries(shown)[20].querySelector('h2')), { timeout: 3000 });
   });
 
   test('a person filter shows only their imports, says whose, and can show all again', async () => {
@@ -281,7 +282,8 @@ describe('the import history screen', () => {
       await click(more);
       await settle();
       expect(buttonNamed(view, h.loadMore)).toBeNull();
-      await vi.waitFor(() => expect(document.activeElement).toBe(view.container.querySelector('h1')), { timeout: 3000 });
+      const shown = view;
+      await vi.waitFor(() => expect(document.activeElement).toBe(shown.container.querySelector('h1')), { timeout: 3000 });
     });
   });
 
