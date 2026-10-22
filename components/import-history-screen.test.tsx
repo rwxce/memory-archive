@@ -303,6 +303,7 @@ describe('the import history screen', () => {
       expect(panel.textContent).toContain(en.import.undo.title);
       expect(panel.textContent).toContain('The 4 messages this import added will be removed');
       expect(panel.textContent).toContain('“Ana i Bo”, so that conversation is removed too if nothing else is left in it');
+      expect(panel.textContent).toContain('the notes and favorites on it go with it');
       expect(panel.textContent).toContain('Messages from other imports, and anything that was in your archive before, stay.');
       expect(document.activeElement).toBe(buttonNamed(view, en.import.undo.cancel));
 

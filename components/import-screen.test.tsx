@@ -889,6 +889,7 @@ describe('the import wizard', () => {
       const panel = v.container.querySelector('[role="group"]')!;
       expect(panel.textContent).toContain(m.undo.title);
       expect(panel.textContent).toContain('The 4 messages added by this import will be removed, and so will the conversation “Ana”, which this import created.');
+      expect(panel.textContent).toContain('Notes and favorites on that conversation are removed with it.');
       expect(panel.textContent).toContain('Anything that was in your archive before stays.');
       expect(document.activeElement?.textContent).toBe(m.undo.cancel);
 

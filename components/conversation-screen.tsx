@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { ConversationBody, type FeedSource } from '@/components/conversation-body';
+import { ConversationNote } from '@/components/note-panels';
 import { LibraryNotice } from '@/components/library-notice';
 import { Shell } from '@/components/screen-shell';
 import { Button } from '@/components/ui/button';
@@ -102,6 +103,7 @@ function ConversationContent({ onRetry }: { onRetry: () => void }) {
         <p className="text-muted-foreground text-sm break-words">
           {people.length > 0 ? t('keptUnder', { names: formatNames(people.map((person) => person.name), locale) }) : t('unassigned')}
         </p>
+        <ConversationNote key={view.conversation.id} conversationId={view.conversation.id} />
       </header>
       <ConversationFeed key={view.conversation.id} conversation={conversation} />
     </div>

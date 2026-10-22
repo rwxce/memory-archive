@@ -312,7 +312,7 @@
     "undo": {
       "title": "Vols desfer aquesta importació?",
       "body": "{count, plural, one {El # missatge afegit} other {Els # missatges afegits}} per aquesta importació s’eliminaran. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Els missatges que ja eren al teu arxiu es queden.",
-      "bodyCreated": "{count, plural, one {El # missatge afegit} other {Els # missatges afegits}} per aquesta importació s’eliminaran, i també la conversa «{title}», que va crear aquesta importació. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Tot el que hi havia al teu arxiu abans es queda.",
+      "bodyCreated": "{count, plural, one {El # missatge afegit} other {Els # missatges afegits}} per aquesta importació s’eliminaran, i també la conversa «{title}», que va crear aquesta importació. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Les notes i els preferits d’aquesta conversa s’eliminen amb ella. Tot el que hi havia al teu arxiu abans es queda.",
       "confirm": "Desfés la importació",
       "cancel": "Conserva-la",
       "done": "S’ha desfet la importació. {count, plural, one {S’ha eliminat # missatge.} other {S’han eliminat # missatges.}}",
@@ -352,7 +352,8 @@
     "sectionAudio": "Àudio",
     "sectionGallery": "Galeria",
     "sectionTimeline": "Cronologia",
-    "sectionFavorites": "Preferits"
+    "sectionFavorites": "Preferits",
+    "sectionNotes": "Notes"
   },
   "personAudio": {
     "title": "Àudio",
@@ -482,7 +483,7 @@
     "nothingLeft": "Cap dels missatges que va afegir aquesta importació és ja a l’arxiu, així que no hi ha res a desfer.",
     "undo": {
       "body": "{count, plural, one {El # missatge que ha afegit} other {Els # missatges que ha afegit}} aquesta importació s’eliminaran, amb les fotos i els fitxers que cap altra conversa utilitzi. Els missatges d’altres importacions i tot el que ja hi havia al teu arxiu es queden.",
-      "bodyCreated": "{count, plural, one {El # missatge que ha afegit} other {Els # missatges que ha afegit}} aquesta importació s’eliminaran, amb les fotos i els fitxers que cap altra conversa utilitzi. Aquesta importació va crear «{title}», així que aquesta conversa també s’eliminarà si no hi queda res més. Els missatges d’altres importacions i tot el que ja hi havia al teu arxiu es queden."
+      "bodyCreated": "{count, plural, one {El # missatge que ha afegit} other {Els # missatges que ha afegit}} aquesta importació s’eliminaran, amb les fotos i els fitxers que cap altra conversa utilitzi. Aquesta importació va crear «{title}», així que aquesta conversa també s’eliminarà si no hi queda res més. Si s’elimina, les seves notes i preferits s’eliminen amb ella. Els missatges d’altres importacions i tot el que ja hi havia al teu arxiu es queden."
     },
     "loadMore": "Mostra importacions anteriors",
     "loadMoreFailed": "No s’han pogut llegir les importacions anteriors. Torna-ho a provar.",
@@ -561,7 +562,8 @@
       "add": "Afegeix als preferits",
       "remove": "Treu dels preferits",
       "failed": "No s'ha pogut desar el preferit. No s'ha esborrat res."
-    }
+    },
+    "noteLabel": "Nota sobre aquest missatge"
   },
   "timeline": {
     "back": "Torna a {name}",
@@ -592,5 +594,66 @@
     "showMore": "Mostra'n més",
     "loadingMore": "Carregant-ne més…",
     "moreFailed": "No s'han pogut llegir alguns preferits. No s'ha esborrat res."
+  },
+  "notes": {
+    "personTitle": "Notes",
+    "label": {
+      "profile": "Nota sobre aquesta persona",
+      "conversation": "Nota sobre aquesta conversa",
+      "message": "Nota sobre aquest missatge"
+    },
+    "addButton": "Afegeix una nota",
+    "editButton": "Edita la nota",
+    "addConversation": "Afegeix una nota",
+    "editConversation": "Edita la nota",
+    "save": "Desa la nota",
+    "saving": "Desant…",
+    "cancel": "Cancel·la",
+    "close": "Tanca",
+    "delete": "Elimina la nota",
+    "retry": "Torna-ho a provar",
+    "loading": "Carregant la nota…",
+    "loadFailed": "No s’ha pogut llegir la nota. No s’ha canviat res.",
+    "saved": "Nota desada.",
+    "deleted": "Nota eliminada.",
+    "savedAt": "Desada {relative} · {absolute}",
+    "remaining": "{count, plural, one {Queda # caràcter} other {Queden # caràcters}}",
+    "invalid": "No s’ha pogut desar la nota tal com està. El límit és de {max, number} caràcters.",
+    "saveFailed": "No s’ha pogut desar la nota. El teu text continua aquí. Torna-ho a provar.",
+    "deleteFailed": "No s’ha pogut eliminar la nota. No s’ha canviat res.",
+    "deleteTitle": "Vols eliminar aquesta nota?",
+    "deleteBody": "Només s’elimina la nota. El missatge, la conversa o la persona a què es refereix es queden com estan.",
+    "deleteConfirm": "Elimina la nota",
+    "deleteKeep": "Conserva la nota",
+    "discardTitle": "Vols descartar els canvis?",
+    "discardBody": "El que has escrit no s’ha desat i es perdrà.",
+    "discardConfirm": "Descarta els canvis",
+    "discardKeep": "Continua editant"
+  },
+  "personNotes": {
+    "title": "Notes",
+    "back": "Torna a {name}",
+    "loading": "Carregant les notes…",
+    "loadFailed": "No s’han pogut llegir les notes. No s’ha eliminat res.",
+    "count": "{count, plural, one {# nota} other {# notes}} sobre {name}",
+    "empty": "Encara no hi ha notes sobre {name}.",
+    "emptyHint": "Per afegir-ne una, prem el botó de nota al costat d’un missatge, o escriu una nota a la pàgina d’aquesta persona o en una conversa.",
+    "kind": {
+      "profile": "Persona",
+      "conversation": "Conversa",
+      "message": "Missatge"
+    },
+    "you": "Tu",
+    "unknownAuthor": "Remitent desconegut",
+    "edited": "Editada {relative} · {absolute}",
+    "edit": "Edita la nota",
+    "openPerson": "Obre la persona",
+    "openConversation": "Obre la conversa",
+    "openMessage": "Obre a la conversa",
+    "openLabel": "{what}: {about}",
+    "shown": "Es mostren {shown} de {total}",
+    "showMore": "Mostra’n més",
+    "loadingMore": "Carregant-ne més…",
+    "moreFailed": "No s’han pogut llegir algunes notes. No s’ha eliminat res."
   }
 }

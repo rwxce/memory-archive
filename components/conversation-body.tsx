@@ -59,6 +59,9 @@ export function ConversationBody({ source }: { source: FeedSource }) {
   const pages = useMessagePages(id, count, source.readWindow);
   const [status, setStatus] = useState('');
   const toggleFavorite = useFavoriteToggle(id, pages.setFavorite, useCallback(() => setStatus(t('favorite.failed')), [t]));
+  // Notes typed and not yet saved, by message: they outlive a row that scrolls out of the window.
+  const noteDrafts = useRef(new Map<string, string>());
+  const { setNote } = pages;
   const [day, setDay] = useState('');
   const [calendarOpen, setCalendarOpen] = useState(false);
   const calendarButton = useRef<HTMLButtonElement>(null);
@@ -199,6 +202,8 @@ export function ConversationBody({ source }: { source: FeedSource }) {
                 previous={previous}
                 rowRef={list.rowRef}
                 onToggleFavorite={toggleFavorite}
+                noteDrafts={noteDrafts.current}
+                onNoteChanged={setNote}
                 conversationTitle={named?.conversationTitle}
                 conversationHref={
                   named && source.timeline

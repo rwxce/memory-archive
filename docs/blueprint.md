@@ -97,6 +97,24 @@ test type or architecture rule means updating this file **in the same PR**.
     cache in place (`useMessagePages().setFavorite`, remembered per message so a page read later or
     in flight shows it; no refetch, no height change), rolls back and announces on failure, and ignores
     taps while that message's write runs. Stars in the gallery / lightbox are a follow-up.
+  - **Notes** (one editable text per person, conversation or message; `components/note-editor.tsx` over
+    `hooks/use-note.ts`, which reads the note lazily, saves through `setNote` and reports the change even if
+    the caller has unmounted). The editor is a labelled textarea (`maxLength` = `NOTE_MAX`, remaining-characters
+    counter only within 500 of it, `dir="auto"`, line breaks kept, never markup), Save (Ctrl/Cmd+Enter too),
+    Close/Cancel, Delete; Delete and "save an empty text" ask first, Close/Cancel with unsaved text asks
+    first, a failed write keeps the text and offers another try, `invalid` is explained under the field, and
+    "Saved {relative} · {absolute}" comes from `formatWhen`. Where it appears: a Notes panel on the person's
+    page and a note button under the title of a conversation (`components/note-panels.tsx`); the note button
+    on a message row (`components/note-button.tsx`, beside the star and Details, not on notices) opens the
+    editor under the bubble (the row grows like Details) and patches `hasNote` in the paged cache
+    (`useMessagePages().setNote`, remembered per message like the star); unsaved text lives in a map kept by
+    the feed, so a row scrolled out of the window and back reopens its editor with the draft. **Notes list**
+    (`/[locale]/person/notes/?id=<uuid>`, `components/person-notes-screen.tsx` / `person-note-item.tsx`,
+    `hooks/use-person-notes.ts`, fifth entry of `person-sections.tsx`): `listNotes({ profileId })`, 50 and
+    "Show more", each card with its kind, text, last edit, the quoted message and conversation title for a
+    message note, "Open in conversation" / person / conversation, and the same editor in place (a saved note
+    updates the card, a deleted one leaves the list with a live-region note). Undoing an import that created a
+    conversation now says that its notes and favorites are removed with it (wizard and import history).
   - **Conversation** (`/[locale]/conversation/?id=<uuid>[&from=<person>][&date=YYYY-MM-DD]`,
     `components/conversation-screen.tsx` / `conversation-body.tsx` / `message-row.tsx` /
     `message-media.tsx`, opened from the conversation lists with an *Open* link): a virtualized
@@ -700,6 +718,7 @@ test type or architecture rule means updating this file **in the same PR**.
   - Thumbnails — `lib/storage/opfs-thumb-store.test.ts` (hash/size validation, get/put/delete/clear, cap and LRU eviction, partial write never served, failed write, no-`move()`, tmp sweep, separate from blobs), `thumbnail.test.ts` (fake `createImageBitmap` / `OffscreenCanvas`: orientation, webp / jpeg fallback, undecodable, closing), `lib/usecases/tile-image.test.ts`, `hooks/use-tile-image.test.tsx`, and in `import.test.ts` / `archive.test.ts` (thumbs deleted with their blob, not in the exported ZIP, restore from an empty or stale cache).
   - UI — `components/person-timeline-screen.test.tsx` and `hooks/use-person-timeline.test.tsx` (merge order across two conversations, label only where the conversation changes with hrefs, hostile title as text, "me" alignment, date jump, saved position, empty / not-found / error + retry, start at date / saved position / end, Catalan); e2e `e2e/person-timeline.spec.ts` (two chats imported into one person, order, labels, date jump, calendar, Back, small DOM at 390 and 1440).
   - UI — `components/person-gallery-screen.test.tsx` (kinds, month groups, near-screen reads and URL revoke with a driven IntersectionObserver, video reads nothing, missing and undecodable, Show more, empty / not-found / error + retry, Catalan), `components/person-gallery-lightbox.test.tsx` (dialog stub for happy-dom: open, arrows, ends, missing, read-ahead and revoke, focus return, next page and its failure), `hooks/use-near-viewport.test.tsx`, `e2e/person-gallery.spec.ts` (real PNGs and a video, lazy loading on scroll, keyboard, lightbox open / arrows / Escape / next page / open in the conversation, at 390 and 1440 px);
+  - UI — `components/message-notes.test.tsx`, `hooks/use-note.test.tsx` and `components/person-notes-screen.test.tsx` (note button on messages only, 44 px, Ctrl+Enter save with unchanged row positions, `hasNote` patched in place, delete and discard confirmations, failed write keeps the text, `invalid` shown, counter near the limit only, draft survives a remounted row, timeline rows save in their own conversation, conversation and person notes, Notes list kinds / quoted message / hrefs / edit / delete with live note / paging / empty / error + retry / not-found, Catalan), `e2e/notes.spec.ts` (message note in the conversation, listed and edited in Notes, person note, delete, reload keeps it, at 390 and 1440 px)
   - UI — `components/message-favorite.test.tsx` and `hooks/use-favorite-toggle.test.tsx` (star on messages only, aria-pressed, optimistic mark with unchanged row positions, persisted, rollback with live message, in-flight taps ignored, timeline rows save in their own conversation, page read later keeps the mark, Catalan), `components/person-favorites-screen.test.tsx` and `hooks/use-person-favorites.test.tsx` (month groups, text as text, media line, hrefs, remove with live note and failure alert, Show more without skips, empty / error + retry / not-found), `hooks/message-pages.test.ts` (`PageCache.update`, `messageKey`), `e2e/favorites.spec.ts` (star from the Timeline and the conversation, Favorites list, remove, reload keeps it, at 390 and 1440 px)
   - UI — `components/person-audio-screen.test.tsx` and `hooks/use-person-media.test.tsx` (month groups, Open-in-conversation hrefs, one player at a time, missing file, Show more, empty / not-found / error + retry, Catalan; paging, kinds, failed page, ids), `e2e/person-audio.spec.ts` (import, sections link, play one at a time, open in the conversation, at 390 and 1440 px); `components/person-screen.test.tsx` (details, not-found, archived person, edit, archive,
     rename validation / double submit / failure / Escape and IME, move, link, unlink incl. the last

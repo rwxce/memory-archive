@@ -312,7 +312,7 @@
     "undo": {
       "title": "¿Deshacer esta importación?",
       "body": "{count, plural, one {El # mensaje añadido} other {Los # mensajes añadidos}} por esta importación se eliminarán. Las fotos y los ficheros que ninguna otra conversación use también se eliminarán. Los mensajes que ya estaban en tu archivo se quedan.",
-      "bodyCreated": "{count, plural, one {El # mensaje añadido} other {Los # mensajes añadidos}} por esta importación se eliminarán, y también la conversación «{title}», que creó esta importación. Las fotos y los ficheros que ninguna otra conversación use también se eliminarán. Todo lo que había en tu archivo antes se queda.",
+      "bodyCreated": "{count, plural, one {El # mensaje añadido} other {Los # mensajes añadidos}} por esta importación se eliminarán, y también la conversación «{title}», que creó esta importación. Las fotos y los ficheros que ninguna otra conversación use también se eliminarán. Las notas y los favoritos de esa conversación se eliminan con ella. Todo lo que había en tu archivo antes se queda.",
       "confirm": "Deshacer la importación",
       "cancel": "Conservarla",
       "done": "Se ha deshecho la importación. {count, plural, one {Se ha eliminado # mensaje.} other {Se han eliminado # mensajes.}}",
@@ -352,7 +352,8 @@
     "sectionAudio": "Audio",
     "sectionGallery": "Galería",
     "sectionTimeline": "Cronología",
-    "sectionFavorites": "Favoritos"
+    "sectionFavorites": "Favoritos",
+    "sectionNotes": "Notas"
   },
   "personAudio": {
     "title": "Audio",
@@ -482,7 +483,7 @@
     "nothingLeft": "Ninguno de los mensajes que añadió esta importación está ya en el archivo, así que no hay nada que deshacer.",
     "undo": {
       "body": "{count, plural, one {El # mensaje que ha añadido} other {Los # mensajes que ha añadido}} esta importación se eliminarán, con las fotos y los ficheros que ninguna otra conversación use. Los mensajes de otras importaciones y todo lo que ya estaba en tu archivo se quedan.",
-      "bodyCreated": "{count, plural, one {El # mensaje que ha añadido} other {Los # mensajes que ha añadido}} esta importación se eliminarán, con las fotos y los ficheros que ninguna otra conversación use. Esta importación creó «{title}», así que esa conversación también se eliminará si no queda nada más en ella. Los mensajes de otras importaciones y todo lo que ya estaba en tu archivo se quedan."
+      "bodyCreated": "{count, plural, one {El # mensaje que ha añadido} other {Los # mensajes que ha añadido}} esta importación se eliminarán, con las fotos y los ficheros que ninguna otra conversación use. Esta importación creó «{title}», así que esa conversación también se eliminará si no queda nada más en ella. Si se elimina, sus notas y favoritos se eliminan con ella. Los mensajes de otras importaciones y todo lo que ya estaba en tu archivo se quedan."
     },
     "loadMore": "Mostrar importaciones anteriores",
     "loadMoreFailed": "No se han podido leer las importaciones anteriores. Inténtalo de nuevo.",
@@ -561,7 +562,8 @@
       "add": "Añadir a favoritos",
       "remove": "Quitar de favoritos",
       "failed": "No se ha podido guardar el favorito. No se ha borrado nada."
-    }
+    },
+    "noteLabel": "Nota sobre este mensaje"
   },
   "timeline": {
     "back": "Volver a {name}",
@@ -592,5 +594,66 @@
     "showMore": "Mostrar más",
     "loadingMore": "Cargando más…",
     "moreFailed": "No se han podido leer algunos favoritos. No se ha borrado nada."
+  },
+  "notes": {
+    "personTitle": "Notas",
+    "label": {
+      "profile": "Nota sobre esta persona",
+      "conversation": "Nota sobre esta conversación",
+      "message": "Nota sobre este mensaje"
+    },
+    "addButton": "Añadir una nota",
+    "editButton": "Editar nota",
+    "addConversation": "Añadir una nota",
+    "editConversation": "Editar nota",
+    "save": "Guardar nota",
+    "saving": "Guardando…",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "delete": "Eliminar nota",
+    "retry": "Reintentar",
+    "loading": "Cargando la nota…",
+    "loadFailed": "No se ha podido leer la nota. No se ha cambiado nada.",
+    "saved": "Nota guardada.",
+    "deleted": "Nota eliminada.",
+    "savedAt": "Guardada {relative} · {absolute}",
+    "remaining": "{count, plural, one {Queda # carácter} other {Quedan # caracteres}}",
+    "invalid": "No se ha podido guardar la nota tal como está. El límite es de {max, number} caracteres.",
+    "saveFailed": "No se ha podido guardar la nota. Tu texto sigue aquí. Inténtalo de nuevo.",
+    "deleteFailed": "No se ha podido eliminar la nota. No se ha cambiado nada.",
+    "deleteTitle": "¿Eliminar esta nota?",
+    "deleteBody": "Solo se elimina la nota. El mensaje, la conversación o la persona a la que se refiere se quedan como están.",
+    "deleteConfirm": "Eliminar nota",
+    "deleteKeep": "Conservar nota",
+    "discardTitle": "¿Descartar los cambios?",
+    "discardBody": "Lo que has escrito no se ha guardado y se perderá.",
+    "discardConfirm": "Descartar cambios",
+    "discardKeep": "Seguir editando"
+  },
+  "personNotes": {
+    "title": "Notas",
+    "back": "Volver a {name}",
+    "loading": "Cargando las notas…",
+    "loadFailed": "No se han podido leer las notas. No se ha eliminado nada.",
+    "count": "{count, plural, one {# nota} other {# notas}} sobre {name}",
+    "empty": "Todavía no hay notas sobre {name}.",
+    "emptyHint": "Para añadir una, pulsa el botón de nota junto a un mensaje, o escribe una nota en la página de esta persona o en una conversación.",
+    "kind": {
+      "profile": "Persona",
+      "conversation": "Conversación",
+      "message": "Mensaje"
+    },
+    "you": "Tú",
+    "unknownAuthor": "Remitente desconocido",
+    "edited": "Editada {relative} · {absolute}",
+    "edit": "Editar nota",
+    "openPerson": "Abrir persona",
+    "openConversation": "Abrir conversación",
+    "openMessage": "Abrir en la conversación",
+    "openLabel": "{what}: {about}",
+    "shown": "Mostrando {shown} de {total}",
+    "showMore": "Mostrar más",
+    "loadingMore": "Cargando más…",
+    "moreFailed": "No se han podido leer algunas notas. No se ha eliminado nada."
   }
 }

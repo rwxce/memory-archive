@@ -20,6 +20,8 @@ export interface MessagePages {
    * and arriving after it) shows it too.
    */
   setFavorite(message: ConversationMessage, favorite: boolean): void;
+  /** Sets the "has a note" mark of one message in the cache, in place and remembered, like `setFavorite`. */
+  setNote(message: ConversationMessage, hasNote: boolean): void;
   /** Changes whenever a page arrives or goes, so rows can re-read `at`. */
   version: number;
 }
@@ -45,6 +47,7 @@ export function useMessagePages(sourceKey: string, count: number, readWindow: Re
       center: 0,
       last: { start: 0, end: 0 },
       overrides: new Map<string, boolean>(),
+      noteOverrides: new Map<string, boolean>(),
       dead: false,
     }),
     [readWindow, sourceKey, maxPages, pageSize],
@@ -68,8 +71,11 @@ export function useMessagePages(sourceKey: string, count: number, readWindow: Re
           store.inFlight.delete(page);
           if (store.dead) return;
           const marked = rows.map((m) => {
-            const mark = store.overrides.get(messageKey(sourceKey, m));
-            return mark === undefined || mark === m.isFavorite ? m : { ...m, isFavorite: mark };
+            const key = messageKey(sourceKey, m);
+            const mark = store.overrides.get(key);
+            const note = store.noteOverrides.get(key);
+            if ((mark === undefined || mark === m.isFavorite) && (note === undefined || note === m.hasNote)) return m;
+            return { ...m, isFavorite: mark ?? m.isFavorite, hasNote: note ?? m.hasNote };
           });
           const before = page > 0 ? (marked[0] ?? null) : null;
           store.cache.set({ index: page, messages: page > 0 ? marked.slice(1) : marked, before });
@@ -115,7 +121,17 @@ export function useMessagePages(sourceKey: string, count: number, readWindow: Re
     [sourceKey, store, bump],
   );
 
+  const setNote = useCallback(
+    (message: ConversationMessage, hasNote: boolean) => {
+      const key = messageKey(sourceKey, message);
+      store.noteOverrides.set(key, hasNote);
+      const changed = store.cache.update((m) => (m.id === message.id && messageKey(sourceKey, m) === key && m.hasNote !== hasNote ? { ...m, hasNote } : undefined));
+      if (changed) bump();
+    },
+    [sourceKey, store, bump],
+  );
+
   const at = useCallback((index: number) => store.cache.at(index), [store, version]);
 
-  return { at, request, busy: store.inFlight.size > 0, failed: store.failed.size > 0, retry, setFavorite, version };
+  return { at, request, busy: store.inFlight.size > 0, failed: store.failed.size > 0, retry, setFavorite, setNote, version };
 }
