@@ -890,8 +890,10 @@ test type or architecture rule means updating this file **in the same PR**.
   tag and GitHub Release, back-merges `main` into `dev` (`-s ours`). No release bot.
 - **`dependabot.yml`** — npm and GitHub Actions, target `dev`, 7-day cooldown.
 - **`CODEOWNERS`** and **PR template** (`.github/pull_request_template.md`).
-- **Planned:** `deploy.yml` (Cloudflare Pages: `main` = production, `dev` = preview) and
-  `pages.yml` (GitHub Pages for forks).
+- **`pages.yml`** — on push to `main` (and manually): `pnpm build` with
+  `NEXT_PUBLIC_BASE_PATH=/memory-archive`, uploads `out/`, deploys to GitHub Pages
+  (`https://rwxce.github.io/memory-archive/`). Only released versions are published.
+- **Planned:** `deploy.yml` (Cloudflare Pages: `main` = production, `dev` = preview).
 
 ## 6. Quality gates and supply chain
 
