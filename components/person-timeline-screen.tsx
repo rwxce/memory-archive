@@ -9,7 +9,7 @@ import { BackPill } from '@/components/back-pill';
 import { Eyebrow } from '@/components/eyebrow';
 import { usePeopleBack, usePersonBack } from '@/components/person-back';
 import { EmptyNote, ErrorNote, LoadingNote, PersonNotFound } from '@/components/screen-states';
-import { Shell } from '@/components/screen-shell';
+import { FeedShell, Shell } from '@/components/screen-shell';
 import { useLibrary, useLibraryDeps } from '@/hooks/use-library';
 import { isDateParam } from '@/hooks/use-conversation';
 import { timelinePositionKey, usePersonTimeline, type OpenTimeline } from '@/hooks/use-person-timeline';
@@ -73,7 +73,7 @@ function PersonTimelineContent() {
   const { person, bounds } = timeline;
   const dates = formatDateRange(bounds.firstSentAt, bounds.lastSentAt, locale);
   return (
-    <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col">
+    <FeedShell>
       <header className="flex shrink-0 flex-col gap-2 px-4 pt-3 pb-2 sm:px-5">
         <BackPill href={personBack.href}>{personBack.label}</BackPill>
         <Eyebrow>{t('eyebrow')}</Eyebrow>
@@ -92,7 +92,7 @@ function PersonTimelineContent() {
       ) : (
         <TimelineFeed key={person.id} timeline={timeline} />
       )}
-    </div>
+    </FeedShell>
   );
 }
 

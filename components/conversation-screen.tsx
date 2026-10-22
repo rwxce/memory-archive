@@ -12,7 +12,7 @@ import { PageTitle } from '@/components/page-title';
 import { PersonAvatar } from '@/components/person-avatar';
 import { PillButton } from '@/components/pill-button';
 import { SectionCard } from '@/components/section-card';
-import { Shell } from '@/components/screen-shell';
+import { FeedShell, Shell } from '@/components/screen-shell';
 import { isDateParam, useConversation, type OpenConversation } from '@/hooks/use-conversation';
 import { useLibrary, useLibraryDeps } from '@/hooks/use-library';
 import { Link } from '@/i18n/navigation';
@@ -90,7 +90,7 @@ function ConversationContent({ onRetry }: { onRetry: () => void }) {
   const backLabel = back ? t('back', { name: back.name }) : tn('tabs.people');
 
   return (
-    <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col">
+    <FeedShell>
       <header className="bg-bg z-20 flex shrink-0 flex-wrap items-center gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
         <BackPill href={backHref} className="size-11 shrink-0 justify-center p-0">
           <span className="sr-only">{backLabel}</span>
@@ -123,7 +123,7 @@ function ConversationContent({ onRetry }: { onRetry: () => void }) {
         <ConversationNote key={view.conversation.id} conversationId={view.conversation.id} />
       </header>
       <ConversationFeed key={view.conversation.id} conversation={conversation} />
-    </div>
+    </FeedShell>
   );
 }
 

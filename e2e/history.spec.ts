@@ -56,7 +56,7 @@ test('the same ZIP twice adds nothing: one entry in the history, and the counts 
   expect(await overflowsHorizontally(page)).toBe(false);
 
   // The same file again, from the history's own way back into the wizard.
-  await page.getByRole('link', { name: 'Back to People' }).click();
+  await page.getByRole('link', { name: 'Back to Import' }).click();
   await importFromPeople(page, exportZip(), 'Mama', 'Finish without adding anything');
   await expect(page.getByText('No new messages were added to Mama.')).toBeVisible();
   await seeHistory(page);
@@ -65,7 +65,8 @@ test('the same ZIP twice adds nothing: one entry in the history, and the counts 
   await expect(entry.getByText('4 new messages added.')).toBeVisible();
 
   // People and the person's page: still one conversation with 4 messages.
-  await page.getByRole('link', { name: 'Back to People' }).click();
+  await page.getByRole('link', { name: 'Back to Import' }).click();
+  await page.goto('/en/people/');
   await expect(page.getByText(/1 conversation/)).toBeVisible();
   await page.getByRole('main').getByRole('link', { name: 'Mama', exact: true }).click();
   await expect(page.getByRole('list', { name: 'Conversations' }).getByRole('listitem')).toHaveCount(1);
@@ -129,7 +130,8 @@ test('undo from the history removes that import: its messages and the conversati
   await expect(page.getByRole('heading', { level: 2, name: 'Nothing has been imported yet' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 1, name: 'Import history' })).toBeFocused();
 
-  await page.getByRole('link', { name: 'Back to People' }).click();
+  await page.getByRole('link', { name: 'Back to Import' }).click();
+  await page.goto('/en/people/');
   await expect(page.getByRole('list', { name: 'People' }).getByText('No conversations yet')).toBeVisible();
 });
 
@@ -140,6 +142,9 @@ test('Catalan: the history and its empty state are in Catalan, and the settings 
   await expect(page.getByRole('heading', { level: 1, name: 'Historial d’importacions' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Encara no s’ha importat res' })).toBeVisible();
   expect(await overflowsHorizontally(page)).toBe(false);
+  // Opened from Settings, the way back is to Settings.
+  await page.getByRole('link', { name: 'Torna a Configuració' }).click();
+  await expect(page).toHaveURL(/\/ca\/settings\/$/);
 });
 
 // ── Phase 4: closing the tab in the middle of an import leaves the archive intact ─────────────
