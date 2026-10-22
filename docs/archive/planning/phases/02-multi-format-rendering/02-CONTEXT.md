@@ -82,7 +82,7 @@ Derive three synchronized outputs from the CSV source-of-truth in a single CLI r
 - `AGENTS.md` — Tech stack constraints (TypeScript/Node ESM; core reusable in web frontend). STACK research recommends eta 4.6 for templating (confirmed in D-42).
 
 ### Ground Truth
-- `data/WhatsApp Chat - Plataforma WK/_chat.txt` — real pt-BR sample incl. bidi authors, emoji, omitted markers.
+- `data/WhatsApp Chat - Example Org/_chat.txt` — real pt-BR sample incl. bidi authors, emoji, omitted markers.
 - `data/WhatsApp Chat - Notas pessoais/_chat.txt` — second sample with deleted/document-omitted cases.
 
 </canonical_refs>

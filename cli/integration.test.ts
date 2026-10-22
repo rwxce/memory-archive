@@ -11,7 +11,7 @@ import { slugifyChatName } from '@/lib/importers/whatsapp';
 import { parseCsvRecords as parseCsv, unescapeField } from '@/lib/exporters/legacy';
 
 const ROOT = process.cwd();
-const WK = 'WhatsApp Chat - Plataforma WK';
+const ORG = 'WhatsApp Chat - Example Org';
 const NOTAS = 'WhatsApp Chat - Notas pessoais';
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 
@@ -37,39 +37,39 @@ function assertNoBom(out: string, chat: string) {
   assert.equal(raw.toString('utf8').split('\n')[0], 'timestamp_iso,type,author,text,media,url_titles');
 }
 
-test('Plataforma WK: authoritative end-to-end assertions', async () => {
+test('Example Org: authoritative end-to-end assertions', async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-int-out-'));
-  const records = await run(WK, out);
+  const records = await run(ORG, out);
 
-  assertNoBom(out, WK);
+  assertNoBom(out, ORG);
 
   // First row.
-  assert.equal(records[0][0], '2026-07-23T09:47:18');
-  assert.equal(records[0][2], 'Plataforma WK');
+  assert.equal(records[0][0], '2020-07-23T09:47:18');
+  assert.equal(records[0][2], 'Example Org');
   assert.ok(records[0][3].startsWith('Messages and calls are end-to-end encrypted'));
 
   // Line 10 sticker; lines 20-21 continuation join.
-  assert.ok(records.some((r) => r[1] === 'sticker' && r[4] === '00003010-STICKER-2026-07-23-12-41-49.webp'));
-  const cont = records.find((r) => r[3].includes('Senha: TIMEWK2026'));
-  assert.ok(cont && cont[3].includes('Rede: Conexão WK - Staff'));
-  assert.ok(!records.some((r) => r[3] === 'Senha: TIMEWK2026'));
+  assert.ok(records.some((r) => r[1] === 'sticker' && r[4] === '00003010-STICKER-2020-07-23-12-41-49.webp'));
+  const cont = records.find((r) => r[3].includes('Password: example-password'));
+  assert.ok(cont && cont[3].includes('Wi-Fi: Example Network'));
+  assert.ok(!records.some((r) => r[3] === 'Password: example-password'));
 
   // Lines 36-37 merged single photo row, no phantom.
-  assert.ok(records.some((r) => r[4] === '00003036-PHOTO-2026-07-23-23-31-30.jpg' && r[1] === 'photo'));
-  assert.ok(!records.some((r) => r[0] === '2026-07-23T23:31:29' && r[3] === '' && r[4] === ''));
+  assert.ok(records.some((r) => r[4] === '00003036-PHOTO-2020-07-23-23-31-30.jpg' && r[1] === 'photo'));
+  assert.ok(!records.some((r) => r[0] === '2020-07-23T23:31:29' && r[3] === '' && r[4] === ''));
 
   // Lines 46-51 five distinct photo rows.
-  const burst = records.filter((r) => r[1] === 'photo' && r[0].startsWith('2026-07-24T10:41') && r[4].startsWith('000030'));
+  const burst = records.filter((r) => r[1] === 'photo' && r[0].startsWith('2020-07-24T10:41') && r[4].startsWith('000030'));
   assert.ok(burst.length >= 5, `expected >=5 burst rows, got ${burst.length}`);
   assert.equal(new Set(burst.map((r) => r[4])).size, burst.length);
 
   // Line 57 omitted; line 100 deleted; line 9 raw bidi author.
   assert.ok(records.some((r) => r[1] === 'omitted' && r[3].includes('sticker omitted')));
   assert.ok(records.some((r) => r[1] === 'deleted' && r[3] === 'Mensagem apagada'));
-  const src9 = fs.readFileSync(path.join(ROOT, 'fixtures', WK, '_chat.txt'), 'utf8')
-    .split('\n').find((l) => l.includes('99951'))!;
+  const src9 = fs.readFileSync(path.join(ROOT, 'fixtures', ORG, '_chat.txt'), 'utf8')
+    .split('\n').find((l) => l.includes('555 0100'))!;
   const rawAuthor = src9.match(/\] (.+?): /)![1];
-  assert.ok(records.some((r) => r[0] === '2026-07-23T12:15:28' && unescapeField(r[2]) === rawAuthor));
+  assert.ok(records.some((r) => r[0] === '2020-07-23T12:15:28' && unescapeField(r[2]) === rawAuthor));
 
   // Every timestamp is local ISO.
   for (const r of records) assert.match(r[0], ISO_RE);
@@ -82,17 +82,17 @@ test('Notas pessoais: authoritative end-to-end assertions', async () => {
   assertNoBom(out, NOTAS);
 
   // Line 1 text; line 18 document omitted w/ full marker; line 37 sticker.
-  assert.ok(records.some((r) => r[0] === '2026-03-17T13:17:59' && r[3] === 'https://lefthook.dev/'));
-  assert.ok(records.some((r) => r[1] === 'omitted' && r[3].includes('autorizacao_atividade.pdf') && r[3].includes('document omitted')));
-  assert.ok(records.some((r) => r[0] === '2026-04-03T15:17:12' && r[1] === 'sticker' && r[4] === '00000008-STICKER-2026-04-03-15-17-12.webp'));
+  assert.ok(records.some((r) => r[0] === '2020-03-17T13:17:59' && r[3] === 'https://lefthook.dev/'));
+  assert.ok(records.some((r) => r[1] === 'omitted' && r[3].includes('sample_document.pdf') && r[3].includes('document omitted')));
+  assert.ok(records.some((r) => r[0] === '2020-04-03T15:17:12' && r[1] === 'sticker' && r[4] === '00000008-STICKER-2020-04-03-15-17-12.webp'));
 
-  // Line 124 caption+attachment photo; line 196 IRPF document attach.
-  assert.ok(records.some((r) => r[0] === '2026-05-29T17:23:37' && r[1] === 'photo' && r[3] === 'Taxa João Furlan'));
-  assert.ok(records.some((r) => r[1] === 'document' && r[4].startsWith('00000152-96980389904-IRPF')));
+  // Line 124 caption+attachment photo; line 196 DOC document attach.
+  assert.ok(records.some((r) => r[0] === '2020-05-29T17:23:37' && r[1] === 'photo' && r[3] === 'Example caption'));
+  assert.ok(records.some((r) => r[1] === 'document' && r[4].startsWith('00000152-12345678900-DOC')));
 
   // Lines 14/15 deleted/omitted respectively.
-  assert.ok(records.some((r) => r[0] === '2026-03-25T19:52:16' && r[1] === 'deleted'));
-  assert.ok(records.some((r) => r[0] === '2026-03-25T19:52:29' && r[1] === 'omitted'));
+  assert.ok(records.some((r) => r[0] === '2020-03-25T19:52:16' && r[1] === 'deleted'));
+  assert.ok(records.some((r) => r[0] === '2020-03-25T19:52:29' && r[1] === 'omitted'));
 
   // All types within the locked 8.
   const allowed = new Set(['text','photo','video','sticker','document','system','deleted','omitted']);
@@ -101,14 +101,14 @@ test('Notas pessoais: authoritative end-to-end assertions', async () => {
 
 test('dedupe on re-run: second run adds 0 rows, count unchanged (D-16)', async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-int-dup-'));
-  const first = await run(WK, out);
-  const csvPath = csvPathFor(out, WK);
+  const first = await run(ORG, out);
+  const csvPath = csvPathFor(out, ORG);
   const countAfterFirst = parseCsv(fs.readFileSync(csvPath, 'utf8')).length - 1;
   assert.equal(first.length, countAfterFirst);
 
   const addedSecond = await (async () => {
-    const txt = fs.readFileSync(path.join(ROOT, 'fixtures', WK, '_chat.txt'));
-    const zipped = zipSync({ [`${WK}/_chat.txt`]: txt });
+    const txt = fs.readFileSync(path.join(ROOT, 'fixtures', ORG, '_chat.txt'));
+    const zipped = zipSync({ [`${ORG}/_chat.txt`]: txt });
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-int-zip-'));
     const zipPath = path.join(tmp, 'export.zip');
     fs.writeFileSync(zipPath, Buffer.from(zipped));
@@ -121,7 +121,7 @@ test('dedupe on re-run: second run adds 0 rows, count unchanged (D-16)', async (
 });
 
 test('ordering: every CSV sorted ascending by timestamp (D-17)', async () => {
-  for (const chat of [WK, NOTAS]) {
+  for (const chat of [ORG, NOTAS]) {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-int-ord-'));
     const records = await run(chat, out);
     for (let i = 1; i < records.length; i++) {
@@ -134,7 +134,7 @@ test('ordering: every CSV sorted ascending by timestamp (D-17)', async () => {
 });
 
 test('no phantom empty rows before media rows (both samples)', async () => {
-  for (const chat of [WK, NOTAS]) {
+  for (const chat of [ORG, NOTAS]) {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-int-pha-'));
     const records = await run(chat, out);
     for (let i = 0; i < records.length; i++) {
@@ -151,7 +151,7 @@ test('no phantom empty rows before media rows (both samples)', async () => {
 });
 
 test('G-01-16: root-level _chat.txt derives chat name from ZIP basename', async () => {
-  const txt = fs.readFileSync(path.join(ROOT, 'fixtures', WK, '_chat.txt'));
+  const txt = fs.readFileSync(path.join(ROOT, 'fixtures', ORG, '_chat.txt'));
   const zipped = zipSync({ '_chat.txt': txt }); // NO folder — real-export layout
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-root-'));
   const zipPath = path.join(tmp, 'WhatsApp Chat - Root Level.zip');
@@ -179,7 +179,7 @@ test('url titles: fetched + persisted to CSV/JSON/HTML', async () => {
   });
   try {
     const chat = 'WhatsApp Chat - UrlTitle IT';
-    const txt = `23/07/2026 09:47 - Owner: see ${srv.url}\n`;
+    const txt = `23/07/2020 09:47 - Owner: see ${srv.url}\n`;
     const zipped = zipSync({ [`${chat}/_chat.txt`]: Buffer.from(txt, 'utf8') });
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-ut-'));
     const zipPath = path.join(tmp, 'e.zip');
@@ -202,7 +202,7 @@ test('url titles: fetched + persisted to CSV/JSON/HTML', async () => {
 
 test('url titles: offline by default leaves urlTitles empty', async () => {
   const chat = 'WhatsApp Chat - UrlTitle Off';
-  const txt = `23/07/2026 09:47 - Owner: see https://example.com/x\n`;
+  const txt = `23/07/2020 09:47 - Owner: see https://example.com/x\n`;
   const zipped = zipSync({ [`${chat}/_chat.txt`]: Buffer.from(txt, 'utf8') });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-ut2-'));
   const zipPath = path.join(tmp, 'e.zip');

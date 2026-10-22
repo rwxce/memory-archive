@@ -15,8 +15,8 @@ describe('parseWhatsAppZip (browser-style input)', () => {
     expect(res.detection?.dayFirst).toBe(true);
     expect(res.messages.length).toBeGreaterThan(5);
     expect(res.messages[0]).toMatchObject({
-      timestamp_iso: '2026-03-17T13:17:59',
-      author: 'Guionardo Furlan',
+      timestamp_iso: '2020-03-17T13:17:59',
+      author: 'Alice Example',
       text: 'https://lefthook.dev/',
     });
     expect(res.messages.some((m) => m.type === 'sticker')).toBe(true);

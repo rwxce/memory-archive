@@ -20,7 +20,7 @@ const msg = (timestamp_iso: string, author: string, text: string, media = ''): M
 });
 
 describe('sha256 (sync, platform-neutral)', () => {
-  test.each(['', 'abc', 'Guionardo Furlan', '\u202a+55 99 99951-1234\u202c', 'x'.repeat(55), 'y'.repeat(64), 'z'.repeat(1000)])(
+  test.each(['', 'abc', 'Alice Example', '\u202a+00 555 0100 1234\u202c', 'x'.repeat(55), 'y'.repeat(64), 'z'.repeat(1000)])(
     'matches node:crypto for %j',
     (input) => {
       const expected = createHash('sha256').update(input, 'utf8').digest('hex');
@@ -212,10 +212,10 @@ describe('transcript structure', () => {
     const messages = [
       msg('2026-01-01T10:00:00', 'Ana', 'x'),
       msg('2026-01-01T10:01:00', 'Ana', 'y'),
-      msg('2026-01-01T10:02:00', '\u202a+55 11 9999\u202c', 'z'),
+      msg('2026-01-01T10:02:00', '\u202a+00 555 0101\u202c', 'z'),
     ];
     expect(resolveSelfAuthor(messages)).toBe('Ana');
-    expect(resolveSelfAuthor(messages, '+55 11 9999')).toBe('\u202a+55 11 9999\u202c');
+    expect(resolveSelfAuthor(messages, '+00 555 0101')).toBe('\u202a+00 555 0101\u202c');
     expect(resolveSelfAuthor(messages, 'nobody')).toBe('Ana');
   });
 });

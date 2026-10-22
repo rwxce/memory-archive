@@ -147,7 +147,7 @@ status: complete
 **3. [Plan inaccuracy] Stale filename in plan assertions**
 - **Found during:** Task 1 verification
 - **Issue:** The plan's exact assertions name `IMG-20190424-WA0003.jpg` as a resolved media file, but that filename is **not** referenced by `<attached:>` in the actual `_chat.txt` (the 17 real refs are the sticker/photo/video/pdf/inner-zip set listed in `03-RESEARCH.md`). 
-- **Fix:** Implemented the correct behavior (resolve the 17 actually-referenced files, 0 unresolved) and wrote tests against the real referenced filenames (`00000089-VIDEO-…mp4`, `00000152-…IRPF…pdf`, etc.). No code change needed — the plan's example filename was simply stale.
+- **Fix:** Implemented the correct behavior (resolve the 17 actually-referenced files, 0 unresolved) and wrote tests against the real referenced filenames (`00000089-VIDEO-…mp4`, `00000152-…DOC…pdf`, etc.). No code change needed — the plan's example filename was simply stale.
 - **Files modified:** none (test assertions only)
 - **Verification:** `test/media.test.ts` asserts 17/0 and checks the genuinely-present files.
 - **Committed in:** `f25f178`

@@ -34,7 +34,7 @@ Closes G-01-19: the CLI now prints the actual output path.
 
 ## What Was Built
 
-- **src/index.ts** — after `runParser`, resolves the chat name and prints `path.join(outDir, chat, 'messages.csv')`. Example: `✓ Merged 134 new message(s) into /tmp/uat5/plataforma-wk/messages.csv`.
+- **src/index.ts** — after `runParser`, resolves the chat name and prints `path.join(outDir, chat, 'messages.csv')`. Example: `✓ Merged 134 new message(s) into /tmp/uat5/example-org/messages.csv`.
 
 ## Verification Results
 

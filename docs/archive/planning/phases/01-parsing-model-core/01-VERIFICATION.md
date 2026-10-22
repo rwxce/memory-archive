@@ -16,9 +16,9 @@ requirements: [PARSE-01, PARSE-02, PARSE-03, PARSE-04, PARSE-05, PARSE-06, PARSE
 
 | Success Criterion | Evidence | Verdict |
 |---|---|---|
-| 1. ZIP arg → parsed model w/ correct senders/timestamps/bodies/media on real pt-BR sample | `test/integration.test.ts` asserts known lines in BOTH samples (senders incl. raw bidi `‪+55 …‬`, ISO timestamps, bodies w/ emoji + U+200E captions, media filenames); compiled CLI smoke ran `dist/index.js` | ✓ |
+| 1. ZIP arg → parsed model w/ correct senders/timestamps/bodies/media on real pt-BR sample | `test/integration.test.ts` asserts known lines in BOTH samples (senders incl. raw bidi `‪+00 …‬`, ISO timestamps, bodies w/ emoji + U+200E captions, media filenames); compiled CLI smoke ran `dist/index.js` | ✓ |
 | 2. Locale-tolerant detection (D/M order, 12/24h) without config; overrides available | `detectFormat` majority vote tested (`test/timestamp.test.ts`); CLI smoke printed `DAY/MM (dd/mm)` + `24h` auto-detected; `--day-first/--month-first` short-circuit tests pass | ✓ |
-| 3. Multi-line reconstructed; UTF-8/BOM/bidi preserved; AppleDouble ignored | Continuation join asserted (`Senha: TIMEWK2026` folded); UTF-8 no-BOM asserted byte-wise; extract skips `._*`/`__MACOSX` before any inflate (`src/extract.ts`, never `start()`ed) | ✓ |
+| 3. Multi-line reconstructed; UTF-8/BOM/bidi preserved; AppleDouble ignored | Continuation join asserted (`Password: example-password` folded); UTF-8 no-BOM asserted byte-wise; extract skips `._*`/`__MACOSX` before any inflate (`src/extract.ts`, never `start()`ed) | ✓ |
 | 4. Streaming line-by-line, constant memory, no full-archive buffering | fflate `Unzip` streams chunk-by-chunk; only `_chat.txt` entry inflated; event-driven line queue bounded; merge re-reads CSV from disk | ✓ |
 
 ## Quality Gates

@@ -22,11 +22,11 @@ expected: Running `npx tsx src/index.ts <zip> --out <dir>` creates `<dir>/<chat 
 result: pass
 
 ### 3. Media Rows Correct
-expected: Sticker/photo/video messages become rows with EMPTY text and the media filename in the last column (e.g. line 10 of Plataforma WK → sticker row with 00003010-STICKER-….webp).
+expected: Sticker/photo/video messages become rows with EMPTY text and the media filename in the last column (e.g. line 10 of Example Org → sticker row with 00003010-STICKER-….webp).
 result: pass
 
 ### 4. Multi-line Message Joined
-expected: The WiFi credentials message appears as ONE row containing both "Rede: Conexão WK - Staff" and "Senha: TIMEWK2026" joined by a newline — no separate row for the Senha line.
+expected: The WiFi credentials message appears as ONE row containing both "Wi-Fi: Example Network" and "Password: example-password" joined by a newline — no separate row for the Password line.
 result: pass
 resolved_by: 01-04-PLAN (newline escaped; retested as test 13)
 note: original issue "yes, but this will be a invalid CSV. The line break character must be escaped"
@@ -36,7 +36,7 @@ expected: Where WhatsApp emitted an empty message immediately followed by an att
 result: pass
 
 ### 6. Same-second Burst Preserved
-expected: The 5 photos Gian Carlo sent within the same second appear as FIVE distinct rows with different media filenames — none collapsed.
+expected: The 5 photos Bob Sample sent within the same second appear as FIVE distinct rows with different media filenames — none collapsed.
 result: pass
 
 ### 7. Locale Auto-detection Report

@@ -133,7 +133,7 @@ export function extractChatTxt(zipPath: string): Promise<readline.Interface> {
 ## 2. Locale-tolerant timestamp detection
 
 ### 2.1 Invisible-character strip (D-12)
-Before testing a line against the timestamp regex, strip a leading run of: `U+FEFF` (BOM), `U+200E` (LRM), `U+200F` (RLM), `U+200B` (ZWSP), `U+200C` (ZWNJ), `U+200D` (ZWJ), `U+2066`–`U+2069` (LRI/RLI/FSI/PDI). Real pt-BR exports embed `U+200E` immediately before `[` (e.g. line 10 of the Plataforma sample: `‎[23/07/2026, 12:41:48] ...`). Without stripping, those messages are silently missed.
+Before testing a line against the timestamp regex, strip a leading run of: `U+FEFF` (BOM), `U+200E` (LRM), `U+200F` (RLM), `U+200B` (ZWSP), `U+200C` (ZWNJ), `U+200D` (ZWJ), `U+2066`–`U+2069` (LRI/RLI/FSI/PDI). Real pt-BR exports embed `U+200E` immediately before `[` (e.g. line 10 of the Example Org sample: `‎[23/07/2026, 12:41:48] ...`). Without stripping, those messages are silently missed.
 
 ```typescript
 function stripInvisible(s: string): string {
@@ -187,8 +187,8 @@ else   { type = 'system'; body = remainder; author = ''; } // D-11
 
 ### 3.3 Media attachment markers
 Observed in samples (both files):
-- `<attached: FILENAME>` as the **entire body** of a timestamped line (Plataforma line 10: `Guionardo Furlan: <attached: 00003010-STICKER-...webp>`).
-- A **caption + attachment on one line** (Notas line 124: `Taxa João Furlan <attached: 00000091-PHOTO-...jpg>` → text="Taxa João Furlan", media set).
+- `<attached: FILENAME>` as the **entire body** of a timestamped line (Example Org line 10: `Alice Example: <attached: 00003010-STICKER-...webp>`).
+- A **caption + attachment on one line** (Notas line 124: `Example caption <attached: 00000091-PHOTO-...jpg>` → text="Example caption", media set).
 - `*.pdf • N páginas document omitted` style (Notas line 18) — no `<attached:>` but a document placeholder.
 - `* omitted` placeholders: `image omitted`, `sticker omitted`, `document omitted`, `<Media omitted>` (MEDIA-04).
 - `Mensagem apagada` (pt-BR "message deleted").
@@ -210,13 +210,13 @@ Mapping (filename-based, planner's discretion within the 8 allowed values):
 | `STICKER` | `sticker` |
 | `PHOTO` / `IMG` | `photo` |
 | `VIDEO` | `video` |
-| `DOCUMENT` / `.pdf` / `.doc*` / unknown prefix (e.g. `IRPF-...pdf`) | `document` |
+| `DOCUMENT` / `.pdf` / `.doc*` / unknown prefix (e.g. `DOC-...pdf`) | `document` |
 | `AUDIO` | `document` *(no `audio` type exists in the locked 8; fallback — see Assumptions A1)* |
 
-> **Empty-body + attachment merge (important gotcha):** lines 36–37 of the Plataforma sample are:
+> **Empty-body + attachment merge (important gotcha):** lines 36–37 of the Example Org sample are:
 > ```
-> [23/07/2026, 23:31:29] Camilla Araujo WK:
-> [23/07/2026, 23:31:29] Camilla Araujo WK: <attached: 00003036-PHOTO-...jpg>
+> [23/07/2026, 23:31:29] Carol Sample:
+> [23/07/2026, 23:31:29] Carol Sample: <attached: 00003036-PHOTO-...jpg>
 > ```
 > The first line is a timestamped message with an **empty body**. The second is the same author, same second, with the attachment. **Do not emit a phantom empty text message.** State-machine rule: when a timestamped message has empty `text` and no media, *hold* it; if the very next line is an attachment line for the **same author** (and same/adjacent timestamp), attach the media to the held message (set its `type` from the filename) and emit a single media row, discarding the empty holder. If the next line is *not* an attachment, emit the empty message as `type=text` (empty body) so no data is lost.
 
@@ -319,15 +319,15 @@ export function buildCli() {
 | **AppleDouble `._chat.txt`** (PARSE-06 false-positive) | macOS ZIPs contain `._<name>` resource-fork companions | Filter in `unzip.onfile`: ignore `name.includes('__MACOSX')` or `base.startsWith('._')` (§1) |
 | **Preamble before first timestamp** (D-10) | Some exports lead with a banner | Scan to first line matching `TS_RE` after invisible strip; discard earlier lines |
 | **Same-second collisions** (D-16) | lines 37–38 share `23:31:29`; lines 46–51 share `10:41:10` | Dedupe key includes `media` + `text` + `author`, not timestamp alone |
-| **Sender `~ ` prefix / phone numbers** | lines 4–9 (`~ Leandro Ribeiro`, `+55 47 99951-9144`) | Preserve `author` raw; do not normalize in Phase 1 |
+| **Sender `~ ` prefix / phone numbers** | lines 4–9 (`~ Dave Sample`, `+00 555 0100 1234`) | Preserve `author` raw; do not normalize in Phase 1 |
 | **BOM/LRM before `[`** (D-12) | line 10 `[23/07/2026...` (`U+200E`) | Strip leading invisible run before regex (§2.1) |
 | **Empty-body → attachment merge** | lines 36→37, 46→47 | Hold empty message; merge if next line is same-author attachment (§3.4) |
-| **Caption + attachment on one line** | Notas line 124 `Taxa João Furlan <attached: ...>` | Strip `<attached>` marker, keep caption in `text`, set `media` |
+| **Caption + attachment on one line** | Notas line 124 `Example caption <attached: ...>` | Strip `<attached>` marker, keep caption in `text`, set `media` |
 | **`<Media omitted>` / `* omitted` / deleted** | lines 57, 100, 196 (Notas) | Map to `omitted` / `deleted` (§3.3) — preserve as visible placeholders (MEDIA-04) |
 | **Non-`_chat.txt` entries / nested paths** | entry names like `WhatsApp Chat - X/_chat.txt` or `._chat.txt` | Match `base.endsWith('_chat.txt')` and not AppleDouble (§1) |
 | **`file.originalSize` undefined** | Some zips omit sizes | Never branch on it; always `file.start()` once matched |
 | **Timezone shift bug** | D-06 one-way contract | Use `date-fns format` on a local `Date`; **never** `toISOString()` (§4.3) |
-| **Sensitive plaintext in chat** | line 21 `Senha: TIMEWK2026` | Out of scope for v1 (redaction deferred); do **not** alter content |
+| **Sensitive plaintext in chat** | line 21 `Password: example-password` | Out of scope for v1 (redaction deferred); do **not** alter content |
 
 ---
 
@@ -446,7 +446,7 @@ if (current) writeRow(current);
 - fflate 0.8.3 README (raw.githubusercontent.com/101arrowz/fflate/master/README.md) — streaming `Unzip` / `AsyncUnzipInflate` API, verified 2026-08-21.
 - `.planning/phases/01-parsing-model-core/01-CONTEXT.md` — locked decisions D-01..D-19 (verbatim quotes used throughout).
 - `.planning/REQUIREMENTS.md` — PARSE-01..07 requirement texts.
-- `data/WhatsApp Chat - Plataforma WK/_chat.txt` — 139-line pt-BR ground-truth sample (bidi, attachments, same-second bursts).
+- `data/WhatsApp Chat - Example Org/_chat.txt` — 139-line pt-BR ground-truth sample (bidi, attachments, same-second bursts).
 - `data/WhatsApp Chat - Notas pessoais/_chat.txt` — 202-line second sample (caption+attachment, `* omitted`, deleted, PDF documents).
 - `npm view` for fflate / date-fns / commander versions (2026-08-21) — 0.8.3 / 4.4.0 / 15.0.0.
 - AGENTS.md STACK research — pre-evaluated stack with HIGH confidence ratings.

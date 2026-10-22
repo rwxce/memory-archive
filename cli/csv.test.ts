@@ -90,7 +90,7 @@ test('merged file keeps header + no BOM (D-19)', async () => {
 test('G-01-4: CR/LF escaped — one physical line per row, lossless round-trip', async () => {
   const file = tmpCsv();
   const rows = [
-    msg('2026-07-23T14:56:14', 'text', 'A', 'Rede: X\nSenha: Y'),
+    msg('2026-07-23T14:56:14', 'text', 'A', 'Wi-Fi: X\nPassword: Y'),
     msg('2026-07-23T15:00:00', 'text', 'B', 'back\\slash and\nnewline'),
     msg('2026-07-23T16:00:00', 'text', 'C', 'tricky \\n literal'),
   ];
@@ -124,7 +124,7 @@ test('url_titles: round-trips as a JSON map', async () => {
   const m: Message = {
     timestamp_iso: '2026-07-23T09:47:18',
     type: 'text',
-    author: 'Guionardo',
+    author: 'Alice',
     text: 'see https://example.com/page',
     media: '',
     urlTitles: { 'https://example.com/page': 'Example Page' },
@@ -140,7 +140,7 @@ test('url_titles: legacy 5-column row parses with empty urlTitles', () => {
   const p = path.join(dir, 'messages.csv');
   fs.writeFileSync(
     p,
-    'timestamp_iso,type,author,text,media\n2026-07-23T09:47:18,text,Guionardo,hi,\n',
+    'timestamp_iso,type,author,text,media\n2026-07-23T09:47:18,text,Alice,hi,\n',
   );
   const back = readCsv(p);
   assert.deepEqual(back[0].urlTitles, {});

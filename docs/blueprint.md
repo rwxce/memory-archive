@@ -520,6 +520,9 @@ test type or architecture rule means updating this file **in the same PR**.
   iOS en-US with and without media (U+202F before `AM`/`PM`, U+200E system lines), Android
   es (`p. m.`), iOS es (`<adjunto: …>`), Android pt (24h, no comma) and Android ca
   (best-effort strings).
+- **Real-data guard:** `scripts/no-real-data.test.ts` scans every git-tracked text file and fails on any
+  valid Brazilian CPF number or on a denylist of scrubbed real names/credentials (stored as sha256
+  hashes of normalized word sequences, so the test does not reintroduce them).
 - **Test types:**
   - Importer units (`lib/importers/whatsapp/*.test.ts`) — `timestamp`, `lines` (chunk
     boundaries, CRLF, UTF-8), `zip` (data descriptors, ZIP64, corrupt input), `chat`,

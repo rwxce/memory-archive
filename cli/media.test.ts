@@ -52,22 +52,22 @@ test('reconcileMedia on Notas pessoais sample: 17 resolved, 0 unresolved', async
   const outDir = path.join(dir, slug);
   fs.mkdirSync(outDir, { recursive: true });
   const refs = [
-    '00000008-STICKER-2026-04-03-15-17-12.webp',
-    '00000021-STICKER-2026-04-10-21-58-01.webp',
-    '00000023-STICKER-2026-04-11-13-24-21.webp',
-    '00000040-STICKER-2026-04-20-15-16-33.webp',
-    '00000045-STICKER-2026-04-23-23-19-31.webp',
+    '00000008-STICKER-2020-04-03-15-17-12.webp',
+    '00000021-STICKER-2020-04-10-21-58-01.webp',
+    '00000023-STICKER-2020-04-11-13-24-21.webp',
+    '00000040-STICKER-2020-04-20-15-16-33.webp',
+    '00000045-STICKER-2020-04-23-23-19-31.webp',
     '00000068-Conversa do WhatsApp com Notas pessoais.zip',
-    '00000088-STICKER-2026-05-27-08-45-13.webp',
-    '00000089-VIDEO-2026-05-27-17-26-38.mp4',
-    '00000091-PHOTO-2026-05-29-17-23-37.jpg',
-    '00000098-PHOTO-2026-06-10-13-55-47.jpg',
-    '00000099-STICKER-2026-06-10-13-55-59.webp',
-    '00000134-PHOTO-2026-07-18-22-34-29.jpg',
-    '00000147-PHOTO-2026-07-26-19-23-49.jpg',
-    '00000148-PHOTO-2026-07-28-07-48-08.jpg',
-    '00000149-PHOTO-2026-07-28-07-48-50.jpg',
-    '00000152-96980389904-IRPF-D-0-0211-31-07-2026-08-03.pdf',
+    '00000088-STICKER-2020-05-27-08-45-13.webp',
+    '00000089-VIDEO-2020-05-27-17-26-38.mp4',
+    '00000091-PHOTO-2020-05-29-17-23-37.jpg',
+    '00000098-PHOTO-2020-06-10-13-55-47.jpg',
+    '00000099-STICKER-2020-06-10-13-55-59.webp',
+    '00000134-PHOTO-2020-07-18-22-34-29.jpg',
+    '00000147-PHOTO-2020-07-26-19-23-49.jpg',
+    '00000148-PHOTO-2020-07-28-07-48-08.jpg',
+    '00000149-PHOTO-2020-07-28-07-48-50.jpg',
+    '00000152-12345678900-DOC-D-0-0211-31-07-2020-08-03.pdf',
     '00000153-raw.pdf',
   ];
   const res = await reconcileMedia(NOTAS_ZIP, outDir, refs);
@@ -76,11 +76,11 @@ test('reconcileMedia on Notas pessoais sample: 17 resolved, 0 unresolved', async
   const files = fs.readdirSync(path.join(outDir, 'media')).sort();
   assert.equal(files.length, 17);
   assert.ok(
-    files.includes('00000089-VIDEO-2026-05-27-17-26-38.mp4'),
+    files.includes('00000089-VIDEO-2020-05-27-17-26-38.mp4'),
     'video copied',
   );
   assert.ok(
-    files.includes('00000152-96980389904-IRPF-D-0-0211-31-07-2026-08-03.pdf'),
+    files.includes('00000152-12345678900-DOC-D-0-0211-31-07-2020-08-03.pdf'),
     'pdf copied',
   );
 });
@@ -95,7 +95,7 @@ test('buildMediaMap: resolves disk files tolerant of (1) variance + inlineable f
   fs.writeFileSync(
     path.join(dir, 'messages.csv'),
     'timestamp_iso,type,author,text,media\n' +
-      '2026-01-01T10:00:00,photo,Me,caption,photo.jpg\n',
+      '2020-01-01T10:00:00,photo,Me,caption,photo.jpg\n',
   );
   const messages = readCsv(path.join(dir, 'messages.csv'));
   const map = buildMediaMap(dir, messages);
@@ -108,7 +108,7 @@ test('buildMediaMap: resolves disk files tolerant of (1) variance + inlineable f
   fs.writeFileSync(
     path.join(dir, 'messages.csv'),
     'timestamp_iso,type,author,text,media\n' +
-      '2026-01-01T10:00:00,photo,Me,caption,ghost.jpg\n',
+      '2020-01-01T10:00:00,photo,Me,caption,ghost.jpg\n',
   );
   const map2 = buildMediaMap(dir, readCsv(path.join(dir, 'messages.csv')));
   assert.equal(map2.has('ghost.jpg'), false);
@@ -117,8 +117,8 @@ test('buildMediaMap: resolves disk files tolerant of (1) variance + inlineable f
 test('--inline produces data: URIs and skips the video (synthetic)', async () => {
   const chat = 'WhatsApp Chat - Inline Test';
   const txt = [
-    '23/07/2026 09:47 - Owner: <attached: IMG-test.png>',
-    '23/07/2026 09:48 - Owner: <attached: clip.mp4>',
+    '23/07/2020 09:47 - Owner: <attached: IMG-test.png>',
+    '23/07/2020 09:48 - Owner: <attached: clip.mp4>',
   ].join('\n');
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
   const mp4 = Buffer.from([0, 1, 2, 3, 4, 5]);
@@ -145,7 +145,7 @@ test('--inline produces data: URIs and skips the video (synthetic)', async () =>
 
 test('unresolved media ref: no crash, reported, rendered as placeholder (all 3 outputs)', async () => {
   const chat = 'WhatsApp Chat - Missing Media';
-  const txt = '23/07/2026 09:47 - Owner: <attached: does-not-exist.jpg>';
+  const txt = '23/07/2020 09:47 - Owner: <attached: does-not-exist.jpg>';
   const zipped = zipSync({ [`${chat}/_chat.txt`]: Buffer.from(txt, 'utf8') });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-mt-miss-'));
   const zipPath = path.join(tmp, 'missing.zip');

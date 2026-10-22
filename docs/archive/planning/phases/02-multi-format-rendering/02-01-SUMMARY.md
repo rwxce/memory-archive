@@ -43,7 +43,7 @@ key-files:
     - src/extract.ts
 
 key-decisions:
-  - "metadata.chatName uses the human display name (e.g. 'Plataforma WK'), folder uses the slug (plataforma-wk)"
+  - "metadata.chatName uses the human display name (e.g. 'Example Org'), folder uses the slug (example-org)"
   - "Outgoing side = most frequent author (export owner heuristic) since the export has no self marker"
   - "Sticker media uses 📷 photo label to match the plan's exact-string assertion"
 
@@ -182,10 +182,10 @@ Each task was committed atomically:
 
 **3. [Spec conflict] chatName value (display vs slug)**
 - **Found during:** Task 1 (JSON envelope)
-- **Issue:** Plan acceptance asserted `"chatName":"Plataforma WK"` while the verify note said it equals `plataforma-wk`.
-- **Fix:** Used the display name `Plataforma WK` to satisfy the exact-string assertion; folder remains the slug.
+- **Issue:** Plan acceptance asserted `"chatName":"Example Org"` while the verify note said it equals `example-org`.
+- **Fix:** Used the display name `Example Org` to satisfy the exact-string assertion; folder remains the slug.
 - **Files modified:** src/extract.ts, src/model.ts
-- **Verification:** test asserts `metadata.chatName === 'Plataforma WK'`
+- **Verification:** test asserts `metadata.chatName === 'Example Org'`
 - **Committed in:** `d97fa1a` (Task 1)
 
 ---

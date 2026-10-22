@@ -28,7 +28,7 @@ export function findChatEntry<T extends { name: string }>(entries: T[]): T | und
  * Terminal-friendly folder name (G-01-17): exports are always
  * "WhatsApp Chat - <name>.zip", so strip the prefix and slugify —
  * diacritics removed, lowercase, non-alphanumeric runs collapsed to `-`.
- * `WhatsApp Chat - Plataforma WK` -> `plataforma-wk`.
+ * `WhatsApp Chat - Example Org` -> `example-org`.
  */
 export function slugifyChatName(name: string): string {
   return name
@@ -41,7 +41,7 @@ export function slugifyChatName(name: string): string {
 }
 
 export interface ChatInfo {
-  /** Safe directory slug, e.g. `plataforma-wk`. */
+  /** Safe directory slug, e.g. `example-org`. */
   slug: string;
   /** Human-readable chat title without the `WhatsApp Chat - ` prefix. */
   name: string;
