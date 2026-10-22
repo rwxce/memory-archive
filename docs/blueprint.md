@@ -43,6 +43,16 @@ test type or architecture rule means updating this file **in the same PR**.
     `hooks/use-conversation-actions.ts` (rename / move / link / unlink; same reload contract).
     No dynamic route segments for ids (static export): detail screens use query params
     (`/person?id=`).
+  - **Person audio** (`/[locale]/person/audio/?id=<uuid>`, `components/person-audio-screen.tsx` /
+    `person-audio-item.tsx`, reached from `components/person-sections.tsx`, the section links shared by the
+    person page and each section page; only sections that exist are listed): every voice message and audio
+    file of the conversations kept under the person, oldest first, under month headings, from
+    `hooks/use-person-media.ts` (generic over `kinds`, so the photo/video gallery reuses it; the first 50 rows
+    and the total, then "Show more" 50 at a time; a plain paged list, not virtualized: a person's audio is
+    read on demand and the DOM only grows as far as the person asks). A file is read only when its *Play* is
+    pressed (`useMediaUrl` + the shared media queue, object URL revoked on cleanup); only one item holds a
+    player at a time, so starting another stops the first. Each item links to `/conversation?id=&from=&date=`.
+    Loading, empty, error with retry, and not-found states.
   - **Conversation** (`/[locale]/conversation/?id=<uuid>[&from=<person>][&date=YYYY-MM-DD]`,
     `components/conversation-screen.tsx` / `conversation-body.tsx` / `message-row.tsx` /
     `message-media.tsx`, opened from the conversation lists with an *Open* link): a virtualized
@@ -567,7 +577,7 @@ test type or architecture rule means updating this file **in the same PR**.
     `regressions` (one block per fixed known bug).
   - Packaging — `scripts/build-viewer-script.test.ts` (bundle fresh and self-contained) and
     `pnpm smoke` (built CLI).
-  - UI — `components/person-screen.test.tsx` (details, not-found, archived person, edit, archive,
+  - UI — `components/person-audio-screen.test.tsx` and `hooks/use-person-media.test.tsx` (month groups, Open-in-conversation hrefs, one player at a time, missing file, Show more, empty / not-found / error + retry, Catalan; paging, kinds, failed page, ids), `e2e/person-audio.spec.ts` (import, sections link, play one at a time, open in the conversation, at 390 and 1440 px); `components/person-screen.test.tsx` (details, not-found, archived person, edit, archive,
     rename validation / double submit / failure / Escape and IME, move, link, unlink incl. the last
     person, busy guard, focus and live-region behaviour), `components/people-screen.test.tsx`
     (list / link to the person / empty / create / validate / edit /

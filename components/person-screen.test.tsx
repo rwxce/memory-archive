@@ -109,6 +109,15 @@ describe('PersonScreen', () => {
     expect(links[0].getAttribute('href')).toBe(`/conversation?id=${PRIVATE}&from=${personId}`);
   });
 
+  test('links to the sections that exist (Audio), with the person in the address', async () => {
+    view = await open('ana');
+    const nav = view.container.querySelector('nav[aria-label="Sections"]')!;
+    const links = [...nav.querySelectorAll('a')];
+    expect(links.map((a) => a.textContent)).toEqual(['Audio']);
+    expect(links[0].getAttribute('href')).toBe(`/person/audio?id=${new URLSearchParams(search).get('id')}`);
+    expect(links[0].hasAttribute('aria-current')).toBe(false);
+  });
+
   test('shows the person and their conversations: group badge, counts, dates, participants, other people', async () => {
     view = await open('ana');
     expect(view.container.querySelector('h1')?.textContent).toBe('Ana');

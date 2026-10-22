@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { ConversationList } from '@/components/conversation-list';
 import { LibraryNotice } from '@/components/library-notice';
 import { PersonActions } from '@/components/person-actions';
+import { PersonSections } from '@/components/person-sections';
 import { ProfileForm, type ProfileFormValues } from '@/components/profile-form';
 import { Shell } from '@/components/screen-shell';
 import { Button } from '@/components/ui/button';
@@ -220,6 +221,8 @@ function PersonContent({ onRetry }: { onRetry: () => void }) {
       <p role="alert" className="text-destructive text-sm break-words empty:hidden">
         {problem}
       </p>
+
+      <PersonSections personId={person.id} />
 
       <section className="flex flex-col gap-3" aria-labelledby="person-conversations">
         <h2 id="person-conversations" ref={conversationsRef} tabIndex={-1} className="text-xl font-semibold outline-none">

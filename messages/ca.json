@@ -346,7 +346,28 @@
     "archivedNote": "Aquesta persona està arxivada. Tot continua en aquest dispositiu i la pots restaurar quan vulguis.",
     "conversationsTitle": "Converses",
     "noConversations": "Encara no hi ha cap conversa guardada a {name}. Quan portis missatges, apareixeran aquí.",
-    "importsLink": "Importacions d’aquesta persona"
+    "importsLink": "Importacions d’aquesta persona",
+    "backToPerson": "Torna a aquesta persona",
+    "sectionsLabel": "Seccions",
+    "sectionAudio": "Àudio"
+  },
+  "personAudio": {
+    "title": "Àudio",
+    "back": "Torna a {name}",
+    "loading": "Carregant missatges de veu…",
+    "loadFailed": "No s'han pogut llegir els missatges de veu. No s'ha esborrat res.",
+    "count": "{count, plural, one {# missatge de veu o fitxer d'àudio} other {# missatges de veu i fitxers d'àudio}}",
+    "empty": "Encara no hi ha cap missatge de veu a les converses guardades a {name}. Quan n'hi hagi, apareixeran aquí.",
+    "you": "Tu",
+    "unknownAuthor": "Remitent desconegut",
+    "play": "Reprodueix",
+    "playLabel": "Reprodueix el missatge de veu de {label}",
+    "open": "Obre a la conversa",
+    "openLabel": "Obre a la conversa «{title}», {when}",
+    "shown": "Es mostren {shown} de {total}",
+    "showMore": "Mostra'n més",
+    "loadingMore": "Carregant-ne més…",
+    "moreFailed": "Alguns missatges de veu no s'han pogut llegir. No s'ha esborrat res."
   },
   "conversations": {
     "listLabel": "Converses",
