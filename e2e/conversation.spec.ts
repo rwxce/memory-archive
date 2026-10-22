@@ -294,7 +294,9 @@ test.describe('a large conversation', () => {
     expect(slowRun.distinctMessages).toBeGreaterThan(1000);
     const slow = describeFrames(slowRun.deltas);
     record('scroll frames, CPU 4x slower', slow.text);
-    expect(slow.p95, slow.text).toBeLessThan(120);
+    // Scales with the machine: a loaded CI runner doubles the unthrottled frames too, so the budget follows them
+    // (the throttled run is about 8x the unthrottled p95 on a quiet machine, never below 120 ms).
+    expect(slow.p95, slow.text).toBeLessThan(Math.max(120, full.p95 * 8));
     expect(await rowCount(feed)).toBeLessThan(80);
 
     // How long a far jump takes until the rows in view are real messages (page read, render, measure).

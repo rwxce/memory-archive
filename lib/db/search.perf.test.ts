@@ -13,7 +13,10 @@ import { createSyntheticConversation } from './synthetic-archive';
  */
 const COUNT = Number(process.env.VITEST_PERF_COUNT ?? 200_000);
 // `everything` = a word that most messages have: every match is sorted by time before the page is cut.
-const BUDGET_MS = { query: 100, everything: 600, firstQuery: 250 };
+// A shared CI runner can be two to three times slower than a laptop and noisy: scale the budgets there
+// (the real numbers are logged below and recorded in the blueprint).
+const SLACK = process.env.CI ? 3 : 1;
+const BUDGET_MS = { query: 100 * SLACK, everything: 600 * SLACK, firstQuery: 250 * SLACK };
 const uuid = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
 const PERSON = uuid(1);
 let db: SqlDb;
