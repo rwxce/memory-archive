@@ -1,10 +1,10 @@
 'use client';
 
-import { History, Images, Mic, Star } from 'lucide-react';
+import { History, Images, Mic, NotebookPen, Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 
-export type PersonSection = 'audio' | 'favorites' | 'gallery' | 'timeline';
+export type PersonSection = 'audio' | 'favorites' | 'gallery' | 'notes' | 'timeline';
 
 /**
  * The places a person's page leads to, as links: shown on the person's page and on each of those
@@ -18,6 +18,7 @@ export function PersonSections({ personId, current }: { personId: string; curren
     { id: 'gallery' as const, href: `/person/gallery?id=${encodeURIComponent(personId)}`, label: t('sectionGallery'), Icon: Images },
     { id: 'audio' as const, href: `/person/audio?id=${encodeURIComponent(personId)}`, label: t('sectionAudio'), Icon: Mic },
     { id: 'favorites' as const, href: `/person/favorites?id=${encodeURIComponent(personId)}`, label: t('sectionFavorites'), Icon: Star },
+    { id: 'notes' as const, href: `/person/notes?id=${encodeURIComponent(personId)}`, label: t('sectionNotes'), Icon: NotebookPen },
   ];
   return (
     <nav aria-label={t('sectionsLabel')}>

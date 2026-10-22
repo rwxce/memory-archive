@@ -312,7 +312,7 @@
     "undo": {
       "title": "Undo this import?",
       "body": "{count, plural, one {The # message} other {The # messages}} added by this import will be removed. Photos and files that no other conversation uses are removed too. Messages that were already in your archive stay.",
-      "bodyCreated": "{count, plural, one {The # message} other {The # messages}} added by this import will be removed, and so will the conversation “{title}”, which this import created. Photos and files that no other conversation uses are removed too. Anything that was in your archive before stays.",
+      "bodyCreated": "{count, plural, one {The # message} other {The # messages}} added by this import will be removed, and so will the conversation “{title}”, which this import created. Photos and files that no other conversation uses are removed too. Notes and favorites on that conversation are removed with it. Anything that was in your archive before stays.",
       "confirm": "Undo import",
       "cancel": "Keep it",
       "done": "The import was undone. {count, plural, one {# message was removed.} other {# messages were removed.}}",
@@ -352,7 +352,8 @@
     "sectionAudio": "Audio",
     "sectionGallery": "Gallery",
     "sectionTimeline": "Timeline",
-    "sectionFavorites": "Favorites"
+    "sectionFavorites": "Favorites",
+    "sectionNotes": "Notes"
   },
   "personAudio": {
     "title": "Audio",
@@ -482,7 +483,7 @@
     "nothingLeft": "None of the messages this import added are in the archive any more, so there is nothing to undo.",
     "undo": {
       "body": "{count, plural, one {The # message} other {The # messages}} this import added will be removed, with the photos and files that no other conversation uses. Messages from other imports, and anything that was in your archive before, stay.",
-      "bodyCreated": "{count, plural, one {The # message} other {The # messages}} this import added will be removed, with the photos and files that no other conversation uses. This import created “{title}”, so that conversation is removed too if nothing else is left in it. Messages from other imports, and anything that was in your archive before, stay."
+      "bodyCreated": "{count, plural, one {The # message} other {The # messages}} this import added will be removed, with the photos and files that no other conversation uses. This import created “{title}”, so that conversation is removed too if nothing else is left in it. If it is removed, the notes and favorites on it go with it. Messages from other imports, and anything that was in your archive before, stay."
     },
     "loadMore": "Show older imports",
     "loadMoreFailed": "Older imports could not be read. Try again.",
@@ -561,7 +562,8 @@
       "add": "Add to favorites",
       "remove": "Remove from favorites",
       "failed": "The favorite could not be saved. Nothing was deleted."
-    }
+    },
+    "noteLabel": "Note about this message"
   },
   "timeline": {
     "back": "Back to {name}",
@@ -592,5 +594,66 @@
     "showMore": "Show more",
     "loadingMore": "Loading more…",
     "moreFailed": "Some favorites could not be read. Nothing was deleted."
+  },
+  "notes": {
+    "personTitle": "Notes",
+    "label": {
+      "profile": "Note about this person",
+      "conversation": "Note about this conversation",
+      "message": "Note about this message"
+    },
+    "addButton": "Add a note",
+    "editButton": "Edit note",
+    "addConversation": "Add a note",
+    "editConversation": "Edit note",
+    "save": "Save note",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete note",
+    "retry": "Try again",
+    "loading": "Loading note…",
+    "loadFailed": "The note could not be read. Nothing was changed.",
+    "saved": "Note saved.",
+    "deleted": "Note deleted.",
+    "savedAt": "Saved {relative} · {absolute}",
+    "remaining": "{count, plural, one {# character left} other {# characters left}}",
+    "invalid": "This note could not be saved as written. The limit is {max, number} characters.",
+    "saveFailed": "The note could not be saved. Your text is still here. Try again.",
+    "deleteFailed": "The note could not be deleted. Nothing was changed.",
+    "deleteTitle": "Delete this note?",
+    "deleteBody": "Only the note is deleted. The message, conversation or person it is about stays as it is.",
+    "deleteConfirm": "Delete note",
+    "deleteKeep": "Keep note",
+    "discardTitle": "Discard your changes?",
+    "discardBody": "What you typed has not been saved and will be lost.",
+    "discardConfirm": "Discard changes",
+    "discardKeep": "Keep editing"
+  },
+  "personNotes": {
+    "title": "Notes",
+    "back": "Back to {name}",
+    "loading": "Loading notes…",
+    "loadFailed": "The notes could not be read. Nothing was deleted.",
+    "count": "{count, plural, one {# note} other {# notes}} about {name}",
+    "empty": "There are no notes about {name} yet.",
+    "emptyHint": "To add one, press the note button beside a message, or write a note on this person's page or on a conversation.",
+    "kind": {
+      "profile": "Person",
+      "conversation": "Conversation",
+      "message": "Message"
+    },
+    "you": "You",
+    "unknownAuthor": "Unknown sender",
+    "edited": "Edited {relative} · {absolute}",
+    "edit": "Edit note",
+    "openPerson": "Open person",
+    "openConversation": "Open conversation",
+    "openMessage": "Open in conversation",
+    "openLabel": "{what}: {about}",
+    "shown": "Showing {shown} of {total}",
+    "showMore": "Show more",
+    "loadingMore": "Loading more…",
+    "moreFailed": "Some notes could not be read. Nothing was deleted."
   }
 }

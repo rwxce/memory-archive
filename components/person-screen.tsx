@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ConversationList } from '@/components/conversation-list';
 import { LibraryNotice } from '@/components/library-notice';
+import { PersonNote } from '@/components/note-panels';
 import { PersonActions } from '@/components/person-actions';
 import { PersonSections } from '@/components/person-sections';
 import { ProfileForm, type ProfileFormValues } from '@/components/profile-form';
@@ -223,6 +224,8 @@ function PersonContent({ onRetry }: { onRetry: () => void }) {
       </p>
 
       <PersonSections personId={person.id} />
+
+      <PersonNote personId={person.id} />
 
       <section className="flex flex-col gap-3" aria-labelledby="person-conversations">
         <h2 id="person-conversations" ref={conversationsRef} tabIndex={-1} className="text-xl font-semibold outline-none">

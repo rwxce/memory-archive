@@ -8,10 +8,13 @@ import type { ConversationMessage } from '@/lib/domain/library';
 import { splitLinks } from '@/lib/usecases/message-text';
 import { cn } from '@/components/ui/utils';
 import { useMessageSource } from '@/hooks/use-message-source';
+import { useNote } from '@/hooks/use-note';
 import { FavoriteButton } from './favorite-button';
 import { formatFullDay } from './format';
 import { DetailsButton, MessageDetails } from './message-details';
 import { isMediaMessage, MessageMedia } from './message-media';
+import { NoteButton } from './note-button';
+import { NoteEditor } from './note-editor';
 import { senderHue } from './sender-color';
 
 const day = (stamp: string) => stamp.slice(0, 10);
@@ -58,6 +61,10 @@ export interface MessageRowProps {
   rowRef: (element: HTMLElement | null) => void | (() => void);
   /** The star was pressed on a message (not offered on notices). */
   onToggleFavorite?: (message: ConversationMessage) => void;
+  /** Unsaved note text by `conversationId:messageId`; a row that remounts opens its note again when it has a draft. */
+  noteDrafts?: Map<string, string>;
+  /** A note was saved or deleted on a message: patch `hasNote` in the cache. */
+  onNoteChanged?: (message: ConversationMessage, hasNote: boolean) => void;
 }
 
 const rowStyle = (top: number): CSSProperties => ({ transform: `translateY(${top}px)` });
@@ -69,7 +76,7 @@ const rowClass = 'absolute inset-x-0 top-0 px-3 py-0.5 sm:px-4';
  * quiet centered notice. The article carries its place in the feed and an accessible name with the
  * author and the time.
  */
-export const MessageRow = memo(function MessageRow({ conversationId, index, count, top, message, previous, conversationTitle, conversationHref, rowRef, onToggleFavorite }: MessageRowProps) {
+export const MessageRow = memo(function MessageRow({ conversationId, index, count, top, message, previous, conversationTitle, conversationHref, rowRef, onToggleFavorite, noteDrafts, onNoteChanged }: MessageRowProps) {
   const t = useTranslations('conversation');
   const locale = useLocale();
   const newDay = previous === null || day(previous.sentAt) !== day(message.sentAt);
@@ -80,6 +87,12 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const source = useMessageSource(conversationId, message.id, open);
+  const draftKey = `${conversationId}:${message.id}`;
+  const [noteOpen, setNoteOpen] = useState(() => noteDrafts?.has(draftKey) ?? false);
+  const notePanelId = useId();
+  const note = useNote({ kind: 'message', conversationId, messageId: message.id }, noteOpen, {
+    onChanged: (saved) => onNoteChanged?.(message, saved !== null),
+  });
 
   const separator = newDay && (
     <div aria-hidden className="my-2 flex justify-center">
@@ -116,6 +129,7 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
   const button = (
     <div className="flex shrink-0 items-center">
       {onToggleFavorite && <FavoriteButton favorite={message.isFavorite} onToggle={() => onToggleFavorite(message)} />}
+      {onNoteChanged && <NoteButton hasNote={message.hasNote} open={noteOpen} panelId={notePanelId} onToggle={() => setNoteOpen((value) => !value)} />}
       <DetailsButton open={open} panelId={panelId} onToggle={() => setOpen((value) => !value)} />
     </div>
   );
@@ -150,6 +164,18 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
         </div>
         {!message.isMe && button}
       </div>
+      {noteOpen && onNoteChanged && (
+        <div id={notePanelId} className="bg-muted/60 mt-1 rounded-lg p-3">
+          <NoteEditor
+            note={note}
+            label={t('noteLabel')}
+            autoFocus
+            initialDraft={noteDrafts?.get(draftKey)}
+            onDraftChange={(draft) => (draft === undefined ? noteDrafts?.delete(draftKey) : noteDrafts?.set(draftKey, draft))}
+            onClose={() => setNoteOpen(false)}
+          />
+        </div>
+      )}
       {open && <MessageDetails id={panelId} align={message.isMe ? 'end' : 'start'} state={source.state} onRetry={source.retry} />}
     </article>
   );

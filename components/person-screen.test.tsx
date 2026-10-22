@@ -109,13 +109,13 @@ describe('PersonScreen', () => {
     expect(links[0].getAttribute('href')).toBe(`/conversation?id=${PRIVATE}&from=${personId}`);
   });
 
-  test('links to the sections that exist (Timeline, Gallery, Audio, Favorites), with the person in the address', async () => {
+  test('links to the sections that exist (Timeline, Gallery, Audio, Favorites, Notes), with the person in the address', async () => {
     view = await open('ana');
     const nav = view.container.querySelector('nav[aria-label="Sections"]')!;
     const links = [...nav.querySelectorAll('a')];
-    expect(links.map((a) => a.textContent)).toEqual(['Timeline', 'Gallery', 'Audio', 'Favorites']);
+    expect(links.map((a) => a.textContent)).toEqual(['Timeline', 'Gallery', 'Audio', 'Favorites', 'Notes']);
     const id = new URLSearchParams(search).get('id');
-    expect(links.map((a) => a.getAttribute('href'))).toEqual([`/person/timeline?id=${id}`, `/person/gallery?id=${id}`, `/person/audio?id=${id}`, `/person/favorites?id=${id}`]);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([`/person/timeline?id=${id}`, `/person/gallery?id=${id}`, `/person/audio?id=${id}`, `/person/favorites?id=${id}`, `/person/notes?id=${id}`]);
     expect(links[0].hasAttribute('aria-current')).toBe(false);
   });
 
@@ -124,7 +124,7 @@ describe('PersonScreen', () => {
     expect(view.container.querySelector('h1')?.textContent).toBe('Ana');
     expect(view.container.querySelector('main header')?.textContent).toContain('mother');
     expect(view.container.textContent).toContain('Line one');
-    expect(view.container.querySelector('h2')?.textContent).toBe(en.person.conversationsTitle);
+    expect(view.container.querySelector('#person-conversations')?.textContent).toBe(en.person.conversationsTitle);
     expect(titles(view)).toEqual(['Chat with Ana', 'Family group']);
     const [privateChat, group] = [...view.container.querySelectorAll('ul[aria-label] > li')];
     expect(privateChat.textContent).toContain('2 messages');
@@ -313,7 +313,7 @@ describe('PersonScreen', () => {
       await settle();
       expect(titles(view)).toEqual(['Family group']);
       expect(status(view)).toBe('“Chat with Ana” now belongs to Cy. The messages were not changed.');
-      expect(document.activeElement).toBe(view.container.querySelector('h2'));
+      expect(document.activeElement).toBe(view.container.querySelector('#person-conversations'));
       expect(lib.opened.db.all('SELECT * FROM messages ORDER BY id')).toEqual(before);
       expect((await lib.client.call('listConversations', { profileId: uuid(3) })).map((x) => x.title)).toEqual(['Chat with Ana']);
     });
@@ -385,7 +385,7 @@ describe('PersonScreen', () => {
       await settle();
       expect(titles(view)).toEqual(['Chat with Ana']);
       expect(status(view)).toBe('“Family group” is no longer kept under Ana. The messages stay as they are.');
-      expect(document.activeElement).toBe(view.container.querySelector('h2'));
+      expect(document.activeElement).toBe(view.container.querySelector('#person-conversations'));
       expect((await (view as View).lib.client.call('listConversations', { profileId: uuid(2) })).map((x) => x.title)).toEqual(['Family group']);
     });
 
