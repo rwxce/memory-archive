@@ -21,12 +21,12 @@ export function FavoriteButton({ favorite, onToggle }: { favorite: boolean; onTo
       aria-pressed={favorite}
       onClick={onToggle}
       className={cn(
-        'text-muted-foreground -my-2 rounded-full',
+        'text-mu -mx-1 -my-2 rounded-full',
         '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/row:opacity-100 focus-visible:opacity-100',
-        favorite && 'text-primary opacity-100!',
+        favorite && 'text-star opacity-100!',
       )}
     >
-      <Star aria-hidden className={cn(favorite && 'fill-current')} />
+      <Star aria-hidden className={cn(favorite && 'fill-star stroke-star')} />
     </Button>
   );
 }

@@ -28,7 +28,12 @@ export interface ArchiveSource {
   blobs: readonly ArchiveBlobRef[];
   /** The stored bytes of one blob, or `undefined` when absent. */
   openBlob(sha256: string): Promise<ReadableStream<Uint8Array> | undefined>;
+  /** Called after each media file has been written, with how many are done out of the total. */
+  onProgress?(done: number, total: number): void;
 }
+
+/** Produced bytes are folded into a `Blob` (which the browser may keep outside the JS heap) this often. */
+const FLUSH_BYTES = 16 * 1024 * 1024;
 
 const encoder = new TextEncoder();
 const EMPTY = new Uint8Array(0);
@@ -36,10 +41,11 @@ const EMPTY = new Uint8Array(0);
 /**
  * Writes the archive ZIP (format in `format.ts`) with fflate's streaming `Zip`.
  *
- * PoC limit: the output is assembled in memory (a `Blob` of the produced
- * chunks), so an archive must fit in RAM; the input blobs themselves are
- * streamed one chunk at a time. Streaming straight to a file handle is the
- * follow-up.
+ * Not streamed to disk: the output is assembled as a `Blob` of the produced
+ * chunks. Every ~16 MB the pending chunks are folded into a sub-`Blob`, so the
+ * JS heap holds at most that much plus the database bytes while browsers can
+ * keep the rest outside it; the input blobs are streamed one chunk at a time.
+ * Writing straight to a file handle (File System Access) is the follow-up.
  *
  * Every blob is hashed again while it streams out; a blob whose bytes no
  * longer match its row (bit rot, truncation) aborts the export instead of
@@ -65,11 +71,22 @@ export async function writeArchive(source: ArchiveSource): Promise<Blob> {
     entries,
   };
 
-  const parts: Uint8Array[] = [];
+  const folded: Blob[] = [];
+  let parts: Uint8Array[] = [];
+  let pending = 0;
   let failure: unknown;
   const zip = new Zip((error, chunk) => {
-    if (error) failure = error;
-    else parts.push(chunk);
+    if (error) {
+      failure = error;
+      return;
+    }
+    parts.push(chunk);
+    pending += chunk.length;
+    if (pending >= FLUSH_BYTES) {
+      folded.push(new Blob(parts as BlobPart[]));
+      parts = [];
+      pending = 0;
+    }
   });
   const check = () => {
     if (failure) throw new ArchiveError('storage', 'could not assemble the archive', { cause: failure });
@@ -86,6 +103,7 @@ export async function writeArchive(source: ArchiveSource): Promise<Blob> {
   addSmall(source.database, new ZipPassThrough(DB_PATH));
 
   try {
+    let done = 0;
     for (const blob of blobs) {
       const stream = await source.openBlob(blob.sha256);
       if (!stream) throw new ArchiveError('blob-missing', 'a media file referenced by the library is missing');
@@ -113,6 +131,7 @@ export async function writeArchive(source: ArchiveSource): Promise<Blob> {
       }
       file.push(EMPTY, true);
       check();
+      source.onProgress?.(++done, blobs.length);
     }
   } catch (error) {
     zip.terminate();
@@ -120,5 +139,5 @@ export async function writeArchive(source: ArchiveSource): Promise<Blob> {
   }
   zip.end();
   check();
-  return new Blob(parts as BlobPart[], { type: 'application/zip' });
+  return new Blob([...folded, ...(parts as BlobPart[])], { type: 'application/zip' });
 }

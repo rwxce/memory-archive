@@ -1,4 +1,4 @@
-import { addPerson, expect, startFresh, test } from './fixtures';
+import { addPerson, expect, startFresh, test, personMenu } from './fixtures';
 
 test('a cold open of the Catalan page finds the library created on the English one', async ({ page }) => {
   await startFresh(page);
@@ -16,12 +16,13 @@ test('the language picker switches to Catalan and the same people are listed', a
   await startFresh(page);
   await addPerson(page, 'Ada Test');
 
-  await page.getByRole('link', { name: 'Settings' }).click();
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: /^Language/ }).click();
   await page.getByRole('link', { name: 'Català' }).click();
   await expect(page).toHaveURL(/\/ca\/settings\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Configuració');
 
-  await page.getByRole('link', { name: 'Memory Archive' }).first().click();
+  await page.goto('/ca/people/');
   await expect(page.getByRole('list', { name: 'Persones' }).getByRole('link', { name: 'Ada Test' })).toBeVisible();
   await expect(page.getByText('El teu arxiu no es pot obrir ara mateix')).toHaveCount(0);
 });
@@ -37,13 +38,16 @@ test('Catalan: add, archive with confirmation and restore', async ({ page }) => 
   await page.getByRole('button', { name: 'Afegeix la persona' }).click();
   await expect(page.getByText("S'ha afegit Anna Prova.")).toBeVisible();
 
-  await page.getByRole('button', { name: 'Arxiva Anna Prova' }).click();
+  await page.getByRole('list', { name: 'Persones' }).getByRole('link', { name: 'Anna Prova' }).click();
+  await personMenu(page, 'Anna Prova', 'Arxiva Anna Prova', 'Més opcions per a Anna Prova');
   await expect(page.getByText('Vols arxivar Anna Prova?')).toBeVisible();
   await page.getByRole('button', { name: 'Arxiva', exact: true }).click();
   await expect(page.getByText("S'ha arxivat Anna Prova.")).toBeVisible();
 
+  await page.goto('/ca/people/');
   await page.getByRole('button', { name: 'Mostra les persones arxivades (1)' }).click();
-  await page.getByRole('button', { name: 'Restaura Anna Prova' }).click();
+  await page.getByRole('link', { name: 'Anna Prova' }).click();
+  await personMenu(page, 'Anna Prova', /^Restaura Anna Prova/, 'Més opcions per a Anna Prova');
   await expect(page.getByText("S'ha restaurat Anna Prova.")).toBeVisible();
 });
 

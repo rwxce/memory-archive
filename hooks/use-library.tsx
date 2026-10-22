@@ -185,6 +185,11 @@ export function useLibrary(): { state: LibraryState; retry: () => void } {
   return { state, retry };
 }
 
+/** Asks the library to open (idempotent) when called, not on mount: for a screen that must not open it until the person acts. */
+export function useLibraryStart(): () => void {
+  return useLibraryContext().start;
+}
+
 /** The connection as it is now, without asking for it to open (for notices on pages that do not need the library). */
 export function useLibraryState(): { state: LibraryState; retry: () => void } {
   const { state, retry } = useLibraryContext();

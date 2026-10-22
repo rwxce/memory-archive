@@ -62,7 +62,7 @@ export function CalendarDayGrid({
       <thead>
         <tr>
           {weekdays(locale).map((day) => (
-            <th key={day.long} scope="col" abbr={day.long} className="text-muted-foreground pb-1 text-xs font-normal">
+            <th key={day.long} scope="col" abbr={day.long} className="text-mu pb-1 text-xs font-normal">
               <span aria-hidden>{day.short}</span>
               <span className="sr-only">{day.long}</span>
             </th>
@@ -91,13 +91,13 @@ export function CalendarDayGrid({
                     onFocus={() => setFocus(day)}
                     onClick={() => entry && onPick(date)}
                     className={cn(
-                      'focus-visible:ring-ring/50 flex min-h-11 w-full flex-col items-center justify-center rounded-md text-sm outline-none focus-visible:ring-[3px] motion-safe:transition-colors',
-                      entry ? 'bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground font-medium' : 'text-muted-foreground aria-disabled:cursor-default opacity-60',
+                      'focus-visible:ring-ring/50 flex min-h-11 w-full flex-col items-center justify-center rounded-xl text-sm outline-none focus-visible:ring-[3px] motion-safe:transition-colors',
+                      entry ? 'bg-sf2 text-foreground hover:bg-ac-soft hover:text-ac-tx font-medium' : 'text-mu aria-disabled:cursor-default opacity-60',
                     )}
                   >
                     <span aria-hidden>{day}</span>
                     {entry && (
-                      <span aria-hidden className="text-muted-foreground text-[10px] leading-none">
+                      <span aria-hidden className="text-mu text-[10px] leading-none">
                         {compact.format(entry.count)}
                       </span>
                     )}

@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CalendarDays, ChevronsDown, ChevronsUp } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarDays } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { SectionCard } from '@/components/section-card';
 import { savePosition } from '@/hooks/conversation-position';
 import type { ConversationDay, ConversationMessage, PersonTimelineMessage } from '@/lib/domain/library';
 import { useConversationDays } from '@/hooks/use-conversation-days';
@@ -15,7 +16,9 @@ import { formatDay } from './format';
 import { MessageRow, PlaceholderRow } from './message-row';
 
 const inputClass =
-  'bg-background border-input h-11 min-w-0 rounded-md border px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]';
+  'bg-bg border-input h-11 min-w-0 rounded-xl border px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]';
+const toolButton =
+  'focus-visible:ring-ring/50 flex h-12 items-center justify-center gap-1.5 rounded-2xl px-2 text-[13px] font-medium whitespace-nowrap outline-none focus-visible:ring-[3px] [&_svg]:size-4';
 
 /**
  * What the feed shows, by position: one conversation, or a person's timeline across all of theirs.
@@ -112,7 +115,11 @@ export function ConversationBody({ source }: { source: FeedSource }) {
   };
 
   if (count === 0) {
-    return <p className="bg-card text-muted-foreground m-4 rounded-xl border p-5 leading-relaxed break-words">{t('empty')}</p>;
+    return (
+      <SectionCard className="text-t2 m-4 leading-relaxed break-words">
+        <p>{t('empty')}</p>
+      </SectionCard>
+    );
   }
 
   const firstDay = source.firstSentAt?.slice(0, 10);
@@ -121,105 +128,114 @@ export function ConversationBody({ source }: { source: FeedSource }) {
 
   return (
     <>
-      <div role="group" aria-label={kind === 'timeline' ? tt('toolbarLabel') : t('toolbarLabel')} className="flex shrink-0 flex-wrap items-center gap-2 px-3 pb-2 sm:px-4">
-        <Button variant="outline" onClick={list.scrollToStart}>
-          <ChevronsUp aria-hidden />
-          {t('toStart')}
-        </Button>
-        <Button variant="outline" onClick={list.scrollToEnd}>
-          <ChevronsDown aria-hidden />
-          {t('toEnd')}
-        </Button>
-        <Button
-          ref={calendarButton}
-          variant="outline"
-          aria-expanded={calendarOpen}
-          aria-controls={calendarOpen ? 'conversation-calendar' : undefined}
-          onClick={() => (calendarOpen ? closeCalendar() : setCalendarOpen(true))}
-        >
-          <CalendarDays aria-hidden />
-          {t('calendar.open')}
-        </Button>
-        <label className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
-          <span>{t('date')}</span>
-          <input type="date" className={inputClass} value={day} min={firstDay} max={lastDay} onChange={(event) => void jump(event.target.value)} />
-        </label>
-      </div>
-      {calendarOpen && (
-        <ConversationCalendar
-          state={calendar.state}
-          first={firstDay ?? null}
-          last={lastDay ?? null}
-          onPick={(date) => {
-            void jump(date);
-            closeCalendar();
-          }}
-          onClose={closeCalendar}
-          onRetry={calendar.retry}
-          label={kind === 'timeline' ? tt('calendarLabel') : undefined}
-        />
-      )}
-      <div role="status" aria-live="polite" className="text-muted-foreground min-h-5 shrink-0 px-3 pb-1 text-sm break-words sm:px-4">
+      <div role="status" aria-live="polite" className="text-mu min-h-0 shrink-0 px-4 text-sm break-words empty:hidden">
         {status}
       </div>
       {pages.failed && (
-        <div role="alert" className="bg-card mx-3 mb-2 flex shrink-0 flex-wrap items-center gap-3 rounded-xl border p-3 text-sm sm:mx-4">
+        <div role="alert" className="bg-peach mx-4 mb-2 flex shrink-0 flex-wrap items-center gap-3 rounded-2xl p-3 text-sm">
           <span className="min-w-0 flex-1">{t('pagesFailed')}</span>
           <Button variant="outline" onClick={pages.retry}>
             {t('retry')}
           </Button>
         </div>
       )}
-      <div
-        ref={list.scrollerRef}
-        onScroll={(event) => {
-          list.onScroll(event);
-          left.current = position();
-        }}
-        role="feed"
-        tabIndex={0}
-        aria-label={source.label}
-        aria-busy={waiting || pages.busy}
-        data-testid="message-feed"
-        className="focus-visible:ring-ring/50 relative min-h-0 flex-1 overflow-y-auto overscroll-contain border-t [overflow-anchor:none] focus-visible:ring-[3px] focus-visible:ring-inset"
-      >
-        <div style={{ height: list.totalHeight }} className="relative w-full">
-          {list.items.map(({ index, top }) => {
-            const found = pages.at(index);
-            if (!found) return <PlaceholderRow key={index} index={index} top={top} rowRef={list.rowRef} />;
-            const { message, previous } = found;
-            const own = isTimelineMessage(message) ? message : null;
-            // On a timeline a message from another conversation than the one before names its own.
-            const named = own && source.timeline && (!previous || !isTimelineMessage(previous) || previous.conversationId !== own.conversationId) ? own : null;
-            return (
-              <MessageRow
-                key={index}
-                conversationId={own?.conversationId ?? id}
-                index={index}
-                count={count}
-                top={top}
-                message={message}
-                previous={previous}
-                rowRef={list.rowRef}
-                onToggleFavorite={toggleFavorite}
-                noteDrafts={noteDrafts.current}
-                onNoteChanged={setNote}
-                conversationTitle={named?.conversationTitle}
-                conversationHref={
-                  named && source.timeline
-                    ? `/conversation?id=${encodeURIComponent(named.conversationId)}&from=${encodeURIComponent(source.timeline.personId)}&date=${named.sentAt.slice(0, 10)}`
-                    : undefined
-                }
-              />
-            );
-          })}
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={list.scrollerRef}
+          onScroll={(event) => {
+            list.onScroll(event);
+            left.current = position();
+          }}
+          role="feed"
+          tabIndex={0}
+          aria-label={source.label}
+          aria-busy={waiting || pages.busy}
+          data-testid="message-feed"
+          className="focus-visible:ring-ring/50 relative h-full overflow-y-auto overscroll-contain [overflow-anchor:none] focus-visible:ring-[3px] focus-visible:ring-inset"
+        >
+          <div style={{ height: list.totalHeight }} className="relative w-full">
+            {list.items.map(({ index, top }) => {
+              const found = pages.at(index);
+              if (!found) return <PlaceholderRow key={index} index={index} top={top} rowRef={list.rowRef} />;
+              const { message, previous } = found;
+              const own = isTimelineMessage(message) ? message : null;
+              // On a timeline a message from another conversation than the one before names its own.
+              const named = own && source.timeline && (!previous || !isTimelineMessage(previous) || previous.conversationId !== own.conversationId) ? own : null;
+              return (
+                <MessageRow
+                  key={index}
+                  conversationId={own?.conversationId ?? id}
+                  index={index}
+                  count={count}
+                  top={top}
+                  message={message}
+                  previous={previous}
+                  rowRef={list.rowRef}
+                  onToggleFavorite={toggleFavorite}
+                  noteDrafts={noteDrafts.current}
+                  onNoteChanged={setNote}
+                  conversationTitle={named?.conversationTitle}
+                  conversationHref={
+                    named && source.timeline
+                      ? `/conversation?id=${encodeURIComponent(named.conversationId)}&from=${encodeURIComponent(source.timeline.personId)}&date=${named.sentAt.slice(0, 10)}`
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </div>
         </div>
+        {calendarOpen && (
+          <ConversationCalendar
+            state={calendar.state}
+            first={firstDay ?? null}
+            last={lastDay ?? null}
+            onPick={(date) => {
+              void jump(date);
+              closeCalendar();
+            }}
+            onClose={closeCalendar}
+            onRetry={calendar.retry}
+            label={kind === 'timeline' ? tt('calendarLabel') : undefined}
+            footer={
+              <label className="text-mu flex min-w-0 items-center gap-2 text-sm">
+                <span>{t('date')}</span>
+                <input type="date" className={inputClass} value={day} min={firstDay} max={lastDay} onChange={(event) => void jump(event.target.value)} />
+              </label>
+            }
+          />
+        )}
       </div>
       {waiting && (
         <p role="status" className="sr-only">
           {t('loadingMessages')}
         </p>
       )}
+      <div
+        role="toolbar"
+        aria-label={kind === 'timeline' ? tt('toolbarLabel') : t('toolbarLabel')}
+        className="bg-glass border-glass-line shadow-soft mx-4 mt-2 mb-[max(1rem,env(safe-area-inset-bottom))] grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] gap-1 rounded-[22px] border p-1.5 backdrop-blur-[20px] backdrop-saturate-[180%]"
+      >
+        <button type="button" onClick={list.scrollToStart} className={`${toolButton} hover:bg-sf2 text-foreground`}>
+          <ArrowUp aria-hidden />
+          {t('toStart')}
+        </button>
+        <button
+          ref={calendarButton}
+          type="button"
+          aria-expanded={calendarOpen}
+          aria-controls={calendarOpen ? 'conversation-calendar' : undefined}
+          onClick={() => (calendarOpen ? closeCalendar() : setCalendarOpen(true))}
+          className={`${toolButton} bg-ac text-ac-ink text-sm font-semibold`}
+        >
+          <CalendarDays aria-hidden />
+          {t('goToDate')}
+        </button>
+        <button type="button" onClick={list.scrollToEnd} className={`${toolButton} hover:bg-sf2 text-foreground`}>
+          <ArrowDown aria-hidden />
+          {t('toEnd')}
+        </button>
+      </div>
     </>
   );
 }

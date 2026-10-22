@@ -1,39 +1,34 @@
 'use client';
 
 import { useEffect, useId, useRef } from 'react';
-import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
+import { Archive } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { SectionCard } from '@/components/section-card';
 import { Button } from '@/components/ui/button';
 import type { Person } from '@/lib/usecases/library';
 
-/** Edit, archive (asking first) and restore for one person: the same on the list and on the person's page. */
-export function PersonActions({
+/**
+ * The question before archiving a person. Archiving is asked first because it hides them from the
+ * list; the choice lives in the person's "..." menu, this card appears under the header.
+ * Cancel takes focus (the safe choice); Escape cancels.
+ */
+export function ArchiveConfirm({
   person,
-  archived,
   busy,
-  confirming,
-  onEdit,
-  onAskArchive,
-  onCancelArchive,
+  onCancel,
   onArchive,
-  onRestore,
 }: {
   person: Pick<Person, 'id' | 'displayName'>;
-  archived: boolean;
   busy: boolean;
-  confirming: boolean;
-  onEdit: () => void;
-  onAskArchive: () => void;
-  onCancelArchive: () => void;
+  onCancel: () => void;
   onArchive: () => void;
-  onRestore: () => void;
 }) {
   const t = useTranslations('people');
   const titleId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (confirming) cancelRef.current?.focus();
-  }, [confirming]);
+    cancelRef.current?.focus();
+  }, []);
   // aria-disabled, not disabled: a busy button keeps focus (a disabled one drops it).
   const busyClass = 'aria-disabled:pointer-events-none aria-disabled:opacity-50';
   const ariaBusy = busy || undefined;
@@ -41,75 +36,33 @@ export function PersonActions({
     if (!busy) action();
   };
 
-  if (confirming) {
-    return (
-      <div
-        role="group"
-        aria-labelledby={titleId}
-        className="bg-muted flex min-w-0 flex-col gap-3 rounded-lg p-4"
-        onKeyDown={(event) => {
-          if (event.key === 'Escape' && !event.nativeEvent.isComposing) {
-            event.stopPropagation();
-            if (!busy) onCancelArchive();
-          }
-        }}
-      >
-        <p id={titleId} className="font-semibold break-words">
-          {t('archiveConfirm.title', { name: person.displayName })}
-        </p>
-        <p className="text-muted-foreground text-sm leading-relaxed break-words">{t('archiveConfirm.body', { name: person.displayName })}</p>
-        {/* Same order on screen and for Tab: Cancel first (it takes focus), then Archive. */}
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button ref={cancelRef} variant="outline" className={busyClass} aria-disabled={ariaBusy} onClick={unlessBusy(onCancelArchive)}>
-            {t('archiveConfirm.cancel')}
-          </Button>
-          <Button className={busyClass} aria-disabled={ariaBusy} onClick={unlessBusy(onArchive)}>
-            <Archive aria-hidden />
-            {t('archiveConfirm.confirm')}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button
-        id={`${person.id}-edit`}
-        variant="outline"
-        className={busyClass}
-        aria-disabled={ariaBusy}
-        aria-label={t('editLabel', { name: person.displayName })}
-        onClick={unlessBusy(onEdit)}
-      >
-        <Pencil aria-hidden />
-        {t('edit')}
-      </Button>
-      {archived ? (
-        <Button
-          id={`${person.id}-restore`}
-          variant="outline"
-          className={busyClass}
-          aria-disabled={ariaBusy}
-          aria-label={t('restoreLabel', { name: person.displayName })}
-          onClick={unlessBusy(onRestore)}
-        >
-          <ArchiveRestore aria-hidden />
-          {t('restore')}
+    <SectionCard
+      as="div"
+      tone="peach"
+      role="group"
+      aria-labelledby={titleId}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && !event.nativeEvent.isComposing) {
+          event.stopPropagation();
+          if (!busy) onCancel();
+        }
+      }}
+    >
+      <p id={titleId} className="font-display text-name break-words">
+        {t('archiveConfirm.title', { name: person.displayName })}
+      </p>
+      <p className="text-t2 text-sm leading-relaxed break-words">{t('archiveConfirm.body', { name: person.displayName })}</p>
+      {/* Same order on screen and for Tab: Cancel first (it takes focus), then Archive. */}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button ref={cancelRef} variant="outline" className={busyClass} aria-disabled={ariaBusy} onClick={unlessBusy(onCancel)}>
+          {t('archiveConfirm.cancel')}
         </Button>
-      ) : (
-        <Button
-          id={`${person.id}-archive`}
-          variant="ghost"
-          className={busyClass}
-          aria-disabled={ariaBusy}
-          aria-label={t('archiveLabel', { name: person.displayName })}
-          onClick={unlessBusy(onAskArchive)}
-        >
+        <Button className={busyClass} aria-disabled={ariaBusy} onClick={unlessBusy(onArchive)}>
           <Archive aria-hidden />
-          {t('archive')}
+          {t('archiveConfirm.confirm')}
         </Button>
-      )}
-    </div>
+      </div>
+    </SectionCard>
   );
 }

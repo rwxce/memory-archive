@@ -4,6 +4,7 @@ import { useRef, useState, type DragEvent } from 'react';
 import { FileArchive, Upload, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { FileItem } from '@/components/import-types';
+import { PillButton } from '@/components/pill-button';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/utils';
 import { Link } from '@/i18n/navigation';
@@ -56,13 +57,13 @@ export function ImportChoose({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h1 ref={headingRef} tabIndex={-1} className="font-serif text-3xl outline-none">
+        <h1 ref={headingRef} tabIndex={-1} className="font-display text-display outline-none">
           {t('title')}
         </h1>
-        <p className="text-muted-foreground leading-relaxed">{t('intro')}</p>
+        <p className="text-mu leading-relaxed">{t('intro')}</p>
         <Link
           href="/import/history"
-          className="text-primary focus-visible:ring-ring/50 flex min-h-11 w-fit items-center rounded-md text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px]"
+          className="text-ac-tx focus-visible:ring-ring/50 flex min-h-11 w-fit items-center rounded-full px-2 text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px]"
         >
           {t('historyLink')}
         </Link>
@@ -77,8 +78,8 @@ export function ImportChoose({
         onDragLeave={() => setDragging(false)}
         onDrop={drop}
         className={cn(
-          'bg-card flex flex-col items-start gap-3 rounded-xl border-2 border-dashed p-5 sm:items-center sm:p-8',
-          dragging && 'border-primary bg-primary/5',
+          'bg-sf lg:in-data-panel:bg-bg border-line flex flex-col items-start gap-3 rounded-3xl border-[1.5px] border-dashed p-5 sm:items-center sm:p-8',
+          dragging && 'border-ac bg-ac-soft',
         )}
       >
         <input
@@ -96,28 +97,30 @@ export function ImportChoose({
             event.target.value = '';
           }}
         />
-        <Button size="lg" onClick={() => input.current?.click()}>
+        <PillButton size="lg" onClick={() => input.current?.click()}>
           <Upload aria-hidden />
           {t('choose.pick')}
-        </Button>
-        <p className="text-muted-foreground text-sm [@media(pointer:coarse)]:hidden">{t('choose.drop')}</p>
-        <p className="text-muted-foreground text-sm leading-relaxed sm:text-center">{t('choose.hint')}</p>
+        </PillButton>
+        <p className="text-mu text-sm [@media(pointer:coarse)]:hidden">{t('choose.drop')}</p>
+        <p className="text-mu text-sm leading-relaxed sm:text-center">{t('choose.hint')}</p>
       </div>
 
       <section className="flex flex-col gap-3" aria-labelledby="import-list-title">
-        <h2 id="import-list-title" ref={listHeading} tabIndex={-1} className="text-xl font-semibold outline-none">
+        <h2 id="import-list-title" ref={listHeading} tabIndex={-1} className="font-display text-name outline-none">
           {t('choose.listTitle', { count: items.length })}
         </h2>
         {items.length === 0 ? (
-          <p className="text-muted-foreground">{t('choose.empty')}</p>
+          <p className="text-mu">{t('choose.empty')}</p>
         ) : (
           <ul ref={list} className="flex flex-col gap-2">
             {items.map((item, index) => (
-              <li key={item.id} className="bg-card flex min-w-0 items-center gap-3 rounded-lg border p-3 text-sm">
-                <FileArchive className="text-primary size-5 shrink-0" aria-hidden />
+              <li key={item.id} className="bg-mint flex min-w-0 items-center gap-3 rounded-[18px] py-3 ps-3.5 pe-1.5 text-sm">
+                <span aria-hidden className="bg-bg flex size-10 shrink-0 items-center justify-center rounded-xl">
+                  <FileArchive className="text-ac-tx size-5" />
+                </span>
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="font-medium break-words">{item.file.name}</span>
-                  <span className="text-muted-foreground">
+                  <span className="text-t2">
                     {formatBytes(item.file.size, locale)}
                     {item.sharedKey && ` · ${t('choose.shared')}`}
                   </span>
@@ -136,8 +139,8 @@ export function ImportChoose({
             ))}
           </ul>
         )}
-        {hasShared && <p className="text-muted-foreground text-sm">{t('choose.sharedNote')}</p>}
-        <p role="status" className="text-muted-foreground text-sm break-words empty:hidden">
+        {hasShared && <p className="text-mu text-sm">{t('choose.sharedNote')}</p>}
+        <p role="status" className="text-mu text-sm break-words empty:hidden">
           {skipped > 0 ? t('choose.skipped', { count: skipped }) : ''}
         </p>
       </section>
@@ -145,11 +148,11 @@ export function ImportChoose({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link
           href="/people"
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex min-h-11 w-fit items-center rounded-md text-sm underline underline-offset-4 outline-none focus-visible:ring-[3px]"
+          className="text-mu hover:text-foreground focus-visible:ring-ring/50 flex min-h-11 w-fit items-center rounded-full text-sm underline underline-offset-4 outline-none focus-visible:ring-[3px]"
         >
           {t('backToPeople')}
         </Link>
-        <Button
+        <PillButton
           size="lg"
           className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
           aria-disabled={items.length === 0 || undefined}
@@ -158,7 +161,7 @@ export function ImportChoose({
           }}
         >
           {t('choose.start', { count: items.length })}
-        </Button>
+        </PillButton>
       </div>
     </div>
   );

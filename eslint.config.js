@@ -111,6 +111,7 @@ export default tseslint.config(
       'playwright-report/**',
       'docs/**',
       '.scratch/**',
+      '.context/**',
       // Vendored skill scripts and rulesync-generated agent config.
       '.rulesync/**',
       '.agents/**',

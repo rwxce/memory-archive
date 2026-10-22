@@ -23,6 +23,7 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/sub',
 }));
 
 type Lib = Awaited<ReturnType<typeof createTestLibrary>>;
@@ -126,7 +127,8 @@ describe('SearchScreen', () => {
   test('a result opens its conversation at that day; scoped to a person it keeps the way back', async () => {
     await open('q=canco');
     expect(results().map((li) => li.querySelector('a')!.getAttribute('href'))).toEqual([`/conversation?id=${GROUP}&date=2026-03-14`, `/conversation?id=${PRIVATE}&date=2026-02-11`]);
-    expect(results()[0].querySelector('a')!.textContent).toBe(t.open);
+    // the whole card is the link: its name is what it says
+    expect(results()[0].querySelector('a')!.textContent).toContain('Family group');
     view!.unmount();
     const { data } = await open('q=canco');
     view!.unmount();
@@ -137,25 +139,46 @@ describe('SearchScreen', () => {
     expect(results()[0].querySelector('a')!.getAttribute('href')).toBe(`/conversation?id=${PRIVATE}&from=${data.ana.id}&date=2026-02-11`);
   });
 
-  test('says where it searches and widens to everything with the typed query', async () => {
-    const { data } = await open('');
-    expect(text()).toContain(t.scopeAll);
-    expect(view!.container.querySelector('a[href^="/search?q"]')).toBeNull();
-    view!.unmount();
-    search = `person=${data.ana.id}`;
-    view = await renderWithLibrary(<SearchScreen />, { lib: view!.lib });
+  const chip = (name: string) => [...view!.container.querySelectorAll<HTMLButtonElement>('[role="group"] button')].find((b) => b.textContent?.startsWith(name))!;
+
+  test('says where it searches with chips: Everyone and the people, set in place and kept in the address', async () => {
+    const { data } = await open('q=canco');
+    expect([...view!.container.querySelectorAll('[role="group"] button')].map((b) => b.textContent)).toEqual([t.everyone, 'Ana', 'Bo']);
+    expect(chip(t.everyone).getAttribute('aria-pressed')).toBe('true');
+    expect(results()).toHaveLength(2);
+    const replace = vi.spyOn(window.history, 'replaceState');
+    await act(async () => chip('Ana').click());
     await settle();
-    expect(text()).toContain('Searching in Ana');
-    await typeInto('can ço');
-    expect(view!.container.querySelector('a[href="/search?q=can%20%C3%A7o"]')?.textContent).toBe(t.widen);
-    expect(view!.container.querySelector(`a[href="/person?id=${data.ana.id}"]`)?.textContent).toBe('Back to Ana');
+    expect(chip('Ana').getAttribute('aria-pressed')).toBe('true');
+    expect(chip(t.everyone).getAttribute('aria-pressed')).toBe('false');
+    expect(results()).toHaveLength(1);
+    expect(field().value).toBe('canco');
+    expect(replace.mock.calls.some((c) => String(c[2]).includes(`person=${data.ana.id}`))).toBe(true);
+    await act(async () => chip(t.everyone).click());
+    await settle();
+    expect(results()).toHaveLength(2);
+    replace.mockRestore();
   });
 
-  test('a conversation scope names the conversation (as text) and goes back to it', async () => {
-    await open(`conversation=${GROUP}&q=canco`);
-    expect(text()).toContain('Searching in “Family group”');
+  test('?person= starts with that person chosen', async () => {
+    const { data } = await open('');
+    view!.unmount();
+    search = `person=${data.ana.id}&q=canco`;
+    view = await renderWithLibrary(<SearchScreen />, { lib: view!.lib });
+    await settle();
+    expect(chip('Ana').getAttribute('aria-pressed')).toBe('true');
     expect(results()).toHaveLength(1);
-    expect(view!.container.querySelector(`a[href="/conversation?id=${GROUP}"]`)?.textContent).toBe('Back to “Family group”');
+  });
+
+  test('a conversation scope is a removable chip with the title as text', async () => {
+    await open(`conversation=${GROUP}&q=canco`);
+    const scope = [...view!.container.querySelectorAll<HTMLButtonElement>('[role="group"] button')].find((b) => b.textContent === 'Family group')!;
+    expect(scope.getAttribute('aria-label')).toBe('Searching in “Family group”. Remove this filter');
+    expect(results()).toHaveLength(1);
+    await act(async () => scope.click());
+    await settle();
+    expect(results()).toHaveLength(2);
+    expect(chip(t.everyone).getAttribute('aria-pressed')).toBe('true');
   });
 
   test('a malformed or unknown id, or both scopes at once, is a calm not-found', async () => {
@@ -338,7 +361,7 @@ describe('SearchScreen', () => {
     });
     await open('q=canco');
     const cancel = [...view!.container.querySelectorAll('button')].find((b) => b.textContent === t.cancel)!;
-    expect(cancel.className).toContain('min-h-11');
+    expect(cancel.className).toContain('h-11');
     await act(async () => cancel.click());
     await settle();
     expect(signal?.aborted).toBe(true);
@@ -399,6 +422,6 @@ describe('SearchScreen', () => {
   test('speaks Catalan with the same screen', async () => {
     await open('q=canco', seed, ca);
     expect(view!.container.querySelector('h1')?.textContent).toBe(ca.search.title);
-    expect(text()).toContain(ca.search.scopeAll);
+    expect(view!.container.querySelector('[role="group"] button')?.textContent).toBe(ca.search.everyone);
   });
 });

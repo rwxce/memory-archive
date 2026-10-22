@@ -1518,3 +1518,31 @@ export function listNotes(db: SqlDb, scope: NoteScope | undefined, offset: numbe
             },
     }));
 }
+
+/** What the library stores, in bytes, as far as the database can tell (see `getStorageBreakdown`). */
+export interface StorageBreakdown {
+  /** Stored files referenced by at least one photo or video message. */
+  photosVideosBytes: number;
+  /** Every other stored file: audio, stickers, documents, profile photos. */
+  otherMediaBytes: number;
+  /** The database itself (messages, notes, search index): `page_count * page_size`. */
+  databaseBytes: number;
+}
+
+/**
+ * Bytes by kind. A file is "photos and videos" when any photo or video message points at it
+ * (stored once even when shared by several messages, like the blob store does). The database
+ * size is the SQLite page count times the page size, i.e. the logical size of the file.
+ */
+export function getStorageBreakdown(db: SqlDb): StorageBreakdown {
+  const [media] = db.all<{ visual: number; other: number }>(
+    `SELECT
+       COALESCE(SUM(CASE WHEN visual THEN size ELSE 0 END), 0) AS visual,
+       COALESCE(SUM(CASE WHEN visual THEN 0 ELSE size END), 0) AS other
+     FROM (SELECT b.size AS size,
+                  EXISTS (SELECT 1 FROM messages m WHERE m.media_sha256 = b.sha256 AND m.type IN ('photo', 'video')) AS visual
+           FROM blobs b)`,
+  );
+  const [pages] = db.all<{ count: number }>('SELECT page_count * page_size AS count FROM pragma_page_count, pragma_page_size');
+  return { photosVideosBytes: media.visual, otherMediaBytes: media.other, databaseBytes: pages.count };
+}

@@ -9,7 +9,7 @@ import { ImportWizard, type WizardActions } from '@/components/import-wizard';
 import { LibraryNotice } from '@/components/library-notice';
 import type { ProfileFormValues } from '@/components/profile-form';
 import { Shell } from '@/components/screen-shell';
-import { Button } from '@/components/ui/button';
+import { PillButton } from '@/components/pill-button';
 import { useSharedInbox } from '@/hooks/use-device-storage';
 import { useImportActions } from '@/hooks/use-import';
 import { useLibrary } from '@/hooks/use-library';
@@ -36,7 +36,7 @@ export function ImportScreen() {
   if (state.status !== 'ready') {
     return (
       <Shell>
-        <h1 className="font-serif text-3xl">{t('title')}</h1>
+        <h1 className="font-display text-display">{t('title')}</h1>
         <LibraryNotice state={state} onRetry={retry} />
       </Shell>
     );
@@ -414,8 +414,8 @@ function ImportContent({ onRetry }: { onRetry: () => void }) {
   const peopleReady = people.status === 'ready' ? people.people : undefined;
 
   return (
-    <Shell message={message}>
-      {phase !== 'choose' && <h1 className="text-muted-foreground text-sm font-medium">{t('title')}</h1>}
+    <Shell message={message} focused={phase === 'setup' || phase === 'run'}>
+      {phase !== 'choose' && <h1 className="sr-only">{t('title')}</h1>}
 
       {phase === 'choose' && (
         <ImportChoose
@@ -437,12 +437,12 @@ function ImportContent({ onRetry }: { onRetry: () => void }) {
         (peopleReady ? (
           <ImportWizard item={current} items={items} index={index} step={position.step} people={peopleReady} actions={wizardActions} />
         ) : people.status === 'error' ? (
-          <section role="alert" className="bg-card flex flex-col gap-3 rounded-xl border p-5">
+          <section role="alert" className="bg-sf lg:in-data-panel:bg-bg flex flex-col gap-3 rounded-3xl p-5">
             <p>{t('loadFailed')}</p>
             <div>
-              <Button variant="outline" onClick={onRetry}>
+              <PillButton variant="outlined" onClick={onRetry}>
                 {tl('retry')}
-              </Button>
+              </PillButton>
             </div>
           </section>
         ) : (

@@ -24,8 +24,7 @@ export async function createTestLibrary(): Promise<{ opened: OpenedDb; client: D
   let respond: (r: DbResponse) => void = () => {};
   const client = createDbClient({
     send: (request) => {
-      const response = structuredClone(handleDbRequest(opened, structuredClone(request) as DbRequest));
-      queueMicrotask(() => respond(response));
+      void Promise.resolve(handleDbRequest(opened, structuredClone(request) as DbRequest)).then((answer) => respond(structuredClone(answer)));
     },
     onResponse: (listener) => (respond = listener),
     onFailure: () => {},

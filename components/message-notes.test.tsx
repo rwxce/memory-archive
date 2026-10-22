@@ -21,6 +21,7 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/sub',
 }));
 
 const n = en.notes;
@@ -228,7 +229,7 @@ describe('the note on a conversation', () => {
     const lib = await open(<ConversationScreen />, () => `id=${CHAT}`);
     const header = view!.container.querySelector('header')!;
     const toggle = header.querySelector<HTMLButtonElement>('button[aria-expanded]')!;
-    expect(toggle.textContent).toBe(n.addConversation);
+    expect(toggle.getAttribute('aria-label')).toBe(n.addConversation);
     await click(toggle);
     await settle();
     expect(view!.container.querySelector(`label[for="${field().id}"]`)!.textContent).toBe(n.label.conversation);
@@ -236,6 +237,6 @@ describe('the note on a conversation', () => {
     await click(button(n.save));
     await settle();
     expect(await getNote(lib.deps, { kind: 'conversation', conversationId: CHAT })).toMatchObject({ body: 'about this chat' });
-    expect(header.querySelector('button[aria-expanded]')!.textContent).toBe(n.editConversation);
+    expect(header.querySelector('button[aria-expanded]')!.getAttribute('aria-label')).toBe(n.editConversation);
   });
 });

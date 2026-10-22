@@ -13,7 +13,7 @@ import { CalendarDayGrid } from './calendar-day-grid';
 type Level = { kind: 'years' } | { kind: 'months'; year: number } | { kind: 'days'; year: number; month: number };
 
 const choiceClass =
-  'bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50 flex min-h-14 flex-col items-center justify-center rounded-md px-2 py-1 outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 motion-safe:transition-colors';
+  'bg-sf2 text-foreground hover:bg-ac-soft hover:text-ac-tx focus-visible:ring-ring/50 flex min-h-14 flex-col items-center justify-center rounded-2xl px-2 py-1 outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 motion-safe:transition-colors';
 
 const monthName = (locale: string, year: number, month: number, style: 'long' | 'short') =>
   new Intl.DateTimeFormat(locale, { month: style, timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1)));
@@ -32,6 +32,7 @@ export function ConversationCalendar({
   onClose,
   onRetry,
   label,
+  footer,
 }: {
   state: ConversationDaysState;
   first: string | null;
@@ -41,6 +42,8 @@ export function ConversationCalendar({
   onRetry: () => void;
   /** Accessible name of the panel; defaults to the conversation's. */
   label?: string;
+  /** Extra controls under the calendar (the plain date field). */
+  footer?: ReactNode;
 }) {
   const t = useTranslations('conversation');
   const onKeyDown = (event: KeyboardEvent) => {
@@ -54,7 +57,7 @@ export function ConversationCalendar({
       id="conversation-calendar"
       aria-label={label ?? t('calendar.panelLabel')}
       onKeyDown={onKeyDown}
-      className="bg-card mx-3 mb-2 max-h-[60dvh] shrink-0 overflow-y-auto rounded-xl border p-3 sm:mx-4"
+      className="bg-bg border-glass-line shadow-soft absolute inset-x-4 bottom-2 z-20 flex max-h-[calc(100%-1rem)] flex-col gap-3 overflow-y-auto rounded-3xl border p-4"
     >
       {state.status === 'ready' && state.days.length > 0 ? (
         <Browser days={state.days} first={first} last={last} onPick={onPick} onClose={onClose} />
@@ -68,14 +71,15 @@ export function ConversationCalendar({
               </Button>
             </div>
           ) : state.status === 'ready' ? (
-            <p className="text-muted-foreground text-sm">{t('calendar.none')}</p>
+            <p className="text-mu text-sm">{t('calendar.none')}</p>
           ) : (
-            <p role="status" className="text-muted-foreground text-sm">
+            <p role="status" className="text-mu text-sm">
               {t('calendar.loading')}
             </p>
           )}
         </Frame>
       )}
+      {footer}
     </section>
   );
 }
@@ -91,7 +95,7 @@ function Frame({ title, level, onClose, children, before, actions }: { title: st
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
           {before}
-          <h2 ref={heading} tabIndex={-1} aria-live="polite" className="font-serif text-lg leading-tight break-words outline-none">
+          <h2 ref={heading} tabIndex={-1} aria-live="polite" className="font-display text-2xl leading-tight break-words outline-none">
             {title}
           </h2>
         </div>
@@ -141,7 +145,7 @@ function Browser({
             <li key={year} className="contents">
               <button type="button" className={choiceClass} aria-label={t('calendar.yearLabel', { year, messages: messages(n) })} onClick={() => setLevel({ kind: 'months', year })}>
                 <span aria-hidden className="text-base font-medium">{year}</span>
-                <span aria-hidden className="text-muted-foreground text-xs">{count.format(n)}</span>
+                <span aria-hidden className="text-mu text-xs">{count.format(n)}</span>
               </button>
             </li>
           ))}
@@ -174,7 +178,7 @@ function Browser({
                   onClick={() => setLevel({ kind: 'days', year: level.year, month })}
                 >
                   <span aria-hidden className="text-sm font-medium capitalize">{monthName(locale, level.year, month, 'short')}</span>
-                  <span aria-hidden className="text-muted-foreground min-h-4 text-xs">{n === undefined ? '' : count.format(n)}</span>
+                  <span aria-hidden className="text-mu min-h-4 text-xs">{n === undefined ? '' : count.format(n)}</span>
                 </button>
               </li>
             );

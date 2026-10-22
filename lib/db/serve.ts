@@ -25,26 +25,33 @@ export interface DbServer {
  */
 export function createDbServer(open: () => Promise<OpenedDb>): DbServer {
   let opening: Promise<OpenedDb> | undefined;
+  // One request at a time, even when a handler is async (`restoreDatabase`): no other request,
+  // from the page or the import worker, runs between its awaits.
+  let tail: Promise<void> = Promise.resolve();
 
   async function answer(request: DbRequest, reply: (response: DbResponse) => void): Promise<void> {
     try {
       opening ??= open();
       const opened = await opening;
-      reply(handleDbRequest(opened, request));
+      reply(await handleDbRequest(opened, request));
     } catch (error) {
       opening = undefined;
       reply({ id: request.id, ok: false, error: toDbError(error).toJSON() });
     }
   }
 
+  function enqueue(request: DbRequest, reply: (response: DbResponse) => void): void {
+    tail = tail.then(() => answer(request, reply));
+  }
+
   return {
     handle(message, reply) {
       if ('type' in message && message.type === 'connect') {
         const { port } = message;
-        port.onmessage = (event: MessageEvent<DbRequest>) => void answer(event.data, (response) => port.postMessage(response));
+        port.onmessage = (event: MessageEvent<DbRequest>) => enqueue(event.data, (response) => port.postMessage(response));
         return;
       }
-      void answer(message as DbRequest, reply);
+      enqueue(message as DbRequest, reply);
     },
   };
 }

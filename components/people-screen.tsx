@@ -1,21 +1,24 @@
 'use client';
 
-import { useId, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight, FileUp, History, Plus, Search } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { ConversationList } from '@/components/conversation-list';
+import { Eyebrow } from '@/components/eyebrow';
 import { LibraryNotice } from '@/components/library-notice';
-import { PersonActions } from '@/components/person-actions';
+import { PageTitle } from '@/components/page-title';
+import { PersonAvatar } from '@/components/person-avatar';
 import { ProfileForm, type ProfileFormValues } from '@/components/profile-form';
+import { PillButton } from '@/components/pill-button';
+import { SectionCard } from '@/components/section-card';
 import { Shell } from '@/components/screen-shell';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/utils';
 import { useConversationActions } from '@/hooks/use-conversation-actions';
 import { useLibrary } from '@/hooks/use-library';
 import { usePeople, useProfileActions } from '@/hooks/use-people';
 import { Link } from '@/i18n/navigation';
 import type { Person } from '@/lib/usecases/library';
-import { initialsOf } from './format';
+import { featuredPerson, personMeta } from './person-meta';
 
 /**
  * The People screen. `whenNoProfiles` (the welcome, on the home page) takes
@@ -36,7 +39,7 @@ export function PeopleScreen({ whenNoProfiles }: { whenNoProfiles?: ReactNode })
   return <PeopleContent whenNoProfiles={whenNoProfiles} onRetry={retry} />;
 }
 
-type Editing = { mode: 'create' } | { mode: 'edit'; person: Person };
+type Editing = { mode: 'create' };
 
 function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode; onRetry: () => void }) {
   const t = useTranslations('people');
@@ -46,16 +49,23 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
   const conversationActions = useConversationActions();
   const unassignedRef = useRef<HTMLHeadingElement>(null);
   const [editing, setEditing] = useState<Editing>();
-  const [confirming, setConfirming] = useState<string>();
   const [showArchived, setShowArchived] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const [problem, setProblem] = useState('');
   const headingRef = useRef<HTMLHeadingElement>(null);
   const opener = useRef<string>(undefined);
   const archivedId = useId();
   const formOpen = useRef(false);
   formOpen.current = editing !== undefined;
+
+  // The desktop sidebar's "Add a person" arrives as /people?new=1: open the form once, then tidy the address.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('new') !== '1') return;
+    params.delete('new');
+    const rest = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`);
+    setEditing({ mode: 'create' });
+  }, []);
 
   /** Remember the id of the button that opened a form or panel, to give focus back when it closes. */
   const remember = (buttonId: string) => {
@@ -81,14 +91,14 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
   if (result.status === 'error') {
     return (
       <Shell message={message}>
-        <section role="alert" className="bg-card flex flex-col gap-3 rounded-xl border p-5">
+        <SectionCard role="alert">
           <p>{t('loadFailed')}</p>
           <div>
-            <Button variant="outline" onClick={onRetry}>
+            <PillButton variant="outlined" onClick={onRetry}>
               {tl('retry')}
-            </Button>
+            </PillButton>
           </div>
-        </section>
+        </SectionCard>
       </Shell>
     );
   }
@@ -96,28 +106,9 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
   const { active, archived, unassigned } = result.people;
   if (active.length + archived.length + unassigned.length === 0 && whenNoProfiles && !editing) return <>{whenNoProfiles}</>;
 
-  /** Runs a change from the list; true when it was stored. */
-  const run = async (name: string, done: string, work: () => Promise<unknown>) => {
-    if (busy) return false;
-    setBusy(true);
-    setProblem('');
-    setMessage('');
-    try {
-      await work();
-      setMessage(t(done, { name }));
-      return true;
-    } catch {
-      setProblem(t('actionFailed', { name }));
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const openForm = (next: Editing, buttonId: string) => {
     remember(buttonId);
     setMessage('');
-    setProblem('');
     setEditing(next);
   };
 
@@ -127,121 +118,69 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
   };
 
   const submitForm = async (values: ProfileFormValues) => {
-    if (!editing) return;
     // Resolves after the list has reloaded, so closing the form shows the new list at once.
-    if (editing.mode === 'create') {
-      const created = await actions.create(values);
-      setMessage(t('created', { name: created.displayName }));
-    } else {
-      const updated = await actions.update(editing.person.id, values);
-      setMessage(t('updated', { name: updated.displayName }));
-    }
+    const created = await actions.create(values);
+    setMessage(t('created', { name: created.displayName }));
     closeForm();
   };
 
   if (editing) {
-    const title = editing.mode === 'create' ? t('form.createTitle') : t('form.editTitle', { name: editing.person.displayName });
     return (
       <Shell message={message}>
-        <h1 ref={headingRef} tabIndex={-1} className="font-serif text-3xl break-words outline-none">
-          {title}
-        </h1>
-        <ProfileForm initial={editing.mode === 'edit' ? editing.person : undefined} onSubmit={submitForm} onCancel={closeForm} />
+        <PageTitle ref={headingRef} tabIndex={-1}>
+          {t('form.createTitle')}
+        </PageTitle>
+        <ProfileForm onSubmit={submitForm} onCancel={closeForm} />
       </Shell>
     );
   }
 
-  const card = (person: Person, isArchived: boolean) => (
-    <PersonCard
-      key={person.id}
-      person={person}
-      archived={isArchived}
-      busy={busy}
-      confirming={confirming === person.id}
-      onEdit={() => openForm({ mode: 'edit', person }, `${person.id}-edit`)}
-      onAskArchive={() => {
-        remember(`${person.id}-archive`);
-        setConfirming(person.id);
-      }}
-      onCancelArchive={() => {
-        setConfirming(undefined);
-        restoreFocus();
-      }}
-      onArchive={async () => {
-        // On failure the confirmation stays open and focus stays on its button.
-        if (await run(person.displayName, 'archived', () => actions.archive(person.id))) {
-          setConfirming(undefined);
-          restoreFocus();
-        }
-      }}
-      onRestore={async () => {
-        remember(`${person.id}-restore`);
-        if (await run(person.displayName, 'restored', () => actions.unarchive(person.id))) restoreFocus();
-      }}
-    />
-  );
+  const featured = featuredPerson(active);
+  const card = (person: Person, isArchived: boolean) => <PersonCard key={person.id} person={person} archived={isArchived} featured={person === featured} />;
 
   return (
     <Shell message={message}>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 ref={headingRef} tabIndex={-1} className="font-serif text-3xl outline-none">
+      <header className="flex items-end justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <Eyebrow>{t('eyebrow')}</Eyebrow>
+          <PageTitle ref={headingRef} tabIndex={-1}>
             {t('title')}
-          </h1>
-          <p className="text-muted-foreground">{t('intro')}</p>
+          </PageTitle>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <Button variant="outline" asChild>
-            <Link href="/search">
-              <Search aria-hidden />
-              {t('search')}
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/import">
-              <FileUp aria-hidden />
-              {t('import')}
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/import/history">
-              <History aria-hidden />
-              {t('history')}
-            </Link>
-          </Button>
-          <Button
-            id="add-person"
-            className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
-            aria-disabled={busy || undefined}
-            onClick={() => {
-              if (!busy) openForm({ mode: 'create' }, 'add-person');
-            }}
-          >
-            <Plus aria-hidden />
-            {t('add')}
-          </Button>
-        </div>
-      </div>
-
-      <p role="alert" className="text-destructive text-sm break-words empty:hidden">
-        {problem}
-      </p>
+        <button
+          id="add-person"
+          type="button"
+          aria-label={t('add')}
+          onClick={() => openForm({ mode: 'create' }, 'add-person')}
+          className="bg-ac text-ac-ink focus-visible:ring-ring/50 flex size-[50px] shrink-0 items-center justify-center rounded-2xl outline-none focus-visible:ring-[3px] aria-disabled:pointer-events-none aria-disabled:opacity-50"
+        >
+          <Plus className="size-[22px]" strokeWidth={2} aria-hidden />
+        </button>
+      </header>
+      <p className="text-t2 leading-relaxed">{t('intro')}</p>
 
       {active.length > 0 ? (
-        <ul className="flex flex-col gap-3" aria-label={t('title')}>
-          {active.map((person) => card(person, false))}
+        <ul className="flex flex-col gap-3.5" aria-label={t('title')}>
+          {/* The person with the most recent message comes first, as a larger card. */}
+          {featured && card(featured, false)}
+          {active.filter((person) => person !== featured).map((person) => card(person, false))}
         </ul>
       ) : (
-        <section className="bg-card flex flex-col gap-2 rounded-xl border p-6">
-          <h2 className="text-lg font-semibold">{t('emptyTitle')}</h2>
+        <SectionCard className="gap-2 p-6">
+          <h2 className="font-display text-name">{t('emptyTitle')}</h2>
           <p className="text-muted-foreground leading-relaxed">{archived.length > 0 ? t('allArchivedBody') : t('emptyBody')}</p>
-        </section>
+        </SectionCard>
       )}
 
       {unassigned.length > 0 && (
-        <section className="flex flex-col gap-3" aria-labelledby={`${archivedId}-unassigned`}>
+        <section className="flex flex-col gap-3 pt-1.5" aria-labelledby={`${archivedId}-unassigned`}>
           <div className="flex flex-col gap-1">
-            <h2 id={`${archivedId}-unassigned`} ref={unassignedRef} tabIndex={-1} className="text-xl font-semibold outline-none">
+            <h2
+              id={`${archivedId}-unassigned`}
+              ref={unassignedRef}
+              tabIndex={-1}
+              className="text-mu text-[13px] font-semibold tracking-wider uppercase outline-none"
+            >
               {t('unassignedTitle')}
             </h2>
             <p className="text-muted-foreground text-sm leading-relaxed">{t('unassignedHint')}</p>
@@ -261,8 +200,8 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
           <h2 id={`${archivedId}-title`} className="sr-only">
             {t('archivedTitle')}
           </h2>
-          <Button
-            variant="ghost"
+          <PillButton
+            variant="ghost-link"
             className="self-start"
             aria-expanded={showArchived}
             aria-controls={archivedId}
@@ -270,7 +209,7 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
           >
             <ChevronDown className={cn('transition-transform motion-reduce:transition-none', showArchived && 'rotate-180')} aria-hidden />
             {showArchived ? t('hideArchived') : t('showArchived', { count: archived.length })}
-          </Button>
+          </PillButton>
           <div id={archivedId} hidden={!showArchived} className="flex flex-col gap-3">
             <p className="text-muted-foreground text-sm">{t('archivedHint')}</p>
             <ul className="flex flex-col gap-3">{archived.map((person) => card(person, true))}</ul>
@@ -281,49 +220,31 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
   );
 }
 
-function PersonCard({
-  person,
-  archived,
-  ...actions
-}: {
-  person: Person;
-  archived: boolean;
-  busy: boolean;
-  confirming: boolean;
-  onEdit: () => void;
-  onAskArchive: () => void;
-  onCancelArchive: () => void;
-  onArchive: () => void;
-  onRestore: () => void;
-}) {
+function PersonCard({ person, archived, featured }: { person: Person; archived: boolean; featured: boolean }) {
   const t = useTranslations('people');
   // Active people are h2 under the page title; the archived ones sit one level down, under their section's h2.
   const Name = archived ? 'h3' : 'h2';
+  const meta = personMeta(person, (count) => t('conversations', { count }));
 
   return (
-    <li className="bg-card flex min-w-0 flex-col gap-4 rounded-xl border p-4 sm:p-5">
-      <div className="flex items-center gap-4">
-        <span
-          aria-hidden
-          className="bg-primary/15 text-primary flex size-12 shrink-0 items-center justify-center rounded-full text-lg font-semibold"
-        >
-          {initialsOf(person.displayName)}
-        </span>
+    <SectionCard as="li" tone={featured ? 'soft' : 'sf'} className={featured ? 'gap-3.5 rounded-[26px] p-4' : 'gap-3 rounded-[22px] px-4 py-3.5'}>
+      <div className="relative flex items-center gap-3.5">
+        <PersonAvatar name={person.displayName} size={featured ? 'lg' : 'md'} tone={featured ? 'accent' : 'auto'} />
         <div className="min-w-0 flex-1">
-          <Name className="text-lg leading-tight font-semibold">
+          <Name className={featured ? 'font-display text-headline break-words' : 'font-display text-name break-words'}>
+            {/* The link covers the whole card. Edit and archive live in the person's own menu. */}
             <Link
               href={`/person?id=${encodeURIComponent(person.id)}`}
-              className="focus-visible:ring-ring/50 -my-2 block truncate rounded-md py-2 underline-offset-4 outline-none hover:underline focus-visible:ring-[3px]"
+              className="focus-visible:ring-ring/50 rounded-md outline-none after:absolute after:-inset-3 after:rounded-[22px] focus-visible:ring-[3px]"
             >
               {person.displayName}
             </Link>
           </Name>
-          {person.relationship && <p className="text-muted-foreground truncate text-sm">{person.relationship}</p>}
-          <p className="text-muted-foreground text-sm">{t('conversations', { count: person.conversationCount })}</p>
+          <p className={featured ? 'text-t2 text-[13px]' : 'text-mu text-[13px]'}>{meta}</p>
         </div>
-        <ChevronRight className="text-muted-foreground size-5 shrink-0" aria-hidden />
+        <ChevronRight className="text-mu size-5 shrink-0 rtl:rotate-180" aria-hidden />
       </div>
-      <PersonActions person={person} archived={archived} {...actions} />
-    </li>
+      {/* TODO(redesign-data): the featured card shows a 4-tile photo preview (three recent photos and a "+N" count); needs a media-preview use case. */}
+    </SectionCard>
   );
 }
