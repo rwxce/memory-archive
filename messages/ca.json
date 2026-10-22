@@ -379,12 +379,19 @@
     "empty": "Encara no hi ha cap foto ni cap vídeo a les converses guardades a {name}. Quan n'hi hagi, apareixeran aquí.",
     "photo": "Foto",
     "video": "Vídeo",
-    "tileLabel": "Obre a la conversa «{title}»: {kind}, {when}",
+    "tileLabel": "Mostra {kind}, {when}, de «{title}»",
     "videoName": "Vídeo",
     "shown": "Es mostren {shown} de {total}",
     "showMore": "Mostra'n més",
     "loadingMore": "Carregant-ne més…",
-    "moreFailed": "Algunes fotos i vídeos no s'han pogut llegir. No s'ha esborrat res."
+    "moreFailed": "Algunes fotos i vídeos no s'han pogut llegir. No s'ha esborrat res.",
+    "lightboxLabel": "{kind} de «{title}», {when}",
+    "position": "{current} de {total}",
+    "previous": "Anterior",
+    "next": "Següent",
+    "close": "Tanca",
+    "openInConversation": "Obre a la conversa",
+    "loadingNext": "Carregant la següent…"
   },
   "conversations": {
     "listLabel": "Converses",

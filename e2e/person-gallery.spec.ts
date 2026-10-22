@@ -64,11 +64,11 @@ test('a person has a Gallery: by month, photos load near the screen, videos read
 
   // oldest first, by month; 50 tiles of a fixed shape
   await expect(page.getByRole('heading', { level: 2 })).toHaveText(['January 2026', 'February 2026', 'March 2026']);
-  const tiles = page.locator('section li a');
+  const tiles = page.locator('section li button');
   await expect(tiles).toHaveCount(50);
   await expect(page.getByText('Showing 50 of 59')).toBeVisible();
-  await expect(tiles.nth(0)).toHaveAccessibleName('Open in conversation “Ana i Bo”: Photo, Jan 10, 2026, 9:05 AM');
-  await expect(tiles.nth(1)).toHaveAccessibleName('Open in conversation “Ana i Bo”: Video, Jan 14, 2026, 12:00 PM');
+  await expect(tiles.nth(0)).toHaveAccessibleName('View Photo, Jan 10, 2026, 9:05 AM, from “Ana i Bo”');
+  await expect(tiles.nth(1)).toHaveAccessibleName('View Video, Jan 14, 2026, 12:00 PM, from “Ana i Bo”');
   const box = await tiles.nth(0).boundingBox();
   expect(Math.abs(box!.width - box!.height)).toBeLessThan(1);
   expect(box!.width).toBeGreaterThanOrEqual(44);
@@ -89,19 +89,55 @@ test('a person has a Gallery: by month, photos load near the screen, videos read
   await tiles.nth(49).scrollIntoViewIfNeeded();
   await expect(farImg).toHaveAttribute('src', /^blob:/);
 
-  // keyboard: tiles are links in DOM order
+  // keyboard: tiles are buttons in DOM order
   await tiles.nth(0).focus();
   await page.keyboard.press('Tab');
   await expect(tiles.nth(1)).toBeFocused();
 
-  // Show more
-  await page.getByRole('button', { name: 'Show more' }).click();
+  // a tile opens the lightbox: a modal dialog, photo fitted, arrows walk, Escape returns focus
+  await tiles.nth(0).scrollIntoViewIfNeeded();
+  await tiles.nth(0).click();
+  const box2 = page.getByRole('dialog');
+  await expect(box2).toBeVisible();
+  await expect(box2).toHaveAccessibleName('Photo from “Ana i Bo”, Jan 10, 2026, 9:05 AM');
+  await expect(box2.locator('img')).toHaveAttribute('src', /^blob:/);
+  await expect.poll(() => box2.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(48);
+  const big = await box2.locator('img').boundingBox();
+  expect(big!.width).toBeLessThanOrEqual(48 + 1); // never enlarged past its own size
+  await expect(box2.getByText(/^\d+ of \d+$/)).toHaveText('1 of 50');
+  await expect(box2.getByRole('button', { name: 'Previous' })).toHaveAttribute('aria-disabled', 'true');
+  for (const name of ['Close', 'Previous', 'Next']) {
+    const b = await box2.getByRole('button', { name }).boundingBox();
+    expect(b!.width).toBeGreaterThanOrEqual(44);
+    expect(b!.height).toBeGreaterThanOrEqual(44);
+  }
+  expect(await overflowsHorizontally(page)).toBe(false);
+  if (process.env.E2E_SHOTS) await page.screenshot({ path: `${process.env.E2E_SHOTS}/person-gallery-lightbox-${testInfo.project.name}.png` });
+  await page.keyboard.press('ArrowRight');
+  await expect(box2.getByText(/^\d+ of \d+$/)).toHaveText('2 of 50');
+  await expect(box2.locator('video')).toHaveAttribute('src', /^blob:/);
+  await expect(box2.locator('img')).toHaveCount(0);
+  if (process.env.E2E_SHOTS) await page.screenshot({ path: `${process.env.E2E_SHOTS}/person-gallery-lightbox-video-${testInfo.project.name}.png` });
+  await box2.getByRole('button', { name: 'Previous' }).click();
+  await expect(box2.getByText(/^\d+ of \d+$/)).toHaveText('1 of 50');
+  await page.keyboard.press('Escape');
+  await expect(box2).toBeHidden();
+  await expect(tiles.nth(0)).toBeFocused();
+
+  // Next at the last loaded item loads the next page
+  await tiles.nth(49).scrollIntoViewIfNeeded();
+  await tiles.nth(49).click();
+  await expect(box2.getByText(/^\d+ of \d+$/)).toHaveText('50 of 50');
+  await box2.getByRole('button', { name: 'Next' }).click();
+  await expect(box2.getByText(/^\d+ of \d+$/)).toHaveText('51 of 59');
+  await page.keyboard.press('Escape');
   await expect(tiles).toHaveCount(59);
   await expect(page.getByRole('button', { name: 'Show more' })).toHaveCount(0);
 
-  // the tile opens the message's conversation on that day
+  // the lightbox links to the message's conversation on that day
   await tiles.nth(1).scrollIntoViewIfNeeded();
   await tiles.nth(1).click();
+  await box2.getByRole('link', { name: 'Open in conversation' }).click();
   await expect(page).toHaveURL(/\/en\/conversation\/\?id=[0-9a-f-]{36}&from=[0-9a-f-]{36}&date=2026-01-14$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Ana i Bo' })).toBeVisible();
   await page.getByRole('link', { name: 'Back to Mama' }).click();

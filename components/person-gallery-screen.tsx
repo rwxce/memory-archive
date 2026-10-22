@@ -1,9 +1,11 @@
 'use client';
 
+import { useCallback, useRef, useState } from 'react';
 import { ArrowLeft, Loader } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { LibraryNotice } from '@/components/library-notice';
+import { PersonGalleryLightbox } from '@/components/person-gallery-lightbox';
 import { PersonGalleryTile } from '@/components/person-gallery-tile';
 import { PersonSections } from '@/components/person-sections';
 import { Shell } from '@/components/screen-shell';
@@ -25,7 +27,7 @@ const linkClass =
  * a grid under month headings. The person is chosen by `?id=` (a static export has no dynamic
  * routes). Tiles come 50 at a time with "Show more" (a plain paged grid, not virtualized: tiles are
  * cheap, the DOM only grows as far as the person asks, and a photo is read only while its tile is
- * near the screen). Each tile is a link to the message in its conversation.
+ * near the screen). Each tile opens the item in a full-screen lightbox, which links on to the message in its conversation.
  */
 export function PersonGalleryScreen() {
   const { state, retry } = useLibrary();
@@ -47,6 +49,16 @@ function PersonGalleryContent({ onRetry }: { onRetry: () => void }) {
   const id = useSearchParams().get('id');
   const details = usePersonDetails(id);
   const { state: media, loadMore, retry } = usePersonMedia(id, KINDS);
+  const [openId, setOpenId] = useState<number | null>(null);
+  const tileRefs = useRef(new Map<number, HTMLButtonElement>());
+  const lastOpen = useRef<number | null>(null);
+  lastOpen.current = openId ?? lastOpen.current;
+  const closeLightbox = useCallback(() => {
+    setOpenId(null);
+    // Back to the tile the person was last looking at.
+    const last = lastOpen.current;
+    if (last !== null) requestAnimationFrame(() => tileRefs.current.get(last)?.focus());
+  }, []);
 
   if (details.status === 'not-found' || media.status === 'not-found') {
     return (
@@ -94,6 +106,7 @@ function PersonGalleryContent({ onRetry }: { onRetry: () => void }) {
   const person = details.details.person;
   const { items, total, loadingMore, moreFailed } = media;
   const groups = groupByMonth(items);
+  const openIndex = openId === null ? -1 : items.findIndex((item) => item.id === openId);
   return (
     <Shell>
       <Link href={`/person?id=${encodeURIComponent(person.id)}`} className={linkClass}>
@@ -117,7 +130,15 @@ function PersonGalleryContent({ onRetry }: { onRetry: () => void }) {
               </h2>
               <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6">
                 {group.items.map((item) => (
-                  <PersonGalleryTile key={item.id} item={item} personId={person.id} />
+                  <PersonGalleryTile
+                    key={item.id}
+                    item={item}
+                    onOpen={setOpenId}
+                    buttonRef={(element) => {
+                      if (element) tileRefs.current.set(item.id, element);
+                      else tileRefs.current.delete(item.id);
+                    }}
+                  />
                 ))}
               </ul>
             </section>
@@ -141,6 +162,19 @@ function PersonGalleryContent({ onRetry }: { onRetry: () => void }) {
             )}
           </div>
         </div>
+      )}
+      {openIndex >= 0 && (
+        <PersonGalleryLightbox
+          items={items}
+          index={openIndex}
+          total={total}
+          personId={person.id}
+          loadingMore={loadingMore}
+          moreFailed={moreFailed}
+          onIndexChange={(i) => setOpenId(items[i]?.id ?? null)}
+          onClose={closeLightbox}
+          loadMore={loadMore}
+        />
       )}
     </Shell>
   );
