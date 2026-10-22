@@ -350,7 +350,8 @@
     "backToPerson": "Volver a esta persona",
     "sectionsLabel": "Secciones",
     "sectionAudio": "Audio",
-    "sectionGallery": "Galería"
+    "sectionGallery": "Galería",
+    "sectionTimeline": "Cronología"
   },
   "personAudio": {
     "title": "Audio",
@@ -553,6 +554,17 @@
       "sources": {
         "whatsapp": "WhatsApp"
       }
-    }
+    },
+    "openFromTimeline": "Abrir esta conversación en este día"
+  },
+  "timeline": {
+    "back": "Volver a {name}",
+    "eyebrow": "Cronología",
+    "summary": "{count, plural, one {# mensaje} other {# mensajes}} en {conversations, plural, one {# conversación} other {# conversaciones}}",
+    "loadFailed": "No se ha podido leer esta cronología. No se ha borrado nada.",
+    "empty": "Aún no hay mensajes de {name}. Cuando traigas un chat, aparecerá aquí.",
+    "feedLabel": "Mensajes de {name}, de todas las conversaciones",
+    "toolbarLabel": "Moverse por la cronología",
+    "calendarLabel": "Calendario de esta cronología"
   }
 }

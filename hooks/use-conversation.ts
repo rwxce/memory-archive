@@ -34,9 +34,9 @@ export const isDateParam = (value: string | null): value is string => {
 
 /**
  * Opens one conversation for the view. An id that is missing, malformed or unknown is
- * `not-found` (a calm screen), not an error. `findOffset` jumps by date with the same use case.
+ * `not-found` (a calm screen), not an error.
  */
-export function useConversation(id: string | null, date: string | null): { state: ConversationState; findOffset(date: string): Promise<number | null>; retry(): void } {
+export function useConversation(id: string | null, date: string | null): { state: ConversationState; retry(): void } {
   const { state: library } = useLibraryInternals();
   const deps = library.status === 'ready' ? library.deps : undefined;
   const [result, setResult] = useState<{ key: string; state: ConversationState }>({ key: '', state: { status: 'loading' } });
@@ -72,7 +72,6 @@ export function useConversation(id: string | null, date: string | null): { state
     };
   }, [deps, id, date, key]);
 
-  const findOffset = useCallback((day: string) => (deps && isUuid(id) ? findMessageOffsetByDate(deps, id, day) : Promise.resolve(null)), [deps, id]);
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
-  return { state: deps && result.key === key ? result.state : { status: 'loading' }, findOffset, retry };
+  return { state: deps && result.key === key ? result.state : { status: 'loading' }, retry };
 }

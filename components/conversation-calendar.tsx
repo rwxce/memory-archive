@@ -31,6 +31,7 @@ export function ConversationCalendar({
   onPick,
   onClose,
   onRetry,
+  label,
 }: {
   state: ConversationDaysState;
   first: string | null;
@@ -38,6 +39,8 @@ export function ConversationCalendar({
   onPick: (date: string) => void;
   onClose: () => void;
   onRetry: () => void;
+  /** Accessible name of the panel; defaults to the conversation's. */
+  label?: string;
 }) {
   const t = useTranslations('conversation');
   const onKeyDown = (event: KeyboardEvent) => {
@@ -49,7 +52,7 @@ export function ConversationCalendar({
   return (
     <section
       id="conversation-calendar"
-      aria-label={t('calendar.panelLabel')}
+      aria-label={label ?? t('calendar.panelLabel')}
       onKeyDown={onKeyDown}
       className="bg-card mx-3 mb-2 max-h-[60dvh] shrink-0 overflow-y-auto rounded-xl border p-3 sm:mx-4"
     >
