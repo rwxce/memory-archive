@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronsDown, ChevronsUp } from 'lucide-react';
+import { CalendarDays, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { savePosition } from '@/hooks/conversation-position';
 import type { OpenConversation } from '@/hooks/use-conversation';
+import { useConversationDays } from '@/hooks/use-conversation-days';
 import { useMessagePages } from '@/hooks/use-message-pages';
 import { useVirtualList } from '@/hooks/use-virtual-list';
+import { ConversationCalendar } from './conversation-calendar';
 import { formatDay } from './format';
 import { MessageRow, PlaceholderRow } from './message-row';
 
@@ -35,6 +37,9 @@ export function ConversationBody({
   const pages = useMessagePages(id, count);
   const [status, setStatus] = useState('');
   const [day, setDay] = useState('');
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const calendarButton = useRef<HTMLButtonElement>(null);
+  const calendar = useConversationDays(id, calendarOpen);
 
   const { start: from, end: to } = list.range;
   const { request } = pages;
@@ -54,14 +59,6 @@ export function ConversationBody({
       save();
     };
   }, [id]);
-
-  if (count === 0) {
-    return <p className="bg-card text-muted-foreground m-4 rounded-xl border p-5 leading-relaxed break-words">{t('empty')}</p>;
-  }
-
-  const firstDay = view.bounds.firstSentAt?.slice(0, 10);
-  const lastDay = view.bounds.lastSentAt?.slice(0, 10);
-  const waiting = list.items.some((item) => !pages.at(item.index));
 
   const jumpToken = useRef(0);
   const jump = async (value: string) => {
@@ -83,6 +80,19 @@ export function ConversationBody({
     }
   };
 
+  const closeCalendar = () => {
+    setCalendarOpen(false);
+    calendarButton.current?.focus();
+  };
+
+  if (count === 0) {
+    return <p className="bg-card text-muted-foreground m-4 rounded-xl border p-5 leading-relaxed break-words">{t('empty')}</p>;
+  }
+
+  const firstDay = view.bounds.firstSentAt?.slice(0, 10);
+  const lastDay = view.bounds.lastSentAt?.slice(0, 10);
+  const waiting = list.items.some((item) => !pages.at(item.index));
+
   return (
     <>
       <div role="group" aria-label={t('toolbarLabel')} className="flex shrink-0 flex-wrap items-center gap-2 px-3 pb-2 sm:px-4">
@@ -94,11 +104,34 @@ export function ConversationBody({
           <ChevronsDown aria-hidden />
           {t('toEnd')}
         </Button>
+        <Button
+          ref={calendarButton}
+          variant="outline"
+          aria-expanded={calendarOpen}
+          aria-controls={calendarOpen ? 'conversation-calendar' : undefined}
+          onClick={() => (calendarOpen ? closeCalendar() : setCalendarOpen(true))}
+        >
+          <CalendarDays aria-hidden />
+          {t('calendar.open')}
+        </Button>
         <label className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
           <span>{t('date')}</span>
           <input type="date" className={inputClass} value={day} min={firstDay} max={lastDay} onChange={(event) => void jump(event.target.value)} />
         </label>
       </div>
+      {calendarOpen && (
+        <ConversationCalendar
+          state={calendar.state}
+          first={firstDay ?? null}
+          last={lastDay ?? null}
+          onPick={(date) => {
+            void jump(date);
+            closeCalendar();
+          }}
+          onClose={closeCalendar}
+          onRetry={calendar.retry}
+        />
+      )}
       <div role="status" aria-live="polite" className="text-muted-foreground min-h-5 shrink-0 px-3 pb-1 text-sm break-words sm:px-4">
         {status}
       </div>
