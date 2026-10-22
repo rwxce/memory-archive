@@ -37,9 +37,11 @@ The CLI writes only to the output folder the user chooses.
 
 - The search index (words of messages and file names) is not part of any backup or change pack and
   a restore does not bring one: the app builds it again on this device. A restored or merged
-  archive never carries someone else's index. A future "erase everything" must delete
-  `search.sqlite3` (OPFS, next to `library.sqlite3`) together with the database, the media and
-  the thumbnails; leaving it would keep the text of erased messages on the device.
+  archive never carries someone else's index. "Erase everything on this device"
+  (`lib/usecases/erase-device.ts`) deletes `search.sqlite3` (OPFS, next to `library.sqlite3`) together with
+  the database, the media, the thumbnails, the share-inbox cache and the app's `memory-archive:` keys in
+  localStorage / sessionStorage; leaving the index would keep the text of erased messages on the device.
+  It keeps the service worker and its precache, so the app still opens offline.
   Text never outlives its message in the index: undoing an import drops the index file's contents
   first (tables dropped, file vacuumed, no rollback journal kept), and a restore does the same; the
   next search rebuilds it (a few seconds on a very large archive). Search never logs the query or any text.

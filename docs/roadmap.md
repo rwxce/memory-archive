@@ -112,7 +112,8 @@ Chromium e2e and unit tests).**
 messages (only a 200k synthetic archive in Node and 30k in Chromium with a 4x CPU throttle), Safari/Firefox/iOS checks of
 the new screens, and a few follow-ups: favorite stars in the gallery and lightbox (`PersonMediaItem` has no `isFavorite`),
 size limits before reading a large video or document into memory, a downloaded file started from a click handler instead of
-an effect, a combined "erase everything" that must also clear thumbnails and `search.sqlite3`, and a note button on the
+an effect, the Settings button for "erase everything" (done: `eraseDevice` clears database, search index, media,
+thumbnails, share inbox, app keys), and a note button on the
 conversation rows of the person page. Schema is now v6 (v4 timeline index, v5 favorites, v6 notes): an older app refuses
 newer backups.**
 

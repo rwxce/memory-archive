@@ -114,6 +114,19 @@
       "persisted": "Tu archivo está protegido: el navegador no lo borrará por su cuenta.",
       "notPersisted": "El navegador podría borrar los datos de la aplicación si el dispositivo se queda sin espacio. Añadir la aplicación a la pantalla de inicio ayuda a conservarlos, y también exportar una copia de vez en cuando."
     },
+    "erase": {
+      "title": "Borrar todo de este dispositivo",
+      "description": "Tu archivo vive dentro del navegador de este dispositivo, en un almacenamiento privado que gestiona el navegador. No es una carpeta normal, así que no encontrarás estos ficheros en el gestor de archivos. Borrar elimina de aquí todas las conversaciones, fotos y ajustes.",
+      "button": "Borrar todo de este dispositivo",
+      "dialogTitle": "¿Borrar todo de este dispositivo?",
+      "dialogBody": "Se quitarán de este dispositivo todos los mensajes, fotos y ajustes de la aplicación. No se puede deshacer. No se envía nada a ningún sitio y las copias que guardaste en otro lugar no se tocan.",
+      "backupAdvice": "Haz antes una copia de seguridad en ZIP si quieres conservar tu archivo. Puedes exportarla desde las pantallas del archivo.",
+      "confirm": "Borrar todo",
+      "cancel": "Cancelar",
+      "erasing": "Borrando…",
+      "failed": "No se ha podido borrar todo. Si la aplicación está abierta en otra pestaña o ventana, ciérrala y vuelve a intentarlo.",
+      "retry": "Volver a intentarlo"
+    },
     "history": {
       "title": "Historial de importaciones",
       "description": "Mira lo que ha añadido cada importación y deshaz una si lo necesitas.",
