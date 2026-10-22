@@ -3,8 +3,10 @@ import type {
   ConversationDay,
   ConversationMessage,
   ConversationSummary,
+  MediaMessageType,
   MessageCursor,
   Participant,
+  PersonMediaItem,
   Profile,
   StoredMessage,
 } from '../domain/library';
@@ -69,6 +71,11 @@ export interface DbOps {
   getMessageWindow: { params: { conversationId: string; offset: number; limit: number }; result: ConversationMessage[] };
   findMessageOffsetByDate: { params: { conversationId: string; date: string }; result: number | null };
   listConversationDays: { params: { conversationId: string }; result: ConversationDay[] };
+  countPersonMedia: { params: { profileId: string; kinds: MediaMessageType[] }; result: number };
+  listPersonMedia: {
+    params: { profileId: string; kinds: MediaMessageType[]; offset: number; limit: number };
+    result: PersonMediaItem[];
+  };
 }
 
 export type DbOpName = keyof DbOps;

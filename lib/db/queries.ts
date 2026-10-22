@@ -1,5 +1,6 @@
 import {
   isLocalTimestamp,
+  MEDIA_MESSAGE_TYPES,
   isMessageType,
   isSha256Hex,
   isUuid,
@@ -8,10 +9,12 @@ import {
   type ConversationDay,
   type ConversationMessage,
   type ConversationSummary,
+  type MediaMessageType,
   type MessageCursor,
   type NewMessage,
   type NewParticipant,
   type Participant,
+  type PersonMediaItem,
   type Profile,
   type StoredMessage,
 } from '../domain/library';
@@ -1039,4 +1042,66 @@ export function listConversationDays(db: SqlDb, conversationId: string): Convers
       ORDER BY date LIMIT ?`,
     [id, MAX_DAYS],
   );
+}
+
+// ------------------------------------------------------ a person's media list
+
+/** Validated, de-duplicated media types of a request; `invalid` when empty or not a media type. */
+function requireMediaKinds(kinds: unknown): MediaMessageType[] {
+  const list = requireArray(kinds, 'kinds');
+  if (list.length === 0) invalid('kinds must not be empty');
+  for (const k of list) {
+    if (typeof k !== 'string' || !(MEDIA_MESSAGE_TYPES as readonly string[]).includes(k)) invalid('kinds must be media message types');
+  }
+  return [...new Set(list as MediaMessageType[])];
+}
+
+/** The person's messages with a stored file of the given types, over every conversation filed under them. */
+const PERSON_MEDIA_WHERE = (kinds: readonly unknown[]) =>
+  `m.conversation_id IN (SELECT conversation_id FROM conversation_profiles WHERE profile_id = ?)
+   AND m.media_sha256 IS NOT NULL AND m.type IN (${kinds.map(() => '?').join(',')})`;
+
+/** How many media messages of those types the person has. `not-found` for an unknown profile. */
+export function countPersonMedia(db: SqlDb, profileId: string, kinds: readonly MediaMessageType[]): number {
+  const id = requireUuid(profileId, 'profile id');
+  const types = requireMediaKinds(kinds);
+  requireProfileExists(db, id);
+  const [row] = db.all<{ n: number }>(`SELECT count(*) AS n FROM messages m WHERE ${PERSON_MEDIA_WHERE(types)}`, [id, ...types]);
+  return row.n;
+}
+
+/**
+ * `limit` media messages of the person starting at position `offset`, oldest first across all their
+ * conversations, in the total order (sent_at, ordinal, id) so equal timestamps never reorder.
+ * `limit` is clamped to 1..MAX_WINDOW; an offset past the end gives an empty list. Works for an
+ * archived profile. Ids are picked first and only that page is joined to authors, blobs and titles.
+ */
+export function listPersonMedia(
+  db: SqlDb,
+  profileId: string,
+  kinds: readonly MediaMessageType[],
+  offset: number,
+  limit: number,
+): PersonMediaItem[] {
+  const id = requireUuid(profileId, 'profile id');
+  const types = requireMediaKinds(kinds);
+  if (!Number.isSafeInteger(offset) || offset < 0) invalid('offset must be a non-negative integer');
+  if (!Number.isFinite(limit)) invalid('limit must be a number');
+  requireProfileExists(db, id);
+  const n = Math.min(Math.max(Math.trunc(limit), 1), MAX_WINDOW);
+  return db
+    .all<Omit<PersonMediaItem, 'isMe'> & { isMe: number }>(
+      `SELECT m.id, m.conversation_id AS conversationId, c.title AS conversationTitle, m.sent_at AS sentAt,
+              m.type, p.display_name AS participantName, COALESCE(p.is_me, 0) AS isMe, m.body,
+              m.media_sha256 AS mediaSha256, m.media_name AS mediaName, b.mime AS mediaMime
+         FROM (SELECT m.id FROM messages m WHERE ${PERSON_MEDIA_WHERE(types)}
+                ORDER BY m.sent_at, m.ordinal, m.id LIMIT ? OFFSET ?) w
+         JOIN messages m ON m.id = w.id
+         JOIN conversations c ON c.id = m.conversation_id
+         LEFT JOIN participants p ON p.id = m.participant_id
+         LEFT JOIN blobs b ON b.sha256 = m.media_sha256
+        ORDER BY m.sent_at, m.ordinal, m.id`,
+      [id, ...types, n, offset],
+    )
+    .map((m) => ({ ...m, isMe: m.isMe === 1 }));
 }
