@@ -20,12 +20,15 @@ jobs:
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           case "$BASE_REF" in
             main)
-              if [ "$HEAD_REF" != "dev" ]; then
-                echo "❌ 'main' only accepts release PRs from 'dev'. This PR comes from '$HEAD_REF'."
+              # A fork can also have a branch called 'dev': check the repository too.
+              if [ "$HEAD_REF" != "dev" ] || [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+                echo "❌ 'main' only accepts release PRs from 'dev' of this repository. This PR comes from '$HEAD_REPO:$HEAD_REF'."
                 echo "   See docs/branching-and-releases.md."
                 exit 1
               fi

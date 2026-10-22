@@ -640,12 +640,13 @@ test type or architecture rule means updating this file **in the same PR**.
 - **Branch model:** feature branch → squash into `dev` → release PR `dev` → `main` titled
   `release: vX.Y.Z` (squash) → tag. `main` only contains release commits
   ([`branching-and-releases.md`](branching-and-releases.md)).
+- **Actions are pinned by commit SHA** (`# vN` comment beside each); update them deliberately.
 - **`ci.yml`** — on PRs to `dev`/`main` and pushes to `dev`: pnpm install (frozen lockfile,
   7-day release age) → on PRs `scripts/check-pr-preflight.mjs` (blocking: real exports, personal
   media, `.env` files, weakened ignores; full-history checkout) → `pnpm check`. A separate `e2e` job installs, builds and runs
   `pnpm e2e` (Chrome preinstalled on `ubuntu-latest`); on failure it uploads the Playwright
   report and screenshots as an artifact.
-- **`branch-policy-guard.yml`** — `pull_request_target`; `main` only accepts PRs from `dev`
+- **`branch-policy-guard.yml`** — `pull_request_target`; `main` only accepts PRs from `dev` of this repository (not a fork's `dev`)
   titled `release: vX.Y.Z`.
 - **`release.yml`** — on push to `main`: reads the version from the commit subject, creates the
   tag and GitHub Release, back-merges `main` into `dev` (`-s ours`). No release bot.
@@ -668,7 +669,7 @@ test type or architecture rule means updating this file **in the same PR**.
   traversal).
 - **Exact versions** (`.npmrc` `save-exact=true`, `engine-strict=true`), **`minimumReleaseAge`
   of 7 days** (`pnpm-workspace.yaml`, 10080 minutes), exact security **`overrides`**,
-  **`allowBuilds`** allowlist for install scripts, `only-allow pnpm` (`preinstall`).
+  **`allowBuilds`** allowlist for install scripts, `scripts/only-pnpm.mjs` (`preinstall`, dependency-free; replaced `npx only-allow pnpm`).
 - New dependencies need a reason in the PR description; prefer no dependency.
 - `@playwright/test` (devDependency, exact pin) runs the e2e suite against system Chrome:
   it needs no install script and no browser download, and sends no telemetry.
