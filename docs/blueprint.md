@@ -227,10 +227,10 @@ test type or architecture rule means updating this file **in the same PR**.
     plain TS, pinned by NIST vectors; WebCrypto has no incremental digest, so this is how
     media is hashed while it streams, with no dependency).
   - `lib/db/` — the only code that issues SQL. `sql.ts` (`SqlDb`: the narrow sync surface
-    over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1 + v2 + v3,
+    over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1 + v2 + v3 + v4,
     `PRAGMA user_version`, forward-only, one transaction per migration, newer DB refused),
     `queries.ts` (profiles: create / update / archive / get / list; conversations: list / rename /
-    move / link / unlink; `importMessages` (batch, optional new conversation and "me", all in one transaction), `findImportCandidates`, `findExistingFingerprints`, `undoImportBatch`, `listImportBatches` (read-only history: newest first, keyset `before` cursor, page <= 200, filter by conversation or profile), `listMessages`; the conversation view's reads, all by position on `messages_timeline` with no schema change: `getConversationBounds`, `countMessages`, `getMessageWindow` (limit clamped to 1..500, any offset, window ids from the covering index, then a join of only those rows; carries `isMe`, system flag, media hash/name/mime), `findMessageOffsetByDate` (`null` when every message is earlier), `listConversationDays` (count and first offset per local day), `getMessageSource(conversationId, messageId)` (the first import batch that added the message: source, label, date, batch id; `not-found` unless the pair matches, `invalid` for a malformed id; read-only, no schema change); an unknown conversation is `not-found`; a person's media, also with no schema change: `countPersonMedia` / `listPersonMedia(profileId, kinds, offset, limit)` (messages with a stored file of the asked media types over every conversation linked to the profile, archived or not; total order `(sent_at, ordinal, id)`, limit clamped to 1..500, ids picked first and only that page joined; `invalid` for empty / non-media `kinds`, `not-found` for an unknown profile; ~15 ms first page and count over 15k audio items in a 200k-message archive, guarded by `person-media.perf.test.ts`)),
+    move / link / unlink; `importMessages` (batch, optional new conversation and "me", all in one transaction), `findImportCandidates`, `findExistingFingerprints`, `undoImportBatch`, `listImportBatches` (read-only history: newest first, keyset `before` cursor, page <= 200, filter by conversation or profile), `listMessages`; the conversation view's reads, all by position on `messages_timeline` with no schema change: `getConversationBounds`, `countMessages`, `getMessageWindow` (limit clamped to 1..500, any offset, window ids from the covering index, then a join of only those rows; carries `isMe`, system flag, media hash/name/mime), `findMessageOffsetByDate` (`null` when every message is earlier), `listConversationDays` (count and first offset per local day), `getMessageSource(conversationId, messageId)` (the first import batch that added the message: source, label, date, batch id; `not-found` unless the pair matches, `invalid` for a malformed id; read-only, no schema change); an unknown conversation is `not-found`; a person's media, also with no schema change: `countPersonMedia` / `listPersonMedia(profileId, kinds, offset, limit)` (messages with a stored file of the asked media types over every conversation linked to the profile, archived or not; total order `(sent_at, ordinal, id)`, limit clamped to 1..500, ids picked first and only that page joined; `invalid` for empty / non-media `kinds`, `not-found` for an unknown profile; ~15 ms first page and count over 15k audio items in a 200k-message archive, guarded by `person-media.perf.test.ts`); a person's combined timeline (schema v4 index `messages_by_time`): `getPersonTimelineBounds`, `getPersonTimelineWindow(profileId, offset, limit)` (every message of every conversation linked to the profile, archived or not, merged in the total order `(sent_at, ordinal, conversation_id, id)`; limit clamped to 1..500; each item is a conversation-view message plus `conversationId` / `conversationTitle`; a conversation linked to two people is in both timelines), `findPersonTimelineOffsetByDate` (`null` when all are earlier), `listPersonTimelineDays`; `not-found` for an unknown profile, `invalid` for a malformed id, offset or date; use cases in `lib/usecases/person-timeline.ts`; guarded by `person-timeline.perf.test.ts`)),
     `protocol.ts` + `dispatch.ts` (typed request/response messages; no raw SQL crosses the
     boundary), `open.ts` (`openMemoryDb` for Node tests, `openOpfsDb` for the worker),
     `worker.ts` (worker entry) over `serve.ts` (`createDbServer`: the request loop, plus `connect`:
@@ -368,6 +368,18 @@ test type or architecture rule means updating this file **in the same PR**.
   `conversations(source, source_key)` for undo and matching. All defaulted: v1 and v2 backups
   restore by migrating the scratch snapshot; the archive `formatVersion` stays 1 and new backups
   carry `schemaVersion` 3.
+- **Schema v4 (implemented, expand-only)** — one index, no column or row: `messages_by_time ON
+  messages(sent_at, ordinal, conversation_id)` (the rowid `id` is the implicit last key). It is the
+  person timeline's total order and covers its membership test, so a window walks it in order with
+  no sort and no table lookup for the OFFSET skip. Chosen by `EXPLAIN QUERY PLAN` and timing on 200k
+  messages (3 of 4 conversations linked to the person, last page): `(sent_at, ordinal, conversation_id)`
+  16 ms, `(sent_at, id)` 31-36 ms, no new index (planner's sort of all linked conversations) 60 ms.
+  The planner does not pick the index by itself, so the query names it (`INDEXED BY`); the worst
+  case is a person with a small share of the archive (it walks the index past other people's rows):
+  25% of 200k, last page, 17 ms. Measured on the 200k archive: first page 1 ms, middle 9 ms, far
+  offset 17 ms, date jump 1.4 ms, bounds 13 ms, days (250) 32 ms. v1-v3 backups restore by
+  migrating (the index is built once); the archive `formatVersion` stays 1 and new backups carry
+  `schemaVersion` 4, so an older app refuses them (`newer-schema`).
 - **Message fingerprint (version 1, `lib/domain/fingerprint.ts`; a data format)** — SHA-256 over
   the length-prefixed UTF-8 encoding (4-byte big-endian length + bytes per field) of
   `[version, minute, author, type, text, mediaName, occurrence]`.
@@ -650,6 +662,7 @@ test type or architecture rule means updating this file **in the same PR**.
   - Offline behaviour (load once → offline → reload / navigate / fallback, share POST while
     offline, base-path build) verified manually with Playwright; see the PR.
   - Conversation view reads — `lib/db/conversation-view.test.ts` (order, ties, edges, date jump, days) and the performance guard `lib/db/conversation-view.perf.test.ts`: a deterministic 200,000-message synthetic conversation (`lib/db/synthetic-archive.ts`, one `INSERT ... SELECT`, constraints on, ~1 s; `VITEST_PERF_COUNT` shrinks it) asserts `EXPLAIN QUERY PLAN` uses `messages_timeline` (covering, no temp b-tree for the window) and budgets of 12-40x the measured times (window at offset 199,900 about 7 ms, date jump 6 ms, `listConversationDays` 44 ms for 1,000 days, `countMessages` 20 ms; Apple silicon, Node 24).
+  - Person timeline — `lib/db/person-timeline.test.ts` (merge order across conversations, ties, tiling windows, date jump, days, other people's conversations, move / link / unlink, archived person, invalid input), `lib/usecases/person-timeline.test.ts` and the 200k guard `lib/db/person-timeline.perf.test.ts` (plan must be the covering `messages_by_time` walk with no temp b-tree).
   - Database — `lib/db/*.test.ts` run the real sqlite-wasm in memory under Node:
     migrations (empty → latest, idempotent re-run, failed migration rolls back, every
     earlier version → latest, newer version refused, frozen `sqlite_master` snapshot),
@@ -657,8 +670,8 @@ test type or architecture rule means updating this file **in the same PR**.
     overlapping import add nothing twice, atomic import, hostile text, pagination), and the
     client through a structured-clone loopback (ids, out-of-order replies, errors, worker
     failure, throwing transport, malformed params → `invalid`, unknown targets → `not-found`).
-    Schema v2/v3: v1 → v2 and v2 → v3 migrations keep rows and default the new columns, v1 and v2
-    snapshots restore into v3, a failed migration rolls back, v1 and v2 DDL snapshots are frozen
+    Schema v2/v3/v4: v1 → v2, v2 → v3 and v3 → v4 migrations keep rows (v4 only adds the timeline index and
+    the schema equals a fresh one), v1, v2 and v3 snapshots restore into v4, a failed migration rolls back, v1 and v2 DDL snapshots are frozen
     and the latest is pinned separately. `lib/domain/fingerprint.test.ts` holds the frozen
     fingerprint vectors and the stability / distinctness cases;
     `lib/usecases/import.test.ts` covers same ZIP twice, newer export, same-minute repeats,

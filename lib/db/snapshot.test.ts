@@ -102,6 +102,26 @@ describe('loadSnapshot', () => {
     expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
   });
 
+  test('a schema v3 snapshot restores by migrating to v4, keeping its messages and gaining the timeline index', async () => {
+    const v3 = await bareDb(MIGRATIONS.slice(0, 3));
+    v3.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [ID2, 'Chat', 'whatsapp', NOW]);
+    v3.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
+    v3.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
+    const target = (await openMemoryDb()).db;
+    expect(await loadSnapshot(target, serializeDb(v3))).toEqual({ from: 3, to: SCHEMA_VERSION });
+    expect(SCHEMA_VERSION).toBe(4);
+    expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
+    expect(target.all("SELECT name FROM sqlite_master WHERE name = 'messages_by_time'")).toHaveLength(1);
+  });
+
+  test('a current (v4) snapshot round-trips with the index', async () => {
+    const source = (await openMemoryDb()).db;
+    profile(source, ID1);
+    const target = (await openMemoryDb()).db;
+    expect(await loadSnapshot(target, serializeDb(source))).toEqual({ from: 4, to: 4 });
+    expect(target.all("SELECT name FROM sqlite_master WHERE name = 'messages_by_time'")).toHaveLength(1);
+  });
+
   test('refuses a snapshot from a newer schema and leaves the target alone', async () => {
     const newer = await bareDb(NEXT);
     profile(newer, ID1);

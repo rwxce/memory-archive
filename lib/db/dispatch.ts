@@ -10,9 +10,12 @@ import {
   findExistingFingerprints,
   findImportCandidates,
   findMessageOffsetByDate,
+  findPersonTimelineOffsetByDate,
   getConversationBounds,
   getMessageSource,
   getMessageWindow,
+  getPersonTimelineBounds,
+  getPersonTimelineWindow,
   getProfile,
   importMessages,
   linkConversationProfile,
@@ -21,6 +24,7 @@ import {
   listImportBatches,
   listMessages,
   listPersonMedia,
+  listPersonTimelineDays,
   listParticipants,
   listProfiles,
   moveConversation,
@@ -93,6 +97,16 @@ const HANDLERS: Handlers = {
     const params = requireParams(p);
     return listPersonMedia(db, params.profileId as string, params.kinds as MediaMessageType[], params.offset as number, params.limit as number);
   },
+  getPersonTimelineBounds: ({ db }, p) => getPersonTimelineBounds(db, requireParams(p).profileId as string),
+  getPersonTimelineWindow: ({ db }, p) => {
+    const params = requireParams(p);
+    return getPersonTimelineWindow(db, params.profileId as string, params.offset as number, params.limit as number);
+  },
+  findPersonTimelineOffsetByDate: ({ db }, p) => {
+    const params = requireParams(p);
+    return findPersonTimelineOffsetByDate(db, params.profileId as string, params.date as string);
+  },
+  listPersonTimelineDays: ({ db }, p) => listPersonTimelineDays(db, requireParams(p).profileId as string),
 };
 
 /**

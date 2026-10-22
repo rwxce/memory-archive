@@ -8,6 +8,7 @@ import type {
   MessageSource,
   Participant,
   PersonMediaItem,
+  PersonTimelineMessage,
   Profile,
   StoredMessage,
 } from '../domain/library';
@@ -78,6 +79,10 @@ export interface DbOps {
     params: { profileId: string; kinds: MediaMessageType[]; offset: number; limit: number };
     result: PersonMediaItem[];
   };
+  getPersonTimelineBounds: { params: { profileId: string }; result: ConversationBounds };
+  getPersonTimelineWindow: { params: { profileId: string; offset: number; limit: number }; result: PersonTimelineMessage[] };
+  findPersonTimelineOffsetByDate: { params: { profileId: string; date: string }; result: number | null };
+  listPersonTimelineDays: { params: { profileId: string }; result: ConversationDay[] };
 }
 
 export type DbOpName = keyof DbOps;
