@@ -22,6 +22,15 @@ const BLOCKED = [
   "gh api graphql -f query='mutation { addPullRequestReview(input: {}) { clientMutationId } }'",
   'curl -X POST https://api.github.com/repos/org/repo/pulls/345/comments -d @review.json',
   'curl --data @review.json https://api.github.com/repos/org/repo/pulls/345/reviews',
+  'gh -R org/repo pr comment 345 --body x',
+  'gh --repo org/repo pr review 345 --approve',
+  'gh api repos/org/repo/issues/345/comments --field body=x',
+  'gh api repos/org/repo/issues/345/comments --raw-field body=x',
+  'gh api repos/org/repo/issues/345/comments -F body=@review.md',
+  'gh -R org/repo api repos/org/repo/pulls/345/reviews --method POST',
+  'curl --json @review.json https://api.github.com/repos/org/repo/issues/345/comments',
+  "node -e \"fetch('https://api.github.com/repos/o/r/issues/1/comments',{method:'POST',body:'x'})\"",
+  'bash -c "gh pr comment 1 --body x"',
 ];
 
 const ALLOWED = [
@@ -31,6 +40,8 @@ const ALLOWED = [
   "gh api graphql -f query='query { repository(owner: \"org\", name: \"repo\") { name } }'",
   'gh pr create --base dev --title "feat: example" --body "approved preview"',
   'curl https://api.github.com/repos/org/repo/pulls/345/comments',
+  'gh api repos/org/repo/pulls/345/comments --method GET -f per_page=100',
+  'gh -R org/repo pr view 345',
 ];
 
 /** Runs the hook the way Claude Code does: JSON payload on stdin. */
@@ -66,7 +77,12 @@ describe('agent GitHub review write guard', () => {
     assert.equal(result.status, 0);
   });
 
-  test('hook process exits 0 on a malformed payload', () => {
-    assert.equal(runHook('not json').status, 0);
+  test('hook process fails closed (exit 2) on a malformed payload', () => {
+    assert.equal(runHook('not json').status, 2);
+    assert.equal(runHook('{"tool_input":').status, 2);
+  });
+
+  test('hook process allows an empty payload (OpenCode pipes none)', () => {
+    assert.equal(runHook('').status, 0);
   });
 });

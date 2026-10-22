@@ -26,6 +26,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          # Full history so the preflight can find the merge-base with the PR base.
+          fetch-depth: 0
 
       # Reads the pnpm version from package.json "packageManager".
       - uses: pnpm/action-setup@v6
@@ -40,6 +42,12 @@ jobs:
 
       # Generated agent config (AGENTS.md, CLAUDE.md, .claude/, ...) must match .rulesync/.
       - run: pnpm rulesync:check
+
+      # Blocks real exports, personal media, .env files and weakened ignores (PRs only).
+      - if: github.event_name == 'pull_request'
+        run: node scripts/check-pr-preflight.mjs
+        env:
+          PR_BASE_REF: ${{ github.base_ref }}
 
       - run: pnpm check
 

@@ -4,7 +4,7 @@
     "preToolUse": [
       {
         "type": "command",
-        "command": "node \"$(git rev-parse --show-toplevel)/scripts/block-agent-github-review-writes.mjs\"",
+        "command": "D=\"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}\"; node \"$D/scripts/block-agent-github-review-writes.mjs\" || exit 2",
         "timeout": 10,
         "matcher": "Bash",
         "failClosed": true

@@ -641,7 +641,8 @@ test type or architecture rule means updating this file **in the same PR**.
   `release: vX.Y.Z` (squash) → tag. `main` only contains release commits
   ([`branching-and-releases.md`](branching-and-releases.md)).
 - **`ci.yml`** — on PRs to `dev`/`main` and pushes to `dev`: pnpm install (frozen lockfile,
-  7-day release age) → `pnpm check`. A separate `e2e` job installs, builds and runs
+  7-day release age) → on PRs `scripts/check-pr-preflight.mjs` (blocking: real exports, personal
+  media, `.env` files, weakened ignores; full-history checkout) → `pnpm check`. A separate `e2e` job installs, builds and runs
   `pnpm e2e` (Chrome preinstalled on `ubuntu-latest`); on failure it uploads the Playwright
   report and screenshots as an artifact.
 - **`branch-policy-guard.yml`** — `pull_request_target`; `main` only accepts PRs from `dev`
@@ -698,12 +699,16 @@ test type or architecture rule means updating this file **in the same PR**.
   (Playwright, mobile + desktop viewports).
 - **Hooks** (`.rulesync/hooks.jsonc`):
   - `PreToolUse` (fail-closed) — `scripts/block-agent-github-review-writes.mjs`: agents
-    cannot post GitHub comments or reviews.
+    cannot post GitHub comments or reviews. An unparseable payload or a missing script blocks
+    (exit 2; the command resolves the root from `$CLAUDE_PROJECT_DIR`). It understands `gh`
+    global flags (`-R`), `--field`/`--raw-field`, `curl --json` and `fetch`/HTTP-client calls
+    to `api.github.com`; it is a best-effort guard, not a sandbox.
   - `Stop` (advisory) — lint, `scripts/check-pr-preflight.mjs --advisory`.
   - `SessionEnd` — kills dev processes on the Conductor workspace ports.
 - **Permissions** (`.rulesync/permissions.jsonc`) — read-only `gh` allowed; `gh` comment,
-  review and mutating `gh api` denied; `.env*`, secrets, build output, fixtures, outputs
-  and any WhatsApp export read-denied. A `codexcli` block restates the rules in a form Codex
+  review and mutating `gh api` denied (also with `-R`/`--repo`); `.env*`, secrets, build
+  output, `fixtures/`, outputs, any WhatsApp export (`_chat.txt`, `WhatsApp Chat*.txt`, ZIPs)
+  read-denied, including `cat`-style reads through the shell. A `codexcli` block restates the rules in a form Codex
   can enforce. **Ignore list** (`.rulesync/.aiignore`, deprecated upstream) only feeds
   `.cursorignore`.
 - **MCP servers** (`.rulesync/mcp.jsonc`) — Playwright only, pinned (not `@latest`, which would
@@ -711,8 +716,8 @@ test type or architecture rule means updating this file **in the same PR**.
 - **Review checklist** — `.rulesync/checks/memory-archive-review.md` (privacy, untrusted input,
   data integrity, supply chain); generates `.cursor/BUGBOT.md` and feeds `pr-precheck` /
   `pr-review`.
-- **Known gaps** — OpenCode does not run the GitHub-write guard hook (only the permission
-  denies apply there); Codex has no project-level slash commands.
+- **Known gaps** — OpenCode's generated plugin pipes no payload, so the GitHub-write guard
+  allows an empty payload and only the permission denies apply there; Codex has no project-level slash commands.
 
 ## 8. Working rules (people and agents)
 

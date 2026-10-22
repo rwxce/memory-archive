@@ -1,5 +1,16 @@
 node_modules/
 dist/
+
+# Private data and secrets: never commit (see docs/privacy.md)
+.env
+.env.*
+!.env.example
+!.env.local.example
+*.zip
+_chat.txt
+WhatsApp Chat*.txt
+.context/
+
 fixtures/
 data/
 .DS_Store
