@@ -5,6 +5,8 @@ import { isUuid, type Profile } from '../domain/library';
 import { createLogger } from '../log';
 import type { BlobStore } from '../storage/blob-store';
 import { openOpfsBlobStore } from '../storage/opfs-blob-store';
+import { openOpfsThumbStore } from '../storage/opfs-thumb-store';
+import type { ThumbStore } from '../storage/thumb-store';
 import { isArchiveBusy, webArchiveLock, type ArchiveLock } from './archive-guard';
 import { listConversations, withParticipants, listConversationRows, type ConversationRow } from './conversations';
 import { sweepLeftovers } from './import';
@@ -44,6 +46,8 @@ export interface OpenLibraryOptions {
   /** Test seams: the real worker and the real OPFS are used when absent. */
   createClient?: (workerUrl: string) => DbClient;
   openBlobStore?: () => Promise<BlobStore>;
+  /** The thumbnail cache; a cache that cannot be opened is skipped, never a reason to fail the open. */
+  openThumbStore?: () => Promise<ThumbStore>;
   /** The cross-tab lock; `navigator.locks` (`webArchiveLock`) when absent and available. */
   lock?: ArchiveLock;
 }
@@ -80,8 +84,9 @@ export async function openLibrary(options: OpenLibraryOptions): Promise<Library>
     await client.call('status');
     // The store is opened WITHOUT its own sweep of `tmp/`: that one is unconditional.
     const blobStore = await (options.openBlobStore ?? (() => openOpfsBlobStore({ sweep: false })))();
+    const thumbStore = await (options.openThumbStore ?? openOpfsThumbStore)().catch(() => undefined);
     const lock = options.lock ?? (typeof navigator !== 'undefined' && 'locks' in navigator ? webArchiveLock : undefined);
-    const deps: ProfileDeps = { client, blobStore, ...(lock ? { lock } : {}) };
+    const deps: ProfileDeps = { client, blobStore, ...(thumbStore ? { thumbStore } : {}), ...(lock ? { lock } : {}) };
     // Started now (the guard is taken before `openLibrary` returns, so an import started meanwhile
     // is `busy`) but NOT awaited: a slow cleanup must never count toward the open timeout.
     const cleanup = sweepLeftovers(deps).then(

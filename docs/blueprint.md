@@ -51,8 +51,8 @@ test type or architecture rule means updating this file **in the same PR**.
     (tiles are cheap and fixed-size; only photos near the screen hold a file). Each tile is one link, named
     "Open in conversation ...: type, date", to `/conversation?id=&from=&date=`. A photo is read only while
     its tile is within 600 px of the viewport (`hooks/use-near-viewport.ts`, IntersectionObserver) through
-    `hooks/use-tile-image.ts` (the one seam where thumbnails will replace the full-size file), the shared
-    3-at-a-time queue, and its URL is revoked when the tile leaves that window or unmounts. A video tile is
+    `hooks/use-tile-image.ts` (the one seam: a cached 320 px thumbnail, made on first need, or the
+    full-size file when none can be made), the shared 3-at-a-time queue, and its URL is revoked when the tile leaves that window or unmounts. A video tile is
     a play glyph and its file name and reads nothing. Missing and undecodable files are a calm note in the
     tile. A tile is a button that opens the item full size in `components/person-gallery-lightbox.tsx`, a
     native modal `<dialog>` (focus trapped and returned by the browser, Escape closes, focus then goes back
@@ -248,7 +248,29 @@ test type or architecture rule means updating this file **in the same PR**.
     blobs in OPFS `memory-archive-blobs/<aa>/<sha256>`, streamed hash-while-write into
     `tmp/` then atomic `move()`, copy+verify fallback with recovery markers, sweep of
     abandoned temp files on open (`sweep:false` for a second, concurrent opener), only valid 64-hex names become paths),
-    `test-opfs-directory.ts` (in-memory OPFS directory for tests).
+    `test-opfs-directory.ts` (in-memory OPFS directory for tests),
+    `thumb-store.ts` / `opfs-thumb-store.ts` / `thumbnail.ts`: the **thumbnail cache**, a DERIVED cache of
+    gallery-tile pictures in its own OPFS directory `memory-archive-thumbs/<sha256>-<size>` (size tag
+    = longest side in px; only `320` exists), never inside `memory-archive-blobs/`. Decisions: it is
+    safe to lose at any time (a miss regenerates); NOT part of the backup/sync ZIP or `serializeDb`
+    (both read only the database and `BlobStore`, which cannot see this directory) and a restore
+    clears it; not an orphan/foreign blob (`BlobStore.list`, `sweepOrphanBlobs`, `verify` never see it);
+    deleted with its blob wherever blobs are deleted (`deleteBlobs` in `import.ts`: undo, orphan
+    sweep, rollback), cleared by restore, and any thumbnail whose photo is not stored is reclaimed by
+    the orphan sweep (`removeOrphans`, so also by the open-time `sweepLeftovers`) via `ThumbStore.list()`;
+    `readTileImage` never serves a thumbnail for a photo that is gone (`blobStore.has` first) and
+    removes one written while its photo was being deleted; there is no "erase everything" path yet, which must
+    `clear()` it when added. Only 64 lowercase hex hashes + a known size tag become file names;
+    writes go to `tmp-<uuid>` and `move()` into place, and `get` serves only a complete webp/jpeg
+    (RIFF length / JPEG end marker), dropping anything else. Capped at 128 MiB (a 320 px webp is
+    10-40 KB, so thousands of photos), LRU-ish eviction by file time on `put`; the size index is built on
+    first need. `makeThumbnail(blob, maxSide)` decodes with `createImageBitmap` resize and `imageOrientation: 'from-image'` (a first 64 px
+    decode only learns the orientation), encodes webp (jpeg on white as fallback) with
+    `OffscreenCanvas`, and returns `undefined` instead of throwing (HEIC, damaged files, no API).
+    `ProfileDeps.thumbStore` is optional; `openLibrary` opens it with `openThumbStore` and a failure
+    to open is ignored. Used only through `lib/usecases/tile-image.ts` (`readTileImage`: cache hit, else read +
+    thumbnail + cache; files under 32 KiB or without a thumbnail are shown as they are) and
+    `hooks/use-tile-image.ts`; the lightbox and the conversation always use the full file.
   - `lib/usecases/device-storage.ts` — `prepareDeviceStorage`, `getDeviceStorageStatus`,
     `getSharedFiles`, `takeSharedFile`, `discardSharedFile` (called from `hooks/use-device-storage.ts`); `lib/usecases/archive.ts` —
     `exportArchive`, `restoreArchiveIntoEmptyLibrary` (no UI entry point yet);
@@ -606,6 +628,7 @@ test type or architecture rule means updating this file **in the same PR**.
     `regressions` (one block per fixed known bug).
   - Packaging — `scripts/build-viewer-script.test.ts` (bundle fresh and self-contained) and
     `pnpm smoke` (built CLI).
+  - Thumbnails — `lib/storage/opfs-thumb-store.test.ts` (hash/size validation, get/put/delete/clear, cap and LRU eviction, partial write never served, failed write, no-`move()`, tmp sweep, separate from blobs), `thumbnail.test.ts` (fake `createImageBitmap` / `OffscreenCanvas`: orientation, webp / jpeg fallback, undecodable, closing), `lib/usecases/tile-image.test.ts`, `hooks/use-tile-image.test.tsx`, and in `import.test.ts` / `archive.test.ts` (thumbs deleted with their blob, not in the exported ZIP, restore from an empty or stale cache).
   - UI — `components/person-gallery-screen.test.tsx` (kinds, month groups, near-screen reads and URL revoke with a driven IntersectionObserver, video reads nothing, missing and undecodable, Show more, empty / not-found / error + retry, Catalan), `components/person-gallery-lightbox.test.tsx` (dialog stub for happy-dom: open, arrows, ends, missing, read-ahead and revoke, focus return, next page and its failure), `hooks/use-near-viewport.test.tsx`, `e2e/person-gallery.spec.ts` (real PNGs and a video, lazy loading on scroll, keyboard, lightbox open / arrows / Escape / next page / open in the conversation, at 390 and 1440 px);
   - UI — `components/person-audio-screen.test.tsx` and `hooks/use-person-media.test.tsx` (month groups, Open-in-conversation hrefs, one player at a time, missing file, Show more, empty / not-found / error + retry, Catalan; paging, kinds, failed page, ids), `e2e/person-audio.spec.ts` (import, sections link, play one at a time, open in the conversation, at 390 and 1440 px); `components/person-screen.test.tsx` (details, not-found, archived person, edit, archive,
     rename validation / double submit / failure / Escape and IME, move, link, unlink incl. the last

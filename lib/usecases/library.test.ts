@@ -24,6 +24,22 @@ describe('openLibrary', () => {
     expect(await listPeople(result.deps)).toEqual({ active: [], archived: [], unassigned: [] });
   });
 
+  test('hands over the thumbnail cache, and a cache that cannot open never fails the open', async () => {
+    const lib = await createTestLibrary();
+    const withCache = await openLibrary({ workerUrl: '/w.js', createClient: () => lib.client, openBlobStore: async () => lib.deps.blobStore, openThumbStore: async () => lib.deps.thumbStore! });
+    expect(withCache.deps.thumbStore).toBe(lib.deps.thumbStore);
+    const without = await openLibrary({
+      workerUrl: '/w.js',
+      createClient: () => lib.client,
+      openBlobStore: async () => lib.deps.blobStore,
+      openThumbStore: async () => {
+        throw new Error('no OPFS');
+      },
+    });
+    expect(without.deps.thumbStore).toBeUndefined();
+    expect(without.deps.blobStore).toBe(lib.deps.blobStore);
+  });
+
   test('a database that cannot open rejects with its error and is closed', async () => {
     const { client, close } = fakeClient(async () => {
       throw new DbError('unavailable', 'held by another tab');

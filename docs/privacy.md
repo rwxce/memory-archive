@@ -10,6 +10,7 @@ code must keep.
 | App code (HTML/JS/CSS) | Downloaded once from the public URL, cached by the service worker. Contains no user data. |
 | Archive database (profiles, conversations, messages, associations) | SQLite inside the browser's private file system (OPFS) on **this device only**. |
 | Photos, videos, voice messages | Same private file system, stored once per content hash. |
+| Thumbnails of photos | Same private file system, a cache derived from your photos so the gallery loads fast. Kept only on this device, never included in a backup, and safe to delete: they are made again when needed. |
 | Backups and change packs | ZIP files the user explicitly exports and moves wherever they want. |
 
 The CLI writes only to the output folder the user chooses.

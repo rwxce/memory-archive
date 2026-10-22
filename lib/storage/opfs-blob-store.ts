@@ -82,7 +82,7 @@ interface Sink {
   abort(): Promise<void>;
 }
 
-function isNotFound(error: unknown): boolean {
+export function isNotFound(error: unknown): boolean {
   return typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'NotFoundError';
 }
 
@@ -90,7 +90,7 @@ function assertHash(sha256: string): void {
   if (!isSha256Hex(sha256)) throw new BlobStoreError('invalid-hash', 'blob name must be 64 lowercase hex characters');
 }
 
-/** Exported for tests only. */
+/** Exported for tests and for the thumbnail cache, which writes the same way. */
 export async function openSink(file: OpfsFileHandle): Promise<Sink> {
   if (file.createWritable) {
     const writable = await file.createWritable();

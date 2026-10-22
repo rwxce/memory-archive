@@ -9,7 +9,6 @@ import type { Message } from '../importers/whatsapp/types';
 import { parseWhatsAppZip } from '../importers/whatsapp/import';
 import { matchMediaEntries, mimeFromFileName, normalizeMediaName } from '../importers/whatsapp/media';
 import { openZipEntry, ZipLimitError } from '../importers/whatsapp/zip';
-import type { BlobStore } from '../storage/blob-store';
 import { withArchiveGuard } from './archive-guard';
 import { newIdOf, nowOf, type ProfileDeps } from './profiles';
 
@@ -305,11 +304,13 @@ export function zipProblem(cause: unknown): ImportError {
   return new ImportError('invalid-export', 'this file is not a readable WhatsApp export', { cause });
 }
 
-async function deleteBlobs(store: BlobStore, hashes: Iterable<string>): Promise<number> {
+async function deleteBlobs(stores: Pick<ProfileDeps, 'blobStore' | 'thumbStore'>, hashes: Iterable<string>): Promise<number> {
   let removed = 0;
   for (const sha256 of hashes) {
+    // The cache is derived: its failure never blocks removing the blob (and is capped anyway).
+    await stores.thumbStore?.delete(sha256).catch(() => undefined);
     try {
-      if (await store.delete(sha256)) removed++;
+      if (await stores.blobStore.delete(sha256)) removed++;
     } catch {
       // Left behind as an orphan: `sweepOrphanBlobs` removes it.
     }
@@ -499,7 +500,7 @@ async function importNow(deps: ProfileDeps, input: ImportWhatsAppInput): Promise
 
     // Committed. Bytes of media nothing refers to (a race the pre-check could not see) go away.
     const unreferenced = new Set(result.unreferencedBlobs);
-    await deleteBlobs(deps.blobStore, unreferenced);
+    await deleteBlobs(deps, unreferenced);
     const wasted = written.filter((h) => unreferenced.has(h)).length;
     return {
       status: 'imported',
@@ -520,7 +521,7 @@ async function importNow(deps: ProfileDeps, input: ImportWhatsAppInput): Promise
   } catch (error) {
     // Nothing was committed (before the save step, or the database refused): the bytes written
     // by this run are unreferenced. A lost connection is ambiguous, so those stay for the sweep.
-    if (!saving || isDefiniteDbFailure(error)) await deleteBlobs(deps.blobStore, written);
+    if (!saving || isDefiniteDbFailure(error)) await deleteBlobs(deps, written);
     if (signal?.aborted && !saving) throw signal.reason;
     if (entryFailure.error !== undefined && !signal?.aborted) throw zipProblem(entryFailure.error);
     throw error;
@@ -547,7 +548,7 @@ export function undoImportBatch(deps: ProfileDeps, batchId: string): Promise<Und
     deps.blobStore,
     async () => {
       const result = await deps.client.call('undoImportBatch', { batchId });
-      const removedMedia = await deleteBlobs(deps.blobStore, result.unreferencedBlobs);
+      const removedMedia = await deleteBlobs(deps, result.unreferencedBlobs);
       return {
         found: result.found,
         removedMessages: result.removedMessages,
@@ -569,7 +570,7 @@ export function undoImportBatch(deps: ProfileDeps, batchId: string): Promise<Und
  * profile looks like an orphan, so do not sweep while a photo is being chosen. Nothing calls
  * this directly at start-up: `openLibrary` runs `sweepLeftovers`, which adds the blob store's temp files.
  */
-export function sweepOrphanBlobs(deps: Pick<ProfileDeps, 'client' | 'blobStore' | 'lock'>): Promise<{ removed: number }> {
+export function sweepOrphanBlobs(deps: Pick<ProfileDeps, 'client' | 'blobStore' | 'thumbStore' | 'lock'>): Promise<{ removed: number }> {
   return withArchiveGuard(
     deps.blobStore,
     async () => ({ removed: await removeOrphans(deps) }),
@@ -577,10 +578,23 @@ export function sweepOrphanBlobs(deps: Pick<ProfileDeps, 'client' | 'blobStore' 
   );
 }
 
-async function removeOrphans(deps: Pick<ProfileDeps, 'client' | 'blobStore'>): Promise<number> {
+/** Thumbnails whose photo is no longer stored (a crash between the two deletions, an older run): dropped. Never throws. */
+async function removeOrphanThumbnails(deps: Pick<ProfileDeps, 'blobStore' | 'thumbStore'>): Promise<void> {
+  if (!deps.thumbStore) return;
+  try {
+    const stored = new Set(await deps.blobStore.list());
+    for (const sha256 of await deps.thumbStore.list()) if (!stored.has(sha256)) await deps.thumbStore.delete(sha256);
+  } catch {
+    // A cache: the next sweep tries again.
+  }
+}
+
+async function removeOrphans(deps: Pick<ProfileDeps, 'client' | 'blobStore' | 'thumbStore'>): Promise<number> {
   const known = new Set(await deps.client.call('listBlobHashes'));
   const orphans = (await deps.blobStore.list()).filter((sha256) => !known.has(sha256));
-  return deleteBlobs(deps.blobStore, orphans);
+  const removed = await deleteBlobs(deps, orphans);
+  await removeOrphanThumbnails(deps);
+  return removed;
 }
 
 /**
@@ -594,7 +608,7 @@ async function removeOrphans(deps: Pick<ProfileDeps, 'client' | 'blobStore'>): P
  * lock to take (a browser without Web Locks). Any other failure rejects.
  */
 export async function sweepLeftovers(
-  deps: Pick<ProfileDeps, 'client' | 'blobStore' | 'lock'>,
+  deps: Pick<ProfileDeps, 'client' | 'blobStore' | 'thumbStore' | 'lock'>,
 ): Promise<{ ran: false } | { ran: true; removed: number }> {
   if (!deps.lock) return { ran: false };
   try {

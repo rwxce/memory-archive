@@ -4,6 +4,7 @@ import { createDbServer } from '../db/serve';
 import { openMemoryDb, type OpenedDb } from '../db/open';
 import type { DbRequest, DbResponse } from '../db/protocol';
 import { openBlobStore, type OpfsDirectoryHandle } from '../storage/opfs-blob-store';
+import { openThumbStore } from '../storage/opfs-thumb-store';
 import { createMemoryDirectory } from '../storage/test-opfs-directory';
 import { isArchiveBusy } from './archive-guard';
 import type { ImportWorkerTransport } from './import-client';
@@ -39,9 +40,11 @@ export async function createTestLibrary(): Promise<{ opened: OpenedDb; client: D
   let n = 0;
   const root = createMemoryDirectory();
   const blobStore = await openBlobStore(root);
+  const thumbStore = await openThumbStore(root);
   const deps: ProfileDeps = {
     client,
     blobStore,
+    thumbStore,
     newId: () => `00000000-0000-4000-8000-${(++n).toString(16).padStart(12, '0')}`,
     now: () => new Date('2026-03-01T10:00:00Z'),
   };
