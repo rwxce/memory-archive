@@ -1,202 +1,221 @@
-# Reversa
-
-> Framework de Engenharia Reversa instalado neste projeto.
-
-## Como usar
-
-Digite `reversa` para ativar o Reversa e iniciar ou retomar a análise do projeto.
-
-## Comportamento ao ativar
-
-Quando o usuário digitar `reversa` sozinho em uma mensagem:
-
-1. Ative o skill `reversa` disponível em `.agents/skills/reversa/SKILL.md`
-2. Leia o SKILL.md na íntegra e siga exatamente as instruções do Reversa
-
-## Regra não-negociável
-
-Nunca apague, modifique ou sobrescreva arquivos pré-existentes do projeto legado.
-O Reversa escreve **apenas** em `.reversa/` e `_reversa_sdd/`.
-
----
-
-<!-- GSD:project-start source:PROJECT.md -->
-
-## Project
-
-**WhatsApp Chat Backup**
-
-A TypeScript/Node command-line tool that reads the official WhatsApp chat-export ZIP (a `_chat.txt` transcript plus media folders) and produces a self-contained, fully-viewable backup of a single conversation. It emits three synchronized outputs — Markdown, HTML (WhatsApp-like), and structured JSON — with media referenced in a local folder by default and optionally inlined.
-
-**Core Value:** A person can open their WhatsApp history years later and see the full conversation — text and media together — without needing WhatsApp, a phone, or any account.
-
-### Constraints
-
-- **Tech stack**: TypeScript / Node (CLI run via node or npx) — chosen so the core is reusable in the future web frontend.
-- **Performance**: Must stream-parse to stay memory-safe on large chats (videos, long histories).
-- **Portability**: Output folder must open standalone in any browser with no server.
-
-<!-- GSD:project-end -->
-
-<!-- GSD:stack-start source:research/STACK.md -->
-
-## Technology Stack
-
-## Executive Recommendation
-
-## Recommended Stack
-
-### Core Framework / Runtime
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| TypeScript | 5.x (latest) | Language | Type safety for the message model; required for web reuse | HIGH |
-| Node.js (ESM) | ≥ 22.12 (dev: 26.5) | Runtime | Commander 15 requires ≥ 22.12; ESM for clean tree-shaking | HIGH |
-| `package.json` `type: module` | — | Module system | ESM so the same core loads in Node and browser bundlers | HIGH |
-
-### CLI
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| commander | 15.0.0 | Arg parsing | Zero-dependency, TypeScript-native, ~25KB, fastest startup (~25ms). Chainable API fits a transform CLI with a handful of options (`<zip>`, `--out`, `--inline-media`). ~500M weekly downloads = battle-tested. | HIGH |
-
-### Archive (ZIP) extraction
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| fflate | 0.8.3 | Streaming unzip | **Tiny (8KB), actively maintained (2026), ESM, runs in Node AND browser** — the only option that satisfies "core reusable in web" without a second code path. Its streaming `Unzip` API emits per-entry streams we pipe straight to disk → memory-safe even with large videos. | HIGH (with a usage caveat — see below) |
-
-### Streaming line parsing
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| `node:readline` (built-in) | Node core | Line-by-line read | Built into Node, emits one line at a time over a `Readable` → constant memory regardless of chat size. No dependency, no version drift. The parser accumulates continuation lines that don't match the timestamp regex. | HIGH |
-
-### HTML templating
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| eta | 4.6.0 | Static HTML render | Embedded-JS syntax, ~3KB, TypeScript-native, runs in Node AND browser (reuse win). Precompiles templates → fast repeat renders. `<%= %>` escapes by default (XSS-safe for untrusted chat content). Partials cover the message-bubble + page-layout split. | HIGH |
-| @kitajs/html | 4.2.13 | (alternative) JSX→string | Even faster, type-safe JSX components that compile to escaped HTML strings. Choose this instead of eta if you want component ergonomics for bubbles; adds tsx/JSX build config. | MEDIUM-HIGH |
-
-### Markdown generation
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Custom `MarkdownWriter` (no dep) | — | Emit `.md` | A chat log is a linear sequence (`**Sender** _time_\n\nbody`). Hand-rolled writer with one escape helper is simpler, dependency-free, and gives full control over output. Avoid heavy AST libs for v1. | HIGH |
-
-### Date / locale parsing (the hard problem)
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| date-fns | 4.4.0 | Date construction + output formatting | Tree-shakeable, TS-native, current. Use `parse` (with `date-fns/locale` for localized month/AM-PM tokens) once a format is resolved. Also use it (and `Intl.DateTimeFormat`) for *rendering* timestamps in output. | MEDIUM |
-| Custom `formats.ts` registry | — | Locale detection | **No library auto-detects WhatsApp's locale format.** Proven parsers (whatsapp-chat-to-pdf, NeverFar whatsapp-export-parser, whatsapp-wrapped) all ship a regex pattern set tested against the first lines, then parse with a known tokenizer. This is the real work and must be built, not imported. | MEDIUM |
-
-### Build / dev tooling
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| tsx | 4.23.12 | Run TS directly | Zero-config `node` replacement for `dev`/`start`; no emit step needed during development. | HIGH |
-| tsup | 8.5.1 | Build distributable bin | esbuild-based: bundles to ESM, injects shebang, emits `.d.ts` and a `bin` entry for `npm i -g`. Far simpler than `tsc`+packaging or webpack. | HIGH |
-| @types/node | 26.2.0 | Types | Matches the Node 26 dev runtime; pin to your engine major. | HIGH |
-| picocolors | 1.1.1 | Terminal styling | 1KB, dependency-free color for CLI feedback. Optional but standard. | HIGH |
-
-## Alternatives Considered (and why rejected)
-
-| Concern | Recommended | Alternative | Why Not |
-|---------|-------------|-------------|---------|
-| CLI | commander 15 | yargs 18 | yargs pulls ~7 deps and adds ~20ms startup; its strength (built-in validation, middleware, typo suggestions) is unnecessary for a fixed-option transform CLI. Commander is zero-dep and native-TS. |
-| CLI | commander 15 | @oclif/core 4 | oclif is a full framework (~30 deps, class-per-command scaffolding, ~100ms cold start). Overkill for a single-binary tool; wrong for a lean personal CLI. |
-| CLI | commander 15 | @clack/prompts 1.7 | clack is **prompts only**, not an argument parser. Useful later for an interactive wizard, but cannot replace Commander for flag/arg handling. |
-| ZIP | fflate 0.8 | yauzl 3.4 | yauzl is correct/spec-compliant and Node-only (fd random access). But it is effectively unmaintained (last real release ~2017) and **browser-incompatible**, breaking the reuse requirement. Keep as a fallback if fd-based random access is ever needed. |
-| ZIP | fflate 0.8 | jszip 3.10 | jszip loads the whole archive into memory to read it — fatal for large WhatsApp zips with videos. Reject for memory-safety. |
-| ZIP | fflate 0.8 | unzipper 0.12 | unzipper streams but is Node-only; offers no browser-reuse advantage over fflate and is heavier. |
-| Line parse | node:readline | byline 5.0 | byline is an unmaintained micro-wrapper around newline splitting; readline is core-maintained, async-iterator friendly, and does the same with no dep. |
-| Line parse | node:readline | line-reader | line-reader buffers lines into an array (not truly streaming) → defeats the memory-safety requirement. |
-| HTML | eta 4.6 | handlebars 4.7 | Logic-less templates add friction for nested bubble conditionals; ~180KB and Node-biased. eta is 3KB and browser-capable. |
-| HTML | eta 4.6 | lit 3.3 | lit is a client-side component runtime needing a DOM — wrong for generating a standalone static `.html` file that opens with no server. |
-| HTML | eta 4.6 | mustache 4.2 | Too limited (no real control flow/partials ergonomics) for a bubble layout. |
-| Markdown | custom writer | remark-stringify / mdast-util-to-markdown | AST→MD is correct but pulls the whole unified ecosystem for a linear log we can emit with template strings + one escaper. Reserve for a future if structured AST editing is needed. |
-| Dates | date-fns + registry | luxon 3.7 | Luxon is heavier (~70KB), in maintenance-only mode, and does **not** solve format detection either. date-fns is smaller and tree-shakeable. |
-| Dates | date-fns + registry | chrono-node 2.10 | NLP natural-language date parser ("next Monday"). Wrong domain — WhatsApp stamps are strict structured patterns, not prose. |
-| Dates | date-fns + registry | dayjs 1.11 | Parsing needs the `customParseFormat` plugin; locale coverage is weaker and plugin fragmentation hurts a reusable core. |
-
-## Per-Concern Detail & Confidence
-
-### ZIP — critical usage caveat (memory safety)
-
-### Dates — phase-level research flag
-
-### Reuse boundary (drives the whole stack)
-
-## Installation
-
-# Runtime dependencies (production)
-
-# Dev / build tooling
-
-## Sources (with confidence)
-
-- Commander vs Yargs vs Oclif 2026 comparisons (PkgPulse, Grizzly Peak Software, Nazar Boyko) — web, HIGH corroboration, versions verified via `npm view`.
-- yauzl / fflate / jszip npm READMEs + fflate discussion #190 — web, HIGH (fflate streaming caveat confirmed by maintainer).
-- WhatsApp `_chat.txt` format references (wachattopdf.com blog, NeverFar whatsapp-export-parser, whatsapp-wrapped SUPPORTED_FORMATS, whatsapp-chat-export-viewer) — web, HIGH; confirm locale detection is the real problem and is solved by pattern registries, not a library.
-- eta vs handlebars vs ejs 2026 (PkgPulse) + @kitajs/html benchmarks — web, HIGH.
-- mdast-util-to-markdown / remark-stringify READMEs — web, HIGH (confirms AST→MD is heavier than needed for v1).
-- `npm view <pkg> version` for every package listed — authoritative current versions, 2026-08-21.
-
-### Confidence summary
-
-| Area | Level | Note |
-|------|-------|------|
-| CLI (commander) | HIGH | Unanimous, version-verified |
-| ZIP (fflate) | HIGH | Maintained + browser-reusable; only caveat is using the streaming API |
-| Line parsing (readline) | HIGH | Built-in, standard pattern |
-| HTML (eta) | HIGH | Light, safe, reusable |
-| Markdown (custom) | HIGH | Simplest correct approach |
-| Dates (date-fns + registry) | MEDIUM | Detection logic is custom; needs a dedicated parser-phase deep-dive |
-| Tooling (tsx/tsup) | HIGH | Standard 2025 TS-CLI toolchain |
-<!-- GSD:stack-end -->
-
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
-
-## Conventions
-
-Conventions not yet established. Will populate as patterns emerge during development.
-<!-- GSD:conventions-end -->
-
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
-
-## Architecture
-
-Architecture not yet mapped. Follow existing patterns found in the codebase.
-<!-- GSD:architecture-end -->
-
-<!-- GSD:skills-start source:skills/ -->
-
-## Project Skills
-
-No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.github/skills/`, or `.codex/skills/` with a `SKILL.md` index file.
-<!-- GSD:skills-end -->
-
-<!-- GSD:workflow-start source:GSD defaults -->
-
-## GSD Workflow Enforcement
-
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
-
-Use these entry points:
-
-- `/gsd-quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd-debug` for investigation and bug fixing
-- `/gsd-execute-phase` for planned phase work
-
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
-
-<!-- GSD:profile-start -->
-
-## Developer Profile
-
-> Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
+# Memory Archive
+
+> **AI editor config is managed by [rulesync](https://github.com/dyoshikawa/rulesync).**
+> The single source of truth is `.rulesync/`. `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.cursor/`,
+> `.codex/`, `.opencode/`, `.agents/` and `opencode.jsonc` are GENERATED.
+> Edit only `.rulesync/`, then run `pnpm rulesync`. Never hand-edit generated files.
+> CI enforces this with `pnpm rulesync:check`. See `docs/ai-tooling.md`.
+
+Memory Archive lets a person open their conversation history years later — text and media
+together — without WhatsApp, a phone, or any account. Today it is a TypeScript/Node CLI that
+turns a WhatsApp "Export chat" ZIP into a standalone backup. It is becoming a local-only,
+offline PWA. Everything stays on the user's device.
+
+## Key docs
+
+- `docs/blueprint.md` — inventory of stack, architecture, tests, CI, supply chain and AI
+  tooling. Any PR that adds/removes an agent, skill, hook, lint rule, CI workflow, test type
+  or architecture rule updates it in the same PR.
+- `docs/roadmap.md` — approved phases 0-9 and architecture decisions (PWA, local only, no
+  Google APIs, manual ZIP sync). `docs/prd.md` — full requirements.
+- `PRODUCT.md`, `docs/privacy.md`, `docs/tone.md` (UI copy in ca/es/en),
+  `docs/branching-and-releases.md`.
+- `docs/archive/` — historical wa-backup planning and specs; read-only.
+
+## Language
+
+Reply in the language of the user's last message (Catalan, Spanish, English, ...); follow a
+switch mid-thread. Code, code comments, identifiers, commit messages, PR titles/bodies, docs
+and every file under `.rulesync/` are always in English.
+
+## Collaboration style
+
+- Before any code change, present a written plan with: (1) files to modify, (2) approach,
+  (3) tradeoffs considered. Wait for an explicit "go" before editing.
+- A plan covers only the current ask. Don't re-list work from earlier plans; reference it in
+  one line if it matters.
+- For architecture, data-model or format discussions, talk it through first; confirm the
+  approach before spawning agents or creating task lists.
+- When the ask is underspecified, use the `interview-me` skill before planning.
+
+## Response length
+
+- Chat messages default to 3-5 lines: complete but not long. Give the short version first
+  and offer to expand.
+- Doesn't apply to the written plan above or to output formats a skill defines (e.g.
+  `pr-review`).
+- Explanations: the rule plus one example; lead with plain language.
+- Never fabricate data, file references or results. If unsure, ask or omit.
+
+## Git & Commits
+
+- Do not commit or push without authorization. An explicit request to create a PR (including
+  `/pr-make`) authorizes the task-scoped flow: commit task changes, push the branch, create
+  the PR — without another confirmation. Never include unrelated changes.
+- Commit messages: English conventional commits. A `Co-Authored-By:` trailer for the agent is
+  fine.
+- `gh` read commands (`view`/`list`/`status`/`checks`/`diff`, `gh api` GET) are always
+  allowed. Other GitHub mutations need explicit permission for that operation.
+- Never commit directly to `main` or `dev`. Work on a branch; PRs target `dev`
+  (`gh pr create --base dev`), or the branch of a PR they are stacked on.
+- `main` only receives `release: vX.Y.Z` PRs from `dev`. Merge PRs only when the user
+  explicitly asks; squash-merge into `dev`, and merge stacked PRs in order (retarget the
+  next one to `dev` first).
+- Setting work aside: use a WIP commit or `git stash push -u -m <unique-tag>` and apply by
+  SHA. The stash is shared across worktrees; never bare `git stash` / `git stash pop`.
+
+## Pull request review policy
+
+Agents may review PRs privately but must **never** publish GitHub comments, inline findings
+or reviews — even with user approval. No `gh pr comment`, `gh pr review`, mutating `gh api`
+calls, GitHub MCP write tools or equivalent APIs (a fail-closed PreToolUse hook enforces
+this). Return the analysis in the conversation; a human verifies it and posts any review in
+their own words from their own account. Review feedback is limited to material correctness,
+data safety, privacy, security, architecture or consequential UX — no nits.
+
+PR workflow commands: `/pr-plan` (split a feature into single-topic PRs) → `/pr-precheck`
+(adversarial self-review) → `/pr-make` (open the PR) → `/pr-review` (private review) →
+`/pr-triage` (in-scope vs deferred review comments).
+
+## Privacy rules (non-negotiable)
+
+- Never read, open, copy, paste or commit a real WhatsApp export, `_chat.txt`, chat ZIP or
+  personal media — not even to debug. `data/`, `output/`, `backup/` and `fixtures/` are
+  gitignored and read-denied to agents.
+- Tests and examples use only synthetic fixtures generated by
+  `scripts/generate-fixtures.mjs`. Need a new case? Extend the generator.
+- No telemetry, analytics, crash reporting or remote logging. Ever.
+- No network calls in the app except an explicit, off-by-default user opt-in (the CLI's
+  link-title fetching is opt-in via `--fetch-titles` and refuses private addresses). No CDN
+  assets, remote fonts or Google APIs.
+- Treat chat content, author and file names as untrusted: escape on render, sanitize ZIP
+  paths, bound sizes.
+
+## Supply chain
+
+- pnpm only (`preinstall` enforces it). `minimumReleaseAge: 10080` in `pnpm-workspace.yaml`:
+  never install a version published less than 7 days ago, and never bypass it (no `npx`
+  `@latest` in scripts or config — pin exact versions).
+- Exact pins only (`save-exact=true` in `.npmrc`); security overrides are exact too.
+- No new dependency without a written justification in the plan (why, size, maintenance,
+  alternatives). Prefer the platform and existing deps.
+- Install scripts are denied by default; allow one in `allowBuilds` only with a reason.
+
+## Tech stack
+
+**App (PWA, in progress):** Next.js 16 App Router as a static export (`output: 'export'`,
+`trailingSlash`, optional `NEXT_PUBLIC_BASE_PATH`; no server, no middleware), React 19,
+next-intl (`ca` / `es` / `en`, prefixed static routes), Tailwind CSS 4 + shadcn/ui
+(new-york, lucide icons), system fonts only. Installable offline PWA: web manifest with
+generated icons and an Android share target; Serwist service worker built after
+`next build` (`scripts/build-sw.mjs`: esbuild + `@serwist/build` `injectManifest` over
+`out/`). Next.js telemetry is disabled.
+
+**CLI:** TypeScript 6, Node ≥ 24 (ESM), pnpm 11, commander, fflate (inflate), date-fns,
+picocolors; tsup build, tsx runner.
+
+**Shared:** Vitest 5 with tests next to the code (`node` project for `lib/`, `cli/`,
+`scripts/`, `i18n/`; `happy-dom` project for `app/`, `components/`, `hooks/`); ESLint 10 +
+typescript-eslint, eslint-plugin-boundaries, import-x, i18next. Path alias `@/` → repo root.
+
+**Next (Phase 2):** SQLite WASM persisted in OPFS; media as content-addressed blobs in OPFS;
+heavy work in Web Workers; manual ZIP backup/sync between devices.
+
+## Project structure
+
+Current:
+
+```
+app/                    # Next.js routes: [locale]/ (welcome, settings, import, offline), /, manifest
+components/             # UI components; ui/ = shadcn/ui primitives (button, card)
+hooks/                  # React hooks (theme, device storage)
+sw/                     # Service worker (Serwist): precache, offline page, share target
+i18n/                   # next-intl routing, request config, navigation
+messages/               # UI copy: en.json, ca.json, es.json (same keys, checked)
+lib/                    # Platform-neutral core: Node AND browser (no node:*, no Buffer)
+  domain/               # Pure types and constants (archive format version)
+  storage/              # Browser storage: share inbox (Cache Storage), quota/persistence
+  usecases/             # What the UI calls (device storage, shared files)
+  log.ts                # The only console writer outside cli/ and scripts/
+  importers/whatsapp/   # ZIP reader (central dir + ZIP64, fflate inflate), lines,
+                        # timestamp detection, message state machine, chat name, media match
+  importers/legacy/     # readers for old messages.json / .html / .csv outputs
+  exporters/legacy/     # csv/json/md/html renderers (strings in, strings out) + js/ scripts
+cli/                    # Node CLI: commander (import, import-legacy, render), fs adapters, pipeline, link titles
+scripts/                # fixtures, i18n parity, preview server, smoke, agent hooks
+**/*.test.ts(x)         # Vitest suites next to the code they cover
+```
+
+ESLint enforces the layers `app` → `components` → `hooks` → `lib/usecases` →
+`lib/{domain,db,storage,importers,exporters}` (`boundaries/dependencies`; UI reaches data
+only through use cases), `import-x/no-cycle`, `i18next/no-literal-string` in `app/` and
+`components/`, `no-console` outside `lib/log.ts` / `cli/` / `scripts/`; forbids Node
+built-ins, React and Next.js in `lib/**`; and requires a sibling `*.test.ts` for every module
+in `lib/importers/**` (`local/require-test-file`). `scripts/eslint-architecture.test.ts`
+proves each rule fires.
+
+Target:
+
+```
+app/            # Next.js routes (static export)
+components/     # UI components
+hooks/          # React hooks calling use cases
+lib/
+  domain/       # Pure types, invariants, fingerprints (no I/O)
+  db/           # SQLite WASM schema, migrations, queries
+  storage/      # OPFS blobs (content-addressed)
+  importers/    # WhatsApp ZIP → domain (idempotent)
+  exporters/    # Backup / sync ZIP, Markdown/HTML/JSON exports
+  usecases/     # Import, export, restore, merge
+viewer/         # Standalone backup viewer (opens from disk)
+cli/            # Node CLI on top of lib/
+```
+
+## Commands
+
+```bash
+pnpm dev                # App: next dev (http://localhost:3000)
+pnpm preview            # Serve the built out/ on http://localhost:4173 (PORT=… to change)
+pnpm cli <zip>          # Run the CLI from source (tsx)
+pnpm cli import-legacy <messages.json|.html|.csv>   # Rebuild CSV + outputs from an old backup
+pnpm cli render <dir>   # Re-render outputs from messages.csv
+pnpm build              # Viewer scripts, CLI → dist/ (tsup), app → out/ (next build), out/sw.js
+pnpm smoke              # Built CLI on the fixture ZIP + static export, manifest, sw.js checks
+pnpm e2e                # Playwright (system Chrome) on the built out/ at 390 and 1440 px; run pnpm build first; not part of check
+pnpm icons              # Regenerate app icons (scripts/generate-icons.mjs, no image tools)
+pnpm i18n:check         # messages/{ca,es,en}.json have the same keys and placeholders
+pnpm lint               # ESLint
+pnpm typecheck          # next typegen + tsc --noEmit
+pnpm test               # Generate synthetic fixtures, then vitest run
+pnpm check              # i18n → lint → typecheck → test → build → smoke (the bar for "done")
+pnpm rulesync           # Regenerate all AI editor configs (after editing .rulesync/)
+pnpm rulesync:check     # Verify AI configs are in sync (runs in CI)
+```
+
+## Agents & routing
+
+When a task matches an agent's domain, you MUST use that agent.
+
+| Agent | Domain | When to use |
+|-------|--------|-------------|
+| `core-architect` | Domain model, parsing/importers, persistence (CSV today; SQLite/OPFS later), fingerprints, migrations, backup/restore & sync format, exporters, use cases | Any change that reads, writes, transforms or persists archive data — `lib/importers/`, `lib/exporters/`, `cli/pipeline.ts`, `cli/csv.ts`, `cli/media.ts`; later also `lib/{domain,db,storage,usecases}/` |
+| `testing-expert` | Vitest suites next to the code; synthetic fixtures; regression, migration and round-trip tests | Writing or reviewing tests |
+| `responsive-ui-designer` | PWA screens, components, the HTML viewer, responsive layout, accessibility, ca/es/en copy | Any user-facing UI |
+
+**Data-layer work is never implemented inline: delegate to `core-architect`.**
+
+Skills: `debugging`, `interview-me`, `pr-scope`, `pr-review`, `security-audit`, `rulesync`.
+
+## Verification
+
+- Run `pnpm check` before claiming a change is done; report what ran and what did not.
+- If you change `.rulesync/`, run `pnpm rulesync` and commit the generated files with it.
+- For a user-visible change (viewer or PWA), check it in a browser at 375 and 1440 px and
+  say so. If you could not, say explicitly what was not verified.
+- When touching CI, check the Node version against `.nvmrc` and `package.json` engines.
+
+## Kill dev processes you start
+
+If a task involves a long-running process (`pnpm dev`, a static server for the viewer, a
+watcher, a Playwright browser), stop it before considering the task done. Parallel Conductor
+workspaces each leaving servers running is what exhausts the machine.
