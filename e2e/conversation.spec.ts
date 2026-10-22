@@ -86,6 +86,13 @@ test.describe('a small conversation', () => {
 
     // markup in a message is text; the link is a safe link
     const hostile = article(feed, 21);
+    // The row is a few screens down on a short viewport: scroll until it is rendered.
+    await expect
+      .poll(async () => {
+        if ((await hostile.count()) === 0) await feed.evaluate((el) => el.scrollBy(0, el.clientHeight / 2));
+        return hostile.count();
+      })
+      .toBe(1);
     await expect(hostile).toContainText('<img src=x onerror="window.__pwned=1">');
     await expect(hostile.locator('img')).toHaveCount(0);
     await expect(hostile.getByRole('link')).toHaveAttribute('rel', 'noopener noreferrer');
