@@ -373,13 +373,14 @@ describe('frozen schema', () => {
     `);
   });
 
-  test('schema v3 (latest) matches the pinned snapshot, whether created fresh or migrated from v2', async () => {
+  test('schema v3 (released) matches the pinned snapshot, whether created fresh or migrated from v2', async () => {
+    const V3_ONLY = MIGRATIONS.slice(0, 3);
     const fresh = await emptyDb();
-    migrate(fresh);
+    migrate(fresh, V3_ONLY);
     const migrated = await emptyDb();
     migrate(migrated, MIGRATIONS.slice(0, 1));
     migrate(migrated, MIGRATIONS.slice(0, 2));
-    migrate(migrated);
+    migrate(migrated, V3_ONLY);
     const dump = (db: SqlDb) =>
       db
         .all<{ type: string; name: string; sql: string }>(
@@ -449,7 +450,7 @@ describe('migration v2 to v3 (incremental import)', () => {
 
   test('keeps every existing row and gives the new columns their defaults', async () => {
     const db = await v2WithData();
-    expect(migrate(db)).toEqual({ from: 2, to: 3 });
+    expect(migrate(db, MIGRATIONS.slice(0, 3))).toEqual({ from: 2, to: 3 });
     expect(readUserVersion(db)).toBe(3);
     expect(db.all('SELECT title, source_key FROM conversations')).toEqual([{ title: 'Chat', source_key: '' }]);
     expect(db.all('SELECT display_name, is_me FROM participants')).toEqual([{ display_name: 'Ana', is_me: 0 }]);
@@ -459,7 +460,7 @@ describe('migration v2 to v3 (incremental import)', () => {
 
   test('the new flags only accept 0 and 1', async () => {
     const db = await v2WithData();
-    migrate(db);
+    migrate(db, MIGRATIONS.slice(0, 3));
     expect(() => db.run('UPDATE participants SET is_me = 2')).toThrow(/CHECK/);
     expect(() => db.run('UPDATE import_batches SET created_conversation = 2')).toThrow(/CHECK/);
   });
@@ -470,6 +471,44 @@ describe('migration v2 to v3 (incremental import)', () => {
     expect(() => migrate(db, broken)).toThrow();
     expect(readUserVersion(db)).toBe(2);
     expect(db.all("SELECT name FROM pragma_table_info('conversations') WHERE name = 'source_key'")).toHaveLength(0);
-    expect(migrate(db)).toEqual({ from: 2, to: 3 });
+    expect(migrate(db, MIGRATIONS.slice(0, 3))).toEqual({ from: 2, to: 3 });
+  });
+});
+
+describe('migration v3 to v4 (person timeline index)', () => {
+  async function v3WithData() {
+    const db = await emptyDb();
+    db.exec('PRAGMA foreign_keys = ON');
+    migrate(db, MIGRATIONS.slice(0, 3));
+    db.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [CONVERSATION, 'Chat', 'whatsapp', 't']);
+    db.run('INSERT INTO import_batches (id, conversation_id, source, created_at, added_count) VALUES (?, ?, ?, ?, 1)', [BATCH, CONVERSATION, 'whatsapp', 't']);
+    db.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [CONVERSATION, BATCH, HASH, '2026-01-01T10:00:00', 'text']);
+    return db;
+  }
+
+  test('adds only the index: tables, columns and rows are untouched, and the schema is the same fresh or migrated', async () => {
+    const db = await v3WithData();
+    const tables = () => db.all("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
+    const before = tables();
+    expect(migrate(db)).toEqual({ from: 3, to: 4 });
+    expect(readUserVersion(db)).toBe(4);
+    expect(tables()).toEqual(before);
+    expect(db.all('SELECT fingerprint, sent_at FROM messages')).toEqual([{ fingerprint: HASH, sent_at: '2026-01-01T10:00:00' }]);
+    expect(db.all<{ sql: string }>("SELECT sql FROM sqlite_master WHERE name = 'messages_by_time'")).toEqual([
+      { sql: 'CREATE INDEX messages_by_time ON messages(sent_at, ordinal, conversation_id)' },
+    ]);
+    const fresh = await emptyDb();
+    migrate(fresh);
+    const dump = (d: SqlDb) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
+    expect(dump(db)).toEqual(dump(fresh));
+  });
+
+  test('a failure in v4 leaves the v3 database as it was, and a retry succeeds', async () => {
+    const db = await v3WithData();
+    const broken: Migration[] = [...MIGRATIONS.slice(0, 3), { version: 4, sql: `${MIGRATIONS[3].sql} INSERT INTO missing_table VALUES (1);` }];
+    expect(() => migrate(db, broken)).toThrow();
+    expect(readUserVersion(db)).toBe(3);
+    expect(db.all("SELECT name FROM sqlite_master WHERE name = 'messages_by_time'")).toHaveLength(0);
+    expect(migrate(db)).toEqual({ from: 3, to: 4 });
   });
 });

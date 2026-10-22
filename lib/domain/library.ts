@@ -150,6 +150,13 @@ export interface ConversationMessage {
   mediaMime: string | null;
 }
 
+/** A message in a person's combined timeline: the conversation view's message plus where it was said. */
+export interface PersonTimelineMessage extends ConversationMessage {
+  conversationId: string;
+  /** Title of that conversation (untrusted, display only). */
+  conversationTitle: string;
+}
+
 /** One media message in a person's media list, across all their conversations. */
 export interface PersonMediaItem {
   id: number;

@@ -137,10 +137,28 @@ CREATE INDEX messages_by_batch ON messages(batch_id);
 CREATE INDEX messages_by_media ON messages(media_sha256) WHERE media_sha256 IS NOT NULL;
 `;
 
+/**
+ * v4 (expand only): the index behind a person's combined timeline (messages of every conversation
+ * linked to a person, merged by time). Adds an index only: no column, no row, nothing changes
+ * meaning, so a v1-v3 backup restores by migrating (the index is built once, a moment per 100k rows).
+ *
+ * Key `(sent_at, ordinal, conversation_id)` (the rowid `id` is the implicit last key): it is exactly
+ * the timeline's total order `(sent_at, ordinal, conversation_id, id)`, so the window walks it in
+ * order with no sort, and it is covering for the membership test (`conversation_id IN (...)`), so
+ * the OFFSET skip never touches the table. On 200k messages over 3 of 4 conversations this was
+ * 16 ms at the far end, against 31 ms for `(sent_at, id)` and 60 ms for the planner's default
+ * (every linked conversation through `messages_timeline`, then one sort of all of them).
+ * The planner does not choose it by itself (it prefers the sort), so the query names it.
+ */
+const V4 = `
+CREATE INDEX messages_by_time ON messages(sent_at, ordinal, conversation_id);
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, sql: V1 },
   { version: 2, sql: V2 },
   { version: 3, sql: V3 },
+  { version: 4, sql: V4 },
 ];
 
 /** Schema version this build produces and understands. */

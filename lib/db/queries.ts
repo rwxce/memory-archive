@@ -16,6 +16,7 @@ import {
   type NewParticipant,
   type Participant,
   type PersonMediaItem,
+  type PersonTimelineMessage,
   type Profile,
   type StoredMessage,
 } from '../domain/library';
@@ -1123,4 +1124,81 @@ export function listPersonMedia(
       [id, ...types, n, offset],
     )
     .map((m) => ({ ...m, isMe: m.isMe === 1 }));
+}
+
+// ----------------------------------------------------- a person's combined timeline
+
+/** Messages of every conversation linked to the profile (archived or not); unlinked ones are out. */
+const TIMELINE_MEMBER = `m.conversation_id IN (SELECT conversation_id FROM conversation_profiles WHERE profile_id = ?)`;
+
+function requireProfile(db: SqlDb, profileId: unknown): string {
+  const id = requireUuid(profileId, 'profile id');
+  requireProfileExists(db, id);
+  return id;
+}
+
+/** Message count and first/last time over all the person's conversations (`null` bounds when none). */
+export function getPersonTimelineBounds(db: SqlDb, profileId: string): ConversationBounds {
+  const id = requireProfile(db, profileId);
+  const [row] = db.all<{ count: number; first: string | null; last: string | null }>(
+    `SELECT count(*) AS count, min(sent_at) AS first, max(sent_at) AS last FROM messages m WHERE ${TIMELINE_MEMBER}`,
+    [id],
+  );
+  return { count: row.count, firstSentAt: row.first, lastSentAt: row.last };
+}
+
+/**
+ * The ids of one timeline window. Total order `(sent_at, ordinal, conversation_id, id)`: it is
+ * the order of `messages_by_time` (v4), named here because the planner prefers a sort of every
+ * linked conversation, which is slower; ties on time never reorder between calls.
+ */
+export const TIMELINE_IDS_SQL = `SELECT m.id FROM messages m INDEXED BY messages_by_time WHERE ${TIMELINE_MEMBER}
+   ORDER BY m.sent_at, m.ordinal, m.conversation_id, m.id LIMIT ? OFFSET ?`;
+
+export const TIMELINE_WINDOW_SQL = `
+  SELECT m.id, m.conversation_id AS conversationId, c.title AS conversationTitle, m.sent_at AS sentAt,
+         m.ordinal, m.type, p.display_name AS participantName, COALESCE(p.is_me, 0) AS isMe, m.body,
+         m.media_sha256 AS mediaSha256, m.media_name AS mediaName, b.mime AS mediaMime
+    FROM (${TIMELINE_IDS_SQL}) w
+    JOIN messages m ON m.id = w.id
+    JOIN conversations c ON c.id = m.conversation_id
+    LEFT JOIN participants p ON p.id = m.participant_id
+    LEFT JOIN blobs b ON b.sha256 = m.media_sha256
+   ORDER BY m.sent_at, m.ordinal, m.conversation_id, m.id`;
+
+/**
+ * `limit` messages from position `offset` of the person's merged timeline, same clamp and
+ * semantics as `getMessageWindow` (limit 1..MAX_WINDOW, past the end is empty). A conversation
+ * linked to two people is in both timelines. `not-found` for an unknown profile.
+ */
+export function getPersonTimelineWindow(db: SqlDb, profileId: string, offset: number, limit: number): PersonTimelineMessage[] {
+  const id = requireProfile(db, profileId);
+  if (!Number.isSafeInteger(offset) || offset < 0) invalid('offset must be a non-negative integer');
+  if (!Number.isFinite(limit)) invalid('limit must be a number');
+  const n = Math.min(Math.max(Math.trunc(limit), 1), MAX_WINDOW);
+  return db
+    .all<Omit<PersonTimelineMessage, 'isMe' | 'isSystem'> & { isMe: number }>(TIMELINE_WINDOW_SQL, [id, n, offset])
+    .map((m) => ({ ...m, isMe: m.isMe === 1, isSystem: m.type === 'system' }));
+}
+
+/** Offset of the first timeline message on or after the local date, `null` when all are earlier. */
+export function findPersonTimelineOffsetByDate(db: SqlDb, profileId: string, date: string): number | null {
+  const id = requireProfile(db, profileId);
+  if (!isLocalDate(date)) invalid('date must be a calendar date YYYY-MM-DD');
+  const from = `${date}T00:00:00`;
+  if (db.all(`SELECT 1 FROM messages m WHERE ${TIMELINE_MEMBER} AND m.sent_at >= ? LIMIT 1`, [id, from]).length === 0) return null;
+  const [row] = db.all<{ before: number }>(`SELECT count(*) AS before FROM messages m WHERE ${TIMELINE_MEMBER} AND m.sent_at < ?`, [id, from]);
+  return row.before;
+}
+
+/** Every local day with timeline messages, with its count and the offset of its first message. */
+export function listPersonTimelineDays(db: SqlDb, profileId: string): ConversationDay[] {
+  const id = requireProfile(db, profileId);
+  return db.all<ConversationDay>(
+    `SELECT date, count, SUM(count) OVER (ORDER BY date) - count AS firstOffset
+       FROM (SELECT substr(m.sent_at, 1, 10) AS date, count(*) AS count
+               FROM messages m WHERE ${TIMELINE_MEMBER} GROUP BY date)
+      ORDER BY date LIMIT ?`,
+    [id, MAX_DAYS],
+  );
 }
