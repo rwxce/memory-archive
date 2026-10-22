@@ -20,6 +20,7 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/sub',
 }));
 
 type Lib = Awaited<ReturnType<typeof createTestLibrary>>;
@@ -78,6 +79,13 @@ async function open(personId: string | null, prepare?: (lib: Lib) => Promise<voi
 const buttonByLabel = (view: Rendered, label: string) => view.container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
 const buttonByText = (view: Rendered, text: string) =>
   [...view.container.querySelectorAll('button')].find((b) => b.textContent?.trim() === text) ?? null;
+const menuButton = (view: Rendered) => view.container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
+const menuItems = (view: Rendered) => [...view.container.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+/** Opens the "..." menu and presses the item with this name. */
+const pick = async (view: Rendered, label: string) => {
+  await click(menuButton(view));
+  await click(menuItems(view).find((item) => item.textContent?.trim() === label));
+};
 const status = (view: Rendered) => view.container.querySelector('[role="status"][aria-live="polite"]')?.textContent;
 /** Text of the first alert that says something (empty alerts are always in the DOM). */
 const alertText = (view: Rendered, within = '') =>
@@ -101,22 +109,73 @@ describe('PersonScreen', () => {
   });
   afterEach(() => view?.unmount());
 
-  test('every conversation has an Open link to its view, and remembers which person to go back to', async () => {
+  test('every conversation title links to its view, and remembers which person to go back to', async () => {
     view = await open('ana');
-    const links = [...view.container.querySelectorAll<HTMLAnchorElement>('li a')].filter((a) => a.textContent?.trim() === c.open);
+    const links = [...view.container.querySelectorAll<HTMLAnchorElement>('li h3 a')];
     expect(links.map((a) => a.getAttribute('aria-label'))).toEqual([c.openLabel.replace('{title}', 'Chat with Ana'), c.openLabel.replace('{title}', 'Family group')]);
     const personId = new URLSearchParams(search).get('id');
     expect(links[0].getAttribute('href')).toBe(`/conversation?id=${PRIVATE}&from=${personId}`);
   });
 
-  test('links to the sections that exist (Timeline, Gallery, Audio, Favorites, Notes, Search), with the person in the address', async () => {
+  test('the bento leads to the sections (Timeline, Gallery, Audio, Favorites, Notes) with the person in the address', async () => {
     view = await open('ana');
     const nav = view.container.querySelector('nav[aria-label="Sections"]')!;
     const links = [...nav.querySelectorAll('a')];
-    expect(links.map((a) => a.textContent)).toEqual(['Timeline', 'Gallery', 'Audio', 'Favorites', 'Notes', 'Search']);
     const id = new URLSearchParams(search).get('id');
-    expect(links.map((a) => a.getAttribute('href'))).toEqual([`/person/timeline?id=${id}`, `/person/gallery?id=${id}`, `/person/audio?id=${id}`, `/person/favorites?id=${id}`, `/person/notes?id=${id}`, `/search?person=${id}`]);
-    expect(links[0].hasAttribute('aria-current')).toBe(false);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([`/person/timeline?id=${id}`, `/person/gallery?id=${id}`, `/person/audio?id=${id}`, `/person/favorites?id=${id}`, `/person/notes?id=${id}`]);
+    for (const [link, name] of links.map((l, i) => [l, ['Timeline', 'Gallery', 'Audio', 'Favorites', 'Notes'][i]] as const)) expect(link.textContent).toContain(name);
+  });
+
+  test('the stats and the card hints come from the archive: messages, photos and videos, voice messages', async () => {
+    view = await open('ana');
+    const stats = [...view.container.querySelectorAll('dl > div')].map((d) => d.textContent);
+    expect(stats).toEqual(['messages4', 'photos and videos0', 'voice messages0']);
+    expect(view.container.textContent).toContain('0 photos and videos');
+    expect(view.container.textContent).toContain('0 voice messages');
+    // the timeline card draws one bar per year of messages
+    expect(view.container.querySelectorAll('nav[aria-label="Sections"] a:first-child [aria-hidden] > div').length).toBe(1);
+  });
+
+  test('the description is the quote card and the meta line says since when', async () => {
+    view = await open('ana');
+    const quote = [...view.container.querySelectorAll('main p')].find((p) => p.textContent?.includes('Line one'))!;
+    expect(quote.className).toContain('italic');
+    expect(view.container.querySelector('main header')?.textContent).toContain('mother · since 2025');
+  });
+
+  test('the menu holds edit, archive, the person note, search and imports', async () => {
+    view = await open('ana');
+    expect(menuItems(view)).toHaveLength(0);
+    await click(menuButton(view));
+    expect(menuButton(view).getAttribute('aria-expanded')).toBe('true');
+    expect(menuItems(view).map((i) => i.textContent?.trim())).toEqual(['Edit Ana', 'Archive Ana', en.person.menuNote, 'Search in Ana', en.person.importsLink]);
+    expect(menuItems(view).at(-1)!.getAttribute('href')).toMatch(/^\/import\/history\?person=/);
+  });
+
+  test('menu keyboard: arrows move, Escape closes and gives focus back to the button', async () => {
+    view = await open('ana');
+    await click(menuButton(view));
+    expect(document.activeElement).toBe(menuItems(view)[0]);
+    const key = (el: Element, k: string) => act(async () => void el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })));
+    await key(document.activeElement!, 'ArrowDown');
+    expect(document.activeElement).toBe(menuItems(view)[1]);
+    await key(document.activeElement!, 'End');
+    expect(document.activeElement).toBe(menuItems(view).at(-1));
+    await key(document.activeElement!, 'ArrowDown');
+    expect(document.activeElement).toBe(menuItems(view)[0]);
+    await key(document.activeElement!, 'Escape');
+    expect(view.container.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(menuButton(view));
+  });
+
+  test('the person note opens from the menu and closes again', async () => {
+    view = await open('ana');
+    expect(view.container.querySelector('textarea')).toBeNull();
+    await pick(view, en.person.menuNote);
+    await settle();
+    expect(view.container.querySelector('textarea')).not.toBeNull();
+    await click(buttonByText(view, en.notes.close));
+    expect(view.container.querySelector('textarea')).toBeNull();
   });
 
   test('shows the person and their conversations: group badge, counts, dates, participants, other people', async () => {
@@ -135,9 +194,10 @@ describe('PersonScreen', () => {
     expect(privateChat.textContent).not.toContain(c.group);
     expect(group.textContent).toContain('With Ana, Bo, Eve and 2 others');
     expect(group.textContent).toContain('Also kept under Bo');
-    expect(view.container.textContent).not.toMatch(/private/i);
+    expect(privateChat.textContent).toContain(c.privateChat);
     expect(view.container.querySelector('a[href="/people"]')).not.toBeNull();
-    expect(view.container.querySelector('a[href^="/import/history?person="]')?.textContent).toBe(en.person.importsLink);
+    await click(menuButton(view));
+    expect(view.container.querySelector('a[href^="/import/history?person="]')?.textContent?.trim()).toBe(en.person.importsLink);
   });
 
   test('renders in Catalan too (plural, quotes, list of names)', async () => {
@@ -152,7 +212,7 @@ describe('PersonScreen', () => {
       view = await open(id);
       expect(view.container.querySelector('h1')?.textContent).toBe(en.person.notFoundTitle);
       expect(view.container.textContent).toContain('Nothing was deleted');
-      expect(view.container.querySelector('a[href="/people"]')?.textContent).toBe(en.person.back);
+      expect(view.container.querySelector('a[href="/people"]')?.textContent).toBe(en.nav.tabs.people);
       expect(view.container.querySelector('[role="alert"]')).toBeNull();
       view.unmount();
     }
@@ -181,31 +241,34 @@ describe('PersonScreen', () => {
     expect(view.container.textContent).toContain(en.person.archivedBadge);
     expect(view.container.textContent).toContain(en.person.archivedNote);
     expect(titles(view)).toEqual(['Family group']);
-    expect(buttonByLabel(view, 'Archive Dee')).toBeNull();
-    await click(buttonByLabel(view, 'Restore Dee'));
+    await click(menuButton(view));
+    expect(menuItems(view).some((i) => i.textContent?.trim() === 'Archive Dee')).toBe(false);
+    await click(menuButton(view));
+    await pick(view, 'Restore Dee');
     await settle();
     expect(status(view)).toBe('Dee is back in the list.');
     expect(view.container.textContent).not.toContain(en.person.archivedBadge);
-    expect(buttonByLabel(view, 'Archive Dee')).not.toBeNull();
+    await click(menuButton(view));
+    expect(menuItems(view).some((i) => i.textContent?.trim() === 'Archive Dee')).toBe(true);
   });
 
-  test('edit reuses the form, announces the change and gives focus back to Edit', async () => {
+  test('edit reuses the form, announces the change and gives focus back to the menu button', async () => {
     view = await open('ana');
-    await click(buttonByLabel(view, 'Edit Ana'));
+    await pick(view, 'Edit Ana');
     const form = view.container.querySelector('form')!;
     await type(form.querySelector('input'), 'Ana Puig');
     await submit(form);
     await settle();
     expect(view.container.querySelector('h1')?.textContent).toBe('Ana Puig');
     expect(status(view)).toBe('Changes to Ana Puig were saved.');
-    // Focus returns to Edit after the form closes: wait for it, a slow runner is late.
+    // Focus returns to the menu button after the form closes: wait for it, a slow runner is late.
     const shown = view;
-    await vi.waitFor(() => expect(document.activeElement?.id).toBe(buttonByLabel(shown, 'Edit Ana Puig')?.id), { timeout: 3000 });
+    await vi.waitFor(() => expect(document.activeElement).toBe(menuButton(shown)), { timeout: 3000 });
   });
 
-  test('archiving asks first; the person stays on the page, now archived, with focus on the heading', async () => {
+  test('archiving asks first; the person stays on the page, now archived, with focus on the menu button', async () => {
     view = await open('ana');
-    await click(buttonByLabel(view, 'Archive Ana'));
+    await pick(view, 'Archive Ana');
     expect(view.container.querySelector('[role="group"]')?.textContent).toContain('conversations, messages and photos stay');
     expect(document.activeElement).toBe(buttonByText(view, en.people.archiveConfirm.cancel));
     await click(buttonByText(view, en.people.archiveConfirm.confirm));
@@ -213,7 +276,25 @@ describe('PersonScreen', () => {
     expect(status(view)).toBe('Ana is now archived.');
     expect(view.container.textContent).toContain(en.person.archivedBadge);
     expect(titles(view)).toEqual(['Chat with Ana', 'Family group']);
-    expect(document.activeElement).toBe(view.container.querySelector('h1'));
+    await vi.waitFor(() => expect(document.activeElement).toBe(menuButton(view!)), { timeout: 3000 });
+  });
+
+  test('Escape on the archive question cancels it, and a failed archive keeps it open', async () => {
+    view = await open('ana');
+    await pick(view, 'Archive Ana');
+    const cancel = buttonByText(view, en.people.archiveConfirm.cancel)!;
+    await act(async () => void cancel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    expect(view.container.querySelector('[role="group"]')).toBeNull();
+    await pick(view, 'Archive Ana');
+    (view as View).lib.deps.client.call = () => Promise.reject(new DbError('internal', 'boom'));
+    const confirm = buttonByText(view, en.people.archiveConfirm.confirm)!;
+    confirm.focus();
+    await click(confirm);
+    await settle();
+    expect(alertText(view)).toBe('Nothing was changed for Ana. Try again.');
+    expect(view.container.querySelector('[role="group"]')).not.toBeNull();
+    expect(document.activeElement).toBe(confirm);
+    expect(view.container.querySelector('button[aria-label="Open"]')).toBeNull();
   });
 
   describe('rename', () => {
@@ -455,7 +536,7 @@ describe('PersonScreen', () => {
   test('one status region stays mounted through every state', async () => {
     view = await open('ana');
     const region = view.container.querySelector('[role="status"][aria-live="polite"]');
-    await click(buttonByLabel(view, 'Edit Ana'));
+    await pick(view, 'Edit Ana');
     expect(view.container.querySelector('[role="status"][aria-live="polite"]')).toBe(region);
   });
 });

@@ -87,7 +87,30 @@ export async function walkImport(page: Page, file: ImportFile, person: string, c
 
 /** From People to the chooser, walk the wizard and wait for the result. */
 export async function importFromPeople(page: Page, file: ImportFile, person: string, confirm: string | RegExp): Promise<void> {
-  await page.getByRole('link', { name: 'Import a chat' }).click();
+  await page.getByRole('link', { name: /^Import( a chat)?$/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Import a chat' })).toBeVisible();
   await walkImport(page, file, person, confirm);
+}
+
+/** On a person's page: open one of its sections (Timeline, Gallery, Audio, Favorites, Notes) from the bento cards. */
+export async function openSection(page: Page, name: string): Promise<void> {
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: new RegExp(`^${name}`) }).click();
+}
+
+/** On a sub-page of a person: back to their page with the back pill ("Back to Mama" is its name). */
+export async function backToPerson(page: Page, name: string): Promise<void> {
+  await page.getByRole('link', { name: `Back to ${name}` }).click();
+}
+
+/** Opens a person's "..." menu (on their page) and chooses an item. */
+export async function personMenu(page: Page, name: string, item: string | RegExp, menuLabel = `More options for ${name}`): Promise<void> {
+  await page.getByRole('button', { name: menuLabel }).click();
+  await page.getByRole('menuitem', { name: item }).click();
+}
+
+/** In a conversation or timeline: opens "Go to date" (the calendar sheet) and types a day into its date field. */
+export async function jumpToDate(page: Page, isoDay: string): Promise<void> {
+  const input = page.locator('input[type="date"]');
+  if (!(await input.isVisible())) await page.getByRole('button', { name: 'Go to date' }).click();
+  await input.fill(isoDay);
 }

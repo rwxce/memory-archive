@@ -20,6 +20,7 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/sub',
 }));
 
 const m = en.import;
@@ -61,7 +62,12 @@ const text = (view: Rendered) => view.container.textContent ?? '';
 const buttons = (view: Rendered) => [...view.container.querySelectorAll('button')];
 const buttonNamed = (view: Rendered, name: string | RegExp) =>
   buttons(view).find((b) => (typeof name === 'string' ? b.textContent?.trim() === name : name.test(b.textContent ?? ''))) ?? null;
-const labelOf = (input: HTMLInputElement) => input.closest('label')?.textContent ?? '';
+/** The label as a person reads it: decoration (aria-hidden tiles such as avatars) left out. */
+const labelOf = (input: HTMLInputElement) => {
+  const label = input.closest('label')?.cloneNode(true) as HTMLElement | undefined;
+  label?.querySelectorAll('[aria-hidden="true"]').forEach((el) => el.remove());
+  return label?.textContent ?? '';
+};
 const radios = (view: Rendered) => [...view.container.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
 const radioNamed = (view: Rendered, name: string | RegExp) =>
   radios(view).find((r) => (typeof name === 'string' ? labelOf(r).startsWith(name) : name.test(labelOf(r)))) ?? null;
@@ -949,13 +955,15 @@ describe('the import wizard', () => {
       await pick(v, [anaFile(), second()]);
       await click(buttonNamed(v, /^Continue with 2 files/));
       await until(() => !!v.container.querySelector('dl'), 'the first preview');
-      expect(text(v)).toContain('File 1 of 2: WhatsApp Chat - Ana.zip');
+      expect(text(v)).toContain('File 1 of 2');
+      expect(text(v)).toContain('WhatsApp Chat - Ana.zip');
 
       await walk(v);
       expect(buttonNamed(v, m.confirm.more)).not.toBeNull();
       expect(text(v)).toContain('Nothing is added until you have confirmed all 2 files.');
       await next(v);
-      expect(text(v)).toContain('File 2 of 2: WhatsApp Chat - Bo.zip');
+      expect(text(v)).toContain('File 2 of 2');
+      expect(text(v)).toContain('WhatsApp Chat - Bo.zip');
       expect(heading(v)?.textContent).toContain('Step 1 of 5');
       expect(await lib.deps.client.call('listConversations')).toEqual([]);
 

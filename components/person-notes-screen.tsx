@@ -1,22 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Loader } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { LibraryNotice } from '@/components/library-notice';
 import { PersonNoteItem } from '@/components/person-note-item';
-import { PersonSections } from '@/components/person-sections';
+import { usePeopleBack, usePersonBack } from '@/components/person-back';
+import { EmptyNote, ErrorNote, LoadingNote, PersonNotFound } from '@/components/screen-states';
+import { ShowMore } from '@/components/show-more';
 import { Shell } from '@/components/screen-shell';
-import { Button } from '@/components/ui/button';
 import { useLibrary } from '@/hooks/use-library';
 import { usePersonDetails } from '@/hooks/use-person-details';
 import { noteItemKey, usePersonNotes } from '@/hooks/use-person-notes';
-import { Link } from '@/i18n/navigation';
 import type { Note, NoteItem } from '@/lib/domain/library';
-
-const linkClass =
-  'text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex min-h-11 w-fit items-center gap-2 rounded-md text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-[3px]';
 
 /**
  * A person's notes: the one on the person, those on their conversations and those on messages in
@@ -38,8 +34,6 @@ export function PersonNotesScreen() {
 
 function PersonNotesContent({ onRetry }: { onRetry: () => void }) {
   const t = useTranslations('personNotes');
-  const tp = useTranslations('person');
-  const tl = useTranslations('library');
   const tn = useTranslations('notes');
   const id = useSearchParams().get('id');
   const details = usePersonDetails(id);
@@ -51,96 +45,62 @@ function PersonNotesContent({ onRetry }: { onRetry: () => void }) {
     setNotice(note ? tn('saved') : tn('deleted'));
   };
 
+  const peopleBack = usePeopleBack();
+  const person = details.status === 'ready' ? details.details.person : undefined;
+  const personBack = usePersonBack(person ?? { id: id ?? '', displayName: '' });
+
   if (details.status === 'not-found' || notes.status === 'not-found') {
     return (
-      <Shell>
-        <section className="bg-card flex flex-col gap-3 rounded-xl border p-6">
-          <h1 className="font-serif text-2xl">{tp('notFoundTitle')}</h1>
-          <p className="text-muted-foreground leading-relaxed">{tp('notFoundBody')}</p>
-          <Link href="/people" className={linkClass}>
-            <ArrowLeft className="size-4" aria-hidden />
-            {tp('back')}
-          </Link>
-        </section>
+      <Shell back={peopleBack}>
+        <PersonNotFound />
       </Shell>
     );
   }
   if (details.status === 'error' || notes.status === 'error') {
     return (
-      <Shell>
-        <Link href={id ? `/person?id=${encodeURIComponent(id)}` : '/people'} className={linkClass}>
-          <ArrowLeft className="size-4" aria-hidden />
-          {id ? tp('backToPerson') : tp('back')}
-        </Link>
-        <section role="alert" className="bg-card flex flex-col gap-3 rounded-xl border p-5">
-          <p>{t('loadFailed')}</p>
-          <div>
-            <Button variant="outline" onClick={details.status === 'error' ? onRetry : retry}>
-              {tl('retry')}
-            </Button>
-          </div>
-        </section>
+      <Shell back={person ? personBack : peopleBack}>
+        <ErrorNote onRetry={details.status === 'error' ? onRetry : retry}>{t('loadFailed')}</ErrorNote>
       </Shell>
     );
   }
-  if (details.status === 'loading' || notes.status === 'loading') {
+  if (!person || notes.status === 'loading') {
     return (
       <Shell>
-        <p role="status" className="text-muted-foreground flex items-center gap-2 py-6">
-          <Loader className="size-4 motion-safe:animate-spin" aria-hidden />
-          {t('loading')}
-        </p>
+        <LoadingNote>{t('loading')}</LoadingNote>
       </Shell>
     );
   }
 
-  const person = details.details.person;
   const { items, total, loadingMore, moreFailed } = notes;
   return (
-    <Shell>
-      <Link href={`/person?id=${encodeURIComponent(person.id)}`} className={linkClass}>
-        <ArrowLeft className="size-4" aria-hidden />
-        {t('back', { name: person.displayName })}
-      </Link>
-      <header className="flex flex-col gap-1">
-        <h1 className="font-serif text-3xl break-words">{t('title')}</h1>
-        <p className="text-muted-foreground break-words">{t('count', { count: total, name: person.displayName })}</p>
+    <Shell back={personBack}>
+      <header className="flex items-end justify-between gap-3 px-1">
+        <h1 className="font-display text-display">{t('title')}</h1>
+        <p className="text-mu pb-1.5 text-end text-sm break-words">{t('count', { count: total, name: person.displayName })}</p>
       </header>
-      <PersonSections personId={person.id} current="notes" />
-      <p role="status" className="text-muted-foreground min-h-5 text-sm break-words">
+      <p role="status" className="text-mu min-h-5 text-sm break-words">
         {notice}
       </p>
 
       {total === 0 ? (
-        <section className="bg-card flex flex-col gap-2 rounded-xl border p-5 leading-relaxed break-words">
-          <p>{t('empty', { name: person.displayName })}</p>
-          <p className="text-muted-foreground">{t('emptyHint')}</p>
-        </section>
+        <EmptyNote>
+          {t('empty', { name: person.displayName })} {t('emptyHint')}
+        </EmptyNote>
       ) : (
         <div className="flex flex-col gap-4">
-          <ul className="flex flex-col gap-3">
+          <ul className="flex flex-col gap-2.5">
             {items.map((item) => (
               <PersonNoteItem key={noteItemKey(item)} item={item} personId={person.id} onChanged={onChanged} />
             ))}
           </ul>
-          <div className="flex flex-col items-start gap-2">
-            {items.length < total && (
-              <p role="status" className="text-muted-foreground text-sm">
-                {t('shown', { shown: items.length, total })}
-              </p>
-            )}
-            {moreFailed && (
-              <p role="alert" className="text-destructive text-sm">
-                {t('moreFailed')}
-              </p>
-            )}
-            {items.length < total && (
-              <Button variant="outline" onClick={loadMore} aria-disabled={loadingMore || undefined} className="min-h-11 aria-disabled:pointer-events-none aria-disabled:opacity-50">
-                {loadingMore && <Loader className="motion-safe:animate-spin" aria-hidden />}
-                {loadingMore ? t('loadingMore') : t('showMore')}
-              </Button>
-            )}
-          </div>
+          <ShowMore
+            shown={items.length}
+            total={total}
+            loading={loadingMore}
+            failed={moreFailed}
+            onMore={loadMore}
+            labels={{ shown: t('shown', { shown: items.length, total }), moreFailed: t('moreFailed'), showMore: t('showMore'), loadingMore: t('loadingMore') }}
+          />
         </div>
       )}
     </Shell>

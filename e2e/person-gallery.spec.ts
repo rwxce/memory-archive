@@ -1,6 +1,6 @@
 import { crc32, deflateSync } from 'node:zlib';
 import { strToU8, zipSync } from 'fflate';
-import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test } from './fixtures';
+import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test, openSection } from './fixtures';
 
 /**
  * A person's Gallery against the built app, with the real workers and OPFS: a small synthetic chat
@@ -62,11 +62,10 @@ test('a person has a Gallery: by month, photos load near the screen, videos read
 
   await page.goto('/en/people/');
   await page.getByRole('list', { name: 'People' }).getByRole('link', { name: 'Mama' }).click();
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Gallery' }).click();
+  await openSection(page, 'Gallery');
   await expect(page).toHaveURL(/\/en\/person\/gallery\/\?id=[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Gallery' })).toBeVisible();
   await expect(page.getByText('59 photos and videos')).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Gallery' })).toHaveAttribute('aria-current', 'page');
 
   // oldest first, by month; 50 tiles of a fixed shape
   await expect(page.getByRole('heading', { level: 2 })).toHaveText(['January 2026', 'February 2026', 'March 2026']);
@@ -173,5 +172,5 @@ test('a person has a Gallery: by month, photos load near the screen, videos read
   // an unknown person is calm, with the way back
   await page.goto('/en/person/gallery/?id=00000000-0000-4000-8000-000000000099');
   await expect(page.getByRole('heading', { level: 1, name: 'We could not find this person' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Back to People' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Back to People' }).first()).toBeVisible();
 });

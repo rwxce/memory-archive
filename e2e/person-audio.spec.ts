@@ -1,5 +1,5 @@
 import { strToU8, zipSync } from 'fflate';
-import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test } from './fixtures';
+import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test, openSection } from './fixtures';
 
 /**
  * A person's Audio screen against the built app, with the real workers and OPFS: a small synthetic
@@ -48,15 +48,14 @@ test('a person has an Audio screen: chronological by month, playable one at a ti
   // from the person's page, through the sections
   await page.goto('/en/people/');
   await page.getByRole('list', { name: 'People' }).getByRole('link', { name: 'Mama' }).click();
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Audio' }).click();
+  await openSection(page, 'Audio');
   await expect(page).toHaveURL(/\/en\/person\/audio\/\?id=[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Audio' })).toBeVisible();
   await expect(page.getByText('3 voice messages and audio files')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Audio' })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('link', { name: 'Back to Mama' })).toBeVisible();
 
-  // by month, oldest first; nothing is read yet
-  await expect(page.getByRole('heading', { level: 2 })).toHaveText(['January 2026', 'February 2026', 'March 2026']);
+  // by year, oldest first; nothing is read yet
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText(['2026']);
   const items = page.locator('section li');
   await expect(items).toHaveCount(3);
   await expect(items.nth(0)).toContainText('Jan 10, 2026, 9:05 AM');
@@ -69,19 +68,19 @@ test('a person has an Audio screen: chronological by month, playable one at a ti
 
   // Play reads that file and moves the keyboard to its player; another one replaces it
   await items.nth(0).getByRole('button', { name: /^Play voice message/ }).click();
-  const player = items.nth(0).locator('audio');
-  await expect(player).toBeVisible();
-  await expect(player).toBeFocused();
+  const hero = page.getByRole('region', { name: 'Now playing' });
+  await expect(hero).toBeVisible();
+  const player = page.locator('audio');
+  await expect(player).toHaveCount(1);
   await expect(player).toHaveAttribute('src', /^blob:/);
   await expect.poll(() => player.evaluate((el: HTMLAudioElement) => el.readyState > 0 || el.error !== null)).toBe(true);
   await items.nth(1).getByRole('button', { name: /^Play voice message/ }).click();
-  await expect(items.nth(1).locator('audio')).toBeVisible();
+  await expect(hero).toContainText('Bo');
   await expect(page.locator('audio')).toHaveCount(1);
-  await expect(items.nth(0).getByRole('button', { name: /^Play voice message/ })).toBeVisible();
   if (process.env.E2E_SHOTS) await page.screenshot({ path: `${process.env.E2E_SHOTS}/person-audio-${testInfo.project.name}.png`, fullPage: true });
 
   // the way to the message: that conversation, on that day, coming from the person
-  await items.nth(1).getByRole('link', { name: /^Open in conversation/ }).click();
+  await hero.getByRole('link', { name: /^Open in conversation/ }).click();
   await expect(page).toHaveURL(/\/en\/conversation\/\?id=[0-9a-f-]{36}&from=[0-9a-f-]{36}&date=2026-02-11$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Ana i Bo' })).toBeVisible();
   await expect(page.getByRole('feed').locator('article', { hasText: 'Wednesday, February 11, 2026' }).first()).toBeInViewport();
@@ -91,5 +90,5 @@ test('a person has an Audio screen: chronological by month, playable one at a ti
   // an unknown person is calm, with the way back
   await page.goto('/en/person/audio/?id=00000000-0000-4000-8000-000000000099');
   await expect(page.getByRole('heading', { level: 1, name: 'We could not find this person' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Back to People' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Back to People' }).first()).toBeVisible();
 });

@@ -2,31 +2,64 @@
 
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { AppHeader } from '@/components/app-header';
-import { Link } from '@/i18n/navigation';
+import { BackPill } from '@/components/back-pill';
+import { PillButton } from '@/components/pill-button';
+import { Sidebar } from '@/components/sidebar';
+import { TabBar } from '@/components/tab-bar';
+import { cn } from '@/components/ui/utils';
+import { Link, usePathname } from '@/i18n/navigation';
+import { isTopLevel } from './nav-items';
 
 /**
- * Same top spacing as the Welcome, so nothing jumps between them. The polite
- * status region lives here, in every state of a screen, so a message set while
- * a form closes is announced by a region that was already on screen.
+ * The chrome around every screen.
+ * - Phones and tablets: top-level screens (People, Search, Import, Settings) get the floating tab
+ *   bar; a sub-screen passes `back` and gets a back pill instead (`back.label` defaults to "Back").
+ * - Desktop (from `lg`): the sidebar on the left for all of them, and the content in a rounded
+ *   `sf` panel (max 1040 px).
+ * The polite status region lives here, in every state of a screen, so a message set while a form
+ * closes is announced by a region that was already on screen.
  */
-export function Shell({ children, message = '' }: { children: ReactNode; message?: string }) {
+export function Shell({
+  children,
+  message = '',
+  back,
+  focused = false,
+}: {
+  children: ReactNode;
+  message?: string;
+  back?: { href: string; label?: ReactNode };
+  /** A task in progress (the import steps): no tab bar and no footer link, so the screen's own sticky actions sit at the bottom. */
+  focused?: boolean;
+}) {
   const t = useTranslations('people');
+  const topLevel = isTopLevel(usePathname()) && !focused;
+
   return (
-    <>
-      <AppHeader />
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pt-10 pb-16 sm:px-6 sm:pt-20">
-        <div role="status" aria-live="polite" className="text-muted-foreground min-h-5 text-sm break-words">
-          {message}
-        </div>
-        {children}
-        <Link
-          href="/welcome"
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex min-h-11 w-fit items-center rounded-md text-sm underline underline-offset-4 outline-none focus-visible:ring-[3px]"
+    <div className="lg:flex">
+      <Sidebar />
+      <div className="min-w-0 flex-1 lg:p-5">
+        <main
+          data-panel
+          className={cn(
+            'mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 pt-8 sm:px-6 sm:pt-12',
+            'lg:bg-sf lg:mx-0 lg:min-h-[calc(100dvh-2.5rem)] lg:max-w-[1040px] lg:gap-6 lg:rounded-[32px] lg:p-12',
+            // Room under the content for the floating tab bar.
+            focused ? 'pb-0 lg:pb-12' : topLevel ? 'pb-32' : 'pb-16',
+          )}
         >
-          {t('about')}
-        </Link>
-      </main>
-    </>
+          {back && <BackPill href={back.href}>{back.label}</BackPill>}
+          <div role="status" aria-live="polite" className="text-muted-foreground text-sm break-words empty:-mb-5 empty:h-0">
+            {message}
+          </div>
+          {children}
+          {!focused && (
+            <PillButton asChild variant="ghost-link" className="w-fit px-0">
+              <Link href="/welcome">{t('about')}</Link>
+            </PillButton>
+          )}
+        </main>
+      </div>
+      {topLevel && <TabBar />}
+    </div>
   );
 }

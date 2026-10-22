@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { strToU8, zipSync } from 'fflate';
 import type { Page } from '@playwright/test';
-import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test, walkImport as walk } from './fixtures';
+import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test, walkImport as walk, personMenu } from './fixtures';
 
 /**
  * Import history and the Phase 4 checks against the built app with the real workers and OPFS:
@@ -66,10 +66,10 @@ test('the same ZIP twice adds nothing: one entry in the history, and the counts 
 
   // People and the person's page: still one conversation with 4 messages.
   await page.getByRole('link', { name: 'Back to People' }).click();
-  await expect(page.getByText('1 conversation', { exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Mama', exact: true }).click();
+  await expect(page.getByText(/1 conversation/)).toBeVisible();
+  await page.getByRole('main').getByRole('link', { name: 'Mama', exact: true }).click();
   await expect(page.getByRole('list', { name: 'Conversations' }).getByRole('listitem')).toHaveCount(1);
-  await expect(page.getByText(/^4 messages/)).toBeVisible();
+  await expect(page.getByText(/4 messages/)).toBeVisible();
 });
 
 test('a newer export adds only the difference', async ({ page }) => {
@@ -94,10 +94,10 @@ test('a newer export adds only the difference', async ({ page }) => {
 
   await page.getByRole('link', { name: 'Mama', exact: true }).first().click();
   await expect(page.getByRole('list', { name: 'Conversations' }).getByRole('listitem')).toHaveCount(1);
-  await expect(page.getByText(/^6 messages/)).toBeVisible();
+  await expect(page.getByText(/6 messages/)).toBeVisible();
 
   // From the person's page: only this person's imports.
-  await page.getByRole('link', { name: 'Imports for this person' }).click();
+  await personMenu(page, 'Mama', 'Imports for this person');
   await expect(page).toHaveURL(/\/en\/import\/history\/\?person=/);
   await expect(page.getByText('Imports into the conversations kept under Mama.')).toBeVisible();
   await expect(entries(page)).toHaveCount(2);
@@ -135,7 +135,7 @@ test('undo from the history removes that import: its messages and the conversati
 
 test('Catalan: the history and its empty state are in Catalan, and the settings link reaches it', async ({ page }) => {
   await page.goto('/ca/settings/');
-  await page.getByRole('link', { name: 'Obre l’historial d’importacions' }).click();
+  await page.getByRole('link', { name: /Historial d’importacions/ }).click();
   await expect(page).toHaveURL(/\/ca\/import\/history\/$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Historial d’importacions' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Encara no s’ha importat res' })).toBeVisible();
@@ -202,7 +202,7 @@ function bigExport(dir: string): string {
 async function startBigImport(page: Page, file: string) {
   await startFresh(page);
   await addPerson(page, 'Mama');
-  await page.getByRole('link', { name: 'Import a chat' }).click();
+  await page.getByRole('link', { name: /^Import( a chat)?$/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Import a chat' })).toBeVisible();
   await page.getByTestId('import-file-input').setInputFiles(file);
   await page.getByRole('button', { name: 'Continue with 1 file' }).click();
@@ -227,7 +227,7 @@ async function startBigImport(page: Page, file: string) {
 async function expectNothingKept(page: Page) {
   await page.goto('/en/people/');
   await expect(page.getByRole('list', { name: 'People' }).getByRole('listitem').filter({ hasText: 'Mama' })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole('link', { name: 'Mama', exact: true }).click();
+  await page.getByRole('main').getByRole('link', { name: 'Mama', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Mama' })).toBeVisible();
   // The importer saves everything in one transaction after the files are copied. If the import
   // finished before the tab was closed, this window was too short: make the ZIP bigger.
@@ -252,7 +252,7 @@ async function reimportOnce(page: Page, file: string) {
   await page.getByRole('link', { name: 'Open Mama' }).click();
   const conversations = page.getByRole('list', { name: 'Conversations' }).getByRole('listitem');
   await expect(conversations).toHaveCount(1);
-  await expect(conversations.getByText(new RegExp(`^${MESSAGES_LABEL} messages`))).toBeVisible();
+  await expect(conversations.getByText(new RegExp(`${MESSAGES_LABEL} messages`))).toBeVisible();
   await page.goto('/en/import/history/');
   await expect(entries(page)).toHaveCount(1);
 }

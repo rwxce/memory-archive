@@ -23,9 +23,9 @@ export function NoteButton({ hasNote, open, panelId, onToggle }: { hasNote: bool
       aria-controls={open ? panelId : undefined}
       onClick={onToggle}
       className={cn(
-        'text-muted-foreground -my-2 rounded-full',
+        'text-mu -mx-1 -my-2 rounded-full',
         '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/row:opacity-100 focus-visible:opacity-100',
-        hasNote && 'text-primary opacity-100!',
+        hasNote && 'text-ac-tx opacity-100!',
         open && 'opacity-100!',
       )}
     >

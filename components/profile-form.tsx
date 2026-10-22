@@ -24,7 +24,7 @@ type Field = keyof ProfileFormValues;
 type Errors = Partial<Record<Field, string>>;
 
 const inputClass =
-  'bg-background border-input placeholder:text-muted-foreground w-full rounded-md border px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:border-destructive';
+  'bg-bg border-input placeholder:text-mu w-full rounded-2xl border px-4 text-base outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:border-destructive';
 
 /**
  * Create / edit form for a person. Text is checked with the same rules the
@@ -118,11 +118,11 @@ export function ProfileForm({
     };
     return (
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={inputId} className="font-medium break-words">
+        <label htmlFor={inputId} className="text-[15px] font-semibold break-words">
           {label}
         </label>
         {name === 'description' ? (
-          <textarea {...common} ref={(el) => void (refs.current[name] = el)} rows={4} className={cn(inputClass, 'py-2')} />
+          <textarea {...common} ref={(el) => void (refs.current[name] = el)} rows={4} className={cn(inputClass, 'py-3')} />
         ) : (
           <input
             {...common}
@@ -130,11 +130,11 @@ export function ProfileForm({
             type="text"
             autoComplete="off"
             aria-required={name === 'displayName' || undefined}
-            className={cn(inputClass, 'h-11')}
+            className={cn(inputClass, 'h-12')}
           />
         )}
         {hint && (
-          <p id={`${inputId}-hint`} className="text-muted-foreground text-sm">
+          <p id={`${inputId}-hint`} className="text-mu text-sm">
             {hint}
           </p>
         )}
@@ -153,7 +153,7 @@ export function ProfileForm({
         if (event.key === 'Escape' && !event.nativeEvent.isComposing && !event.defaultPrevented && !savingNow.current) onCancel();
       }}
       noValidate
-      className="bg-card flex min-w-0 flex-col gap-5 rounded-xl border p-5 sm:p-6"
+      className="bg-sf flex min-w-0 flex-col gap-5 rounded-3xl p-5 sm:p-6 lg:in-data-panel:bg-bg"
     >
       {field('displayName', t('name'))}
       {field('relationship', t('relationship'), t('relationshipHint'))}

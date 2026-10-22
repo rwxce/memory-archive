@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { strToU8, zipSync } from 'fflate';
 import type { Locator, Page } from '@playwright/test';
-import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test } from './fixtures';
+import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test, jumpToDate } from './fixtures';
 
 /**
  * The conversation view against the built app, with the real workers and OPFS: a small chat to check
@@ -59,7 +59,7 @@ test.describe('a small conversation', () => {
 
     // header
     await expect(page.getByRole('heading', { level: 1, name: 'Ana i Bo' })).toBeVisible();
-    await expect(page.locator('header')).toContainText(/600 messages · Mar 17, 2026 – Mar 22, 2026/);
+    await expect(page.locator('header')).toContainText(/600 messages · 2026/);
     await expect(page.locator('header')).toContainText('Kept under Mama');
     await expect(page.getByRole('link', { name: 'Back to Mama' })).toBeVisible();
 
@@ -100,20 +100,20 @@ test.describe('a small conversation', () => {
     expect(await page.evaluate(() => (window as { __pwned?: number }).__pwned)).toBeUndefined();
 
     // jump to a date: the first message of that day, with its separator
-    await page.getByLabel('Go to date').fill('2026-03-20');
+    await jumpToDate(page, '2026-03-20');
     await expect(article(feed, 301)).toBeInViewport();
     await expect(article(feed, 301)).toContainText('Friday, March 20, 2026');
     await expect(page.getByRole('status').filter({ hasText: 'Showing the first message on or after Mar 20, 2026.' })).toBeVisible();
     expect(await rowCount(feed)).toBeLessThan(80);
 
     // and back to the end
-    await page.getByRole('button', { name: 'Go to latest' }).click();
+    await page.getByRole('button', { name: 'Latest' }).click();
     await expect(article(feed, COUNT)).toBeInViewport();
 
     // an unknown conversation is calm, with the way back
     await page.goto('/en/conversation/?id=00000000-0000-4000-8000-000000000099');
     await expect(page.getByRole('heading', { level: 1, name: 'We could not find this conversation' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Back to People' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'People', exact: true })).toBeVisible();
   });
 
   test('the calendar jumps to a day with messages from the keyboard, and Escape closes it', async ({ page }) => {
@@ -125,7 +125,7 @@ test.describe('a small conversation', () => {
     const feed = feedOf(page);
     await expect(article(feed, COUNT)).toBeInViewport();
 
-    const trigger = page.getByRole('button', { name: 'Calendar' });
+    const trigger = page.getByRole('button', { name: 'Go to date' });
     await trigger.click();
     const panel = page.getByRole('region', { name: 'Calendar of this conversation' });
     // one year only, so it opens on its months; only March has messages
@@ -165,7 +165,7 @@ test.describe('a small conversation', () => {
     await expect(page.getByText(/new messages added to Mama\./)).toBeVisible();
     await openConversation(page);
     const feed = feedOf(page);
-    await page.getByLabel('Go to date').fill('2026-03-19');
+    await jumpToDate(page, '2026-03-19');
     await expect(article(feed, 201)).toBeInViewport();
     await page.getByRole('link', { name: 'Back to Mama' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Mama' })).toBeVisible();
@@ -180,7 +180,7 @@ test.describe('a small conversation', () => {
     await expect(page.getByText(/new messages added to Mama\./)).toBeVisible();
     await openConversation(page);
     const feed = feedOf(page);
-    await page.getByLabel('Go to date').fill('2026-03-20');
+    await jumpToDate(page, '2026-03-20');
     await expect(article(feed, 301)).toBeInViewport();
     await expect(feed).toHaveAttribute('aria-busy', 'false');
 

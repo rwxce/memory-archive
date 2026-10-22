@@ -131,6 +131,10 @@ export function libraryProblemOf(error: unknown): LibraryProblem {
 export interface Person extends Profile {
   /** Conversations filed under this person. */
   conversationCount: number;
+  /** Earliest first message across their conversations (ISO local time as stored); null when none has messages. */
+  firstMessageAt: string | null;
+  /** Latest last message across their conversations; null when none has messages. */
+  lastMessageAt: string | null;
 }
 
 export interface People {
@@ -143,15 +147,24 @@ export interface People {
 /** Every profile, split into active and archived, each with its number of conversations. */
 export async function listPeople(deps: ProfileDeps): Promise<People> {
   const [profiles, conversations] = await Promise.all([listProfiles(deps, 'all'), listConversations(deps)]);
-  const counts = new Map<string, number>();
+  const stats = new Map<string, { count: number; first: string | null; last: string | null }>();
   for (const conversation of conversations) {
-    for (const id of conversation.profileIds) counts.set(id, (counts.get(id) ?? 0) + 1);
+    for (const id of conversation.profileIds) {
+      const s = stats.get(id) ?? { count: 0, first: null, last: null };
+      s.count += 1;
+      // sentAt is a fixed-width ISO string: lexical order is chronological order.
+      if (conversation.firstMessageAt !== null && (s.first === null || conversation.firstMessageAt < s.first)) s.first = conversation.firstMessageAt;
+      if (conversation.lastMessageAt !== null && (s.last === null || conversation.lastMessageAt > s.last)) s.last = conversation.lastMessageAt;
+      stats.set(id, s);
+    }
   }
   const people: People = { active: [], archived: [], unassigned: [] };
   for (const profile of profiles) {
     (profile.archivedAt === null ? people.active : people.archived).push({
       ...profile,
-      conversationCount: counts.get(profile.id) ?? 0,
+      conversationCount: stats.get(profile.id)?.count ?? 0,
+      firstMessageAt: stats.get(profile.id)?.first ?? null,
+      lastMessageAt: stats.get(profile.id)?.last ?? null,
     });
   }
   people.unassigned = await withParticipants(

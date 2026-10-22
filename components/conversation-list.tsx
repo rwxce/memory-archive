@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { ArrowRightLeft, BookOpen, Link2, Pencil, Unlink, UserPlus, Users } from 'lucide-react';
+import { ArrowRightLeft, ChevronRight, Link2, Pencil, Unlink, UserPlus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/utils';
@@ -13,9 +13,12 @@ import type { People } from '@/lib/usecases/library';
 import { formatDateRange, formatNames } from './format';
 
 const inputClass =
-  'bg-background border-input w-full rounded-md border px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:border-destructive';
+  'bg-bg border-input w-full rounded-xl border px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:border-destructive';
 // aria-disabled, not disabled: a busy button keeps focus (a disabled one drops it).
 const busyClass = 'aria-disabled:pointer-events-none aria-disabled:opacity-50';
+/** A quiet text action under a conversation: 44 px high, accent text. */
+const actionClass =
+  'text-ac-tx hover:bg-sf2 focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium outline-none focus-visible:ring-[3px] aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:size-4';
 /** At most this many participant names are spelled out; the rest is a count. */
 const NAMES_SHOWN = 3;
 
@@ -113,30 +116,47 @@ export function ConversationList({
 
   return (
     <div className="flex flex-col gap-3">
-      <ul className="flex flex-col gap-3" aria-label={t('listLabel')}>
+      <ul
+        className={cn(
+          'flex flex-col overflow-hidden',
+          // Not yet assigned to anyone: separate dashed cards, as an invitation to file each one.
+          personId === undefined ? 'gap-3' : 'bg-sf rounded-3xl lg:in-data-panel:bg-bg',
+        )}
+        aria-label={t('listLabel')}
+      >
         {conversations.map((row) => {
           const here = panel?.id === row.id ? panel.kind : undefined;
           const shared = row.isGroup || row.profileIds.length > 1;
           const others = row.profileIds.filter((id) => id !== personId).map(nameOf).filter(Boolean);
           const dates = formatDateRange(row.firstMessageAt, row.lastMessageAt, locale);
           return (
-            <li key={row.id} className="bg-card flex min-w-0 flex-col gap-3 rounded-xl border p-4 sm:p-5">
-              <div className="flex flex-col gap-1">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <Title className="min-w-0 text-base leading-snug font-semibold break-words">{row.title}</Title>
-                  {row.isGroup && (
-                    <span className="bg-secondary text-secondary-foreground inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium">
-                      <Users className="size-3.5" aria-hidden />
-                      {t('group')}
-                    </span>
-                  )}
+            <li
+              key={row.id}
+              className={cn(
+                'flex min-w-0 flex-col gap-3 px-4 py-3.5 sm:px-5',
+                personId === undefined ? 'border-line rounded-[20px] border-[1.5px] border-dashed' : 'border-line border-b last:border-b-0',
+              )}
+            >
+              <div className="relative flex items-center gap-3">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <Title className="min-w-0 text-[15px] leading-snug font-medium break-words">
+                    {/* The link covers the whole summary; the actions below stay clickable. */}
+                    <Link
+                      href={`/conversation?id=${encodeURIComponent(row.id)}${personId ? `&from=${encodeURIComponent(personId)}` : ''}`}
+                      aria-label={t('openLabel', { title: row.title })}
+                      className="focus-visible:ring-ring/50 rounded-md outline-none after:absolute after:inset-0 focus-visible:ring-[3px]"
+                    >
+                      {row.title}
+                    </Link>
+                  </Title>
+                  <p className="text-mu text-[13px]">
+                    {t(row.isGroup ? 'group' : 'privateChat')} · {t('messageCount', { count: row.messageCount })}
+                  </p>
+                  {dates && <p className="text-mu text-[13px]">{dates}</p>}
+                  <Participants names={row.participants} />
+                  {others.length > 0 && <p className="text-mu text-[13px] break-words">{t('alsoUnder', { names: others.join(', ') })}</p>}
                 </div>
-                <p className="text-muted-foreground text-sm">
-                  {t('messageCount', { count: row.messageCount })}
-                  {dates && ` · ${dates}`}
-                </p>
-                <Participants names={row.participants} />
-                {others.length > 0 && <p className="text-muted-foreground text-sm break-words">{t('alsoUnder', { names: others.join(', ') })}</p>}
+                <ChevronRight className="text-mu size-[18px] shrink-0 rtl:rotate-180" aria-hidden />
               </div>
 
               {here === 'rename' && (
@@ -196,65 +216,56 @@ export function ConversationList({
               )}
 
               {!here && (
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild variant="outline">
-                    <Link
-                      href={`/conversation?id=${encodeURIComponent(row.id)}${personId ? `&from=${encodeURIComponent(personId)}` : ''}`}
-                      aria-label={t('openLabel', { title: row.title })}
-                    >
-                      <BookOpen aria-hidden />
-                      {t('open')}
-                    </Link>
-                  </Button>
-                  <Button
+                <div className="relative -mx-2 -mb-1.5 flex flex-wrap gap-x-1">
+                  <button
+                    type="button"
                     id={`${row.id}-rename`}
-                    variant="outline"
-                    className={busyClass}
+                    className={actionClass}
                     aria-disabled={ariaBusy}
                     aria-label={t('renameLabel', { title: row.title })}
                     onClick={unlessBusy(() => open('rename', row.id))}
                   >
                     <Pencil aria-hidden />
                     {t('rename')}
-                  </Button>
+                  </button>
                   {personId !== undefined && (
-                    <Button
+                    <button
+                      type="button"
                       id={`${row.id}-move`}
-                      variant="outline"
-                      className={busyClass}
+                      className={actionClass}
                       aria-disabled={ariaBusy}
                       aria-label={t('moveLabel', { title: row.title })}
                       onClick={unlessBusy(() => open('move', row.id))}
                     >
                       <ArrowRightLeft aria-hidden />
                       {t('move')}
-                    </Button>
+                    </button>
                   )}
                   {(shared || personId === undefined) && (
-                    <Button
+                    <button
+                      type="button"
                       id={`${row.id}-link`}
-                      variant="outline"
-                      className={busyClass}
+                      className={actionClass}
                       aria-disabled={ariaBusy}
                       aria-label={t(personId === undefined ? 'assignLabel' : 'linkLabel', { title: row.title })}
                       onClick={unlessBusy(() => open('link', row.id))}
                     >
                       {personId === undefined ? <UserPlus aria-hidden /> : <Link2 aria-hidden />}
                       {t(personId === undefined ? 'assign' : 'link')}
-                    </Button>
+                    </button>
                   )}
                   {shared && personId !== undefined && (
-                    <Button
+                    <button
+                      type="button"
                       id={`${row.id}-unlink`}
-                      variant="ghost"
-                      className={busyClass}
+                      className={actionClass}
                       aria-disabled={ariaBusy}
                       aria-label={t('unlinkLabel', { title: row.title, name: nameOf(personId) })}
                       onClick={unlessBusy(() => open('unlink', row.id))}
                     >
                       <Unlink aria-hidden />
                       {t('unlink')}
-                    </Button>
+                    </button>
                   )}
                 </div>
               )}
@@ -272,7 +283,7 @@ function Participants({ names }: { names: string[] }) {
   if (names.length === 0) return null;
   const more = names.length - NAMES_SHOWN;
   const shown = formatNames(names.slice(0, NAMES_SHOWN), locale, more > 0);
-  return <p className="text-muted-foreground text-sm break-words">{more > 0 ? t('participantsMore', { names: shown, count: more }) : t('participants', { names: shown })}</p>;
+  return <p className="text-mu text-[13px] break-words">{more > 0 ? t('participantsMore', { names: shown, count: more }) : t('participants', { names: shown })}</p>;
 }
 
 /** Inline rename, checked with the same rules the library applies. A failed save keeps what was typed. */
@@ -325,7 +336,7 @@ function RenameForm({ initial, onSave, onCancel }: { initial: string; onSave: (t
       onKeyDown={onEscape(() => {
         if (!savingNow.current) onCancel();
       })}
-      className="bg-muted flex min-w-0 flex-col gap-3 rounded-lg p-4"
+      className="bg-sf2 flex min-w-0 flex-col gap-3 rounded-2xl p-4"
     >
       <label htmlFor={`${id}-title`} className="font-medium break-words">
         {t('label')}
@@ -427,7 +438,7 @@ function PickPersonForm({
       onKeyDown={onEscape(() => {
         if (!savingNow.current) onCancel();
       })}
-      className="bg-muted flex min-w-0 flex-col gap-3 rounded-lg p-4"
+      className="bg-sf2 flex min-w-0 flex-col gap-3 rounded-2xl p-4"
     >
       <label htmlFor={nobody ? undefined : `${id}-person`} className="font-medium break-words">
         {t(`${kind}Label`, { title: row.title })}
@@ -519,7 +530,7 @@ function UnlinkConfirm({
     <div
       role="group"
       aria-labelledby={titleId}
-      className="bg-muted flex min-w-0 flex-col gap-3 rounded-lg p-4"
+      className="bg-sf2 flex min-w-0 flex-col gap-3 rounded-2xl p-4"
       onKeyDown={onEscape(() => {
         if (!busy) onCancel();
       })}

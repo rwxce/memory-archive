@@ -17,6 +17,7 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/sub',
 }));
 
 type View = Rendered & Awaited<ReturnType<typeof renderWithLibrary>>;
@@ -28,7 +29,7 @@ const advance = (ms: number) =>
     await vi.advanceTimersByTimeAsync(ms);
   });
 const buttonByText = (view: Rendered, text: string) =>
-  [...view.container.querySelectorAll('button')].find((b) => b.textContent?.trim() === text) ?? null;
+  [...view.container.querySelectorAll('button')].find((b) => (b.textContent?.trim() || b.getAttribute('aria-label')) === text) ?? null;
 const buttonByLabel = (view: Rendered, label: string) => view.container.querySelector(`button[aria-label="${label}"]`);
 /** Names of the people on screen (a collapsed Archived section is hidden, so not counted). */
 const names = (view: Rendered) =>
@@ -54,13 +55,11 @@ describe('PeopleScreen', () => {
     expect(buttonByText(view, p.add)).not.toBeNull();
   });
 
-  test('offers a way into the import wizard next to adding a person, also when no one is there yet', async () => {
+  test('the header add button is a 44 px+ labelled button; search and import live in the shell chrome, not in the header', async () => {
     view = await open();
-    const link = view.container.querySelector<HTMLAnchorElement>('a[href="/import"]');
-    expect(link?.textContent).toBe(p.import);
-    expect(view.container.querySelector('a[href="/import/history"]')?.textContent).toBe(p.history);
-    expect(view.container.querySelector('a[href="/search"]')?.textContent).toBe(p.search);
-    expect(buttonByText(view, p.add)).not.toBeNull();
+    const add = view.container.querySelector<HTMLButtonElement>('#add-person');
+    expect(add?.getAttribute('aria-label')).toBe(p.add);
+    expect(view.container.querySelector('main a[href="/import"]')).toBeNull();
   });
 
   test('lists active people with relationship and conversation count; archived stay hidden', async () => {
@@ -147,23 +146,6 @@ describe('PeopleScreen', () => {
     expect(form.querySelector('input')!.value).toBe('Dani');
   });
 
-  test('edits a person with their details filled in', async () => {
-    view = await open(async ({ deps }) => {
-      await createProfile(deps, { displayName: 'Eva', relationship: 'aunt' });
-    });
-    await click(buttonByLabel(view, 'Edit Eva'));
-    expect(view.container.querySelector('h1')?.textContent).toBe('Edit Eva');
-    const form = view.container.querySelector('form')!;
-    expect(form.querySelector('input')!.value).toBe('Eva');
-    await type(form.querySelector('input'), 'Eva Puig');
-    await type(form.querySelectorAll('input')[1], '');
-    await submit(form);
-    await settle();
-    expect(names(view)).toEqual(['Eva Puig']);
-    expect(status(view)).toBe('Changes to Eva Puig were saved.');
-    expect(view.container.querySelector('li')!.textContent).not.toContain('aunt');
-  });
-
   test('cancelling a form changes nothing and gives focus back to the button that opened it', async () => {
     view = await open();
     await click(buttonByText(view, p.add));
@@ -172,62 +154,6 @@ describe('PeopleScreen', () => {
     expect(view.container.querySelector('form')).toBeNull();
     expect(names(view)).toEqual([]);
     expect(document.activeElement?.id).toBe('add-person');
-  });
-
-  test('archiving asks first, says what is kept, then moves the person to Archived', async () => {
-    view = await open(async ({ deps }) => {
-      await createProfile(deps, { displayName: 'Fina' });
-    });
-    await click(buttonByLabel(view, 'Archive Fina'));
-    const group = view.container.querySelector('[role="group"]')!;
-    expect(group.textContent).toContain('Archive Fina?');
-    expect(group.textContent).toContain('conversations, messages and photos stay on this device');
-    expect(document.activeElement).toBe(buttonByText(view, p.archiveConfirm.cancel));
-    // Nothing happened yet.
-    expect((await (view as View).lib.deps.client.call('listProfiles', { state: 'archived' })).length).toBe(0);
-
-    await click(buttonByText(view, p.archiveConfirm.confirm));
-    await settle();
-    expect(names(view)).toEqual([]);
-    expect(view.container.textContent).toContain(p.emptyTitle);
-    expect(status(view)).toBe('Fina is now archived.');
-    expect(view.container.textContent).toContain('Show archived people (1)');
-  });
-
-  test('keeping someone in the list leaves them untouched', async () => {
-    view = await open(async ({ deps }) => {
-      await createProfile(deps, { displayName: 'Gina' });
-    });
-    await click(buttonByLabel(view, 'Archive Gina'));
-    await click(buttonByText(view, p.archiveConfirm.cancel));
-    expect(view.container.querySelector('[role="group"]')).toBeNull();
-    expect(names(view)).toEqual(['Gina']);
-  });
-
-  test('restores an archived person to the main list', async () => {
-    view = await open(async ({ deps }) => {
-      const hugo = await createProfile(deps, { displayName: 'Hugo' });
-      await archiveProfile(deps, hugo.id);
-    });
-    expect(view.container.textContent).toContain(p.allArchivedBody);
-    await click(buttonByText(view, 'Show archived people (1)'));
-    await click(buttonByLabel(view, 'Restore Hugo'));
-    await settle();
-    expect(status(view)).toBe('Hugo is back in the list.');
-    expect(view.container.textContent).not.toContain('Show archived');
-    expect(names(view)).toEqual(['Hugo']);
-  });
-
-  test('a failed archive says nothing changed', async () => {
-    view = await open(async ({ deps }) => {
-      await createProfile(deps, { displayName: 'Iris' });
-    });
-    await click(buttonByLabel(view, 'Archive Iris'));
-    (view as View).lib.deps.client.call = () => Promise.reject(new DbError('internal', 'boom'));
-    await click(buttonByText(view, p.archiveConfirm.confirm));
-    await settle();
-    expect(view.container.querySelector('[role="alert"]')?.textContent).toBe('Nothing was changed for Iris. Try again.');
-    expect(names(view)).toEqual(['Iris']);
   });
 
   test('shows the welcome instead while the library has no profile at all', async () => {
@@ -260,19 +186,6 @@ describe('PeopleScreen', () => {
     expect(region?.textContent).toBe('Kai was added.');
   });
 
-  test('opening a form clears the previous message', async () => {
-    view = await open(async ({ deps }) => {
-      const lia = await createProfile(deps, { displayName: 'Lia' });
-      await archiveProfile(deps, lia.id);
-    });
-    await click(buttonByText(view, 'Show archived people (1)'));
-    await click(buttonByLabel(view, 'Restore Lia'));
-    await settle();
-    expect(status(view)).toBe('Lia is back in the list.');
-    await click(buttonByLabel(view, 'Edit Lia'));
-    expect(status(view)).toBe('');
-  });
-
   test('after creating, the new list is on screen with no empty-state flash', async () => {
     view = await open();
     await click(buttonByText(view, p.add));
@@ -302,18 +215,10 @@ describe('PeopleScreen', () => {
     expect(await (view as View).lib.deps.client.call('listProfiles')).toHaveLength(1);
   });
 
-  test('Escape closes the form without saving, and the archive confirmation without archiving', async () => {
+  test('Escape closes the form without saving', async () => {
     view = await open(async ({ deps }) => {
       await createProfile(deps, { displayName: 'Ona' });
     });
-    await click(buttonByLabel(view, 'Archive Ona'));
-    const cancel = buttonByText(view, p.archiveConfirm.cancel)!;
-    await act(async () => {
-      cancel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    });
-    expect(view.container.querySelector('[role="group"]')).toBeNull();
-    expect(names(view)).toEqual(['Ona']);
-
     await click(buttonByText(view, p.add));
     const input = view.container.querySelector('form input')!;
     await type(input, 'Not saved');
@@ -323,20 +228,6 @@ describe('PeopleScreen', () => {
     await settle();
     expect(view.container.querySelector('form')).toBeNull();
     expect(names(view)).toEqual(['Ona']);
-  });
-
-  test('a failed archive keeps the confirmation open and focus on its button', async () => {
-    view = await open(async ({ deps }) => {
-      await createProfile(deps, { displayName: 'Pau' });
-    });
-    await click(buttonByLabel(view, 'Archive Pau'));
-    (view as View).lib.deps.client.call = () => Promise.reject(new DbError('internal', 'boom'));
-    const confirm = buttonByText(view, p.archiveConfirm.confirm)!;
-    confirm.focus();
-    await click(confirm);
-    await settle();
-    expect(view.container.querySelector('[role="group"]')).not.toBeNull();
-    expect(document.activeElement).toBe(confirm);
   });
 
   test('people are h2 under the page h1; archived ones are h3 under their section', async () => {
@@ -351,61 +242,6 @@ describe('PeopleScreen', () => {
       'H2:Archived',
       'H3:Rut',
     ]);
-  });
-
-  test('the confirmation buttons read in the same order for the eye and for Tab', async () => {
-    view = await open(async ({ deps }) => {
-      await createProfile(deps, { displayName: 'Sol' });
-    });
-    await click(buttonByLabel(view, 'Archive Sol'));
-    const row = buttonByText(view, p.archiveConfirm.cancel)!.parentElement!;
-    expect(row.className).not.toContain('reverse');
-    expect([...row.querySelectorAll('button')].map((b) => b.textContent?.trim())).toEqual([p.archiveConfirm.cancel, p.archiveConfirm.confirm]);
-  });
-
-  test('a form opened while focus is being restored keeps the focus', async () => {
-    view = await open(async ({ deps }) => {
-      const tom = await createProfile(deps, { displayName: 'Tom' });
-      await archiveProfile(deps, tom.id);
-    });
-    await click(buttonByText(view, 'Show archived people (1)'));
-    vi.useFakeTimers({ toFake: ['setTimeout'] });
-    try {
-      await click(buttonByLabel(view, 'Restore Tom'));
-      await act(async () => {
-        for (let i = 0; i < 30; i++) await Promise.resolve();
-      });
-      // Restored; the focus restore is still waiting for its timer. Open a form first.
-      await click(buttonByLabel(view, 'Edit Tom'));
-      const input = view.container.querySelector('form input');
-      expect(document.activeElement).toBe(input);
-      await advance(10);
-      expect(document.activeElement).toBe(input);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  test('Add a person is inert while a change is being saved', async () => {
-    view = await open(async ({ deps }) => {
-      await createProfile(deps, { displayName: 'Uri' });
-    });
-    await click(buttonByLabel(view, 'Archive Uri'));
-    let release: () => void = () => {};
-    const gate = new Promise<void>((resolve) => (release = resolve));
-    const call = (view as View).lib.deps.client.call.bind((view as View).lib.deps.client);
-    (view as View).lib.deps.client.call = async (op, ...args) => {
-      await gate;
-      return call(op, ...args);
-    };
-    await click(buttonByText(view, p.archiveConfirm.confirm));
-    const add = buttonByText(view, p.add)!;
-    expect(add.getAttribute('aria-disabled')).toBe('true');
-    await click(add);
-    expect(view.container.querySelector('form')).toBeNull();
-    release();
-    await settle();
-    expect(add.getAttribute('aria-disabled')).toBeNull();
   });
 
   test('Escape during an input-method composition does not close the form', async () => {
@@ -452,9 +288,9 @@ describe('PeopleScreen', () => {
     const link = view.container.querySelector('li h2 a')!;
     expect(link.getAttribute('href')).toBe(`/person?id=${id}`);
     expect(link.textContent).toBe('Ana');
-    // Edit and Archive stay on the card.
-    expect(buttonByLabel(view, 'Edit Ana')).not.toBeNull();
-    expect(buttonByLabel(view, 'Archive Ana')).not.toBeNull();
+    // Edit and Archive moved to the person's own menu.
+    expect(buttonByLabel(view, 'Edit Ana')).toBeNull();
+    expect(buttonByLabel(view, 'Archive Ana')).toBeNull();
   });
 
   describe('conversations that belong to no one', () => {
@@ -560,34 +396,33 @@ describe('Home when the library cannot open on first run', () => {
     });
     await advance(8000);
     const text = view.container.textContent ?? '';
-    expect(text).toContain(en.welcome.title);
+    expect(text).toContain(en.welcome.titleStart);
     expect(text).toContain(en.welcome.privacy);
     expect([...view.container.querySelectorAll('button')].map((b) => b.textContent)).toEqual([en.welcome.start, en.welcome.open, en.library.retry]);
     const alert = view.container.querySelector('[role="alert"]')!;
     expect(alert.textContent).toContain(en.library.inUse.title);
     expect(alert.textContent).toContain('another tab or window');
     // Beneath the welcome, not instead of it.
-    expect(view.container.querySelector('main')!.lastElementChild).toBe(alert);
+    expect(view.container.querySelector('main > div:last-child')!.lastElementChild).toBe(alert);
 
     fail = false;
     await click(buttonByText(view, en.library.retry));
     await advance(0);
-    expect(view.container.textContent).toContain(en.welcome.title);
+    expect(view.container.textContent).toContain(en.welcome.titleStart);
     expect(view.container.querySelector('[role="alert"]')).toBeNull();
     });
 
   test('shows the welcome with the error notice after an unexpected failure', async () => {
     view = await renderWithLibrary(<PeopleScreen whenNoProfiles={<Welcome />} />, { open: async () => Promise.reject(new DbError('internal', 'x')) });
     await settle();
-    expect(view.container.textContent).toContain(en.welcome.title);
+    expect(view.container.textContent).toContain(en.welcome.titleStart);
     expect(view.container.textContent).toContain(en.library.error.body);
   });
 
-  test('while loading it shows a neutral shell with the same spacing as the welcome, not the welcome', async () => {
+  test('while loading it shows a neutral shell, not the welcome', async () => {
     view = await renderWithLibrary(<PeopleScreen whenNoProfiles={<Welcome />} />, { open: () => new Promise(() => {}) });
-    expect(view.container.textContent).not.toContain(en.welcome.title);
-    expect(view.container.querySelector('main')!.className).toContain('pt-10');
-    expect(view.container.querySelector('main')!.className).toContain('sm:pt-20');
+    expect(view.container.textContent).not.toContain(en.welcome.titleStart);
+    expect(view.container.querySelector('main[data-panel]')).not.toBeNull();
   });
 });
 

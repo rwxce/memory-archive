@@ -16,6 +16,7 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/sub',
 }));
 
 // happy-dom has no modal <dialog>: a local stand-in that toggles `open` and fires `close`.

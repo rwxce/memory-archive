@@ -18,7 +18,8 @@ function loopback(opened: OpenedDb, options: { reverse?: boolean } = {}) {
   const queue: DbResponse[] = [];
   const transport: DbTransport = {
     send: (request) => {
-      const response = structuredClone(handleDbRequest(opened, structuredClone(request) as DbRequest));
+      // None of these tests uses an async operation.
+      const response = structuredClone(handleDbRequest(opened, structuredClone(request) as DbRequest) as DbResponse);
       if (options.reverse) queue.push(response);
       else queueMicrotask(() => respond(response));
     },

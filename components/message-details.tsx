@@ -22,7 +22,7 @@ export function DetailsButton({ open, panelId, onToggle }: { open: boolean; pane
       onClick={onToggle}
       // The 44 px target sits beside the bubble and does not add to the row's height.
       className={cn(
-        'text-muted-foreground -my-2 rounded-full',
+        'text-mu -mx-1 -my-2 rounded-full',
         '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/row:opacity-100 focus-visible:opacity-100',
         open && 'opacity-100!',
       )}
@@ -58,7 +58,7 @@ export function MessageDetails({ id, align, state, onRetry }: { id: string; alig
         id={id}
         dir="auto"
         aria-busy={state.status === 'loading'}
-        className="bg-muted/60 text-muted-foreground mt-1 flex max-w-[85%] min-w-0 flex-col gap-0.5 rounded-lg px-2.5 py-1.5 text-xs leading-snug [overflow-wrap:anywhere] sm:max-w-[75%]"
+        className="bg-sf text-t2 mt-1 flex max-w-[85%] min-w-0 flex-col gap-0.5 rounded-2xl px-3.5 py-2.5 text-xs leading-snug [overflow-wrap:anywhere] sm:max-w-[75%]"
       >
         {state.status === 'loading' && <p role="status">{t('loading')}</p>}
         {state.status === 'ready' && <Ready source={state.source} />}

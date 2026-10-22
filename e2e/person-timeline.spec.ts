@@ -1,6 +1,6 @@
 import { strToU8, zipSync } from 'fflate';
 import type { Locator, Page } from '@playwright/test';
-import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test } from './fixtures';
+import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test, openSection, jumpToDate } from './fixtures';
 
 /**
  * A person's Timeline against the built app, with the real workers and OPFS: two synthetic chats are
@@ -33,7 +33,7 @@ async function seedMama(page: Page) {
   await expect(page.getByText(/new messages added to Mama\./)).toBeVisible();
   await page.goto('/en/people/');
   await page.getByRole('list', { name: 'People' }).getByRole('link', { name: 'Mama' }).click();
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Timeline' }).click();
+  await openSection(page, 'Timeline');
   await expect(page).toHaveURL(/\/en\/person\/timeline\/\?id=[0-9a-f-]{36}$/);
 }
 
@@ -60,10 +60,10 @@ test('a person has a Timeline: both chats in one feed, the conversation named wh
   await expect(article(feed, 2).getByRole('link')).toHaveCount(0);
 
   // a date jump lands on the other chat's day, in order, and both chat changes are named
-  await page.getByLabel('Go to date').fill('2026-03-18');
+  await jumpToDate(page, '2026-03-18');
   await expect(article(feed, 101)).toBeInViewport();
   await expect(article(feed, 101)).toContainText('Wednesday, March 18, 2026');
-  await page.getByLabel('Go to date').fill('2026-03-19');
+  await jumpToDate(page, '2026-03-19');
   await expect(article(feed, 204)).toBeInViewport();
   await expect(article(feed, 204)).toContainText('Chat A message 201');
   await expect(article(feed, 204).getByRole('link', { name: /Ana i Bo/ })).toBeVisible();
@@ -82,7 +82,7 @@ test('the Timeline calendar jumps across both chats, Back returns to the place, 
   await seedMama(page);
   const feed = feedOf(page);
   await expect(article(feed, 303)).toBeInViewport();
-  const trigger = page.getByRole('button', { name: 'Calendar' });
+  const trigger = page.getByRole('button', { name: 'Go to date' });
   await trigger.click();
   const panel = page.getByRole('region', { name: 'Calendar of this timeline' });
   await expect(panel.getByRole('heading', { name: 'Choose a month in 2026' })).toBeVisible();
@@ -97,7 +97,7 @@ test('the Timeline calendar jumps across both chats, Back returns to the place, 
   // Back to the person and into the Timeline again: same place
   await page.getByRole('link', { name: 'Back to Mama' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Mama' })).toBeVisible();
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Timeline' }).click();
+  await openSection(page, 'Timeline');
   await expect(article(feedOf(page), 101)).toBeInViewport();
 
   await page.goto('/en/person/timeline/?id=00000000-0000-4000-8000-000000000099');
