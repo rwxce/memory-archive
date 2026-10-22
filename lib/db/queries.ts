@@ -988,6 +988,13 @@ export function countMessages(db: SqlDb, conversationId: string): number {
   return getConversationBounds(db, conversationId).count;
 }
 
+/** A window row as SQLite returns it: the flags are 0 / 1 and `isSystem` is derived. */
+type WindowRow<T extends ConversationMessage> = Omit<T, 'isMe' | 'isSystem' | 'isFavorite'> & { isMe: number; isFavorite: number };
+
+function toWindowMessage<T extends ConversationMessage>(m: WindowRow<T>): T {
+  return { ...m, isMe: m.isMe === 1, isSystem: m.type === 'system', isFavorite: m.isFavorite === 1 } as unknown as T;
+}
+
 /** The ids of one window, straight off `messages_timeline` (covering: no table lookups, no sort). */
 export const WINDOW_IDS_SQL = `SELECT id FROM messages WHERE conversation_id = ? ORDER BY sent_at, ordinal, id LIMIT ? OFFSET ?`;
 
@@ -995,11 +1002,12 @@ export const WINDOW_IDS_SQL = `SELECT id FROM messages WHERE conversation_id = ?
 export const MESSAGE_WINDOW_SQL = `
   SELECT m.id, m.sent_at AS sentAt, m.ordinal, m.type, p.display_name AS participantName,
          COALESCE(p.is_me, 0) AS isMe, m.body, m.media_sha256 AS mediaSha256,
-         m.media_name AS mediaName, b.mime AS mediaMime
+         m.media_name AS mediaName, b.mime AS mediaMime, f.fingerprint IS NOT NULL AS isFavorite
     FROM (${WINDOW_IDS_SQL}) w
     JOIN messages m ON m.id = w.id
     LEFT JOIN participants p ON p.id = m.participant_id
     LEFT JOIN blobs b ON b.sha256 = m.media_sha256
+    LEFT JOIN favorites f ON f.conversation_id = m.conversation_id AND f.fingerprint = m.fingerprint
    ORDER BY m.sent_at, m.ordinal, m.id`;
 
 /**
@@ -1013,8 +1021,8 @@ export function getMessageWindow(db: SqlDb, conversationId: string, offset: numb
   if (!Number.isFinite(limit)) invalid('limit must be a number');
   const n = Math.min(Math.max(Math.trunc(limit), 1), MAX_WINDOW);
   return db
-    .all<Omit<ConversationMessage, 'isMe' | 'isSystem'> & { isMe: number }>(MESSAGE_WINDOW_SQL, [id, n, offset])
-    .map((m) => ({ ...m, isMe: m.isMe === 1, isSystem: m.type === 'system' }));
+    .all<WindowRow<ConversationMessage>>(MESSAGE_WINDOW_SQL, [id, n, offset])
+    .map(toWindowMessage);
 }
 
 /**
@@ -1158,12 +1166,14 @@ export const TIMELINE_IDS_SQL = `SELECT m.id FROM messages m INDEXED BY messages
 export const TIMELINE_WINDOW_SQL = `
   SELECT m.id, m.conversation_id AS conversationId, c.title AS conversationTitle, m.sent_at AS sentAt,
          m.ordinal, m.type, p.display_name AS participantName, COALESCE(p.is_me, 0) AS isMe, m.body,
-         m.media_sha256 AS mediaSha256, m.media_name AS mediaName, b.mime AS mediaMime
+         m.media_sha256 AS mediaSha256, m.media_name AS mediaName, b.mime AS mediaMime,
+         f.fingerprint IS NOT NULL AS isFavorite
     FROM (${TIMELINE_IDS_SQL}) w
     JOIN messages m ON m.id = w.id
     JOIN conversations c ON c.id = m.conversation_id
     LEFT JOIN participants p ON p.id = m.participant_id
     LEFT JOIN blobs b ON b.sha256 = m.media_sha256
+    LEFT JOIN favorites f ON f.conversation_id = m.conversation_id AND f.fingerprint = m.fingerprint
    ORDER BY m.sent_at, m.ordinal, m.conversation_id, m.id`;
 
 /**
@@ -1177,8 +1187,8 @@ export function getPersonTimelineWindow(db: SqlDb, profileId: string, offset: nu
   if (!Number.isFinite(limit)) invalid('limit must be a number');
   const n = Math.min(Math.max(Math.trunc(limit), 1), MAX_WINDOW);
   return db
-    .all<Omit<PersonTimelineMessage, 'isMe' | 'isSystem'> & { isMe: number }>(TIMELINE_WINDOW_SQL, [id, n, offset])
-    .map((m) => ({ ...m, isMe: m.isMe === 1, isSystem: m.type === 'system' }));
+    .all<WindowRow<PersonTimelineMessage>>(TIMELINE_WINDOW_SQL, [id, n, offset])
+    .map(toWindowMessage);
 }
 
 /** Offset of the first timeline message on or after the local date, `null` when all are earlier. */
@@ -1201,4 +1211,112 @@ export function listPersonTimelineDays(db: SqlDb, profileId: string): Conversati
       ORDER BY date LIMIT ?`,
     [id, MAX_DAYS],
   );
+}
+
+// --------------------------------------------------------------- favorites
+
+export interface SetFavoriteInput {
+  conversationId: string;
+  /** The local message id the screen holds; resolved to the fingerprint here and never stored. */
+  messageId: number;
+  favorite: boolean;
+  /** UTC instant (ISO 8601); recorded when the favorite is created. */
+  now: string;
+}
+
+/**
+ * Marks or unmarks a message as a favorite. The favorite is stored by `(conversation, fingerprint)`,
+ * so it survives backup / restore and merge; the message id is only how the screen names the row.
+ * The pair is checked: a message of another conversation is `not-found`. Idempotent: favoriting
+ * twice is one row (the first `created_at` stays), unfavoriting a non-favorite changes nothing.
+ */
+export function setFavorite(db: SqlDb, input: SetFavoriteInput): { messageId: number; isFavorite: boolean } {
+  requireRecord(input, 'params');
+  const conversationId = requireUuid(input.conversationId, 'conversation id');
+  if (!Number.isSafeInteger(input.messageId) || input.messageId < 1) invalid('message id must be a positive integer');
+  if (typeof input.favorite !== 'boolean') invalid('favorite must be a boolean');
+  requireString(input.now, 'now');
+  return transaction(db, () => {
+    const [row] = db.all<{ fingerprint: string }>('SELECT fingerprint FROM messages WHERE id = ? AND conversation_id = ?', [
+      input.messageId,
+      conversationId,
+    ]);
+    if (!row) notFound('message');
+    if (input.favorite) {
+      db.run('INSERT OR IGNORE INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [
+        conversationId,
+        row.fingerprint,
+        input.now,
+      ]);
+    } else {
+      db.run('DELETE FROM favorites WHERE conversation_id = ? AND fingerprint = ?', [conversationId, row.fingerprint]);
+    }
+    return { messageId: input.messageId, isFavorite: input.favorite };
+  });
+}
+
+export interface FavoriteScope {
+  /** Only favorites in conversations linked to this person. */
+  profileId?: string;
+  /** Only favorites of this conversation. At most one of the two; none = the whole archive. */
+  conversationId?: string;
+}
+
+/** Validates the scope and returns its SQL condition over `f` (favorites) and its parameters. */
+function favoriteScope(db: SqlDb, scope: FavoriteScope | undefined): { where: string; params: SqlValue[] } {
+  const s = scope === undefined ? {} : requireRecord(scope, 'scope');
+  if (s.profileId !== undefined && s.conversationId !== undefined) invalid('scope takes a profile or a conversation, not both');
+  if (s.profileId !== undefined) {
+    const id = requireProfile(db, s.profileId);
+    return { where: 'AND f.conversation_id IN (SELECT conversation_id FROM conversation_profiles WHERE profile_id = ?)', params: [id] };
+  }
+  if (s.conversationId !== undefined) return { where: 'AND f.conversation_id = ?', params: [requireConversation(db, s.conversationId)] };
+  return { where: '', params: [] };
+}
+
+/**
+ * How many favorites are visible in the scope. A favorite whose message is gone (undone import)
+ * is dormant and not counted. `not-found` for an unknown profile or conversation.
+ */
+export function countFavorites(db: SqlDb, scope?: FavoriteScope): number {
+  const { where, params } = favoriteScope(db, scope);
+  const [row] = db.all<{ n: number }>(
+    `SELECT count(*) AS n FROM favorites f
+       CROSS JOIN messages m ON m.conversation_id = f.conversation_id AND m.fingerprint = f.fingerprint
+      WHERE 1 = 1 ${where}`,
+    params,
+  );
+  return row.n;
+}
+
+/**
+ * `limit` favorite messages from position `offset`, oldest first in the timeline's total order
+ * `(sent_at, ordinal, conversation_id, id)`, each with its conversation (same shape as a person
+ * timeline message, `isFavorite` always true). Limit clamped to 1..MAX_WINDOW; past the end is
+ * empty. The favorites are few, so they drive the query (`CROSS JOIN` pins the order: left to
+ * itself the planner walks every message in time order, probing favorites, which is O(archive))
+ * and the few matches are sorted; only the page is joined to authors, blobs and titles.
+ */
+export function listFavorites(db: SqlDb, scope: FavoriteScope | undefined, offset: number, limit: number): PersonTimelineMessage[] {
+  const { where, params } = favoriteScope(db, scope);
+  if (!Number.isSafeInteger(offset) || offset < 0) invalid('offset must be a non-negative integer');
+  if (!Number.isFinite(limit)) invalid('limit must be a number');
+  const n = Math.min(Math.max(Math.trunc(limit), 1), MAX_WINDOW);
+  return db
+    .all<WindowRow<PersonTimelineMessage>>(
+      `SELECT m.id, m.conversation_id AS conversationId, c.title AS conversationTitle, m.sent_at AS sentAt,
+              m.ordinal, m.type, p.display_name AS participantName, COALESCE(p.is_me, 0) AS isMe, m.body,
+              m.media_sha256 AS mediaSha256, m.media_name AS mediaName, b.mime AS mediaMime, 1 AS isFavorite
+         FROM (SELECT m.id FROM favorites f
+                 CROSS JOIN messages m ON m.conversation_id = f.conversation_id AND m.fingerprint = f.fingerprint
+                WHERE 1 = 1 ${where}
+                ORDER BY m.sent_at, m.ordinal, m.conversation_id, m.id LIMIT ? OFFSET ?) w
+         JOIN messages m ON m.id = w.id
+         JOIN conversations c ON c.id = m.conversation_id
+         LEFT JOIN participants p ON p.id = m.participant_id
+         LEFT JOIN blobs b ON b.sha256 = m.media_sha256
+        ORDER BY m.sent_at, m.ordinal, m.conversation_id, m.id`,
+      [...params, n, offset],
+    )
+    .map(toWindowMessage);
 }

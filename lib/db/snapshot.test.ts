@@ -102,24 +102,50 @@ describe('loadSnapshot', () => {
     expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
   });
 
-  test('a schema v3 snapshot restores by migrating to v4, keeping its messages and gaining the timeline index', async () => {
+  test('a schema v3 snapshot restores by migrating to the current schema, keeping its messages and gaining the timeline index', async () => {
     const v3 = await bareDb(MIGRATIONS.slice(0, 3));
     v3.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [ID2, 'Chat', 'whatsapp', NOW]);
     v3.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
     v3.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
     const target = (await openMemoryDb()).db;
     expect(await loadSnapshot(target, serializeDb(v3))).toEqual({ from: 3, to: SCHEMA_VERSION });
-    expect(SCHEMA_VERSION).toBe(4);
     expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
     expect(target.all("SELECT name FROM sqlite_master WHERE name = 'messages_by_time'")).toHaveLength(1);
   });
 
-  test('a current (v4) snapshot round-trips with the index', async () => {
-    const source = (await openMemoryDb()).db;
-    profile(source, ID1);
+  test('a schema v4 snapshot restores by migrating to v5: messages kept, favorites empty', async () => {
+    const v4 = await bareDb(MIGRATIONS.slice(0, 4));
+    v4.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [ID2, 'Chat', 'whatsapp', NOW]);
+    v4.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
+    v4.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
     const target = (await openMemoryDb()).db;
-    expect(await loadSnapshot(target, serializeDb(source))).toEqual({ from: 4, to: 4 });
+    expect(await loadSnapshot(target, serializeDb(v4))).toEqual({ from: 4, to: SCHEMA_VERSION });
+    expect(SCHEMA_VERSION).toBe(5);
+    expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
+    expect(target.all('SELECT * FROM favorites')).toEqual([]);
+  });
+
+  test('a current (v5) snapshot round-trips with its index and its favorites, anchored by fingerprint', async () => {
+    const source = (await openMemoryDb()).db;
+    createConversation(source, { id: ID2, title: 'Chat', source: 'whatsapp', isGroup: false, profileIds: [], participants: [], now: NOW });
+    source.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
+    source.run('INSERT INTO messages (id, conversation_id, batch_id, fingerprint, sent_at, type) VALUES (7, ?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
+    source.run('INSERT INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [ID2, 'ab'.repeat(32), NOW]);
+    // a dormant favorite (its message is not in the archive) travels too
+    source.run('INSERT INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [ID2, 'cd'.repeat(32), NOW]);
+    const target = (await openMemoryDb()).db;
+    expect(await loadSnapshot(target, serializeDb(source))).toEqual({ from: 5, to: 5 });
     expect(target.all("SELECT name FROM sqlite_master WHERE name = 'messages_by_time'")).toHaveLength(1);
+    expect(target.all('SELECT * FROM favorites ORDER BY fingerprint')).toEqual(source.all('SELECT * FROM favorites ORDER BY fingerprint'));
+  });
+
+  test('refuses a favorite of an unknown conversation or with a malformed fingerprint', async () => {
+    const orphan = (await openMemoryDb()).db;
+    orphan.exec('PRAGMA foreign_keys = OFF');
+    orphan.run('INSERT INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [ID2, 'ab'.repeat(32), NOW]);
+    await expectInvalid(orphan, /foreign key/);
+    const bad = (await openMemoryDb()).db;
+    expect(() => bad.run('INSERT INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [ID2, 'AB'.repeat(32), NOW])).toThrow(/CHECK|FOREIGN/);
   });
 
   test('refuses a snapshot from a newer schema and leaves the target alone', async () => {

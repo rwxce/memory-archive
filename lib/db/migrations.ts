@@ -154,11 +154,36 @@ const V4 = `
 CREATE INDEX messages_by_time ON messages(sent_at, ordinal, conversation_id);
 `;
 
+/**
+ * v5 (expand only): favorite messages. A new table only: no existing column, row or index changes,
+ * so a v1-v4 backup restores by migrating (the table starts empty).
+ *
+ * A favorite is anchored by `(conversation_id, fingerprint)`, never by the local integer message id:
+ * the id is per device, the fingerprint is the message's identity in a backup and in the future
+ * device sync, so a favorite survives restore and merge. Media favorites are favorite messages that
+ * carry media (a media message is a message).
+ *
+ * Deliberately NO foreign key to `messages`: undoing an import and importing the same chat again
+ * must not lose the favorite. A favorite whose message is gone is dormant: no read returns it (they
+ * all join `messages`) and it reappears with the message. It is removed only with its conversation
+ * (`ON DELETE CASCADE`, like the other per-conversation rows). `created_at` is a UTC instant
+ * supplied by the caller, like `profiles.created_at`.
+ */
+const V5 = `
+CREATE TABLE favorites (
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  fingerprint     TEXT NOT NULL CHECK (length(fingerprint) = 64 AND fingerprint NOT GLOB '*[^0-9a-f]*'),
+  created_at      TEXT NOT NULL,
+  PRIMARY KEY (conversation_id, fingerprint)
+) STRICT;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, sql: V1 },
   { version: 2, sql: V2 },
   { version: 3, sql: V3 },
   { version: 4, sql: V4 },
+  { version: 5, sql: V5 },
 ];
 
 /** Schema version this build produces and understands. */

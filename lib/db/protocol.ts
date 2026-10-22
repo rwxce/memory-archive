@@ -18,6 +18,7 @@ import type {
   ConversationProfileInput,
   CreateConversationInput,
   CreateProfileInput,
+  FavoriteScope,
   FindExistingFingerprintsInput,
   ImportBatchRow,
   ImportCandidates,
@@ -27,6 +28,7 @@ import type {
   ListImportBatchesInput,
   MoveConversationInput,
   ProfileState,
+  SetFavoriteInput,
   SetProfileArchivedInput,
   UndoImportBatchResult,
   UpdateProfileInput,
@@ -83,6 +85,9 @@ export interface DbOps {
   getPersonTimelineWindow: { params: { profileId: string; offset: number; limit: number }; result: PersonTimelineMessage[] };
   findPersonTimelineOffsetByDate: { params: { profileId: string; date: string }; result: number | null };
   listPersonTimelineDays: { params: { profileId: string }; result: ConversationDay[] };
+  setFavorite: { params: SetFavoriteInput; result: { messageId: number; isFavorite: boolean } };
+  countFavorites: { params: { scope?: FavoriteScope } | undefined; result: number };
+  listFavorites: { params: { scope?: FavoriteScope; offset: number; limit: number }; result: PersonTimelineMessage[] };
 }
 
 export type DbOpName = keyof DbOps;

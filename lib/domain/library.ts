@@ -148,6 +148,8 @@ export interface ConversationMessage {
   mediaName: string;
   /** Media type recorded for the blob at import time, or null when unknown. */
   mediaMime: string | null;
+  /** The user marked it as a favorite (kept by fingerprint, so it survives backup and restore). */
+  isFavorite: boolean;
 }
 
 /** A message in a person's combined timeline: the conversation view's message plus where it was said. */
