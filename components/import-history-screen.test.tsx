@@ -167,11 +167,9 @@ describe('the import history screen', () => {
     expect(entries(view)).toHaveLength(22);
     expect(entries(view)[21].textContent).toContain('Export 0.zip');
     expect(buttonNamed(view, h.loadMore)).toBeNull();
-    // The first of the new entries has the focus (moved after the DOM settles).
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    });
-    expect(document.activeElement).toBe(entries(view)[20].querySelector('h2'));
+    // The first of the new entries has the focus (moved after the DOM settles): wait for it
+    // instead of sleeping, a slow runner needs more than a fixed few milliseconds.
+    await vi.waitFor(() => expect(document.activeElement).toBe(entries(view)[20].querySelector('h2')), { timeout: 3000 });
   });
 
   test('a person filter shows only their imports, says whose, and can show all again', async () => {
@@ -282,11 +280,8 @@ describe('the import history screen', () => {
       more.focus();
       await click(more);
       await settle();
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 5));
-      });
       expect(buttonNamed(view, h.loadMore)).toBeNull();
-      expect(document.activeElement).toBe(view.container.querySelector('h1'));
+      await vi.waitFor(() => expect(document.activeElement).toBe(view.container.querySelector('h1')), { timeout: 3000 });
     });
   });
 
