@@ -36,6 +36,8 @@ export interface MemoryDirectoryCapabilities {
 
 interface FileNode {
   data: Uint8Array;
+  /** Time of the last content change (what `File.lastModified` reports). */
+  modified: number;
 }
 interface DirNode {
   entries: Map<string, FileNode | DirNode>;
@@ -75,7 +77,8 @@ export function createMemoryDirectory(capabilities: MemoryDirectoryCapabilities 
       name,
       async getFile() {
         // A snapshot, like the real thing: later writes do not change a File already handed out.
-        return new File([node().data.slice()], name);
+        const current = node();
+        return new File([current.data.slice()], name, { lastModified: current.modified });
       },
     };
     if (writable) {
@@ -90,7 +93,9 @@ export function createMemoryDirectory(capabilities: MemoryDirectoryCapabilities 
           },
           async close() {
             closed = true;
-            node().data = pending;
+            const current = node();
+            current.data = pending;
+            current.modified = Date.now();
           },
           async abort() {
             closed = true;
@@ -110,6 +115,7 @@ export function createMemoryDirectory(capabilities: MemoryDirectoryCapabilities 
             next.set(file.data);
             next.set(buffer, at);
             file.data = next;
+            file.modified = Date.now();
             return buffer.length;
           },
           truncate(size) {
@@ -147,7 +153,7 @@ export function createMemoryDirectory(capabilities: MemoryDirectoryCapabilities 
       },
       async getFileHandle(child: string, options?: { create?: boolean }) {
         let node = dir.entries.get(child);
-        if (!node && options?.create) dir.entries.set(child, (node = { data: new Uint8Array(0) }));
+        if (!node && options?.create) dir.entries.set(child, (node = { data: new Uint8Array(0), modified: Date.now() }));
         if (!node || isDir(node)) throw notFound(child);
         return fileHandle(dir, child);
       },

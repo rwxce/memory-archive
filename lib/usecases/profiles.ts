@@ -4,6 +4,7 @@ import type { ProfileState } from '../db/queries';
 import { isMimeType } from '../domain/profile';
 import { isSha256Hex, type BlobRef, type ConversationSummary, type Profile } from '../domain/library';
 import type { BlobStore } from '../storage/blob-store';
+import type { ThumbStore } from '../storage/thumb-store';
 import { withArchiveGuard, type ArchiveLock } from './archive-guard';
 
 export type { ProfileState };
@@ -25,6 +26,8 @@ export interface LibraryDeps {
 /** Profile writes that may carry a photo also need the blob store holding its bytes. */
 export interface ProfileDeps extends LibraryDeps {
   blobStore: BlobStore;
+  /** Derived thumbnails of the stored photos; optional, and dropped together with the blob they derive from. */
+  thumbStore?: ThumbStore;
   /** Cross-tab lock for archive operations (see `ArchiveLock`); absent = this tab only. */
   lock?: ArchiveLock;
 }

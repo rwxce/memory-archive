@@ -8,13 +8,16 @@ import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh,
  * first, videos read nothing, photos load only near the screen, 50 at a time) and a tile opens its
  * conversation on that day. Set E2E_SHOTS=<dir> to also save screenshots of the screen.
  */
-const png = (() => {
-  // A 48x48 RGB gradient: a real, decodable picture.
-  const size = 48;
-  const raw = Buffer.alloc((size * 3 + 1) * size);
-  for (let y = 0; y < size; y++) {
-    raw[y * (size * 3 + 1)] = 0;
-    for (let x = 0; x < size; x++) raw.set([x * 5, y * 5, 160], y * (size * 3 + 1) + 1 + x * 3);
+/** A real, decodable RGB PNG; `noise` makes it large in bytes (a photo-sized file, above the thumbnail threshold). */
+const pngOf = (width: number, height: number, noise: boolean) => {
+  const raw = Buffer.alloc((width * 3 + 1) * height);
+  let seed = 12345;
+  for (let y = 0; y < height; y++) {
+    raw[y * (width * 3 + 1)] = 0;
+    for (let x = 0; x < width; x++) {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      raw.set(noise ? [seed >> 8, seed >> 12, seed >> 16].map((v) => v & 255) : [x * 5, y * 5, 160], y * (width * 3 + 1) + 1 + x * 3);
+    }
   }
   const chunk = (type: string, data: Buffer) => {
     const head = Buffer.alloc(4);
@@ -25,11 +28,14 @@ const png = (() => {
     return Buffer.concat([head, body, tail]);
   };
   const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
   ihdr.set([8, 2, 0, 0, 0], 8);
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
-})();
+};
+// 48x48: tiny, shown as it is. BIG: 640x480, well above the thumbnail threshold, so its tile shows a 320 px thumbnail.
+const png = pngOf(48, 48, false);
+const bigPng = pngOf(640, 480, true);
 
 const PHOTO = (n: number) => `${String(n).padStart(8, '0')}-PHOTO-2026-03-13-10-00-00.png`;
 const VIDEO = '00000099-VIDEO-2026-01-14-12-00-00.mp4';
@@ -41,7 +47,7 @@ const lines = [
   `[12/02/2026, 08:00:00] Ana: <attached: ${PHOTO(1)}>`,
   ...Array.from({ length: MANY }, (_, i) => `[13/03/2026, 10:${String(i).padStart(2, '0')}:00] Ana: <attached: ${PHOTO(i + 2)}>`),
 ];
-const files = [...Array.from({ length: MANY + 2 }, (_, i) => PHOTO(i))].map((name) => [name, new Uint8Array(png)] as const);
+const files = [...Array.from({ length: MANY + 2 }, (_, i) => PHOTO(i))].map((name, i) => [name, new Uint8Array(i === 1 ? bigPng : png)] as const);
 const zip = () => ({
   name: 'WhatsApp Chat - Ana i Bo.zip',
   mimeType: 'application/zip',
@@ -85,9 +91,30 @@ test('a person has a Gallery: by month, photos load near the screen, videos read
   await expect(farImg).toHaveCount(0);
   if (process.env.E2E_SHOTS) await page.screenshot({ path: `${process.env.E2E_SHOTS}/person-gallery-${testInfo.project.name}.png`, fullPage: true });
 
+  // a big photo's tile shows a cached 320 px thumbnail (a 640x480 original), a small one shows itself
+  const bigImg = tiles.nth(2).locator('img');
+  await expect(bigImg).toHaveAttribute('src', /^blob:/);
+  await expect.poll(() => bigImg.evaluate((img: HTMLImageElement) => img.complete && [img.naturalWidth, img.naturalHeight].join('x'))).toBe('320x240');
+  const thumbCount = () =>
+    page.evaluate(async () => {
+      const root = await navigator.storage.getDirectory();
+      const dir = await root.getDirectoryHandle('memory-archive-thumbs');
+      let n = 0;
+      for await (const [name] of (dir as unknown as { entries(): AsyncIterable<[string, unknown]> }).entries()) if (/^[0-9a-f]{64}-320$/.test(name)) n++;
+      return n;
+    });
+  await expect.poll(thumbCount).toBe(1);
+
   // scrolling brings them in
   await tiles.nth(49).scrollIntoViewIfNeeded();
   await expect(farImg).toHaveAttribute('src', /^blob:/);
+
+  // after a reload the thumbnail comes from the cache: still 320 px, and nothing new is cached
+  await page.reload();
+  await expect(tiles.nth(2).locator('img')).toHaveAttribute('src', /^blob:/);
+  await expect.poll(() => tiles.nth(2).locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(320);
+  expect(await thumbCount()).toBe(1);
+  await expect(tiles.nth(0)).toBeVisible();
 
   // keyboard: tiles are buttons in DOM order
   await tiles.nth(0).focus();

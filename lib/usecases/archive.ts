@@ -14,6 +14,7 @@ import {
 } from '../exporters/archive/format';
 import { writeArchive } from '../exporters/archive/write';
 import type { BlobStore } from '../storage/blob-store';
+import type { ThumbStore } from '../storage/thumb-store';
 import { withArchiveGuard, type ArchiveLock } from './archive-guard';
 
 export { ARCHIVE_LOCK_NAME, webArchiveLock, withArchiveGuard } from './archive-guard';
@@ -22,6 +23,8 @@ export type { ArchiveLock } from './archive-guard';
 export interface ArchiveLibrary {
   db: SqlDb;
   blobStore: BlobStore;
+  /** The derived thumbnail cache. Never exported; cleared by a restore, which starts from none. */
+  thumbStore?: ThumbStore;
   /** Cross-tab lock, when the app has one (see `ArchiveLock`). */
   lock?: ArchiveLock;
 }
@@ -123,6 +126,8 @@ async function restoreNow(library: ArchiveLibrary, zip: Blob, options: { limits?
       throw new ArchiveError('storage', 'could not clear leftover media files from an interrupted restore', { cause });
     }
   }
+  // Thumbnails are derived from blobs: a restored library starts with an empty cache.
+  await library.thumbStore?.clear().catch(() => undefined);
   return restoreArchive(
     zip,
     {

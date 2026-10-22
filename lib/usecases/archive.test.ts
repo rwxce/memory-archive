@@ -5,13 +5,17 @@ import { createProfile } from '../db/queries';
 import { isLibraryEmpty } from '../db/snapshot';
 import { wrapOo1Db } from '../db/sql';
 import { openBlobStore } from '../storage/opfs-blob-store';
+import { openThumbStore } from '../storage/opfs-thumb-store';
 import { createMemoryDirectory } from '../storage/test-opfs-directory';
+import { webpBlob } from '../storage/test-thumbnail';
+import { unzipSync } from 'fflate';
 import { exportArchive, restoreArchiveIntoEmptyLibrary } from './archive';
 
 const ID = '3f2b8c1e-5d4a-4b6f-9a7e-0c1d2e3f4a5b';
 
 async function library() {
-  return { db: (await openMemoryDb()).db, blobStore: await openBlobStore(createMemoryDirectory()) };
+  const root = createMemoryDirectory();
+  return { db: (await openMemoryDb()).db, blobStore: await openBlobStore(root), thumbStore: await openThumbStore(root) };
 }
 
 describe('archive use cases', () => {
@@ -85,5 +89,27 @@ describe('archive use cases', () => {
     expect(target.db.all('SELECT display_name, photo_sha256 FROM profiles')).toEqual([{ display_name: 'Ana', photo_sha256: sha256 }]);
     expect(target.db.all('PRAGMA user_version')).toEqual([{ user_version: MIGRATIONS.length }]);
     expect(await target.blobStore.list()).toEqual([sha256]);
+  });
+
+  test('thumbnails are a local cache: not in the exported ZIP, and a restore works from an empty cache and clears a stale one', async () => {
+    const a = await library();
+    const bytes = new Uint8Array(1000).map((_, i) => i % 251);
+    const { sha256, size } = await a.blobStore.put(bytes);
+    a.db.run('INSERT INTO blobs (sha256, size) VALUES (?, ?)', [sha256, size]);
+    await a.thumbStore.put(sha256, 320, webpBlob(60));
+    const withCache = await exportArchive(a, { appVersion: '1', now: new Date('2026-05-06T00:00:00Z') });
+    const files = Object.keys(unzipSync(new Uint8Array(await withCache.blob.arrayBuffer())));
+    // exactly the known layout: manifest, database, and the one blob
+    expect([...files].sort()).toEqual(['blobs/' + sha256.slice(0, 2) + '/' + sha256, 'db/library.sqlite', 'manifest.json']);
+    // the same archive with an empty cache has the same entries
+    await a.thumbStore.clear();
+    const without = await exportArchive(a, { appVersion: '1', now: new Date('2026-05-06T00:00:00Z') });
+    expect(Object.keys(unzipSync(new Uint8Array(await without.blob.arrayBuffer()))).sort()).toEqual(files.sort());
+
+    const b = await library();
+    await b.thumbStore.put('f'.repeat(64), 320, webpBlob(60)); // left over from earlier use of this device
+    await restoreArchiveIntoEmptyLibrary(b, withCache.blob);
+    expect(await b.blobStore.list()).toEqual([sha256]);
+    expect(await b.thumbStore.usage()).toEqual({ count: 0, bytes: 0 });
   });
 });

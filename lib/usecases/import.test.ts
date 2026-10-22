@@ -6,8 +6,10 @@ import type { OpenedDb } from '../db/open';
 import { createTestLibrary } from './test-client';
 import type { BlobStore } from '../storage/blob-store';
 import { exportArchive, restoreArchiveIntoEmptyLibrary, type ArchiveLock } from './archive';
+import { webpBlob } from '../storage/test-thumbnail';
 import {
   importWhatsAppExport,
+  sweepLeftovers,
   sweepOrphanBlobs,
   undoImportBatch,
   type ImportResult,
@@ -368,14 +370,33 @@ describe('importWhatsAppExport: interrupted', () => {
     expect(await lib.deps.blobStore.list()).toEqual([]);
   });
 
+  test('the sweep and the open-time cleanup also drop thumbnails whose photo is not stored', async () => {
+    const lib = await setup();
+    const lock: ArchiveLock = async (_name, work) => ({ held: true, value: await work() });
+    const kept = await lib.deps.blobStore.put(bytes(5));
+    await createProfile(lib.deps, { displayName: 'Cy', photo: { ...kept, mime: 'image/png' } });
+    const stray = 'd'.repeat(64); // no blob at all (the blob went first)
+    await lib.deps.thumbStore!.put(stray, 320, webpBlob(40));
+    await lib.deps.thumbStore!.put(kept.sha256, 320, webpBlob(40));
+    expect(await sweepLeftovers({ ...lib.deps, lock })).toMatchObject({ ran: true });
+    expect(await lib.deps.thumbStore!.list()).toEqual([kept.sha256]);
+    await lib.deps.thumbStore!.put(stray, 320, webpBlob(40));
+    await sweepOrphanBlobs(lib.deps);
+    expect(await lib.deps.thumbStore!.list()).toEqual([kept.sha256]);
+  });
+
   test('the sweep keeps every referenced blob (messages and profile photos)', async () => {
     const lib = await setup();
     await imported(run(lib, exportZip(BASE, { [PHOTO]: bytes(1) })));
     const photo = await lib.deps.blobStore.put(bytes(5));
     await createProfile(lib.deps, { displayName: 'Cy', photo: { ...photo, mime: 'image/png' } });
-    await lib.deps.blobStore.put(bytes(6)); // orphan
+    const orphan = await lib.deps.blobStore.put(bytes(6));
+    await lib.deps.thumbStore!.put(orphan.sha256, 320, webpBlob(40));
+    await lib.deps.thumbStore!.put(photo.sha256, 320, webpBlob(40));
     expect(await lib.deps.blobStore.list()).toHaveLength(3);
     expect(await sweepOrphanBlobs(lib.deps)).toEqual({ removed: 1 });
+    expect(await lib.deps.thumbStore!.get(orphan.sha256, 320)).toBeUndefined();
+    expect(await lib.deps.thumbStore!.get(photo.sha256, 320)).toBeDefined();
     expect(await lib.deps.blobStore.list()).toHaveLength(2);
     expect(await sweepOrphanBlobs(lib.deps)).toEqual({ removed: 0 });
   });
@@ -426,6 +447,19 @@ describe('undoImportBatch', () => {
       expect(count(lib.opened, table)).toBe(0);
     }
     expect(count(lib.opened, 'profiles')).toBe(1);
+  });
+
+  test('drops the thumbnails of the media it removes and keeps those of media that stays', async () => {
+    const lib = await setup();
+    const a = await imported(run(lib, exportZip(BASE, { [PHOTO]: bytes(1) }), { fileName: 'WhatsApp Chat - Uno.zip' }));
+    const bLines = ['[21/04/2026, 10:00:00] Cy: <attached: IMG-X-PHOTO.jpg>', '[21/04/2026, 10:00:01] Cy: <attached: IMG-Y-PHOTO.jpg>'];
+    const b = await imported(run(lib, exportZip(bLines, { 'IMG-X-PHOTO.jpg': bytes(1), 'IMG-Y-PHOTO.jpg': bytes(2) }), { fileName: 'WhatsApp Chat - Dos.zip', meAuthor: null }));
+    const [shared, only] = await lib.deps.blobStore.list();
+    for (const sha256 of [shared!, only!]) await lib.deps.thumbStore!.put(sha256, 320, webpBlob(40));
+    await undoImportBatch(lib.deps, a.batchId);
+    expect(await lib.deps.thumbStore!.usage()).toEqual({ count: 2, bytes: 80 });
+    await undoImportBatch(lib.deps, b.batchId);
+    expect(await lib.deps.thumbStore!.usage()).toEqual({ count: 0, bytes: 0 });
   });
 
   test('is idempotent', async () => {
