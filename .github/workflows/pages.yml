@@ -1,0 +1,69 @@
+name: Pages
+
+# Publishes the static export (out/) to GitHub Pages. Only released versions
+# reach it: `main` receives `release: vX.Y.Z` PRs from `dev` and nothing else.
+# Run it by hand (Actions → Pages → Run workflow) to redeploy `main`.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # No telemetry from the Next.js toolchain (docs/privacy.md).
+  NEXT_TELEMETRY_DISABLED: '1'
+  # Pages serves this repository under /<repo name>/. A fork with another name
+  # changes this one line.
+  NEXT_PUBLIC_BASE_PATH: /memory-archive
+
+# Let a running deploy finish; a newer one waits instead of cancelling it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # Reads the pnpm version from package.json "packageManager".
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      # minimumReleaseAge (pnpm-workspace.yaml) is enforced here too.
+      - run: pnpm install --frozen-lockfile
+
+      # Viewer scripts, CLI, app → out/, service worker → out/sw.js.
+      - run: pnpm build
+
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: out
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
