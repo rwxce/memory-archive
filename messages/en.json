@@ -346,7 +346,28 @@
     "archivedNote": "This person is archived. Everything is still on this device, and you can restore them at any time.",
     "conversationsTitle": "Conversations",
     "noConversations": "No conversations are kept under {name} yet. When you bring in messages, they will appear here.",
-    "importsLink": "Imports for this person"
+    "importsLink": "Imports for this person",
+    "backToPerson": "Back to this person",
+    "sectionsLabel": "Sections",
+    "sectionAudio": "Audio"
+  },
+  "personAudio": {
+    "title": "Audio",
+    "back": "Back to {name}",
+    "loading": "Loading voice messages…",
+    "loadFailed": "The voice messages could not be read. Nothing was deleted.",
+    "count": "{count, plural, one {# voice message or audio file} other {# voice messages and audio files}}",
+    "empty": "There are no voice messages yet in the conversations kept under {name}. When there are, they will appear here.",
+    "you": "You",
+    "unknownAuthor": "Unknown sender",
+    "play": "Play",
+    "playLabel": "Play voice message from {label}",
+    "open": "Open in conversation",
+    "openLabel": "Open in conversation “{title}”, {when}",
+    "shown": "Showing {shown} of {total}",
+    "showMore": "Show more",
+    "loadingMore": "Loading more…",
+    "moreFailed": "Some voice messages could not be read. Nothing was deleted."
   },
   "conversations": {
     "listLabel": "Conversations",

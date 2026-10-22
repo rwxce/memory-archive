@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { formatBytes, formatDateRange, formatFullDay, formatNames, formatWhen, initialsOf } from './format';
+import { formatBytes, formatDateRange, formatDayTime, formatFullDay, formatMonth, formatNames, formatWhen, initialsOf } from './format';
 
 describe('formatBytes', () => {
   test('decimal units, one decimal below 10, localized separators', () => {
@@ -67,5 +67,14 @@ describe('formatFullDay', () => {
     expect(formatFullDay('2026-03-17T00:05:00', 'en')).toBe('Tuesday, March 17, 2026');
     expect(formatFullDay('2026-03-17', 'es')).toMatch(/^martes,? 17 de marzo de 2026$/);
     expect(formatFullDay('2026-03-17T23:59:59', 'ca')).toMatch(/dimarts.*17.*març.*2026/);
+  });
+});
+
+describe('formatDayTime and formatMonth', () => {
+  test('show a wall-clock stamp as written, in the UI language', () => {
+    expect(formatDayTime('2026-03-17T08:05:00', 'en')).toBe('Mar 17, 2026, 8:05 AM');
+    expect(formatDayTime('2026-03-17T23:59:00', 'es')).toMatch(/17 mar 2026,? 23:59/);
+    expect(formatMonth('2026-03-17T08:05:00', 'en')).toBe('March 2026');
+    expect(formatMonth('2026-03-31T23:59:00', 'ca')).toMatch(/març.*2026/);
   });
 });

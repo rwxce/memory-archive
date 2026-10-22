@@ -81,3 +81,19 @@ export function formatFullDay(stamp: string, locale: string): string {
   const [year, month, day] = stamp.slice(0, 10).split('-').map(Number);
   return new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, day)));
 }
+
+const wallClock = (stamp: string) => {
+  const [year, month, day] = stamp.slice(0, 10).split('-').map(Number);
+  const [hour = 0, minute = 0] = stamp.slice(11, 16).split(':').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, hour, minute));
+};
+
+/** A moment ("12 Mar 2024, 09:47") in the UI language, from a wall-clock stamp, shown as written, never shifted. */
+export function formatDayTime(stamp: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(wallClock(stamp));
+}
+
+/** "March 2024" in the UI language, from a wall-clock stamp, never shifted. */
+export function formatMonth(stamp: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(wallClock(stamp));
+}

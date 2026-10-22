@@ -346,7 +346,28 @@
     "archivedNote": "Esta persona está archivada. Todo sigue en este dispositivo y puedes restaurarla cuando quieras.",
     "conversationsTitle": "Conversaciones",
     "noConversations": "Aún no hay conversaciones guardadas con {name}. Cuando traigas mensajes, aparecerán aquí.",
-    "importsLink": "Importaciones de esta persona"
+    "importsLink": "Importaciones de esta persona",
+    "backToPerson": "Volver a esta persona",
+    "sectionsLabel": "Secciones",
+    "sectionAudio": "Audio"
+  },
+  "personAudio": {
+    "title": "Audio",
+    "back": "Volver a {name}",
+    "loading": "Cargando mensajes de voz…",
+    "loadFailed": "No se han podido leer los mensajes de voz. No se ha borrado nada.",
+    "count": "{count, plural, one {# mensaje de voz o archivo de audio} other {# mensajes de voz y archivos de audio}}",
+    "empty": "Aún no hay mensajes de voz en las conversaciones guardadas con {name}. Cuando los haya, aparecerán aquí.",
+    "you": "Tú",
+    "unknownAuthor": "Remitente desconocido",
+    "play": "Reproducir",
+    "playLabel": "Reproducir el mensaje de voz de {label}",
+    "open": "Abrir en la conversación",
+    "openLabel": "Abrir en la conversación «{title}», {when}",
+    "shown": "Se muestran {shown} de {total}",
+    "showMore": "Mostrar más",
+    "loadingMore": "Cargando más…",
+    "moreFailed": "Algunos mensajes de voz no se han podido leer. No se ha borrado nada."
   },
   "conversations": {
     "listLabel": "Conversaciones",
