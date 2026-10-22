@@ -74,9 +74,30 @@ export async function submit(form: Element | null | undefined) {
   });
 }
 
-/** Let pending promises (database calls, effects) settle. */
+/**
+ * Let pending promises (database calls, effects, focus moves) settle: wait until the document has
+ * stayed quiet for two ticks in a row. A fixed sleep was enough on a laptop and not on a loaded CI
+ * runner, where the worker answers late and a focus move lands after the assertion.
+ */
 export async function settle() {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 20));
+  const seen = { mutations: 0 };
+  const observer = new MutationObserver((records) => {
+    seen.mutations += records.length;
   });
+  observer.observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true });
+  try {
+    let quiet = 0;
+    const deadline = Date.now() + 3000;
+    while (quiet < 2 && Date.now() < deadline) {
+      const before = seen.mutations;
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      // Records are delivered as a microtask after the change: count the pending ones before judging the tick.
+      seen.mutations += observer.takeRecords().length;
+      quiet = seen.mutations === before ? quiet + 1 : 0;
+    }
+  } finally {
+    observer.disconnect();
+  }
 }
