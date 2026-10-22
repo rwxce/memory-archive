@@ -198,7 +198,9 @@ describe('PersonScreen', () => {
     await settle();
     expect(view.container.querySelector('h1')?.textContent).toBe('Ana Puig');
     expect(status(view)).toBe('Changes to Ana Puig were saved.');
-    expect(document.activeElement?.id).toBe(buttonByLabel(view, 'Edit Ana Puig')?.id);
+    // Focus returns to Edit after the form closes: wait for it, a slow runner is late.
+    const shown = view;
+    await vi.waitFor(() => expect(document.activeElement?.id).toBe(buttonByLabel(shown, 'Edit Ana Puig')?.id), { timeout: 3000 });
   });
 
   test('archiving asks first; the person stays on the page, now archived, with focus on the heading', async () => {
