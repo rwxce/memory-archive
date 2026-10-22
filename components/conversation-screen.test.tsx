@@ -109,6 +109,9 @@ describe('ConversationScreen', () => {
     const back = header.querySelector('a')!;
     expect(back.textContent).toContain('Back to Ana M.');
     expect(back.getAttribute('href')).toBe(`/person?id=${ana.id}`);
+    const searchLink = header.querySelector<HTMLAnchorElement>('a[href^="/search?conversation="]')!;
+    expect(searchLink.textContent).toBe('Search in this conversation');
+    expect(searchLink.getAttribute('href')).toMatch(/^\/search\?conversation=[0-9a-f-]{36}$/);
   });
 
   test('a conversation that is not assigned says so and goes back to People', async () => {

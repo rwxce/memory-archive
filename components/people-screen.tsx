@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight, FileUp, History, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileUp, History, Plus, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { ConversationList } from '@/components/conversation-list';
 import { LibraryNotice } from '@/components/library-notice';
@@ -191,6 +191,12 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
           <p className="text-muted-foreground">{t('intro')}</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <Button variant="outline" asChild>
+            <Link href="/search">
+              <Search aria-hidden />
+              {t('search')}
+            </Link>
+          </Button>
           <Button variant="outline" asChild>
             <Link href="/import">
               <FileUp aria-hidden />

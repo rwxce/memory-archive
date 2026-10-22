@@ -12,7 +12,7 @@ const KIND_ICON = { photo: ImageIcon, sticker: ImageIcon, video: Video, audio: M
 const KINDS = ['photo', 'sticker', 'video', 'audio', 'document'] as const;
 
 /** What a media favorite shows without reading its file: the kind and the file name. */
-function MediaLine({ message }: { message: PersonTimelineMessage }) {
+export function MediaLine({ message }: { message: PersonTimelineMessage }) {
   const tm = useTranslations('conversation.media');
   const kind = KINDS.find((k) => k === message.type);
   if (!kind) return null;
