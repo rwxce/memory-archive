@@ -160,7 +160,7 @@ export function ConversationBody({
           {list.items.map(({ index, top }) => {
             const found = pages.at(index);
             return found ? (
-              <MessageRow key={index} index={index} count={count} top={top} message={found.message} previous={found.previous} rowRef={list.rowRef} />
+              <MessageRow key={index} conversationId={id} index={index} count={count} top={top} message={found.message} previous={found.previous} rowRef={list.rowRef} />
             ) : (
               <PlaceholderRow key={index} index={index} top={top} rowRef={list.rowRef} />
             );

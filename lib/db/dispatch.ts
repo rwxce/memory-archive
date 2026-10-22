@@ -11,6 +11,7 @@ import {
   findImportCandidates,
   findMessageOffsetByDate,
   getConversationBounds,
+  getMessageSource,
   getMessageWindow,
   getProfile,
   importMessages,
@@ -80,6 +81,10 @@ const HANDLERS: Handlers = {
     return findMessageOffsetByDate(db, params.conversationId as string, params.date as string);
   },
   listConversationDays: ({ db }, p) => listConversationDays(db, requireParams(p).conversationId as string),
+  getMessageSource: ({ db }, p) => {
+    const params = requireParams(p);
+    return getMessageSource(db, params.conversationId as string, params.messageId as number);
+  },
   countPersonMedia: ({ db }, p) => {
     const params = requireParams(p);
     return countPersonMedia(db, params.profileId as string, params.kinds as MediaMessageType[]);

@@ -184,6 +184,18 @@ export interface ConversationDay {
   firstOffset: number;
 }
 
+/** Where one message came from: the import that first added it. */
+export interface MessageSource {
+  messageId: number;
+  /** The importer, e.g. `whatsapp`. */
+  source: string;
+  /** The import's file name or label (untrusted, display only), or ''. */
+  sourceLabel: string;
+  /** When that import ran (ISO). */
+  importedAt: string;
+  batchId: string;
+}
+
 /** Position of a message in chronological order, for keyset pagination. */
 export interface MessageCursor {
   sentAt: string;

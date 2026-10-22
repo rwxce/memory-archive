@@ -534,6 +534,18 @@
       "playLabel": "Reprodueix {name}",
       "saveLabel": "Desa {name}",
       "save": "Desa"
+    },
+    "details": {
+      "toggle": "Detalls del missatge",
+      "loading": "Carregant els detalls…",
+      "source": "Origen: {name}",
+      "sourceFile": "Origen: {name} ({file})",
+      "imported": "Importat el {date}",
+      "notFound": "Aquest missatge ja no és a l'arxiu.",
+      "failed": "No s'han pogut llegir els detalls. No s'ha esborrat res.",
+      "sources": {
+        "whatsapp": "WhatsApp"
+      }
     }
   }
 }

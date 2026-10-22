@@ -534,6 +534,18 @@
       "playLabel": "Play {name}",
       "saveLabel": "Save {name}",
       "save": "Save"
+    },
+    "details": {
+      "toggle": "Message details",
+      "loading": "Loading details…",
+      "source": "Source: {name}",
+      "sourceFile": "Source: {name} ({file})",
+      "imported": "Imported {date}",
+      "notFound": "This message is no longer in the archive.",
+      "failed": "The details could not be read. Nothing was deleted.",
+      "sources": {
+        "whatsapp": "WhatsApp"
+      }
     }
   }
 }

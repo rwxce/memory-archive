@@ -172,6 +172,50 @@ test.describe('a small conversation', () => {
     await page.getByRole('link', { name: 'Open “Ana i Bo”' }).click();
     await expect(article(feedOf(page), 201)).toBeInViewport();
   });
+
+  test('message details open under the message, from the keyboard, without the feed jumping', async ({ page }, testInfo) => {
+    await startFresh(page);
+    await addPerson(page, 'Mama');
+    await importFromPeople(page, zip(), 'Mama', /^Add [\d,]+ messages to Mama$/);
+    await expect(page.getByText(/new messages added to Mama\./)).toBeVisible();
+    await openConversation(page);
+    const feed = feedOf(page);
+    await page.getByLabel('Go to date').fill('2026-03-20');
+    await expect(article(feed, 301)).toBeInViewport();
+    await expect(feed).toHaveAttribute('aria-busy', 'false');
+
+    const message = article(feed, 302);
+    const top = async (position: number) => (await article(feed, position).boundingBox())!.y;
+    const topBefore = await top(301);
+    const belowBefore = await top(303);
+    const scrollBefore = await feed.evaluate((el) => el.scrollTop);
+
+    // keyboard: focus the button, Enter opens, Space closes, Enter opens again
+    const toggle = message.getByRole('button', { name: 'Message details' });
+    await toggle.focus();
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    const box = (await toggle.boundingBox())!;
+    expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const details = message.locator(`#${await toggle.getAttribute('aria-controls')}`);
+    await expect(details).toContainText(`Source: WhatsApp (${NAME})`);
+    await expect(details).toContainText(/Imported .*\d{4}/);
+    await page.keyboard.press('Space');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(details).toHaveCount(0);
+    await page.keyboard.press('Enter');
+    await expect(details).toContainText('Source: WhatsApp');
+
+    // the rows above stay where they were, the row below makes room, and the feed did not scroll
+    expect(Math.abs((await top(301)) - topBefore)).toBeLessThanOrEqual(1);
+    await expect.poll(async () => (await top(303)) - belowBefore).toBeGreaterThan(0);
+    expect(await feed.evaluate((el) => el.scrollTop)).toBe(scrollBefore);
+    expect(await rowCount(feed)).toBeLessThan(80);
+    expect(await overflowsHorizontally(page)).toBe(false);
+    if (process.env.E2E_SHOTS) await page.screenshot({ path: `${process.env.E2E_SHOTS}/message-details-${testInfo.project.name}.png` });
+  });
 });
 
 test.describe('a large conversation', () => {

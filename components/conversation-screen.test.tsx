@@ -508,3 +508,116 @@ describe('media', () => {
     expect(peak).toBeGreaterThan(1);
   });
 });
+
+describe('message details', () => {
+  const d = en.conversation.details;
+  const toggle = (article: HTMLElement) => article.querySelector<HTMLButtonElement>(`button[aria-label="${d.toggle}"]`)!;
+  const panel = (article: HTMLElement) => article.querySelector<HTMLElement>('[id]:not(article)');
+  /** Make `getMessageSource` fail with `code`, and count how often it is asked. */
+  function failSource(lib: Lib, code: string | null, calls: { n: number }) {
+    const call = lib.client.call.bind(lib.client) as (m: string, p?: unknown) => Promise<unknown>;
+    (lib.client as { call: unknown }).call = async (method: string, params?: unknown) => {
+      if (method === 'getMessageSource') {
+        calls.n++;
+        if (code !== null && (code !== 'retry' || calls.n === 1)) throw Object.assign(new Error('x'), { code: code === 'retry' ? 'internal' : code });
+      }
+      return call(method, params);
+    };
+  }
+
+  test('a button toggles the details: aria-expanded, aria-controls, source and import date; nothing is read before', async () => {
+    const calls = { n: 0 };
+    await open(async (lib) => {
+      await seed(lib, [text(1), text(2)]);
+      failSource(lib, null, calls);
+    });
+    const [first] = articles();
+    const button = toggle(first);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(button.hasAttribute('aria-controls')).toBe(false);
+    expect(panel(first)).toBeNull();
+    expect(calls.n).toBe(0);
+
+    await click(button);
+    await settle();
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    const details = panel(first)!;
+    expect(button.getAttribute('aria-controls')).toBe(details.id);
+    expect(details.textContent).toContain('Source: WhatsApp (x.zip)');
+    expect(details.textContent).toMatch(/Imported .*Feb [12], 2026/);
+    expect(calls.n).toBe(1);
+
+    // closing and reopening does not read again
+    await click(button);
+    expect(panel(first)).toBeNull();
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    await click(button);
+    expect(panel(first)!.textContent).toContain('Source: WhatsApp (x.zip)');
+    expect(calls.n).toBe(1);
+  });
+
+  test('the button is a real 44 px button with a name; notices have none', async () => {
+    await open((lib) => seed(lib, [text(1), text(2, { type: 'system', participantName: null, body: 'changed' })]).then(() => {}));
+    const [first, notice] = articles();
+    expect(toggle(first).tagName).toBe('BUTTON');
+    expect(toggle(first).className).toContain('size-11');
+    expect(notice.querySelector('button')).toBeNull();
+  });
+
+  test('an empty label shows just WhatsApp; an unknown source and a hostile label are plain text', async () => {
+    await open(async (lib) => {
+      await seed(lib, [text(1), text(2)]);
+      const call = lib.client.call.bind(lib.client) as (m: string, p?: unknown) => Promise<unknown>;
+      let n = 0;
+      (lib.client as { call: unknown }).call = async (method: string, params?: unknown) => {
+        if (method !== 'getMessageSource') return call(method, params);
+        const real = (await call(method, params)) as object;
+        return ++n === 1 ? { ...real, sourceLabel: '' } : { ...real, source: 'telegram', sourceLabel: '<img src=x onerror=alert(1)>' };
+      };
+    });
+    const [first, second] = articles();
+    await click(toggle(first));
+    await settle();
+    expect(panel(first)!.textContent).toContain('Source: WhatsApp');
+    expect(panel(first)!.textContent).not.toContain('(');
+    await click(toggle(second));
+    await settle();
+    expect(panel(second)!.textContent).toContain('Source: telegram (<img src=x onerror=alert(1)>)');
+    expect(panel(second)!.querySelector('img')).toBeNull();
+  });
+
+  test('a message that is gone says so calmly; a failure offers Try again', async () => {
+    const gone = { n: 0 };
+    await open(async (lib) => {
+      await seed(lib, [text(1)]);
+      failSource(lib, 'not-found', gone);
+    });
+    await click(toggle(articles()[0]));
+    await settle();
+    expect(panel(articles()[0])!.textContent).toBe(d.notFound);
+    view!.unmount();
+
+    const flaky = { n: 0 };
+    await open(async (lib) => {
+      await seed(lib, [text(1)]);
+      failSource(lib, 'retry', flaky);
+    });
+    await click(toggle(articles()[0]));
+    await settle();
+    const alert = view!.container.querySelector('[role="alert"]')!;
+    expect(alert.textContent).toContain(d.failed);
+    await click([...alert.querySelectorAll('button')].find((b) => b.textContent === c.retry)!);
+    await settle();
+    expect(view!.container.querySelector('[role="alert"]')).toBeNull();
+    expect(panel(articles()[0])!.textContent).toContain('Source: WhatsApp (x.zip)');
+  });
+
+  test('Catalan copy', async () => {
+    await open((lib) => seed(lib, [text(1)]).then(() => {}), `id=${CONV}`, ca);
+    await click(articles()[0].querySelector(`button[aria-label="${ca.conversation.details.toggle}"]`)!);
+    await settle();
+    expect(articles()[0].textContent).toContain('Origen: WhatsApp (x.zip)');
+    expect(articles()[0].textContent).toContain('Importat el');
+  });
+});
+
