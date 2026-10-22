@@ -234,10 +234,3 @@ Details in [`docs/roadmap.md`](docs/roadmap.md).
 
 This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
 It started as a fork of [guionardo/wa-backup](https://github.com/guionardo/wa-backup) by Guionardo Furlan, also MIT.
-
----
-
-## 📬 Contact
-
-For questions or suggestions, contact:
-**[148581386+rwxce@users.noreply.github.com](mailto:148581386+rwxce@users.noreply.github.com)**
