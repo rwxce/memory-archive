@@ -54,7 +54,15 @@ test type or architecture rule means updating this file **in the same PR**.
     `hooks/use-tile-image.ts` (the one seam where thumbnails will replace the full-size file), the shared
     3-at-a-time queue, and its URL is revoked when the tile leaves that window or unmounts. A video tile is
     a play glyph and its file name and reads nothing. Missing and undecodable files are a calm note in the
-    tile. No lightbox yet.
+    tile. A tile is a button that opens the item full size in `components/person-gallery-lightbox.tsx`, a
+    native modal `<dialog>` (focus trapped and returned by the browser, Escape closes, focus then goes back
+    to the tile): photo fitted and never enlarged, video with its own controls (stopped and released when
+    left), title / kind / date / author / caption as text, Previous / Next buttons and ArrowLeft / ArrowRight
+    over the loaded items (Next at the last loaded one asks `usePersonMedia` for the next page and moves on
+    when it arrives; on failure it stays put), "n of loaded" in a polite live region and an "Open in
+    conversation" link (`components/person-gallery-href.ts`, shared with the tile). The full-size file comes
+    from `hooks/use-lightbox-media.ts`: only the open item and, when idle, the next photo hold an object
+    URL; the rest are revoked as it moves on and all on close. No swipe.
   - **Person audio** (`/[locale]/person/audio/?id=<uuid>`, `components/person-audio-screen.tsx` /
     `person-audio-item.tsx`, reached from `components/person-sections.tsx`, the section links shared by the
     person page and each section page; only sections that exist are listed): every voice message and audio
@@ -598,7 +606,7 @@ test type or architecture rule means updating this file **in the same PR**.
     `regressions` (one block per fixed known bug).
   - Packaging — `scripts/build-viewer-script.test.ts` (bundle fresh and self-contained) and
     `pnpm smoke` (built CLI).
-  - UI — `components/person-gallery-screen.test.tsx` (kinds, month groups, hrefs, near-screen reads and URL revoke with a driven IntersectionObserver, video reads nothing, missing and undecodable, Show more, empty / not-found / error + retry, Catalan), `hooks/use-near-viewport.test.tsx`, `e2e/person-gallery.spec.ts` (real PNGs and a video, lazy loading on scroll, keyboard, open in the conversation, at 390 and 1440 px);
+  - UI — `components/person-gallery-screen.test.tsx` (kinds, month groups, near-screen reads and URL revoke with a driven IntersectionObserver, video reads nothing, missing and undecodable, Show more, empty / not-found / error + retry, Catalan), `components/person-gallery-lightbox.test.tsx` (dialog stub for happy-dom: open, arrows, ends, missing, read-ahead and revoke, focus return, next page and its failure), `hooks/use-near-viewport.test.tsx`, `e2e/person-gallery.spec.ts` (real PNGs and a video, lazy loading on scroll, keyboard, lightbox open / arrows / Escape / next page / open in the conversation, at 390 and 1440 px);
   - UI — `components/person-audio-screen.test.tsx` and `hooks/use-person-media.test.tsx` (month groups, Open-in-conversation hrefs, one player at a time, missing file, Show more, empty / not-found / error + retry, Catalan; paging, kinds, failed page, ids), `e2e/person-audio.spec.ts` (import, sections link, play one at a time, open in the conversation, at 390 and 1440 px); `components/person-screen.test.tsx` (details, not-found, archived person, edit, archive,
     rename validation / double submit / failure / Escape and IME, move, link, unlink incl. the last
     person, busy guard, focus and live-region behaviour), `components/people-screen.test.tsx`

@@ -379,12 +379,19 @@
     "empty": "Aún no hay fotos ni vídeos en las conversaciones guardadas con {name}. Cuando los haya, aparecerán aquí.",
     "photo": "Foto",
     "video": "Vídeo",
-    "tileLabel": "Abrir en la conversación «{title}»: {kind}, {when}",
+    "tileLabel": "Ver {kind}, {when}, de «{title}»",
     "videoName": "Vídeo",
     "shown": "Se muestran {shown} de {total}",
     "showMore": "Mostrar más",
     "loadingMore": "Cargando más…",
-    "moreFailed": "Algunas fotos y vídeos no se han podido leer. No se ha borrado nada."
+    "moreFailed": "Algunas fotos y vídeos no se han podido leer. No se ha borrado nada.",
+    "lightboxLabel": "{kind} de «{title}», {when}",
+    "position": "{current} de {total}",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "close": "Cerrar",
+    "openInConversation": "Abrir en la conversación",
+    "loadingNext": "Cargando la siguiente…"
   },
   "conversations": {
     "listLabel": "Conversaciones",

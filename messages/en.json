@@ -379,12 +379,19 @@
     "empty": "There are no photos or videos yet in the conversations kept under {name}. When there are, they will appear here.",
     "photo": "Photo",
     "video": "Video",
-    "tileLabel": "Open in conversation “{title}”: {kind}, {when}",
+    "tileLabel": "View {kind}, {when}, from “{title}”",
     "videoName": "Video",
     "shown": "Showing {shown} of {total}",
     "showMore": "Show more",
     "loadingMore": "Loading more…",
-    "moreFailed": "Some photos and videos could not be read. Nothing was deleted."
+    "moreFailed": "Some photos and videos could not be read. Nothing was deleted.",
+    "lightboxLabel": "{kind} from “{title}”, {when}",
+    "position": "{current} of {total}",
+    "previous": "Previous",
+    "next": "Next",
+    "close": "Close",
+    "openInConversation": "Open in conversation",
+    "loadingNext": "Loading the next one…"
   },
   "conversations": {
     "listLabel": "Conversations",

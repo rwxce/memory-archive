@@ -5,7 +5,6 @@ import { ImageIcon, ImageOff, Play } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useNearViewport } from '@/hooks/use-near-viewport';
 import { useTileImage } from '@/hooks/use-tile-image';
-import { Link } from '@/i18n/navigation';
 import type { PersonMediaItem } from '@/lib/domain/library';
 import { formatDayTime } from './format';
 
@@ -56,24 +55,25 @@ function VideoFace({ item }: { item: PersonMediaItem }) {
 }
 
 /**
- * One square tile: a link that opens the message in its conversation, on that day. Its size never
- * depends on the picture (no layout shift as photos arrive). Names are untrusted text.
+ * One square tile: a button that opens the item full size. Its size never depends on the picture
+ * (no layout shift as photos arrive). Names are untrusted text.
  */
-export function PersonGalleryTile({ item, personId }: { item: PersonMediaItem; personId: string }) {
+export function PersonGalleryTile({ item, onOpen, buttonRef }: { item: PersonMediaItem; onOpen: (id: number) => void; buttonRef?: (element: HTMLButtonElement | null) => void }) {
   const t = useTranslations('personGallery');
   const locale = useLocale();
   const isVideo = item.type === 'video';
-  const href = `/conversation?id=${encodeURIComponent(item.conversationId)}&from=${encodeURIComponent(personId)}&date=${item.sentAt.slice(0, 10)}`;
   const label = t('tileLabel', { title: item.conversationTitle, kind: t(isVideo ? 'video' : 'photo'), when: formatDayTime(item.sentAt, locale) });
   return (
     <li>
-      <Link
-        href={href}
+      <button
+        type="button"
+        ref={buttonRef}
+        onClick={() => onOpen(item.id)}
         aria-label={label}
-        className="bg-muted hover:bg-muted/70 focus-visible:ring-ring/50 relative block aspect-square min-h-11 overflow-hidden rounded-lg border outline-none focus-visible:ring-[3px]"
+        className="bg-muted hover:bg-muted/70 focus-visible:ring-ring/50 relative block aspect-square w-full min-h-11 overflow-hidden rounded-lg border outline-none focus-visible:ring-[3px]"
       >
         {isVideo ? <VideoFace item={item} /> : <Picture item={item} />}
-      </Link>
+      </button>
     </li>
   );
 }

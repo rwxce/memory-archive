@@ -110,7 +110,7 @@ async function open(prepare: (lib: Lib) => Promise<{ id: string }>, query?: (id:
 }
 
 const click = (el: Element) => act(async () => (el as HTMLElement).click());
-const tiles = () => [...view!.container.querySelectorAll('section li a')];
+const tiles = () => [...view!.container.querySelectorAll('section li button')];
 const text = () => view!.container.textContent ?? '';
 const watched = (tile: Element) => [...observers].map((o) => o.element).find((el) => tile.contains(el) || el.parentElement === tile);
 
@@ -135,25 +135,15 @@ describe('PersonGalleryScreen', () => {
     expect(text()).toContain('4 photos and videos');
     expect([...view!.container.querySelectorAll('h2')].map((h) => h.textContent)).toEqual(['January 2026', 'February 2026', 'March 2026']);
     expect(tiles().map((a) => a.getAttribute('aria-label'))).toEqual([
-      'Open in conversation “Chat with Ana”: Photo, Jan 10, 2026, 9:05 AM',
-      'Open in conversation “Chat with Ana”: Video, Jan 11, 2026, 10:00 AM',
-      'Open in conversation “Chat with Ana”: Photo, Feb 11, 2026, 9:30 PM',
-      'Open in conversation “Family group”: Photo, Mar 14, 2026, 6:00 PM',
+      'View Photo, Jan 10, 2026, 9:05 AM, from “Chat with Ana”',
+      'View Video, Jan 11, 2026, 10:00 AM, from “Chat with Ana”',
+      'View Photo, Feb 11, 2026, 9:30 PM, from “Chat with Ana”',
+      'View Photo, Mar 14, 2026, 6:00 PM, from “Family group”',
     ]);
     expect(URL.createObjectURL).not.toHaveBeenCalled();
     expect(view!.container.querySelector('img')).toBeNull();
     expect(view!.container.querySelector('nav a[aria-current="page"]')?.getAttribute('href')).toBe(`/person/gallery?id=${person.id}`);
     expect(view!.container.querySelector(`a[href="/person?id=${person.id}"]`)?.textContent).toBe('Back to Ana');
-  });
-
-  test('each tile opens its message in its conversation, on that day, coming from the person', async () => {
-    const { person } = await open(seed);
-    expect(tiles().map((a) => a.getAttribute('href'))).toEqual([
-      `/conversation?id=${PRIVATE}&from=${person.id}&date=2026-01-10`,
-      `/conversation?id=${PRIVATE}&from=${person.id}&date=2026-01-11`,
-      `/conversation?id=${PRIVATE}&from=${person.id}&date=2026-02-11`,
-      `/conversation?id=${GROUP}&from=${person.id}&date=2026-03-14`,
-    ]);
   });
 
   test('a photo is read only while its tile is near the screen, and freed when it leaves', async () => {
@@ -245,6 +235,6 @@ describe('PersonGalleryScreen', () => {
   test('speaks Catalan', async () => {
     await open(seed, undefined, ca);
     expect(view!.container.querySelector('h1')?.textContent).toBe(ca.personGallery.title);
-    expect(tiles()[0].getAttribute('aria-label')).toContain('Obre a la conversa «Chat with Ana»: Foto');
+    expect(tiles()[0].getAttribute('aria-label')).toContain('Mostra Foto,');
   });
 });
