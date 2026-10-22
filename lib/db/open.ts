@@ -1,6 +1,7 @@
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { DbError, toDbError } from './errors';
 import { migrate, readUserVersion } from './migrations';
+import { registerSearchTarget, type SearchTarget } from './search';
 import { wrapOo1Db, type SqlDb } from './sql';
 
 export type Persistence = 'opfs-sahpool' | 'memory';
@@ -20,6 +21,13 @@ export interface OpenedDb {
 /** OPFS directory and file the library lives in; part of the on-device format. */
 export const OPFS_DIRECTORY = '/memory-archive-db';
 export const OPFS_DB_FILE = '/library.sqlite3';
+/** The derived full-text index (`search.ts`): same pool, never backed up, always rebuildable. */
+export const OPFS_SEARCH_FILE = '/search.sqlite3';
+/**
+ * Files the pool must be able to hold: two databases, a rollback journal each, a super-journal
+ * and some temporary files (the pool does not grow by itself; the default is 6).
+ */
+const OPFS_POOL_CAPACITY = 12;
 const OPFS_VFS_NAME = 'memory-archive-opfs-sahpool';
 
 type Sqlite3 = Awaited<ReturnType<typeof sqlite3InitModule>>;
@@ -39,9 +47,10 @@ export function loadSqlite(): Promise<Sqlite3> {
 }
 
 /** Foreign keys are off by default in SQLite; the schema relies on them. */
-function prepare(db: SqlDb, sqlite3: Sqlite3, persistence: Persistence): OpenedDb {
+function prepare(db: SqlDb, sqlite3: Sqlite3, persistence: Persistence, search: SearchTarget): OpenedDb {
   try {
     db.exec('PRAGMA foreign_keys = ON');
+    registerSearchTarget(db, search);
     migrate(db);
   } catch (error) {
     db.close();
@@ -53,7 +62,7 @@ function prepare(db: SqlDb, sqlite3: Sqlite3, persistence: Persistence): OpenedD
 /** A fresh in-memory library: Node tests, and nothing else. Nothing is persisted. */
 export async function openMemoryDb(): Promise<OpenedDb> {
   const sqlite3 = await loadSqlite();
-  return prepare(wrapOo1Db(new sqlite3.oo1.DB(':memory:', 'c'), sqlite3.capi), sqlite3, 'memory');
+  return prepare(wrapOo1Db(new sqlite3.oo1.DB(':memory:', 'c'), sqlite3.capi), sqlite3, 'memory', { file: ':memory:', exists: false });
 }
 
 /**
@@ -82,5 +91,14 @@ export async function openOpfsDb(): Promise<OpenedDb> {
       `the on-device database is not available (is it open in another tab, or is private storage unsupported?): ${toDbError(error).message}`,
     );
   }
-  return prepare(wrapOo1Db(new pool.OpfsSAHPoolDb(OPFS_DB_FILE), sqlite3.capi), sqlite3, 'opfs-sahpool');
+  // Room for the search index file. Failing to get it must not keep the library from opening:
+  // search would then report itself unavailable, nothing else.
+  await pool.reserveMinimumCapacity(OPFS_POOL_CAPACITY).catch(() => undefined);
+  return prepare(wrapOo1Db(new pool.OpfsSAHPoolDb(OPFS_DB_FILE), sqlite3.capi), sqlite3, 'opfs-sahpool', {
+    file: OPFS_SEARCH_FILE,
+    exists: pool.getFileNames().some((name) => name.endsWith(OPFS_SEARCH_FILE)),
+    remove: () => {
+      pool.unlink(OPFS_SEARCH_FILE);
+    },
+  });
 }

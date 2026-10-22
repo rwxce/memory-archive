@@ -13,10 +13,14 @@ import type {
   PersonMediaItem,
   PersonTimelineMessage,
   Profile,
+  SearchIndexStep,
+  SearchResult,
+  SearchStatus,
   StoredMessage,
 } from '../domain/library';
 import type { DbErrorData } from './errors';
 import type { DbInfo } from './open';
+import type { SearchInput } from './search';
 import type {
   ConversationProfileInput,
   CreateConversationInput,
@@ -96,6 +100,9 @@ export interface DbOps {
   setNote: { params: SetNoteInput; result: Note | null };
   countNotes: { params: { scope?: NoteScope } | undefined; result: number };
   listNotes: { params: { scope?: NoteScope; offset: number; limit: number }; result: NoteItem[] };
+  getSearchStatus: { params: undefined; result: SearchStatus };
+  stepSearchIndex: { params: { limit?: number } | undefined; result: SearchIndexStep };
+  searchMessages: { params: SearchInput; result: SearchResult[] };
   listFavorites: { params: { scope?: FavoriteScope; offset: number; limit: number }; result: PersonTimelineMessage[] };
 }
 
