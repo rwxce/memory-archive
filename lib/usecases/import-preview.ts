@@ -187,6 +187,7 @@ export async function previewWhatsAppExport(
         maxEntries: limits.maxEntries,
         maxCentralDirectoryBytes: limits.maxCentralDirectoryBytes,
         maxChatBytes: limits.maxChatBytes,
+        maxCompressionRatio: limits.maxCompressionRatio,
       },
     });
     for await (const m of stream.messages) {

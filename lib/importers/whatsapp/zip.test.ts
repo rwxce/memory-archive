@@ -242,3 +242,61 @@ describe('openZipEntry output bound', () => {
     expect((await readZipEntryBytes(blob, entry)).length).toBe(70_000);
   });
 });
+
+/** Overwrite the declared sizes of one entry in the central directory of a ZIP. */
+function patchSizes(zip: Uint8Array, name: string, patch: { uncompressed?: number; compressed?: number }): Blob {
+  const bytes = new Uint8Array(zip);
+  const view = new DataView(bytes.buffer);
+  let eocd = bytes.length - 22;
+  while (view.getUint32(eocd, true) !== 0x06054b50) eocd--;
+  let at = view.getUint32(eocd + 16, true);
+  for (let n = view.getUint16(eocd + 10, true); n > 0; n--) {
+    const nameLength = view.getUint16(at + 28, true);
+    if (new TextDecoder().decode(bytes.subarray(at + 46, at + 46 + nameLength)) === name) {
+      if (patch.uncompressed !== undefined) view.setUint32(at + 24, patch.uncompressed, true);
+      if (patch.compressed !== undefined) view.setUint32(at + 20, patch.compressed, true);
+    }
+    at += 46 + nameLength + view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
+  }
+  return new Blob([bytes as BlobPart]);
+}
+
+describe('readZipEntries: declared-size limits', () => {
+  const chat = strToU8('[01/01/2026, 10:00:00] A: hi\n'.repeat(200));
+  const normal = zipSync({ '_chat.txt': chat, 'IMG-1.jpg': [new Uint8Array(5000).map((_, i) => (i * 7919) % 251), { level: 0 }] });
+
+  test('a real bomb (zeros that deflate ~1000:1) is refused from the directory alone', async () => {
+    const bomb = new Blob([zipSync({ '_chat.txt': chat, 'big.bin': new Uint8Array(4_000_000) }) as BlobPart]);
+    await expect(readZipEntries(bomb, { maxCompressionRatio: 100 })).rejects.toThrow(ZipLimitError);
+    // No ratio option, no ratio check: the caller decides.
+    expect(await readZipEntries(bomb)).toHaveLength(2);
+  });
+
+  test('an extreme declared size on a tiny entry is refused by ratio, by entry and by total', async () => {
+    const lying = patchSizes(zipSync({ '_chat.txt': chat, 'x.bin': strToU8('tiny') }), 'x.bin', { uncompressed: 0xfffffff0 });
+    await expect(readZipEntries(lying, { maxCompressionRatio: 100 })).rejects.toThrow(ZipLimitError);
+    await expect(readZipEntries(lying, { maxEntryBytes: 1 << 20 })).rejects.toThrow(ZipLimitError);
+    await expect(readZipEntries(lying, { maxTotalBytes: 1 << 20 })).rejects.toThrow(ZipLimitError);
+  });
+
+  test('the total counts every entry', async () => {
+    const zip = new Blob([zipSync({ 'a.txt': new Uint8Array(600), 'b.txt': new Uint8Array(600) }, { level: 0 }) as BlobPart]);
+    expect(await readZipEntries(zip, { maxTotalBytes: 1200 })).toHaveLength(2);
+    await expect(readZipEntries(zip, { maxTotalBytes: 1199 })).rejects.toThrow(ZipLimitError);
+    await expect(readZipEntries(zip, { maxEntryBytes: 599 })).rejects.toThrow(ZipLimitError);
+  });
+
+  test('legitimate content passes: text chats, incompressible media, tiny entries', async () => {
+    const entries = await readZipEntries(new Blob([normal as BlobPart]), { maxCompressionRatio: 100, maxEntryBytes: 1 << 20, maxTotalBytes: 1 << 20 });
+    expect(entries.map((e) => e.name)).toEqual(['_chat.txt', 'IMG-1.jpg']);
+    // 1 KiB of zeros deflates to a few bytes: the floor keeps tiny entries under the ratio.
+    const tiny = new Blob([zipSync({ 'z.txt': new Uint8Array(1024) }) as BlobPart]);
+    expect(await readZipEntries(tiny, { maxCompressionRatio: 100 })).toHaveLength(1);
+  });
+
+  test('an entry shorter than it declares fails when read (the declared size is a lie)', async () => {
+    const zip = patchSizes(zipSync({ 'a.bin': new Uint8Array([1, 2, 3, 4]) }, { level: 0 }), 'a.bin', { uncompressed: 4000 });
+    const [entry] = await readZipEntries(zip);
+    await expect(readZipEntryBytes(zip, entry)).rejects.toThrow(/smaller than it declares/);
+  });
+});

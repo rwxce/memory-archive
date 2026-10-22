@@ -8,7 +8,7 @@ import { findAuthor, renderHtml, renderJson, renderMarkdown } from '@/lib/export
 import { mergeCsv, readCsv, writeCsv } from './csv';
 import { buildMediaMap, dataUriLoader, reconcileMedia } from './media';
 import type { FetchGuardOptions } from './titles';
-import { openZip } from './zip';
+import { CLI_CHAT_ZIP_LIMITS, openZip } from './zip';
 
 export interface RunOptions {
   out?: string;
@@ -115,7 +115,7 @@ export async function runParser(
   const { info, messages, detection, warnings } = await parseWhatsAppZip(
     zip,
     path.basename(zipPath),
-    { dayFirst: opts.dayFirst, monthFirst: opts.monthFirst },
+    { dayFirst: opts.dayFirst, monthFirst: opts.monthFirst, limits: CLI_CHAT_ZIP_LIMITS },
   );
   const out = opts.out ?? 'output';
   const dir = path.join(out, info.slug);

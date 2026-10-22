@@ -10,7 +10,7 @@ const INVISIBLE_CHARS =
   '\\uFEFF\\u200E\\u200F\\u200B\\u200C\\u200D\\u2066\\u2067\\u2068\\u2069';
 
 const INVISIBLE_RE = new RegExp(`^[${INVISIBLE_CHARS}]+`, 'u');
-const INVISIBLE_TRIM_RE = new RegExp(`^[${INVISIBLE_CHARS}]+|[${INVISIBLE_CHARS}]+$`, 'gu');
+const INVISIBLE_SET = new Set([...'\uFEFF\u200E\u200F\u200B\u200C\u200D\u2066\u2067\u2068\u2069']);
 
 export function stripInvisible(s: string): string {
   return s.replace(INVISIBLE_RE, '');
@@ -18,7 +18,10 @@ export function stripInvisible(s: string): string {
 
 /** Strip leading AND trailing invisible runs (used on message bodies). */
 export function trimInvisible(s: string): string {
-  return s.replace(INVISIBLE_TRIM_RE, '');
+  // A loop, not `/[..]+$/`: that pattern is quadratic on a long invisible run that is not at the end.
+  let end = s.length;
+  while (end > 0 && INVISIBLE_SET.has(s[end - 1]!)) end--;
+  return stripInvisible(s.slice(0, end));
 }
 
 /**

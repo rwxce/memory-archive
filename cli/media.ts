@@ -8,7 +8,7 @@ import { matchMediaEntries, openZipEntry, readZipEntries } from '@/lib/importers
 import { buildMediaMap as buildMediaMapFromFiles } from '@/lib/exporters/legacy';
 import type { MediaEntry, MediaFile } from '@/lib/exporters/legacy';
 import type { Message } from '@/lib/importers/whatsapp';
-import { openZip } from './zip';
+import { CLI_ZIP_LIMITS, openZip } from './zip';
 
 export {
   INLINE_MAX_BYTES,
@@ -39,7 +39,7 @@ export async function reconcileMedia(
   await fs.promises.mkdir(mediaDir, { recursive: true });
 
   const zip = await openZip(zipPath);
-  const entries = await readZipEntries(zip);
+  const entries = await readZipEntries(zip, CLI_ZIP_LIMITS);
   const { matches, unresolved } = matchMediaEntries(entries, refs);
 
   const resolved: string[] = [];

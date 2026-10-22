@@ -389,3 +389,24 @@ test('fetchTitle: LinkedIn redirect resolves the destination title (not LinkedIn
     globalThis.fetch = original;
   }
 });
+
+test('extractTitle: hostile pages are scanned in linear time and real tags still work', () => {
+  const N = 500_000;
+  const pages = [
+    '<meta '.repeat(N / 6),
+    '<meta name="og:title"'.repeat(N / 20),
+    '<title'.repeat(N / 6),
+    '<title>'.repeat(N / 7),
+    `<title>${' '.repeat(N)}`,
+    `<meta${' '.repeat(N)}`,
+  ];
+  for (const page of pages) {
+    const start = performance.now();
+    extractTitle(page);
+    assert.ok(performance.now() - start < 100, 'extractTitle should be linear');
+  }
+  assert.equal(extractTitle('<META NAME="og:title" CONTENT="A &amp; B"><title>T</title>'), 'A & B');
+  assert.equal(extractTitle('<meta content="Before" property="twitter:title"><TITLE x=1>T</TITLE>'), 'Before');
+  assert.equal(extractTitle('<html><TITLE lang="en">  Hi\n </TITLE>'), 'Hi');
+  assert.equal(extractTitle('<title>no end'), null);
+});

@@ -6,6 +6,7 @@ import { csvField, mergeMessages, parseCsv, parseCsvRecords, serializeCsv, unesc
 import { buildMediaMap, bytesToBase64, extOf } from './media';
 import { renderHtml, resolveSelfAuthor, transcriptItems } from './html';
 import { renderMarkdown } from './md';
+import { deriveTitle, linkifyHtml, linkifyMarkdown } from './js/linkify.js';
 import { renderJson } from './json';
 import { GENERATOR_NAME, GENERATOR_VERSION } from './version';
 import { VIEWER_SCRIPT } from './js/viewer-script.generated';
@@ -217,5 +218,38 @@ describe('transcript structure', () => {
     expect(resolveSelfAuthor(messages)).toBe('Ana');
     expect(resolveSelfAuthor(messages, '+00 555 0101')).toBe('\u202a+00 555 0101\u202c');
     expect(resolveSelfAuthor(messages, 'nobody')).toBe('Ana');
+  });
+});
+
+describe('hostile text renders in linear time', () => {
+  const MAX_MS = 50;
+  const N = 60_000;
+  const elapsedAsync = async (fn: () => unknown) => {
+    const start = performance.now();
+    await fn();
+    return performance.now() - start;
+  };
+
+  test('a long newline run inside a message (Markdown trailing trim)', async () => {
+    const m = msg('2026-01-01T10:00:00', 'Ana', `a${'\n'.repeat(N)}b`);
+    expect(await elapsedAsync(() => renderMarkdown([m], 'Chat', {}))).toBeLessThan(MAX_MS);
+    const md = await renderMarkdown([msg('2026-01-01T10:00:00', 'Ana', 'hi')], 'Chat', {});
+    expect(md.endsWith('\n')).toBe(true);
+    expect(md.endsWith('\n\n')).toBe(false);
+  });
+
+  test.each([
+    ['punctuation run inside a URL', `http://a.example/${'!'.repeat(N)}x`],
+    ['punctuation run at the end', `http://a.example/x${'.'.repeat(N)}`],
+    ['slash run inside a path', `http://a.example/${'/'.repeat(N)}x`],
+  ])('links: %s', async (_name, url) => {
+    expect(await elapsedAsync(() => linkifyHtml(url))).toBeLessThan(MAX_MS);
+    expect(await elapsedAsync(() => linkifyMarkdown(url))).toBeLessThan(MAX_MS);
+    expect(await elapsedAsync(() => deriveTitle(url))).toBeLessThan(MAX_MS);
+  });
+
+  test('links still drop trailing sentence punctuation and trailing slashes', () => {
+    expect(linkifyHtml('see http://a.example/x?!.')).toContain('href="http://a.example/x"');
+    expect(deriveTitle('http://www.a.example/p//')).toBe('a.example/p');
   });
 });

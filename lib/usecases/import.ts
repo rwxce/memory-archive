@@ -1,6 +1,6 @@
 import type { DbClient } from '../db/client';
 import { DbError } from '../db/errors';
-import { ArchiveError } from '../exporters/archive/format';
+import { ArchiveError, MAX_COMPRESSION_RATIO } from '../exporters/archive/format';
 import type { ImportCandidate } from '../db/queries';
 import { createFingerprinter, normalizeAuthor } from '../domain/fingerprint';
 import { isUuid, type BlobRef, type NewMessage } from '../domain/library';
@@ -45,6 +45,8 @@ export interface ImportLimits {
   maxChatBytes: number;
   /** Uncompressed size of one media file. */
   maxMediaBytes: number;
+  /** Declared uncompressed / compressed size of a deflated entry (zip-bomb guard, same as restore). */
+  maxCompressionRatio: number;
 }
 
 export const DEFAULT_IMPORT_LIMITS: ImportLimits = {
@@ -52,6 +54,7 @@ export const DEFAULT_IMPORT_LIMITS: ImportLimits = {
   maxCentralDirectoryBytes: 32 * 1024 * 1024,
   maxChatBytes: 256 * 1024 * 1024,
   maxMediaBytes: 4 * 1024 * 1024 * 1024,
+  maxCompressionRatio: MAX_COMPRESSION_RATIO,
 };
 
 export type ImportErrorCode =
@@ -342,6 +345,7 @@ async function importNow(deps: ProfileDeps, input: ImportWhatsAppInput): Promise
         maxEntries: limits.maxEntries,
         maxCentralDirectoryBytes: limits.maxCentralDirectoryBytes,
         maxChatBytes: limits.maxChatBytes,
+        maxCompressionRatio: limits.maxCompressionRatio,
       },
     });
   } catch (cause) {

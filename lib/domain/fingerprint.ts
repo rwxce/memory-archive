@@ -90,7 +90,9 @@ export function normalizeText(text: string): string {
   return clean(text)
     .replace(/\r\n?/gu, '\n')
     .split('\n')
-    .map((line) => line.replace(/\s+$/u, ''))
+    // `trimEnd` strips exactly the `\s` set (WhiteSpace + LineTerminator) in linear time; the
+    // equivalent `/\s+$/` is quadratic on a long run of spaces that is not at the end of the line.
+    .map((line) => line.trimEnd())
     .join('\n')
     .trim();
 }
