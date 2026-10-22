@@ -62,7 +62,22 @@
       "source .env*": "deny",
       "strings .env*": "deny",
       "tail*.env*": "deny",
-      "xxd .env*": "deny"
+      "xxd .env*": "deny",
+      "gh -R * pr comment *": "deny",
+      "gh -R * pr review *": "deny",
+      "gh -R * issue comment *": "deny",
+      "gh --repo * pr comment *": "deny",
+      "gh --repo * pr review *": "deny",
+      "gh --repo * issue comment *": "deny",
+      "cat fixtures/*": "deny",
+      "cat data/*": "deny",
+      "cat output/*": "deny",
+      "cat backup/*": "deny",
+      "cat *_chat.txt*": "deny",
+      "cat *WhatsApp Chat*": "deny",
+      "head *_chat.txt*": "deny",
+      "tail *_chat.txt*": "deny",
+      "grep*fixtures/*": "deny"
     },
     "read": {
       ".env": "deny",
@@ -78,7 +93,10 @@
       "backup/": "deny",
       "*.zip": "deny",
       "_chat.txt": "deny",
-      "**/_chat.txt": "deny"
+      "**/_chat.txt": "deny",
+      "fixtures/": "deny",
+      "WhatsApp Chat*.txt": "deny",
+      "**/WhatsApp Chat*.txt": "deny"
     }
   }
 }

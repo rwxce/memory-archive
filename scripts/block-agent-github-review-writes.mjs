@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PreToolUse hook (Bash, fail-closed): agents may read pull requests but may
+ * PreToolUse hook (Bash, fail-closed: unparseable payload => block): agents may read pull requests but may
  * never publish GitHub comments or reviews — a human verifies and posts any
  * review in their own words. Wired from `.rulesync/hooks.jsonc`.
  *
@@ -10,25 +10,50 @@
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+// `gh` plus any global flags that may precede the subcommand (`gh -R o/r pr comment`).
+const GH = String.raw`\bgh(?:\s+(?:-R|--repo|--hostname)(?:\s+|=)\S+)*`;
+
 const GH_REVIEW_WRITE_PATTERNS = [
-  /\bgh\s+pr\s+(?:comment|review)\b/i,
-  /\bgh\s+issue\s+comment\b/i,
-  /\bgh\s+api\b[\s\S]*?(?:--method|-X)\s*[='"]?(?:POST|PUT|PATCH|DELETE)\b/i,
-  /\bgh\s+api\b[\s\S]*?(?:-f|-F)\s*[='"]?(?:body|event)\s*=/i,
-  /\bgh\s+api\b[\s\S]*?--input\b/i,
-  /\bgh\s+api\s+graphql\b[\s\S]*?\bmutation\b/i,
-  /\b(?:curl|wget)\b[\s\S]*?api\.github\.com[\s\S]*?\/(?:comments|reviews)\b[\s\S]*?(?:--data|-d|--request|-X)\b/i,
-  /\b(?:curl|wget)\b[\s\S]*?(?:--data|-d|--request|-X)\b[\s\S]*?api\.github\.com[\s\S]*?\/(?:comments|reviews)\b/i,
+  new RegExp(String.raw`${GH}\s+pr\s+(?:comment|review)\b`, 'i'),
+  new RegExp(String.raw`${GH}\s+issue\s+comment\b`, 'i'),
 ];
+
+const GH_API = new RegExp(String.raw`${GH}\s+api\b`, 'i');
+const GH_API_METHOD_WRITE = /(?:--method|-X)(?:\s+|=)['"]?(?:POST|PUT|PATCH|DELETE)\b/i;
+const GH_API_METHOD_GET = /(?:--method|-X)(?:\s+|=)['"]?GET\b/i;
+// Any field flag switches `gh api` from GET to POST, even without --method.
+const GH_API_FIELD = /(?:^|\s)(?:-f|-F|--field|--raw-field)(?:\s|=|\S)/;
+const GH_API_INPUT = /(?:^|\s)--input\b/;
+
+// Raw HTTP clients (curl, wget, node -e fetch, python requests, ...) talking to the GitHub API.
+const GITHUB_API_HOST = /api\.github\.com/i;
+const GITHUB_WRITE_TARGET = /\/(?:comments|reviews|issues|pulls)\b/i;
+const HTTP_WRITE_SIGNAL =
+  /(?:--data(?:-\w+)?|--json|--request|--upload-file|--post-(?:data|file)|--method|--body-data)\b|(?:^|\s)-(?:d|X|T)\b|\bfetch\s*\(|\bmethod\b|\.(?:post|put|patch|delete)\s*\(|\bPOST\b|\bPATCH\b/i;
+
+/**
+ * @param {string} command
+ * @returns {boolean}
+ */
+function isGhApiWrite(command) {
+  if (!GH_API.test(command)) return false;
+  if (/\bgraphql\b/i.test(command)) return /\bmutation\b/i.test(command) || GH_API_INPUT.test(command);
+  if (GH_API_METHOD_WRITE.test(command) || GH_API_INPUT.test(command)) return true;
+  return GH_API_FIELD.test(command) && !GH_API_METHOD_GET.test(command);
+}
 
 /**
  * @param {unknown} command
  * @returns {boolean}
  */
 export function isGitHubReviewWrite(command) {
+  if (typeof command !== 'string') return false;
+  if (GH_REVIEW_WRITE_PATTERNS.some((pattern) => pattern.test(command))) return true;
+  if (isGhApiWrite(command)) return true;
   return (
-    typeof command === 'string' &&
-    GH_REVIEW_WRITE_PATTERNS.some((pattern) => pattern.test(command))
+    GITHUB_API_HOST.test(command) &&
+    GITHUB_WRITE_TARGET.test(command) &&
+    HTTP_WRITE_SIGNAL.test(command)
   );
 }
 
@@ -37,12 +62,18 @@ function commandFromHookInput(input) {
 }
 
 function runHook() {
+  const raw = fs.readFileSync(0, 'utf8');
+  // No payload at all: OpenCode's generated plugin does not pipe one. Those sessions rely on the
+  // `deny` rules in opencode.jsonc instead; nothing to inspect here.
+  if (raw.trim() === '') process.exit(0);
+
   let input;
   try {
-    input = JSON.parse(fs.readFileSync(0, 'utf8'));
+    input = JSON.parse(raw);
   } catch {
-    // A malformed hook payload must not turn into a blanket shell outage.
-    process.exit(0);
+    // Fail closed: a payload we cannot parse is a payload we cannot vouch for.
+    process.stderr.write('Blocked by repository policy: the hook payload is not valid JSON.\n');
+    process.exit(2);
   }
 
   if (!isGitHubReviewWrite(commandFromHookInput(input))) process.exit(0);

@@ -33,6 +33,12 @@
       "gh pr review *": "deny",
       "gh api * -f *": "deny",
       "gh api * -F *": "deny",
+      "gh -R * pr comment *": "deny",
+      "gh -R * pr review *": "deny",
+      "gh -R * issue comment *": "deny",
+      "gh --repo * pr comment *": "deny",
+      "gh --repo * pr review *": "deny",
+      "gh --repo * issue comment *": "deny",
       "gh api * --raw-field *": "deny",
       "gh api * --field *": "deny",
       "gh api * --input *": "deny",
@@ -45,6 +51,16 @@
       "gh api * -X PATCH *": "deny",
       "gh api * -X DELETE *": "deny",
       // Never read env files through the shell.
+      // Private data is also read-denied through the shell (the `read` rules only cover tools).
+      "cat fixtures/*": "deny",
+      "cat data/*": "deny",
+      "cat output/*": "deny",
+      "cat backup/*": "deny",
+      "cat *_chat.txt*": "deny",
+      "cat *WhatsApp Chat*": "deny",
+      "head *_chat.txt*": "deny",
+      "tail *_chat.txt*": "deny",
+      "grep*fixtures/*": "deny",
       ". .env*": "deny",
       "awk*.env*": "deny",
       "cat ./.env*": "deny",
@@ -76,9 +92,13 @@
       "data/": "deny",
       "output/": "deny",
       "backup/": "deny",
+      "fixtures/": "deny",
       "*.zip": "deny",
       "_chat.txt": "deny",
-      "**/_chat.txt": "deny"
+      "**/_chat.txt": "deny",
+      // Android exports are named "WhatsApp Chat with <name>.txt".
+      "WhatsApp Chat*.txt": "deny",
+      "**/WhatsApp Chat*.txt": "deny"
     }
   },
   // Codex CLI prefix rules match literal words (only a trailing " *" is a wildcard), so the
