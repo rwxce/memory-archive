@@ -25,7 +25,12 @@ export type ConversationState =
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** `date` is a calendar day as written in `?date=`; anything else is ignored. */
-export const isDateParam = (value: string | null): value is string => value !== null && DATE.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+export const isDateParam = (value: string | null): value is string => {
+  if (value === null || !DATE.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  // Round-trip: Date.parse rolls 2026-02-30 over to March, the database rejects it.
+  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(value);
+};
 
 /**
  * Opens one conversation for the view. An id that is missing, malformed or unknown is

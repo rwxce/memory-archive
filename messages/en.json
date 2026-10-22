@@ -474,10 +474,8 @@
       "missing": "This file was not saved.",
       "error": "This file could not be opened.",
       "playLabel": "Play {name}",
-      "play": "Play",
       "saveLabel": "Save {name}",
       "save": "Save"
-    },
-    "backToPeople": "Back to People"
+    }
   }
 }

@@ -474,10 +474,8 @@
       "missing": "Este archivo no se guardó.",
       "error": "No se ha podido abrir este archivo.",
       "playLabel": "Reproducir {name}",
-      "play": "Reproducir",
       "saveLabel": "Guardar {name}",
       "save": "Guardar"
-    },
-    "backToPeople": "Volver a Personas"
+    }
   }
 }

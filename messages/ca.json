@@ -474,10 +474,8 @@
       "missing": "Aquest fitxer no s'ha desat.",
       "error": "No s'ha pogut obrir aquest fitxer.",
       "playLabel": "Reprodueix {name}",
-      "play": "Reprodueix",
       "saveLabel": "Desa {name}",
       "save": "Desa"
-    },
-    "backToPeople": "Torna a Persones"
+    }
   }
 }

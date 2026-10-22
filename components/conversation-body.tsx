@@ -63,11 +63,15 @@ export function ConversationBody({
   const lastDay = view.bounds.lastSentAt?.slice(0, 10);
   const waiting = list.items.some((item) => !pages.at(item.index));
 
+  const jumpToken = useRef(0);
   const jump = async (value: string) => {
     setDay(value);
+    const token = ++jumpToken.current;
     if (!value) return;
     try {
       const offset = await findOffset(value);
+      // A newer pick (typing a year emits several dates) wins over a slower older lookup.
+      if (token !== jumpToken.current) return;
       if (offset === null) {
         setStatus(t('noneAfter', { date: formatDay(value, locale) }));
         return;
@@ -75,7 +79,7 @@ export function ConversationBody({
       list.scrollToIndex(offset);
       setStatus(t('jumped', { date: formatDay(value, locale) }));
     } catch {
-      setStatus(t('pagesFailed'));
+      if (token === jumpToken.current) setStatus(t('pagesFailed'));
     }
   };
 

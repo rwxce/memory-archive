@@ -43,6 +43,21 @@ test type or architecture rule means updating this file **in the same PR**.
     `hooks/use-conversation-actions.ts` (rename / move / link / unlink; same reload contract).
     No dynamic route segments for ids (static export): detail screens use query params
     (`/person?id=`).
+  - **Conversation** (`/[locale]/conversation/?id=<uuid>[&from=<person>][&date=YYYY-MM-DD]`,
+    `components/conversation-screen.tsx` / `conversation-body.tsx` / `message-row.tsx` /
+    `message-media.tsx`, opened from the conversation lists with an *Open* link): a virtualized
+    feed (`hooks/use-virtual-list.ts` over `hooks/height-index.ts`, about 300 rows in the DOM)
+    fed by windowed reads (`hooks/use-message-pages.ts`, pages of the cache by offset, at most
+    12 kept), so a 200k-message chat never loads whole. `hooks/use-conversation.ts` opens the
+    view and resolves where to start: the end, a valid `?date=` (a calendar-invalid one is
+    ignored), or the position saved for the tab (`hooks/conversation-position.ts`,
+    `sessionStorage`, index and offset only). The date picker jumps (the latest pick wins) and
+    announces it. Media: `hooks/use-media-url.ts` makes object URLs through a small queue
+    (`hooks/media-queue.ts`, 3 reads at once, cancelled on unmount, revoked on cleanup); photos,
+    stickers and voice notes load as rows come into view, video and documents only on tap.
+    Message text is rendered as React text; `splitLinks` (`lib/usecases/message-text.ts`) only
+    turns http(s) URLs into links. A view that stays open does not re-read after an import
+    in another tab: reopen to refresh.
   - **Import history** (`/[locale]/import/history/`, optional `?person=<id>`,
     `components/import-history-screen.tsx`, `hooks/use-import-history.ts`): newest-first list of imports
     (file name, relative + absolute date, messages added / already there, conversation title, the
@@ -170,7 +185,7 @@ test type or architecture rule means updating this file **in the same PR**.
     over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1 + v2 + v3,
     `PRAGMA user_version`, forward-only, one transaction per migration, newer DB refused),
     `queries.ts` (profiles: create / update / archive / get / list; conversations: list / rename /
-    move / link / unlink; `importMessages` (batch, optional new conversation and "me", all in one transaction), `findImportCandidates`, `findExistingFingerprints`, `undoImportBatch`, `listImportBatches` (read-only history: newest first, keyset `before` cursor, page <= 200, filter by conversation or profile), `listMessages`; the conversation view's reads, all by position on `messages_timeline` with no schema change: `getConversationBounds`, `countMessages`, `getMessageWindow` (offset + limit <= 500, window ids from the covering index, then a join of only those rows; carries `isMe`, system flag, media hash/name/mime), `findMessageOffsetByDate` (`null` when every message is earlier), `listConversationDays` (count and first offset per local day); an unknown conversation is `not-found`),
+    move / link / unlink; `importMessages` (batch, optional new conversation and "me", all in one transaction), `findImportCandidates`, `findExistingFingerprints`, `undoImportBatch`, `listImportBatches` (read-only history: newest first, keyset `before` cursor, page <= 200, filter by conversation or profile), `listMessages`; the conversation view's reads, all by position on `messages_timeline` with no schema change: `getConversationBounds`, `countMessages`, `getMessageWindow` (limit clamped to 1..500, any offset, window ids from the covering index, then a join of only those rows; carries `isMe`, system flag, media hash/name/mime), `findMessageOffsetByDate` (`null` when every message is earlier), `listConversationDays` (count and first offset per local day); an unknown conversation is `not-found`),
     `protocol.ts` + `dispatch.ts` (typed request/response messages; no raw SQL crosses the
     boundary), `open.ts` (`openMemoryDb` for Node tests, `openOpfsDb` for the worker),
     `worker.ts` (worker entry) over `serve.ts` (`createDbServer`: the request loop, plus `connect`:
@@ -198,7 +213,7 @@ test type or architecture rule means updating this file **in the same PR**.
     `linkConversationToProfile`, `unlinkConversationFromProfile`): they take a `DbClient`
     (worker protocol), an injectable UUID source and clock, and fail with `DbError` codes
     `invalid` / `not-found`. `test-client.ts` is the structured-clone loopback for their tests.
-    `lib/usecases/conversation-view.ts` — `openConversationView` (summary + bounds + participants), `getMessageWindow`, `countMessages`, `findMessageOffsetByDate`, `listConversationDays`, and `readBlob(deps, sha256, hint)` (a stored blob as a typed `Blob`, `not-found` / `invalid`; no DOM, the UI makes the object URL).
+    `lib/usecases/conversation-view.ts` — `openConversationView` (summary + bounds + participants), `getMessageWindow`, `countMessages`, `findMessageOffsetByDate`, `listConversationDays`, and `readBlob(deps, sha256, hint)` (a stored blob as a typed `Blob`, `not-found` / `invalid`; no DOM, the UI makes the object URL); `lib/usecases/conversation-media.ts` — `blobSize` (size of a stored blob for the size chip, `undefined` when missing).
     `lib/usecases/library.ts` — `openLibrary` (worker + database check + blob store opened with
     `sweep:false` + the open-time cleanup `sweepLeftovers`, with test seams; the returned `Library`
     also has `importWorkerUrl`, `connectPort()`, `isBusy()` and a `close({force?})` that refuses with

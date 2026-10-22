@@ -1000,7 +1000,7 @@ export const MESSAGE_WINDOW_SQL = `
 /**
  * `limit` messages starting at position `offset` in chronological order (sent_at, ordinal, id).
  * `limit` is clamped to 1..MAX_WINDOW; an offset past the end gives an empty window. Positions
- * shift when an import adds older messages: a view that stays open re-reads its window.
+ * shift when an import adds older messages (or one is undone): a view that stays open keeps the positions it read, so it shows the old window until it is reopened.
  */
 export function getMessageWindow(db: SqlDb, conversationId: string, offset: number, limit: number): ConversationMessage[] {
   const id = requireConversation(db, conversationId);
