@@ -1,0 +1,122 @@
+# Supported Tools and Features
+
+Rulesync supports both **generation** and **import** for All of the major AI coding tools:
+
+<!-- SUPPORTED_TOOLS_DOCS:BEGIN -->
+
+| Tool                      | --targets          | rules | ignore |   mcp    | commands | subagents | skills | hooks | permissions | checks |
+| ------------------------- | ------------------ | :---: | :----: | :------: | :------: | :-------: | :----: | :---: | :---------: | :----: |
+| AGENTS.md                 | agentsmd           |  ✅   |        |          |    🎮    |    🎮     |   🎮   |       |             |        |
+| AgentsSkills              | agentsskills       |       |        |          |          |           | ✅ 🌏  |       |             |        |
+| Amp                       | amp                | ✅ 🌏 |        |  ✅ 🌏   |          |           | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    | ✅ 🌏  |
+| IBM Bob                   | bob                | ✅ 🌏 |   ✅   |  ✅ 🌏   |  ✅ 🌏   |    ✅     | ✅ 🌏  | ✅ 🌏 |     🌏      |        |
+| Claude Code               | claudecode         | ✅ 🌏 |   ✅   |  ✅ 🌏   |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Claude Code plugin        | claudecode-plugin  |       |        |    ✅    |    ✅    |    ✅     |   ✅   |  ✅   |             |        |
+| CodeBuddy Code            | codebuddy          | ✅ 🌏 |        |  ✅ 🌏   |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Codewhale                 | codewhale          | ✅ 🌏 |        | ✅ 🌏 🔧 |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Codex CLI                 | codexcli           | ✅ 🌏 |        | ✅ 🌏 🔧 |    🌏    |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Command Code              | commandcode        | ✅ 🌏 |        |  ✅ 🌏   |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| GitHub Copilot            | copilot            | ✅ 🌏 |        |    ✅    |    ✅    |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |     ✅      |        |
+| GitHub Copilot CLI        | copilotcli         | ✅ 🌏 |        | ✅ 🌏 🔧 |          |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Crush                     | crush              | ✅ 🌏 |   ✅   | ✅ 🌏 🔧 |          |           | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Goose                     | goose              | ✅ 🌏 |        |  ✅ 🌏   |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |     🌏      |   🌏   |
+| Hermes Agent              | hermesagent        |  ✅   |   ✅   |  🌏 🔧   |    🌏    |   ✅ 🌏   |   🌏   |  🌏   |     🌏      |   ✅   |
+| Grok CLI                  | grokcli            | ✅ 🌏 | ✅ 🌏  | ✅ 🌏 🔧 |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Cursor                    | cursor             |  ✅   |   ✅   |  ✅ 🌏   |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |   ✅   |
+| deepagents-cli            | deepagents         | ✅ 🌏 |        | ✅ 🌏 🔧 |          |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |     🌏      |        |
+| Factory Droid             | factorydroid       | ✅ 🌏 |        | ✅ 🌏 🔧 |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |   ✅   |
+| OpenCode                  | opencode           | ✅ 🌏 |        | ✅ 🌏 🔧 |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| OpenClaw                  | openclaw           | ✅ 🌏 |        |          |          |           |        |       |             |        |
+| MiMo Code                 | mimocode           | ✅ 🌏 |        | ✅ 🌏 🔧 |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| GitLab Duo CLI            | gitlabduo          | ✅ 🌏 |        |  ✅ 🌏   |  ✅ 🌏   |           | ✅ 🌏  | ✅ 🌏 |             |   ✅   |
+| Cline                     | cline              | ✅ 🌏 |   ✅   |    🌏    |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |     ✅      |        |
+| Kilo Code                 | kilo               | ✅ 🌏 | ✅ 🌏  | ✅ 🌏 🔧 |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |   ✅   |
+| Kimi Code                 | kimi-code          | ✅ 🌏 |        | ✅ 🌏 🔧 |          |   ✅ 🌏   | ✅ 🌏  |  🌏   |     🌏      |        |
+| Kimi Code plugin          | kimi-code-plugin   |  ✅   |        |          |    ✅    |    ✅     |   ✅   |       |             |        |
+| Roo Code ⚠️               | roo                | ✅ 🌏 |   ✅   |  ✅ 🔧   |  ✅ 🌏   |    ✅     | ✅ 🌏  |       |     ✅      |        |
+| Zoo Code                  | zoocode            | ✅ 🌏 |   ✅   |  ✅ 🔧   |  ✅ 🌏   |    ✅     | ✅ 🌏  |       |     ✅      |        |
+| Rovodev (Atlassian)       | rovodev            | ✅ 🌏 |        |  ✅ 🌏   |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  |       |    ✅ 🌏    |   ✅   |
+| Takt                      | takt               | ✅ 🌏 |        |  ✅ 🌏   |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  |       |    ✅ 🌏    | ✅ 🌏  |
+| Trae                      | trae               |  ✅   |        |    ✅    |          |           | ✅ 🌏  |       |             |        |
+| Tabnine CLI ⚠️            | tabnine            | ✅ 🌏 |   ✅   | ✅ 🌏 🔧 |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Continue ⚠️               | continue           | ✅ 🌏 | ✅ 🌏  |  ✅ 🌏   |  ✅ 🌏   |           | ✅ 🌏  | ✅ 🌏 |     🌏      |        |
+| Snowflake Cortex Code     | cortexcode         |  ✅   |        |    🌏    |          |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |             |        |
+| Vibe Code                 | vibe               | ✅ 🌏 |   ✅   | ✅ 🌏 🔧 |          |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Vibe Code plugin          | vibe-plugin        |       |        |    ✅    |          |    ✅     |   ✅   |  ✅   |             |        |
+| Qoder                     | qoder              | ✅ 🌏 |   ✅   |  ✅ 🌏   |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Qwen Code                 | qwencode           | ✅ 🌏 |   ✅   | ✅ 🌏 🔧 |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |   ✅   |
+| Meta Muse Code            | musecode           |  ✅   |        |    🌏    |          |           | ✅ 🌏  |       |             |        |
+| Reasonix                  | reasonix           | ✅ 🌏 | ✅ 🌏  | ✅ 🌏 🔧 |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Codebuff (Freebuff)       | codebuff           |       |   ✅   |  ✅ 🌏   |          |           |        |       |             |        |
+| Kiro ⚠️                   | kiro               | ✅ 🌏 | ✅ 🌏  | ✅ 🌏 🔧 |    ✅    |    ✅     |   ✅   |  ✅   |     ✅      |        |
+| Kiro CLI                  | kiro-cli           | ✅ 🌏 |   ✅   | ✅ 🌏 🔧 |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |     ✅      |        |
+| Kiro IDE                  | kiro-ide           | ✅ 🌏 | ✅ 🌏  | ✅ 🌏 🔧 |    ✅    |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |     ✅      |        |
+| Letta Code                | lettacode          |       |   ✅   |          |          |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Google Antigravity IDE    | antigravity-ide    | ✅ 🌏 |        | ✅ 🌏 🔧 |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |     ✅      |        |
+| Google Antigravity CLI    | antigravity-cli    | ✅ 🌏 |   ✅   | ✅ 🌏 🔧 |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |     🌏      |        |
+| Google Antigravity plugin | antigravity-plugin |  ✅   |        |  ✅ 🔧   |          |    ✅     |   ✅   |  ✅   |             |        |
+| JetBrains AI Assistant    | aiassistant        |  ✅   |   ✅   |  ✅ 🌏   |          |           |   ✅   |       |             |        |
+| JetBrains Junie           | junie              | ✅ 🌏 |   ✅   |  ✅ 🌏   |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  |  🌏   |     🌏      |        |
+| AugmentCode               | augmentcode        | ✅ 🌏 |   ✅   |  ✅ 🌏   |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |   ✅   |
+| AugmentCode plugin        | augmentcode-plugin |  ✅   |        |    ✅    |    ✅    |    ✅     |   ✅   |  ✅   |             |        |
+| Devin Desktop             | devin              | ✅ 🌏 | ✅ 🌏  | ✅ 🌏 🔧 |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Devin plugin              | devin-plugin       |  ✅   |        |  ✅ 🔧   |          |    ✅     |   ✅   |  ✅   |             |        |
+| Warp                      | warp               | ✅ 🌏 |   ✅   |  ✅ 🌏   |  ✅ 🌏   |           | ✅ 🌏  |       |     🌏      |        |
+| Warp Agent CLI            | warpcli            |       |        |    🌏    |          |           |        |       |     🌏      |        |
+| Replit                    | replit             |  ✅   |        |          |          |           | ✅ 🌏  |       |             |        |
+| Pi Coding Agent           | pi                 | ✅ 🌏 |        |  ✅ 🌏   |  ✅ 🌏   |           | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| oh-my-pi                  | omp                | ✅ 🌏 |        |  ✅ 🌏   |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| Zed                       | zed                | ✅ 🌏 | ✅ 🌏  |  ✅ 🌏   |          |           | ✅ 🌏  |       |     🌏      |        |
+| ZCode (Z.ai)              | zcode              | ✅ 🌏 |        |  ✅ 🌏   |  ✅ 🌏   |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |             |        |
+| ZCode plugin              | zcode-plugin       |       |        |    ✅    |    ✅    |    ✅     |   ✅   |  ✅   |             |        |
+| Pool (Poolside)           | pool               | ✅ 🌏 |        | ✅ 🌏 🔧 |          |   ✅ 🌏   | ✅ 🌏  | ✅ 🌏 |    ✅ 🌏    |        |
+| DeepSeek Harness          | dsh                | ✅ 🌏 |        |    🌏    |          |           | ✅ 🌏  |       |             |        |
+
+<!-- SUPPORTED_TOOLS_DOCS:END -->
+
+- ✅: Supports project mode
+- 🌏: Supports global mode
+- 🎮: Supports simulated commands/subagents/skills (Project mode only)
+- 🔧: Supports MCP tool config (`enabledTools`/`disabledTools`)
+- ⚠️: Deprecated — still supported, but see the note below
+
+## Hermes Agent compatibility
+
+The `hermesagent` target is validated against Hermes Agent v0.21.6 (release
+`v0.21.6`). The supported contract covers project rules, ignore patterns,
+subagents, and checks, plus global MCP servers, commands, subagents, skills,
+hooks, and permissions. Generation, `--check`, and import round-trips are
+covered for both advertised scopes.
+
+Rulesync honors Hermes profiles through `HERMES_HOME`. When it is set, its value
+is the profile root itself: global configuration is read and written directly
+under `$HERMES_HOME` (`config.yaml`, `skills/`, `plugins/`, and `rulesync/`),
+without appending `.hermes`. When it is unset, Rulesync follows Hermes's own
+platform default: `~/.hermes` everywhere except Windows, where it is
+`%LOCALAPPDATA%\hermes`. Because `HERMES_HOME` names where Hermes itself reads
+the profile, it also takes precedence over `--output-roots` in global scope.
+Project-scoped paths remain rooted in the project.
+
+Changing which profile root Rulesync resolves strands whatever it generated
+under the previous one. `--delete` reconciles only the root resolved for the
+current run, so files under a root it no longer resolves are invisible to it and
+must be removed by hand once you are sure Hermes no longer reads them. This
+applies whenever you set or change `HERMES_HOME`, and to two upgrades that moved
+the resolved root on their own: before v16.0.0 global files went to `~/.hermes`
+even when `HERMES_HOME` was set, and before v16.2.0 they went there on Windows
+too, rather than to `%LOCALAPPDATA%\hermes`.
+
+Project plugins are registered by adding their names to
+`$HERMES_HOME/config.yaml`, but Rulesync does not persist Hermes's global
+project-plugin trust gate. Run Hermes from a trusted project root with
+`HERMES_ENABLE_PROJECT_PLUGINS=true` for an explicit, session-scoped opt-in. A
+future Hermes release that changes its loaders, schemas, or plugin API requires
+a new compatibility validation.
+
+## Deprecation notes
+
+- **Google Antigravity (`antigravity-ide` / `antigravity-cli`)** — Antigravity 2.0 splits into two products: the desktop **`antigravity-ide`** and the **`antigravity-cli`** (`agy`). As of Antigravity 2.0 the IDE reads its global MCP config and skills from the shared `~/.gemini/config/` tree — `~/.gemini/config/mcp_config.json` and `~/.gemini/config/skills/`, matching the current [MCP](https://antigravity.google/docs/mcp) and [Skills](https://antigravity.google/docs/skills) docs. The `antigravity-cli` global MCP config also lives in the shared `~/.gemini/config/mcp_config.json`, while the CLI keeps its own global skills tree at `~/.gemini/antigravity-cli/skills/`. Both targets also intentionally **share** the global rule file `~/.gemini/GEMINI.md` and the global hooks file `~/.gemini/config/hooks.json` — enabling both targets in `--global` mode writes those shared files once. For project-scope rules, **both `antigravity-ide` and `antigravity-cli`** emit the root rule as a plain cross-tool **`AGENTS.md`** at the project root (the Gemini-lineage discovery order is `AGENTS.md`, `CONTEXT.md`, `GEMINI.md`; the IDE has read `AGENTS.md` since v1.20.3) and non-root rules under `.agents/rules/` (both add trigger frontmatter to non-root rules, because Antigravity silently discards any `.md` file under a `rules/` directory that lacks a valid `trigger`, so the two targets write identical files there). In `--global` mode, both targets keep the root rule in `~/.gemini/GEMINI.md` and write each non-root rule to its own file in `~/.gemini/config/rules/` with trigger frontmatter (`always_on` unless the rule's globs or its `antigravity.trigger` say otherwise), because Antigravity truncates every rule file at 24,000 bytes and loads that directory as separate global rules (see the [Antigravity rules docs](https://antigravity.google/docs/rules)). A nested rule is flattened to a top-level name there (`frontend/style.md` → `frontend-style.md`), since Antigravity reads only that directory's top level. The two targets write identical files there. The directory holds global rules created outside rulesync too, so `generate --delete` never removes files there: after deleting or renaming a rulesync rule, remove its old file by hand. The per-file limit is not the only cap: always-on and global rules also share a 20,000-token budget, over which rules are demoted to path pointers. For **commands**, Antigravity retires workflows on October 19, 2026 and documents [skills as their replacement](https://antigravity.google/docs/migration/workflows-to-skills) (a skill is invoked as `/<skill-name>` exactly like a workflow, and wins over a workflow of the same name), so both targets emit each command as a skill: `.agents/skills/<name>/SKILL.md` in the project, and `~/.gemini/config/skills/<name>/SKILL.md` (IDE) or `~/.gemini/antigravity-cli/skills/<name>/SKILL.md` (CLI) in `--global` mode — the same directories the skills feature writes. `<name>` is the command's trigger (`antigravity.trigger`, then a root `trigger`, then a `trigger: /name` line in the body, defaulting to the filename), and the skill gets `name`/`description` frontmatter. A rulesync skill with the same name that is written to the same skills directory (it targets `*` or a tool sharing that directory) takes precedence: the command is skipped with a warning, whichever targets and features a given run includes, so a partial run never overwrites the skill. The commands feature does not sweep the shared skills tree, so the skill of a deleted command is removed by `generate --delete` with the skills feature enabled. `rulesync import` still reads legacy workflows from `.agents/workflows/` (project) and, in `--global` mode, from `~/.gemini/config/workflows/` (IDE; the Antigravity 2.0 global workflows directory named by the migration guide) or `~/.gemini/antigravity-cli/global_workflows/` (CLI), and `generate --delete` removes every `*.md` file left in those workflow directories, including hand-written ones (import them first to keep them). In `--global` mode, `antigravity-ide` import also reads the pre-2.0 `~/.gemini/antigravity/global_workflows/` directory, where earlier rulesync versions wrote IDE global commands; a workflow with the same file name in `~/.gemini/config/workflows/` wins, and `generate --delete` never sweeps the pre-2.0 directory.
+- **Continue (`continue`)** — Continue is end of life: Continue [joined Cursor](https://continue.dev) on 2026-06-18, the [continuedev/continue repository](https://github.com/continuedev/continue) is read-only with a final **v2.0.0** VS Code release (2026-06-19) and its last commit on 2026-07-21, and the in-product deprecation banner expired on 2026-09-09. The `continue` target stays supported as a frozen-compatibility target: every adapter was verified against that final source tree (commit [`5522c6f4`](https://github.com/continuedev/continue/tree/5522c6f44ca0ac3528b37244818fbfa39b5af470), which the source links in the code and docs are pinned to), and nothing about the file formats will move again, so existing output keeps working for anyone still running the last release. Do not expect new Continue capabilities to be tracked; new projects should pick an actively maintained tool instead.
+- **Kiro (`kiro`)** — Kiro ships as two products with diverging config formats: the **Kiro IDE** reads Markdown subagents (`.kiro/agents/*.md`) and structured JSON hooks (`.kiro/hooks/*.json`, format `{ "version": "v1", "hooks": [ ... ] }`), while the **Kiro CLI** reads JSON agent-config subagents (`.kiro/agents/*.json`). A single target cannot emit both subagent shapes faithfully, so `kiro` is split into **`kiro-cli`** and **`kiro-ide`**. The legacy `kiro` target is kept as a **deprecated alias** (its current mixed output is unchanged for backward compatibility). Shared surfaces (steering rules with `inclusion`, `.kiro/settings/mcp.json`, `.kiro/prompts/` commands, `.kiro/skills/`, `.kiroignore`, permissions) are identical between the two; they differ only in **subagents** (`.md` vs `.json`). **Hooks** are the same for both: a single `.kiro/hooks/rulesync.json` (whose `hooks` array holds every generated hook) in both project (`.kiro/hooks/`) and global (`~/.kiro/hooks/`) scope, mapping canonical lifecycle events to Kiro's PascalCase triggers (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`) and supporting both `agent` (prompt) and `command` actions. Kiro CLI 3.0 [migrated to that format](https://kiro.dev/docs/cli/v3/hooks-migration/) and no longer reads the embedded agent hooks in `.kiro/agents/default.json`, which only the deprecated `kiro` alias still writes (including `cacheTtl` ⇄ `cache_ttl_seconds`). Global **skills** (`~/.kiro/skills/`), global **ignore** (`~/.kiro/settings/kiroignore`, which only the IDE reads, so `kiro-cli` skips it), and global Kiro IDE **subagents** (`~/.kiro/agents/`) are also supported, as are global Kiro CLI **commands** (`~/.kiro/prompts/`) and **subagents** (`~/.kiro/agents/`). Kiro's shared MCP file preserves per-server `disabledTools`.
+- **Roo Code (`roo`)** — Roo Code is end of life: its final release was **v3.54.0 (2026-05-15)** and the [Roo-Code repository](https://github.com/RooCodeInc/Roo-Code) is archived, so nothing about the target will move again. New projects should target **`zoocode`** instead — [Zoo Code](https://github.com/Zoo-Code-Org/Zoo-Code) is the community continuation named by the Roo shutdown notice, and it continues Roo's release numbering. The `roo` target stays supported because Zoo Code still reads the `.roo/` project tree and `~/.roo` global tree verbatim, so existing `roo` output keeps working; what it no longer tracks is anything Zoo Code added after the fork. The two targets write the same files, so enable one per project rather than both — see the Zoo Code note in [File formats](./file-formats.md) for the fail-open hazard a `--targets roo` generate creates in a shared `.roomodes`. **Permissions are the one exception**: the two lineages spell the command allow/deny lists differently (`roo-cline.*` vs `zoo-code.*`), so both pairs coexist in one `.vscode/settings.json` and neither target touches the other's — see the Roo Code paragraph in [File formats](./file-formats.md).
+- **Tabnine CLI (`tabnine`)** — The file-based Tabnine CLI this target models is in [maintenance mode](https://docs.tabnine.com/main/getting-started/tabnine-cli): as of Tabnine **6.6** (2026-09-15) it is ["Tabnine CLI (Legacy)"](https://docs.tabnine.com/main/administering-tabnine/release-notes), installed as `tabnine-legacy` once the new CLI is present, and it receives only critical updates through **2026-12-31**, after which Tabnine deprecates it fully. The current `tabnine` command is [Tabnine's distribution of OpenCode](https://docs.tabnine.com/main/getting-started/tabnine-plugin-for-opencode), configured with standard OpenCode files — so for the new CLI use **`--targets opencode`** (`AGENTS.md`, `opencode.json`, `.opencode/{commands,agents,skills}`, `~/.config/opencode/**`); its [migration helper](https://docs.tabnine.com/main/getting-started/tabnine-plugin-for-opencode/migrating-from-tabnine-cli) (`/migrate`, `/migrate-context`) carries MCP servers, skills, agents, commands and `TABNINE.md` over. The new CLI adds `~/.tabnine/opencode/config/` as an extra config root but still reads the standard OpenCode roots — project `opencode.json(c)` and `.opencode/`, and `~/.config/opencode/**` ([configuration docs](https://docs.tabnine.com/main/getting-started/tabnine-plugin-for-opencode/configuration)) — so `--targets opencode` output (including `--global`) is picked up; keys set in Tabnine's own `opencode.json` there are layered last and win over the same keys in the generated one. A global `AGENTS.md` is not read from `~/.tabnine/opencode/config/`; it comes from `~/.config/opencode/AGENTS.md`, where Rulesync writes it. The `tabnine` target stays supported for the legacy CLI (0.36.0 as of Tabnine 6.6.5) until then; whether it is removed in a later major is decided separately.

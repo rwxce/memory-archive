@@ -1,0 +1,44 @@
+name: Branch policy guard
+
+on:
+  # pull_request_target (not pull_request) so the version of this file on the
+  # base branch always runs: a PR cannot edit this workflow to disable the guard.
+  # Safe because the job never checks out or runs PR code, and refs/titles are
+  # passed through env, never interpolated into the script.
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited]
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch policy
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          case "$BASE_REF" in
+            main)
+              # A fork can also have a branch called 'dev': check the repository too.
+              if [ "$HEAD_REF" != "dev" ] || [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+                echo "❌ 'main' only accepts release PRs from 'dev' of this repository. This PR comes from '$HEAD_REPO:$HEAD_REF'."
+                echo "   See docs/branching-and-releases.md."
+                exit 1
+              fi
+              if ! printf '%s' "$PR_TITLE" | grep -Eq '^release: v[0-9]+\.[0-9]+\.[0-9]+$'; then
+                echo "❌ Release PR title must be exactly 'release: vX.Y.Z' (got: '$PR_TITLE')."
+                exit 1
+              fi
+              echo "OK: release PR dev → main ('$PR_TITLE')."
+              ;;
+            dev)
+              echo "OK: PR into 'dev', no restriction."
+              ;;
+          esac

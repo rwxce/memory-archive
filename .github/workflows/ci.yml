@@ -2,50 +2,84 @@ name: CI
 
 on:
   push:
-    branches: [main]
-    tags: ['v*']
+    branches: [dev]
   pull_request:
-    branches: [main]
+    branches: [dev, main]
 
 permissions:
   contents: read
 
-jobs:
-  verify:
-    name: Test / Lint / Build
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [22.x, 24.x]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
+env:
+  # No telemetry from the Next.js toolchain (docs/privacy.md).
+  NEXT_TELEMETRY_DISABLED: '1'
 
-  publish:
-    name: Publish to npm
-    needs: verify
-    if: startsWith(github.ref, 'refs/tags/v')
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint / Typecheck / Test / Build
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write # required for npm provenance (OIDC)
-      contents: read
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          node-version: 22.x
-          registry-url: 'https://registry.npmjs.org'
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npm publish --provenance --access public
+          persist-credentials: false
+          # Full history so the preflight can find the merge-base with the PR base.
+          fetch-depth: 0
+
+      # Reads the pnpm version from package.json "packageManager".
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      # minimumReleaseAge (pnpm-workspace.yaml) is enforced here too.
+      - run: pnpm install --frozen-lockfile
+
+      # Generated agent config (AGENTS.md, CLAUDE.md, .claude/, ...) must match .rulesync/.
+      - run: pnpm rulesync:check
+
+      # Blocks real exports, personal media, .env files and weakened ignores (PRs only).
+      - if: github.event_name == 'pull_request'
+        run: node scripts/check-pr-preflight.mjs
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PR_BASE_REF: ${{ github.base_ref }}
+
+      - run: pnpm check
+
+  # Browser end-to-end checks of the built PWA (Phase 3 flows) at 390 px and
+  # 1440 px, in the runner's preinstalled Google Chrome (no browser download).
+  e2e:
+    name: End-to-end (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - run: pnpm e2e
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

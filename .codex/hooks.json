@@ -1,0 +1,43 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "D=\"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}\"; node \"$D/scripts/block-agent-github-review-writes.mjs\" || exit 2",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pnpm run lint 2>&1 | tail -30",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/check-pr-preflight.mjs\" --advisory",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$CONDUCTOR_WORKSPACE_PATH\" ]; then if [ -n \"$CONDUCTOR_PORT\" ]; then for p in $(seq \"$CONDUCTOR_PORT\" $((CONDUCTOR_PORT+9))); do lsof -ti tcp:$p | xargs kill -9 2>/dev/null; done; fi; pkill -f \"$CONDUCTOR_WORKSPACE_PATH\" 2>/dev/null; fi; true",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

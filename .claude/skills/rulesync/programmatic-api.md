@@ -1,0 +1,105 @@
+# Programmatic API
+
+Rulesync can be used as a library in your Node.js/TypeScript projects. The `generate`, `importFromTool`, and `convertFromTool` functions are available as named exports.
+
+```typescript
+import { convertFromTool, generate, importFromTool } from "rulesync";
+
+// Generate configurations
+const result = await generate({
+  targets: ["claudecode", "cursor"],
+  features: ["rules", "mcp"],
+});
+console.log(`Generated ${result.rulesCount} rules, ${result.mcpCount} MCP configs`);
+
+// Import existing tool configurations into .rulesync/
+const importResult = await importFromTool({
+  target: "claudecode",
+  features: ["rules", "commands"],
+});
+console.log(`Imported ${importResult.rulesCount} rules`);
+
+// Convert configurations between AI tools without writing intermediate .rulesync/ files
+try {
+  const convertResult = await convertFromTool({
+    from: "claudecode",
+    to: ["cursor", "copilot"],
+    features: ["rules"],
+  });
+  console.log(`Converted ${convertResult.rulesCount} rule file(s)`);
+} catch (error) {
+  // Thrown when `from` is empty, `to` is empty, `to` includes `from`,
+  // a source file cannot be parsed, or write fails.
+  console.error("convert failed:", error);
+}
+```
+
+## `generate(options?)`
+
+Generates configuration files for the specified targets and features.
+
+| Option              | Type           | Default             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------- | -------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `targets`           | `ToolTarget[]` | from config file    | Tools to generate configurations for                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `features`          | `Feature[]`    | from config file    | Features to generate                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `outputRoots`       | `string[]`     | `[process.cwd()]`   | Output root directories to generate files into                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `inputRoots`        | `string[]`     | `[<cwd>/.rulesync]` | Ordered list of rulesync source-tree directories (e.g. `.rulesync`, `.rulesync.local`). Each entry is a source tree itself — no `.rulesync/` join is applied. The first root is required; later roots are optional overlays and may be absent. Output still goes to each `outputRoots` entry; only the input source root is redirected. Later entries override earlier ones for the same relative source path. Cannot be combined with `inputRoot`. Mirrors the CLI's `--input-roots`. |
+| `inputRoot`         | `string`       | `process.cwd()`     | **Deprecated.** PARENT directory of a `.rulesync/` source tree; kept as a backward-compatibility alias that expands internally to `inputRoots: [join(inputRoot, ".rulesync")]`. Prefer `inputRoots` and point it directly at your source tree(s). Cannot be combined with `inputRoots`. Mirrors the CLI's `--input-root`.                                                                                                                                                              |
+| `configPath`        | `string`       | auto-detected       | Path to `rulesync.jsonc`                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `verbose`           | `boolean`      | `false`             | Enable verbose logging                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `silent`            | `boolean`      | `true`              | Suppress all output                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `delete`            | `boolean`      | from config file    | Delete existing files before generating                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `global`            | `boolean`      | `false`             | Generate global (user scope) configurations                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `simulateCommands`  | `boolean`      | `false`             | Generate simulated commands                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `simulateSubagents` | `boolean`      | `false`             | Generate simulated subagents                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `simulateSkills`    | `boolean`      | `false`             | Generate simulated skills                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `dryRun`            | `boolean`      | `false`             | Show changes without writing files                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `check`             | `boolean`      | `false`             | Exit with code 1 if files are not up to date                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+
+> **Unreadable sources do not throw here.** Unlike the CLI, which exits
+> non-zero, `generate()` resolves and reports the problem on the result:
+> `sourceLoadFailed` is `true` and `sourceLoadFailedFeatures` names the features
+> whose `.rulesync/` source could not be read. Their counts are `0`, exactly like
+> a feature that had nothing to write, so check the flag rather than the counts
+> before treating a run as successful. (Those features also keep their existing
+> generated files: `delete` skips their orphan sweep.)
+
+With `delete: true`, the result's `deletedPathsByFeature` lists what the orphan
+sweep deleted — or, with `dryRun` or `check`, would delete — per feature, as
+`{ path, kind }` entries (`kind` is `"file"` or `"directory"`, `path` is
+relative to the output root and sorted). A feature that deleted nothing is
+absent. `keyOperationsByFeature` lists, the same way but regardless of
+`delete`, the top-level keys
+Rulesync owns outright in a shared configuration file (`.codex/config.toml`,
+`.claude/settings.json`, …) that a write added or changed (`action: "write"`)
+or removed (`action: "delete"`), as `{ action, path, key }` entries sorted by
+path and then key. The CLI's `--json` output turns these and the written paths
+into a versioned `plan`; see [CLI Commands](./cli-commands.md).
+
+## `importFromTool(options)`
+
+Imports existing tool configurations into `.rulesync/` directory.
+
+| Option       | Type         | Default          | Description                               |
+| ------------ | ------------ | ---------------- | ----------------------------------------- |
+| `target`     | `ToolTarget` | (required)       | Tool to import configurations from        |
+| `features`   | `Feature[]`  | from config file | Features to import                        |
+| `configPath` | `string`     | auto-detected    | Path to `rulesync.jsonc`                  |
+| `verbose`    | `boolean`    | `false`          | Enable verbose logging                    |
+| `silent`     | `boolean`    | `true`           | Suppress all output                       |
+| `global`     | `boolean`    | `false`          | Import global (user scope) configurations |
+
+## `convertFromTool(options)`
+
+Converts configuration files between AI tools without writing intermediate `.rulesync/` files to disk.
+
+| Option       | Type           | Default       | Description                                                                                 |
+| ------------ | -------------- | ------------- | ------------------------------------------------------------------------------------------- |
+| `from`       | `ToolTarget`   | (required)    | Source tool to convert configurations from                                                  |
+| `to`         | `ToolTarget[]` | (required)    | Destination tools to convert to                                                             |
+| `features`   | `Feature[]`    | `["*"]`       | Features to convert. Matches CLI behavior and overrides any `features` in `rulesync.jsonc`. |
+| `configPath` | `string`       | auto-detected | Path to `rulesync.jsonc`                                                                    |
+| `verbose`    | `boolean`      | `false`       | Enable verbose logging                                                                      |
+| `silent`     | `boolean`      | `true`        | Suppress all output                                                                         |
+| `global`     | `boolean`      | `false`       | Convert global (user scope) configurations                                                  |
+| `dryRun`     | `boolean`      | `false`       | Show changes without writing files                                                          |

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://github.com/dyoshikawa/rulesync/releases/latest/download/mcp-schema.json",
+  // Only Playwright, for checking the generated HTML viewer and (later) the PWA in a real
+  // browser. Pinned to an exact version published more than 7 days ago: `npx` bypasses
+  // pnpm's minimumReleaseAge, so `@latest` would defeat the supply-chain policy.
+  // No other MCP servers: the app is offline and local-only, and there is no backend,
+  // hosting or error-tracking service to connect to.
+  "mcpServers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@0.0.83"]
+    }
+  }
+}
