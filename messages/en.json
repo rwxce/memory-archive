@@ -349,7 +349,8 @@
     "importsLink": "Imports for this person",
     "backToPerson": "Back to this person",
     "sectionsLabel": "Sections",
-    "sectionAudio": "Audio"
+    "sectionAudio": "Audio",
+    "sectionGallery": "Gallery"
   },
   "personAudio": {
     "title": "Audio",
@@ -368,6 +369,22 @@
     "showMore": "Show more",
     "loadingMore": "Loading more…",
     "moreFailed": "Some voice messages could not be read. Nothing was deleted."
+  },
+  "personGallery": {
+    "title": "Gallery",
+    "back": "Back to {name}",
+    "loading": "Loading photos and videos…",
+    "loadFailed": "The photos and videos could not be read. Nothing was deleted.",
+    "count": "{count, plural, one {# photo or video} other {# photos and videos}}",
+    "empty": "There are no photos or videos yet in the conversations kept under {name}. When there are, they will appear here.",
+    "photo": "Photo",
+    "video": "Video",
+    "tileLabel": "Open in conversation “{title}”: {kind}, {when}",
+    "videoName": "Video",
+    "shown": "Showing {shown} of {total}",
+    "showMore": "Show more",
+    "loadingMore": "Loading more…",
+    "moreFailed": "Some photos and videos could not be read. Nothing was deleted."
   },
   "conversations": {
     "listLabel": "Conversations",

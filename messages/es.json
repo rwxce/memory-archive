@@ -349,7 +349,8 @@
     "importsLink": "Importaciones de esta persona",
     "backToPerson": "Volver a esta persona",
     "sectionsLabel": "Secciones",
-    "sectionAudio": "Audio"
+    "sectionAudio": "Audio",
+    "sectionGallery": "Galería"
   },
   "personAudio": {
     "title": "Audio",
@@ -368,6 +369,22 @@
     "showMore": "Mostrar más",
     "loadingMore": "Cargando más…",
     "moreFailed": "Algunos mensajes de voz no se han podido leer. No se ha borrado nada."
+  },
+  "personGallery": {
+    "title": "Galería",
+    "back": "Volver a {name}",
+    "loading": "Cargando fotos y vídeos…",
+    "loadFailed": "No se han podido leer las fotos y los vídeos. No se ha borrado nada.",
+    "count": "{count, plural, one {# foto o vídeo} other {# fotos y vídeos}}",
+    "empty": "Aún no hay fotos ni vídeos en las conversaciones guardadas con {name}. Cuando los haya, aparecerán aquí.",
+    "photo": "Foto",
+    "video": "Vídeo",
+    "tileLabel": "Abrir en la conversación «{title}»: {kind}, {when}",
+    "videoName": "Vídeo",
+    "shown": "Se muestran {shown} de {total}",
+    "showMore": "Mostrar más",
+    "loadingMore": "Cargando más…",
+    "moreFailed": "Algunas fotos y vídeos no se han podido leer. No se ha borrado nada."
   },
   "conversations": {
     "listLabel": "Conversaciones",

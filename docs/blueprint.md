@@ -43,6 +43,18 @@ test type or architecture rule means updating this file **in the same PR**.
     `hooks/use-conversation-actions.ts` (rename / move / link / unlink; same reload contract).
     No dynamic route segments for ids (static export): detail screens use query params
     (`/person?id=`).
+  - **Person gallery** (`/[locale]/person/gallery/?id=<uuid>`, `components/person-gallery-screen.tsx` /
+    `person-gallery-tile.tsx`, listed first in `person-sections.tsx`): every photo and video (stickers
+    excluded) of the person's conversations, oldest first, as a square-tile grid (3 columns at 375 px up to
+    6 at 1440) under month headings (`components/group-by-month.ts`, shared with Audio), from
+    `usePersonMedia(['photo','video'])`: 50 tiles then "Show more", a plain paged grid, not virtualized
+    (tiles are cheap and fixed-size; only photos near the screen hold a file). Each tile is one link, named
+    "Open in conversation ...: type, date", to `/conversation?id=&from=&date=`. A photo is read only while
+    its tile is within 600 px of the viewport (`hooks/use-near-viewport.ts`, IntersectionObserver) through
+    `hooks/use-tile-image.ts` (the one seam where thumbnails will replace the full-size file), the shared
+    3-at-a-time queue, and its URL is revoked when the tile leaves that window or unmounts. A video tile is
+    a play glyph and its file name and reads nothing. Missing and undecodable files are a calm note in the
+    tile. No lightbox yet.
   - **Person audio** (`/[locale]/person/audio/?id=<uuid>`, `components/person-audio-screen.tsx` /
     `person-audio-item.tsx`, reached from `components/person-sections.tsx`, the section links shared by the
     person page and each section page; only sections that exist are listed): every voice message and audio
@@ -577,6 +589,7 @@ test type or architecture rule means updating this file **in the same PR**.
     `regressions` (one block per fixed known bug).
   - Packaging — `scripts/build-viewer-script.test.ts` (bundle fresh and self-contained) and
     `pnpm smoke` (built CLI).
+  - UI — `components/person-gallery-screen.test.tsx` (kinds, month groups, hrefs, near-screen reads and URL revoke with a driven IntersectionObserver, video reads nothing, missing and undecodable, Show more, empty / not-found / error + retry, Catalan), `hooks/use-near-viewport.test.tsx`, `e2e/person-gallery.spec.ts` (real PNGs and a video, lazy loading on scroll, keyboard, open in the conversation, at 390 and 1440 px);
   - UI — `components/person-audio-screen.test.tsx` and `hooks/use-person-media.test.tsx` (month groups, Open-in-conversation hrefs, one player at a time, missing file, Show more, empty / not-found / error + retry, Catalan; paging, kinds, failed page, ids), `e2e/person-audio.spec.ts` (import, sections link, play one at a time, open in the conversation, at 390 and 1440 px); `components/person-screen.test.tsx` (details, not-found, archived person, edit, archive,
     rename validation / double submit / failure / Escape and IME, move, link, unlink incl. the last
     person, busy guard, focus and live-region behaviour), `components/people-screen.test.tsx`

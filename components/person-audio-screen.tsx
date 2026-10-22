@@ -13,25 +13,13 @@ import { useLibrary } from '@/hooks/use-library';
 import { usePersonDetails } from '@/hooks/use-person-details';
 import { usePersonMedia } from '@/hooks/use-person-media';
 import { Link } from '@/i18n/navigation';
-import type { PersonMediaItem } from '@/lib/domain/library';
 import { formatMonth } from './format';
+import { groupByMonth } from './group-by-month';
 
 const KINDS = ['audio'] as const;
 
 const linkClass =
   'text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex min-h-11 w-fit items-center gap-2 rounded-md text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-[3px]';
-
-/** Consecutive items of the same month (they arrive oldest first). */
-function byMonth(items: PersonMediaItem[]): Array<{ month: string; items: PersonMediaItem[] }> {
-  const groups: Array<{ month: string; items: PersonMediaItem[] }> = [];
-  for (const item of items) {
-    const month = item.sentAt.slice(0, 7);
-    const last = groups[groups.length - 1];
-    if (last?.month === month) last.items.push(item);
-    else groups.push({ month, items: [item] });
-  }
-  return groups;
-}
 
 /**
  * A person's audio: every voice message and audio file of every conversation kept under them,
@@ -106,7 +94,7 @@ function PersonAudioContent({ onRetry }: { onRetry: () => void }) {
 
   const person = details.details.person;
   const { items, total, loadingMore, moreFailed } = media;
-  const groups = byMonth(items);
+  const groups = groupByMonth(items);
   return (
     <Shell>
       <Link href={`/person?id=${encodeURIComponent(person.id)}`} className={linkClass}>
