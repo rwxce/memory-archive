@@ -15,7 +15,7 @@ import { isTopLevel } from './nav-items';
  * - Phones and tablets: top-level screens (People, Search, Import, Settings) get the floating tab
  *   bar; a sub-screen passes `back` and gets a back pill instead (`back.label` defaults to "Back").
  * - Desktop (from `lg`): the sidebar on the left for all of them, and the content in a rounded
- *   `sf` panel (max 1040 px).
+ *   `sf` panel that fills the rest of the window.
  * The polite status region lives here, in every state of a screen, so a message set while a form
  * closes is announced by a region that was already on screen.
  */
@@ -42,7 +42,7 @@ export function Shell({
           data-panel
           className={cn(
             'mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 pt-8 sm:px-6 sm:pt-12',
-            'lg:bg-sf lg:mx-0 lg:min-h-[calc(100dvh-2.5rem)] lg:max-w-[1040px] lg:gap-6 lg:rounded-[32px] lg:p-12',
+            'lg:bg-sf lg:mx-0 lg:min-h-[calc(100dvh-2.5rem)] lg:max-w-none lg:gap-6 lg:rounded-[32px] lg:p-12',
             // Room under the content for the floating tab bar.
             focused ? 'pb-0 lg:pb-12' : topLevel ? 'pb-32' : 'pb-16',
           )}
@@ -60,6 +60,19 @@ export function Shell({
         </main>
       </div>
       {topLevel && <TabBar />}
+    </div>
+  );
+}
+
+/**
+ * The frame of a full-height screen with its own scrolling feed (a conversation, a timeline): a
+ * single column on phones, and on desktop the sidebar plus the feed filling the rest of the window.
+ */
+export function FeedShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="lg:flex">
+      <Sidebar />
+      <div className="mx-auto flex h-dvh w-full max-w-3xl min-w-0 flex-col lg:mx-0 lg:max-w-none lg:flex-1">{children}</div>
     </div>
   );
 }
