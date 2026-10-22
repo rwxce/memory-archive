@@ -58,6 +58,11 @@ See [`docs/privacy.md`](docs/privacy.md) for details.
 
 ## 🚀 Installation and Usage
 
+### Try it in the browser
+
+The latest release is published at <https://rwxce.github.io/memory-archive/>. Everything runs
+and stays on your device; nothing is uploaded.
+
 ### Requirements
 
 * **Node.js 24** (see `.nvmrc`).

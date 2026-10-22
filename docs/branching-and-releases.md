@@ -26,6 +26,10 @@
    - back-merges `main` into `dev` with `git merge -s ours`, so `dev` keeps `main` as an
      ancestor and the next release PR is clean.
 
+5. `pages.yml` also runs on the push to `main` and publishes the build to GitHub Pages at
+   `https://rwxce.github.io/memory-archive/` (built with `NEXT_PUBLIC_BASE_PATH=/memory-archive`).
+   `dev` is never deployed.
+
 No release bot is needed. A GitHub App would only be required if `dev` became a protected
 branch that rejects the workflow's push, or if CI had to run on automatically created PRs.
 
