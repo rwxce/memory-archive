@@ -69,7 +69,8 @@
     "unassignedTitle": "Aún sin asignar a nadie",
     "unassignedHint": "Estas conversaciones están a salvo en este dispositivo. Elige a quién pertenece cada una cuando quieras.",
     "import": "Importar una conversación",
-    "history": "Historial de importaciones"
+    "history": "Historial de importaciones",
+    "search": "Buscar"
   },
   "library": {
     "loading": "Abriendo tu archivo…",
@@ -353,7 +354,8 @@
     "sectionGallery": "Galería",
     "sectionTimeline": "Cronología",
     "sectionFavorites": "Favoritos",
-    "sectionNotes": "Notas"
+    "sectionNotes": "Notas",
+    "sectionSearch": "Buscar"
   },
   "personAudio": {
     "title": "Audio",
@@ -563,7 +565,8 @@
       "remove": "Quitar de favoritos",
       "failed": "No se ha podido guardar el favorito. No se ha borrado nada."
     },
-    "noteLabel": "Nota sobre este mensaje"
+    "noteLabel": "Nota sobre este mensaje",
+    "search": "Buscar en esta conversación"
   },
   "timeline": {
     "back": "Volver a {name}",
@@ -655,5 +658,48 @@
     "showMore": "Mostrar más",
     "loadingMore": "Cargando más…",
     "moreFailed": "No se han podido leer algunas notas. No se ha eliminado nada."
+  },
+  "search": {
+    "title": "Búsqueda",
+    "backToPerson": "Volver a {name}",
+    "backToConversation": "Volver a «{title}»",
+    "fieldLabel": "Buscar en mensajes y nombres de archivo",
+    "placeholder": "Buscar",
+    "clear": "Borrar la búsqueda",
+    "scopeAll": "Buscando en todas las conversaciones",
+    "scopePerson": "Buscando en {name}",
+    "scopeConversation": "Buscando en «{title}»",
+    "widen": "Buscar en todas las conversaciones",
+    "hint": "Escribe una palabra o un nombre. No importan las mayúsculas ni los acentos.",
+    "tooShort": "Escribe al menos 2 letras para buscar.",
+    "searching": "Buscando…",
+    "results": "{count, plural, one {# resultado} other {# resultados}}",
+    "resultsMore": "{count} resultados mostrados. Hay más.",
+    "noResultsShort": "Sin resultados",
+    "noResults": "Ningún mensaje coincide con «{query}».",
+    "noResultsHint": "Revisa la ortografía o prueba con menos palabras.",
+    "resultsLabel": "Resultados de la búsqueda",
+    "you": "Tú",
+    "unknownAuthor": "Remitente desconocido",
+    "open": "Abrir en la conversación",
+    "openLabel": "Abrir en la conversación «{title}», {when}",
+    "showMore": "Mostrar más",
+    "loadingMore": "Cargando más…",
+    "moreFailed": "No se han podido leer algunos resultados. No se ha cambiado nada.",
+    "loadFailed": "No se ha podido completar la búsqueda. No se ha cambiado nada.",
+    "unavailableTitle": "La búsqueda no está disponible ahora mismo",
+    "unavailableBody": "La búsqueda no ha podido abrir su índice en este dispositivo. Tus mensajes y el resto de la aplicación funcionan con normalidad.",
+    "notFoundTitle": "No podemos abrir esta búsqueda",
+    "notFoundBody": "La persona o la conversación de esta dirección no está en tu archivo.",
+    "preparingTitle": "Preparando la búsqueda…",
+    "preparingNote": "La primera vez tarda unos segundos, y también después de deshacer una importación o restaurar una copia. Puedes dejar esta página abierta.",
+    "refreshingTitle": "Se está actualizando la búsqueda…",
+    "refreshingNote": "Tus mensajes han cambiado y la búsqueda se está poniendo al día. Tarda unos segundos.",
+    "progress": "{done, number} de {total, number} mensajes",
+    "progressSpoken": "Preparando la búsqueda: {percent} %",
+    "cancel": "Cancelar",
+    "cancelledTitle": "La búsqueda aún no está lista",
+    "cancelledBody": "Se detuvo la preparación. Lo que ya estaba hecho se conserva y no se ha cambiado nada más.",
+    "resume": "Preparar la búsqueda"
   }
 }

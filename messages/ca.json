@@ -69,7 +69,8 @@
     "unassignedTitle": "Encara no assignades a ningú",
     "unassignedHint": "Aquestes converses són segures en aquest dispositiu. Tria de qui és cadascuna quan vulguis.",
     "import": "Importa una conversa",
-    "history": "Historial d’importacions"
+    "history": "Historial d’importacions",
+    "search": "Cerca"
   },
   "library": {
     "loading": "Obrint el teu arxiu…",
@@ -353,7 +354,8 @@
     "sectionGallery": "Galeria",
     "sectionTimeline": "Cronologia",
     "sectionFavorites": "Preferits",
-    "sectionNotes": "Notes"
+    "sectionNotes": "Notes",
+    "sectionSearch": "Cerca"
   },
   "personAudio": {
     "title": "Àudio",
@@ -563,7 +565,8 @@
       "remove": "Treu dels preferits",
       "failed": "No s'ha pogut desar el preferit. No s'ha esborrat res."
     },
-    "noteLabel": "Nota sobre aquest missatge"
+    "noteLabel": "Nota sobre aquest missatge",
+    "search": "Cerca en aquesta conversa"
   },
   "timeline": {
     "back": "Torna a {name}",
@@ -655,5 +658,48 @@
     "showMore": "Mostra’n més",
     "loadingMore": "Carregant-ne més…",
     "moreFailed": "No s’han pogut llegir algunes notes. No s’ha eliminat res."
+  },
+  "search": {
+    "title": "Cerca",
+    "backToPerson": "Torna a {name}",
+    "backToConversation": "Torna a «{title}»",
+    "fieldLabel": "Cerca en missatges i noms de fitxer",
+    "placeholder": "Cerca",
+    "clear": "Esborra la cerca",
+    "scopeAll": "Cerques a totes les converses",
+    "scopePerson": "Cerques a {name}",
+    "scopeConversation": "Cerques a «{title}»",
+    "widen": "Cerca a totes les converses",
+    "hint": "Escriu una paraula o un nom. No importen les majúscules ni els accents.",
+    "tooShort": "Escriu almenys 2 lletres per cercar.",
+    "searching": "Cercant…",
+    "results": "{count, plural, one {# resultat} other {# resultats}}",
+    "resultsMore": "{count} resultats mostrats. N’hi ha més.",
+    "noResultsShort": "Cap resultat",
+    "noResults": "Cap missatge coincideix amb «{query}».",
+    "noResultsHint": "Revisa l’ortografia o prova amb menys paraules.",
+    "resultsLabel": "Resultats de la cerca",
+    "you": "Tu",
+    "unknownAuthor": "Remitent desconegut",
+    "open": "Obre a la conversa",
+    "openLabel": "Obre a la conversa «{title}», {when}",
+    "showMore": "Mostra’n més",
+    "loadingMore": "Carregant-ne més…",
+    "moreFailed": "No s’han pogut llegir alguns resultats. No s’ha canviat res.",
+    "loadFailed": "No s’ha pogut completar la cerca. No s’ha canviat res.",
+    "unavailableTitle": "La cerca no està disponible ara mateix",
+    "unavailableBody": "La cerca no ha pogut obrir el seu índex en aquest dispositiu. Els missatges i la resta de l’aplicació funcionen amb normalitat.",
+    "notFoundTitle": "No podem obrir aquesta cerca",
+    "notFoundBody": "La persona o la conversa d’aquesta adreça no és al teu arxiu.",
+    "preparingTitle": "Preparant la cerca…",
+    "preparingNote": "La primera vegada triga uns segons, i també després de desfer una importació o restaurar una còpia. Pots deixar aquesta pàgina oberta.",
+    "refreshingTitle": "S’està actualitzant la cerca…",
+    "refreshingNote": "Els missatges han canviat i la cerca s’està posant al dia. Triga uns segons.",
+    "progress": "{done, number} de {total, number} missatges",
+    "progressSpoken": "Preparant la cerca: {percent} %",
+    "cancel": "Cancel·la",
+    "cancelledTitle": "La cerca encara no està a punt",
+    "cancelledBody": "S’ha aturat la preparació. El que ja s’havia fet es conserva i no s’ha canviat res més.",
+    "resume": "Prepara la cerca"
   }
 }

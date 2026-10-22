@@ -69,7 +69,8 @@
     "unassignedTitle": "Not assigned to anyone yet",
     "unassignedHint": "These conversations are safe on this device. Choose who each one belongs to whenever you like.",
     "import": "Import a chat",
-    "history": "Import history"
+    "history": "Import history",
+    "search": "Search"
   },
   "library": {
     "loading": "Opening your archive…",
@@ -353,7 +354,8 @@
     "sectionGallery": "Gallery",
     "sectionTimeline": "Timeline",
     "sectionFavorites": "Favorites",
-    "sectionNotes": "Notes"
+    "sectionNotes": "Notes",
+    "sectionSearch": "Search"
   },
   "personAudio": {
     "title": "Audio",
@@ -563,7 +565,8 @@
       "remove": "Remove from favorites",
       "failed": "The favorite could not be saved. Nothing was deleted."
     },
-    "noteLabel": "Note about this message"
+    "noteLabel": "Note about this message",
+    "search": "Search in this conversation"
   },
   "timeline": {
     "back": "Back to {name}",
@@ -655,5 +658,48 @@
     "showMore": "Show more",
     "loadingMore": "Loading more…",
     "moreFailed": "Some notes could not be read. Nothing was deleted."
+  },
+  "search": {
+    "title": "Search",
+    "backToPerson": "Back to {name}",
+    "backToConversation": "Back to “{title}”",
+    "fieldLabel": "Search messages and file names",
+    "placeholder": "Search",
+    "clear": "Clear search",
+    "scopeAll": "Searching in all conversations",
+    "scopePerson": "Searching in {name}",
+    "scopeConversation": "Searching in “{title}”",
+    "widen": "Search all conversations",
+    "hint": "Type a word or a name. Capitals and accents do not matter.",
+    "tooShort": "Type at least 2 letters to search.",
+    "searching": "Searching…",
+    "results": "{count, plural, one {# result} other {# results}}",
+    "resultsMore": "{count} results shown. There are more.",
+    "noResultsShort": "No results",
+    "noResults": "No messages match “{query}”.",
+    "noResultsHint": "Check the spelling or try fewer words.",
+    "resultsLabel": "Search results",
+    "you": "You",
+    "unknownAuthor": "Unknown sender",
+    "open": "Open in conversation",
+    "openLabel": "Open in conversation “{title}”, {when}",
+    "showMore": "Show more",
+    "loadingMore": "Loading more…",
+    "moreFailed": "Some results could not be read. Nothing was changed.",
+    "loadFailed": "The search could not be completed. Nothing was changed.",
+    "unavailableTitle": "Search is not available right now",
+    "unavailableBody": "Search could not open its index on this device. Your messages and the rest of the app work as usual.",
+    "notFoundTitle": "We could not open this search",
+    "notFoundBody": "The person or conversation in this address is not in your archive.",
+    "preparingTitle": "Preparing search…",
+    "preparingNote": "The first time takes a few seconds, and again after an undo or a restore. You can keep this page open.",
+    "refreshingTitle": "Search is being refreshed…",
+    "refreshingNote": "Your messages changed, so search is catching up. This takes a few seconds.",
+    "progress": "{done, number} of {total, number} messages",
+    "progressSpoken": "Preparing search: {percent}%",
+    "cancel": "Cancel",
+    "cancelledTitle": "Search is not ready yet",
+    "cancelledBody": "Preparing was stopped. What was done is kept, and nothing else changed.",
+    "resume": "Prepare search"
   }
 }

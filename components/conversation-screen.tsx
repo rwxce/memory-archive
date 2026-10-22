@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Search } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { ConversationBody, type FeedSource } from '@/components/conversation-body';
@@ -91,10 +91,16 @@ function ConversationContent({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col">
       <header className="flex shrink-0 flex-col gap-1 px-3 pt-2 pb-2 sm:px-4">
-        <Link href={back ? `/person?id=${encodeURIComponent(back.id)}` : '/people'} className={backLinkClass}>
-          <ArrowLeft className="size-4" aria-hidden />
-          {back ? t('back', { name: back.name }) : tp('back')}
-        </Link>
+        <div className="flex items-center justify-between gap-2">
+          <Link href={back ? `/person?id=${encodeURIComponent(back.id)}` : '/people'} className={`${backLinkClass} min-w-0`}>
+            <ArrowLeft className="size-4 shrink-0" aria-hidden />
+            <span className="truncate">{back ? t('back', { name: back.name }) : tp('back')}</span>
+          </Link>
+          <Link href={`/search?conversation=${encodeURIComponent(view.conversation.id)}`} className={`${backLinkClass} shrink-0`}>
+            <Search className="size-4" aria-hidden />
+            {t('search')}
+          </Link>
+        </div>
         <h1 className="font-serif text-2xl leading-tight break-words">{view.conversation.title}</h1>
         <p className="text-muted-foreground text-sm">
           {t('messageCount', { count: view.bounds.count })}

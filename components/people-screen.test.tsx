@@ -59,6 +59,7 @@ describe('PeopleScreen', () => {
     const link = view.container.querySelector<HTMLAnchorElement>('a[href="/import"]');
     expect(link?.textContent).toBe(p.import);
     expect(view.container.querySelector('a[href="/import/history"]')?.textContent).toBe(p.history);
+    expect(view.container.querySelector('a[href="/search"]')?.textContent).toBe(p.search);
     expect(buttonByText(view, p.add)).not.toBeNull();
   });
 
