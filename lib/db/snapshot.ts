@@ -1,6 +1,7 @@
 import { DbError, toDbError } from './errors';
 import { MIGRATIONS, migrate, readUserVersion, type Migration } from './migrations';
 import { loadSqlite } from './open';
+import { discardSearchIndex } from './search';
 import { transaction, wrapOo1Db, type SqlDb, type SqlValue } from './sql';
 
 /**
@@ -127,6 +128,8 @@ export async function loadSnapshot(
       if (have !== want) throw invalid('media references do not match the archive contents');
     }
 
+    // The archive is about to change under any search index: drop it (it is rebuilt on the next search).
+    discardSearchIndex(target);
     try {
       transaction(target, () => {
         target.exec('PRAGMA defer_foreign_keys = ON');

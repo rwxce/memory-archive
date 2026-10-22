@@ -43,6 +43,7 @@ import {
   type FavoriteScope,
   type NoteScope,
 } from './queries';
+import { discardSearchIndex, getSearchStatus, searchMessages, stepSearchIndex } from './search';
 import { listBlobs } from './snapshot';
 
 type Handlers = { [K in DbOpName]: (opened: OpenedDb, params: DbOps[K]['params']) => DbOps[K]['result'] };
@@ -74,7 +75,12 @@ const HANDLERS: Handlers = {
   findImportCandidates: ({ db }, p) => findImportCandidates(db, p),
   findExistingFingerprints: ({ db }, p) => findExistingFingerprints(db, p),
   listImportBatches: ({ db }, p) => listImportBatches(db, p === undefined ? {} : requireParams(p)),
-  undoImportBatch: ({ db }, p) => undoImportBatch(db, requireParams(p).batchId as string),
+  undoImportBatch: ({ db }, p) => {
+    const batchId = requireParams(p).batchId as string;
+    // First: the text of the messages about to go must not outlive them in the search index.
+    discardSearchIndex(db);
+    return undoImportBatch(db, batchId);
+  },
   listBlobHashes: ({ db }) => listBlobs(db).map((b) => b.sha256),
   listMessages: ({ db }, p) => {
     const params = requireParams(p);
@@ -116,6 +122,9 @@ const HANDLERS: Handlers = {
     return findPersonTimelineOffsetByDate(db, params.profileId as string, params.date as string);
   },
   listPersonTimelineDays: ({ db }, p) => listPersonTimelineDays(db, requireParams(p).profileId as string),
+  getSearchStatus: ({ db }) => getSearchStatus(db),
+  stepSearchIndex: ({ db }, p) => stepSearchIndex(db, p === undefined ? undefined : (requireParams(p).limit as number | undefined)),
+  searchMessages: ({ db }, p) => searchMessages(db, requireParams(p) as unknown as DbOps['searchMessages']['params']),
   setFavorite: ({ db }, p) => setFavorite(db, p),
   countFavorites: ({ db }, p) => countFavorites(db, p === undefined ? undefined : (requireParams(p).scope as FavoriteScope | undefined)),
   listFavorites: ({ db }, p) => {

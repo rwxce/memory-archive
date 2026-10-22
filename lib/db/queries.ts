@@ -964,7 +964,7 @@ export const MAX_WINDOW = 500;
 /** Most days `listConversationDays` returns (a century); a chat cannot get near it. */
 export const MAX_DAYS = 36_600;
 
-function requireConversation(db: SqlDb, conversationId: unknown): string {
+export function requireConversation(db: SqlDb, conversationId: unknown): string {
   const id = requireUuid(conversationId, 'conversation id');
   if (db.all('SELECT 1 FROM conversations WHERE id = ?', [id]).length === 0) notFound('conversation');
   return id;
@@ -993,9 +993,9 @@ export function countMessages(db: SqlDb, conversationId: string): number {
 }
 
 /** A window row as SQLite returns it: the flags are 0 / 1 and `isSystem` is derived. */
-type WindowRow<T extends ConversationMessage> = Omit<T, 'isMe' | 'isSystem' | 'isFavorite' | 'hasNote'> & { isMe: number; isFavorite: number; hasNote: number };
+export type WindowRow<T extends ConversationMessage> = Omit<T, 'isMe' | 'isSystem' | 'isFavorite' | 'hasNote'> & { isMe: number; isFavorite: number; hasNote: number };
 
-function toWindowMessage<T extends ConversationMessage>(m: WindowRow<T>): T {
+export function toWindowMessage<T extends ConversationMessage>(m: WindowRow<T>): T {
   return { ...m, isMe: m.isMe === 1, isSystem: m.type === 'system', isFavorite: m.isFavorite === 1, hasNote: m.hasNote === 1 } as unknown as T;
 }
 
@@ -1145,7 +1145,7 @@ export function listPersonMedia(
 /** Messages of every conversation linked to the profile (archived or not); unlinked ones are out. */
 const TIMELINE_MEMBER = `m.conversation_id IN (SELECT conversation_id FROM conversation_profiles WHERE profile_id = ?)`;
 
-function requireProfile(db: SqlDb, profileId: unknown): string {
+export function requireProfile(db: SqlDb, profileId: unknown): string {
   const id = requireUuid(profileId, 'profile id');
   requireProfileExists(db, id);
   return id;

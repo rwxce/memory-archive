@@ -256,3 +256,42 @@ export interface NoteMessage {
   body: string;
   mediaName: string;
 }
+
+/** A highlighted span of a snippet: UTF-16 offsets into `SearchSnippet.text` (`end` exclusive). */
+export interface SearchRange {
+  start: number;
+  end: number;
+}
+
+/**
+ * The part of a message that matched a search. `text` is plain untrusted text (an ellipsis may
+ * start or end it); `ranges` are sorted, never overlap, and say what to highlight. Never HTML.
+ */
+export interface SearchSnippet {
+  text: string;
+  ranges: SearchRange[];
+}
+
+/** A search hit: the message where it was said, plus the matching snippet. */
+export interface SearchResult extends PersonTimelineMessage {
+  snippet: SearchSnippet;
+}
+
+/**
+ * Whether searching can answer now. The index is a derived, rebuildable cache of the message
+ * text (never part of a backup): `not-built` (no complete pass yet), `stale` (the archive changed
+ * since it was last checked) or `ready`. `total` is the number of messages in the archive.
+ */
+export interface SearchStatus {
+  state: 'not-built' | 'stale' | 'ready';
+  total: number;
+}
+
+/** What one chunk of index work did; `verified` once a whole pass saw an archive that did not change under it. */
+export interface SearchIndexStep {
+  /** Messages looked at in this chunk. */
+  processed: number;
+  /** The pass over the archive ended with this chunk. */
+  finished: boolean;
+  verified: boolean;
+}
