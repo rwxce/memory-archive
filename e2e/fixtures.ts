@@ -58,3 +58,36 @@ export async function addPerson(page: Page, name: string, relationship = ''): Pr
   await page.getByRole('button', { name: 'Add person' }).click();
   await expect(page.getByRole('list', { name: 'People' }).getByRole('link', { name })).toBeVisible();
 }
+
+export type ImportFile = string | { name: string; mimeType: string; buffer: Buffer };
+
+/**
+ * The import wizard from the file chooser to the confirmation, for a person who already exists
+ * and an author called "Ana" who is the user. Waits for the preview of a large file.
+ */
+export async function walkImport(page: Page, file: ImportFile, person: string, confirm: string | RegExp): Promise<void> {
+  const heading = (name: string | RegExp) => page.getByRole('heading', { level: 2, name });
+  const next = () => page.getByRole('button', { name: 'Next' }).click();
+  await page.getByTestId('import-file-input').setInputFiles(file);
+  await page.getByRole('button', { name: 'Continue with 1 file' }).click();
+  await expect(heading(/What is in this file/)).toBeFocused();
+  await expect(page.getByText(/^[\d,]+ messages?$/)).toBeVisible({ timeout: 60_000 });
+  await next();
+  await expect(heading(/Who is this for/)).toBeFocused();
+  await page.getByRole('radio', { name: new RegExp(`^${person}`) }).check();
+  await next();
+  await expect(heading(/Which one is you/)).toBeFocused();
+  await page.getByRole('radio', { name: /^Ana/ }).check();
+  await next();
+  await expect(heading(/What is new/)).toBeFocused({ timeout: 30_000 });
+  await next();
+  await expect(heading(/Check and confirm/)).toBeFocused();
+  await page.getByRole('button', { name: confirm }).click();
+}
+
+/** From People to the chooser, walk the wizard and wait for the result. */
+export async function importFromPeople(page: Page, file: ImportFile, person: string, confirm: string | RegExp): Promise<void> {
+  await page.getByRole('link', { name: 'Import a chat' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Import a chat' })).toBeVisible();
+  await walkImport(page, file, person, confirm);
+}

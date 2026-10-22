@@ -101,6 +101,14 @@ describe('PersonScreen', () => {
   });
   afterEach(() => view?.unmount());
 
+  test('every conversation has an Open link to its view, and remembers which person to go back to', async () => {
+    view = await open('ana');
+    const links = [...view.container.querySelectorAll<HTMLAnchorElement>('li a')].filter((a) => a.textContent?.trim() === c.open);
+    expect(links.map((a) => a.getAttribute('aria-label'))).toEqual([c.openLabel.replace('{title}', 'Chat with Ana'), c.openLabel.replace('{title}', 'Family group')]);
+    const personId = new URLSearchParams(search).get('id');
+    expect(links[0].getAttribute('href')).toBe(`/conversation?id=${PRIVATE}&from=${personId}`);
+  });
+
   test('shows the person and their conversations: group badge, counts, dates, participants, other people', async () => {
     view = await open('ana');
     expect(view.container.querySelector('h1')?.textContent).toBe('Ana');

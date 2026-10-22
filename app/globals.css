@@ -106,3 +106,18 @@
     }
   }
 }
+
+/* Conversation view: bubble colors and per-sender name colors (the standalone viewer's palette).
+   Name colors keep their contrast on the bubble in both themes. */
+:root {
+  --bubble-out: #d9fdd3;
+}
+.dark {
+  --bubble-out: #005c4b;
+}
+.sender-name {
+  color: hsl(var(--sender-hue) 70% 28%);
+}
+.dark .sender-name {
+  color: hsl(var(--sender-hue) 80% 88%);
+}

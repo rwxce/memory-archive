@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { ArrowRightLeft, Link2, Pencil, Unlink, UserPlus, Users } from 'lucide-react';
+import { ArrowRightLeft, BookOpen, Link2, Pencil, Unlink, UserPlus, Users } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/utils';
 import type { ConversationActions } from '@/hooks/use-conversation-actions';
+import { Link } from '@/i18n/navigation';
 import { CONVERSATION_TITLE_MAX, FieldError, normalizeConversationTitle } from '@/lib/domain/profile';
 import type { ConversationRow } from '@/lib/usecases/conversations';
 import type { People } from '@/lib/usecases/library';
@@ -196,6 +197,15 @@ export function ConversationList({
 
               {!here && (
                 <div className="flex flex-wrap gap-2">
+                  <Button asChild variant="outline">
+                    <Link
+                      href={`/conversation?id=${encodeURIComponent(row.id)}${personId ? `&from=${encodeURIComponent(personId)}` : ''}`}
+                      aria-label={t('openLabel', { title: row.title })}
+                    >
+                      <BookOpen aria-hidden />
+                      {t('open')}
+                    </Link>
+                  </Button>
                   <Button
                     id={`${row.id}-rename`}
                     variant="outline"

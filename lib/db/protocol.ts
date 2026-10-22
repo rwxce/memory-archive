@@ -1,4 +1,7 @@
 import type {
+  ConversationBounds,
+  ConversationDay,
+  ConversationMessage,
   ConversationSummary,
   MessageCursor,
   Participant,
@@ -61,6 +64,11 @@ export interface DbOps {
     params: { conversationId: string; after?: MessageCursor; limit?: number };
     result: StoredMessage[];
   };
+  getConversationBounds: { params: { conversationId: string }; result: ConversationBounds };
+  countMessages: { params: { conversationId: string }; result: number };
+  getMessageWindow: { params: { conversationId: string; offset: number; limit: number }; result: ConversationMessage[] };
+  findMessageOffsetByDate: { params: { conversationId: string; date: string }; result: number | null };
+  listConversationDays: { params: { conversationId: string }; result: ConversationDay[] };
 }
 
 export type DbOpName = keyof DbOps;

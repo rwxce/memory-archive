@@ -478,6 +478,12 @@ describe('PeopleScreen', () => {
       expect([...view.container.querySelectorAll('li h2')].map((h) => h.textContent)).toEqual(['Ana']);
     });
 
+    test('each one can be opened (no person to go back to)', async () => {
+      view = await open(seedUnassigned);
+      const links = [...section(view)!.querySelectorAll<HTMLAnchorElement>('li a')];
+      expect(links.map((a) => a.getAttribute('href'))).toEqual([`/conversation?id=${chat}`, `/conversation?id=${group}`]);
+    });
+
     test('are shown even when there is no one yet, instead of the welcome', async () => {
       view = await open(
         async ({ client }) => {
