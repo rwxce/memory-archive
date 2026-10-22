@@ -1,0 +1,60 @@
+name: Release
+
+# Runs when a release PR (dev → main, titled "release: vX.Y.Z") is squash-merged.
+# Tags the commit, creates the GitHub Release, and back-merges main into dev so the
+# two branches never diverge. No bot needed: GITHUB_TOKEN is enough because dev is
+# not protected against the workflow's own push.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Read version from commit subject
+        id: version
+        env:
+          SUBJECT: ${{ github.event.head_commit.message }}
+        run: |
+          first_line=$(printf '%s' "$SUBJECT" | head -n1)
+          version=$(printf '%s' "$first_line" | sed -nE 's/^release: (v[0-9]+\.[0-9]+\.[0-9]+)( \(#[0-9]+\))?$/\1/p')
+          if [ -z "$version" ]; then
+            echo "::error::main commit subject must be 'release: vX.Y.Z' (got: '$first_line')"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Tag and create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
+            echo "Tag $VERSION already exists, skipping."
+            exit 0
+          fi
+          gh release create "$VERSION" --target "$GITHUB_SHA" --title "$VERSION" --generate-notes
+
+      - name: Back-merge main into dev
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout dev
+          # main's squash commit has the same content dev already has; "-s ours"
+          # only records main as an ancestor so the next release PR is clean.
+          git merge -s ours --no-edit -m "chore: back-merge $VERSION into dev" origin/main
+          git push origin dev

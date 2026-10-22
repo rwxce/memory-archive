@@ -27,7 +27,7 @@
     "url": "git+https://github.com/rwxce/memory-archive.git"
   },
   "scripts": {
-    "preinstall": "npx only-allow pnpm",
+    "preinstall": "node scripts/only-pnpm.mjs",
     "dev": "node scripts/build-db-worker.mjs && NEXT_TELEMETRY_DISABLED=1 next dev",
     "cli": "tsx cli/index.ts",
     "build": "node scripts/build-viewer-script.mjs && tsup && node scripts/build-db-worker.mjs && NEXT_TELEMETRY_DISABLED=1 next build && node scripts/build-sw.mjs",
