@@ -3,49 +3,47 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { SearchResult } from '@/lib/domain/library';
-import { formatDayTime } from './format';
+import { formatDay } from './format';
 import { isMediaMessage } from './message-media';
+import { PersonAvatar } from './person-avatar';
 import { MediaLine } from './person-favorite-item';
 import { Highlighted } from './search-highlight';
 
 /**
- * One hit as a compact card: when, who, which conversation, the matching snippet with the words
- * marked, and the way to the conversation (at that day; `personId` keeps the way back to the
- * person when the search was scoped to one). Text, names and titles are untrusted: text only.
+ * One hit as a card that is itself the link to its conversation (at that day; `personId` keeps the
+ * way back to the person when the search was scoped to one): the sender with their avatar, the
+ * conversation, the day, and the matching snippet with the words marked. Text, names and titles are
+ * untrusted: text only.
  */
 export function SearchResultItem({ item, personId }: { item: SearchResult; personId: string | null }) {
   const t = useTranslations('search');
   const locale = useLocale();
-  const when = formatDayTime(item.sentAt, locale);
   const author = item.isMe ? t('you') : item.participantName || t('unknownAuthor');
   const from = personId ? `&from=${encodeURIComponent(personId)}` : '';
   const href = `/conversation?id=${encodeURIComponent(item.conversationId)}${from}&date=${item.sentAt.slice(0, 10)}`;
   return (
-    <li className="bg-card flex flex-col gap-2 rounded-xl border p-4">
-      <div className="flex min-w-0 flex-col gap-1">
-        <p className="text-sm break-words">
-          <time dateTime={item.sentAt} className="font-medium">
-            {when}
-          </time>
-          <span className="text-muted-foreground" dir="auto">
-            {' · '}
-            {author}
-          </span>
-        </p>
-        <p className="text-muted-foreground text-sm break-words" dir="auto">
-          {item.conversationTitle}
-        </p>
-      </div>
-      {isMediaMessage(item.type) && <MediaLine message={item} />}
-      <p className="leading-relaxed break-words whitespace-pre-line" dir="auto">
-        <Highlighted text={item.snippet.text} ranges={item.snippet.ranges} />
-      </p>
+    <li>
       <Link
         href={href}
-        aria-label={t('openLabel', { title: item.conversationTitle, when })}
-        className="text-primary focus-visible:ring-ring/50 flex min-h-11 w-fit items-center rounded-md text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px]"
+        className="bg-sf hover:bg-sf2 focus-visible:ring-ring/50 flex min-h-11 flex-col gap-2 rounded-[20px] px-4 py-3.5 outline-none focus-visible:ring-[3px] lg:in-data-panel:bg-bg lg:in-data-panel:hover:bg-sf2"
       >
-        {t('open')}
+        <span className="flex min-w-0 items-center gap-2">
+          <PersonAvatar name={author} size="sm" className="size-[26px] rounded-lg text-[15px]" />
+          <span className="shrink-0 text-[13px] font-semibold" dir="auto">
+            {author}
+          </span>
+          <span className="text-mu min-w-0 truncate text-xs" dir="auto">
+            {'· '}
+            {item.conversationTitle}
+          </span>
+          <time dateTime={item.sentAt} className="text-mu ms-auto shrink-0 ps-2 text-xs">
+            {formatDay(item.sentAt, locale)}
+          </time>
+        </span>
+        {isMediaMessage(item.type) && <MediaLine message={item} />}
+        <span className="block text-[15px] leading-normal break-words whitespace-pre-line" dir="auto">
+          <Highlighted text={item.snippet.text} ranges={item.snippet.ranges} />
+        </span>
       </Link>
     </li>
   );

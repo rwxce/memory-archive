@@ -7,6 +7,8 @@ import { Link } from '@/i18n/navigation';
 export type PersonSection = 'audio' | 'favorites' | 'gallery' | 'notes' | 'search' | 'timeline';
 
 /**
+ * The person's page now leads to its sections with its own bento cards; this pill list is the
+ * compact alternative for a sub-page that wants to offer its siblings.
  * The places a person's page leads to, as links: shown on the person's page and on each of those
  * pages, with the current one marked. Only sections that exist are listed; each new section adds
  * its entry here.
@@ -29,7 +31,7 @@ export function PersonSections({ personId, current }: { personId: string; curren
             <Link
               href={href}
               aria-current={current === id ? 'page' : undefined}
-              className="bg-card hover:bg-muted aria-[current=page]:bg-secondary aria-[current=page]:text-secondary-foreground focus-visible:ring-ring/50 flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm font-medium outline-none focus-visible:ring-[3px]"
+              className="bg-sf2 hover:bg-line aria-[current=page]:bg-ac aria-[current=page]:text-ac-ink focus-visible:ring-ring/50 flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-medium outline-none focus-visible:ring-[3px]"
             >
               <Icon className="size-4" aria-hidden />
               {label}

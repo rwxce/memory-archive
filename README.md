@@ -7,6 +7,39 @@ Everything runs **on your own device**. No server, no account, no cloud, no tele
 
 ---
 
+## 📸 Screenshots
+
+Synthetic Catalan demo data (invented people and messages); the app is local-only and works offline. Left to right: People, a person, a conversation, the photo gallery, search.
+
+<p align="center">
+  <img src="docs/screenshots/mobile-light-people.png" alt="People: Mama, Avi Josep, Laia and Marc, with their relation and years" width="19%">
+  <img src="docs/screenshots/mobile-light-person.png" alt="A person's page with a saved quote, message, photo and voice note counts and shortcuts to Timeline, Gallery, Audio, Favorites and Notes" width="19%">
+  <img src="docs/screenshots/mobile-light-conversation.png" alt="A conversation with a photo, a voice note, a deleted message and starred messages" width="19%">
+  <img src="docs/screenshots/mobile-light-gallery.png" alt="The photo gallery of a person, grouped by month" width="19%">
+  <img src="docs/screenshots/mobile-light-search.png" alt="Search results for the word tomaqueres, with the match highlighted" width="19%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/desktop-light-person.png" alt="Desktop layout of a person's page with the sidebar, stats and sections" width="100%">
+</p>
+
+Light and dark follow the device setting:
+
+<p align="center">
+  <img src="docs/screenshots/mobile-light-welcome.png" alt="Welcome screen, light theme" width="24%">
+  <img src="docs/screenshots/mobile-dark-welcome.png" alt="Welcome screen, dark theme" width="24%">
+  <img src="docs/screenshots/mobile-light-conversation.png" alt="A conversation, light theme" width="24%">
+  <img src="docs/screenshots/mobile-dark-conversation.png" alt="A conversation, dark theme" width="24%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/desktop-dark-person.png" alt="Desktop layout of a person's page, dark theme" width="100%">
+</p>
+
+Regenerate them with `pnpm build && pnpm screenshots` (see [docs/blueprint.md](docs/blueprint.md)).
+
+---
+
 ## 🧩 Features
 
 ### Available today (CLI)
@@ -234,10 +267,3 @@ Details in [`docs/roadmap.md`](docs/roadmap.md).
 
 This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
 It started as a fork of [guionardo/wa-backup](https://github.com/guionardo/wa-backup) by Guionardo Furlan, also MIT.
-
----
-
-## 📬 Contact
-
-For questions or suggestions, contact:
-**[148581386+rwxce@users.noreply.github.com](mailto:148581386+rwxce@users.noreply.github.com)**

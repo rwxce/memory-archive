@@ -126,7 +126,7 @@ export function NoteEditor({ note, label, autoFocus, initialDraft, onDraftChange
 
   if (state.status === 'idle' || state.status === 'loading') {
     return (
-      <p role="status" className="text-muted-foreground flex items-center gap-2 text-sm">
+      <p role="status" className="text-mu flex items-center gap-2 text-sm">
         <Loader className="size-4 motion-safe:animate-spin" aria-hidden />
         {t('loading')}
       </p>
@@ -150,7 +150,7 @@ export function NoteEditor({ note, label, autoFocus, initialDraft, onDraftChange
 
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <label htmlFor={fieldId} className="text-sm font-medium">
+      <label htmlFor={fieldId} className="text-mu text-xs font-semibold tracking-[0.14em] uppercase">
         {label}
       </label>
       <textarea
@@ -165,7 +165,7 @@ export function NoteEditor({ note, label, autoFocus, initialDraft, onDraftChange
         aria-describedby={hintId}
         onChange={(event) => edit(event.target.value)}
         onKeyDown={onKeyDown}
-        className="bg-background border-input aria-invalid:border-destructive min-h-24 w-full resize-y rounded-md border px-3 py-2 text-base leading-relaxed whitespace-pre-wrap shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+        className="bg-bg border-input aria-invalid:border-destructive min-h-24 w-full resize-y rounded-2xl border px-3.5 py-2.5 text-base leading-relaxed whitespace-pre-wrap outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
       />
       <div id={hintId} className="flex min-h-5 flex-col gap-1 text-sm break-words">
         {problemText && (
@@ -174,22 +174,22 @@ export function NoteEditor({ note, label, autoFocus, initialDraft, onDraftChange
           </p>
         )}
         {remaining <= COUNTER_FROM && (
-          <p role="status" className={remaining <= 0 ? 'text-destructive' : 'text-muted-foreground'}>
+          <p role="status" className={remaining <= 0 ? 'text-destructive' : 'text-mu'}>
             {t('remaining', { count: remaining })}
           </p>
         )}
         {saved && (
-          <p className="text-muted-foreground">
+          <p className="text-mu">
             {t('savedAt', { relative: saved.relative, absolute: saved.absolute })}
           </p>
         )}
-        <p role="status" className="text-muted-foreground empty:hidden">
+        <p role="status" className="text-mu empty:hidden">
           {notice}
         </p>
       </div>
 
       {phase === 'delete' || phase === 'discard' ? (
-        <div role="group" aria-label={phase === 'delete' ? t('deleteTitle') : t('discardTitle')} className="bg-muted/60 flex flex-col gap-3 rounded-lg p-3">
+        <div role="group" aria-label={phase === 'delete' ? t('deleteTitle') : t('discardTitle')} className="bg-sf2 flex flex-col gap-3 rounded-2xl p-4">
           <p className="text-sm leading-relaxed">{phase === 'delete' ? t('deleteBody') : t('discardBody')}</p>
           <div className="flex flex-wrap gap-2">
             <Button ref={confirmButton} type="button" variant="destructive" onClick={() => (phase === 'delete' ? void run('', true) : discard())}>

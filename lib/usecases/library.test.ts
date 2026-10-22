@@ -295,6 +295,41 @@ describe('listPeople', () => {
     ]);
     expect(people.archived.map((p) => [p.displayName, p.conversationCount])).toEqual([['Bo', 1]]);
   });
+
+  test('reports the earliest first and latest last message across a person\'s conversations, null when unknown', async () => {
+    const { deps, client } = await createTestLibrary();
+    const ana = await createProfile(deps, { displayName: 'Ana' });
+    await createProfile(deps, { displayName: 'Bo' });
+    const msg = (n: number, sentAt: string) => ({
+      fingerprint: n.toString(16).padStart(64, '0'),
+      sentAt,
+      ordinal: 0,
+      type: 'text' as const,
+      participantName: 'Ana',
+      body: 'synthetic',
+      mediaSha256: null,
+      mediaName: '',
+    });
+    const importInto = (n: number, messages: ReturnType<typeof msg>[]) =>
+      client.call('importMessages', {
+        batchId: `00000000-0000-4000-8000-0000000001${n}0`,
+        conversationId: `00000000-0000-4000-8000-0000000002${n}0`,
+        source: 'whatsapp',
+        sourceLabel: 'x.zip',
+        now: '2026-03-01T10:00:00.000Z',
+        blobs: [],
+        messages,
+        newConversation: { title: `Chat ${n}`, sourceKey: `chat${n}`, isGroup: false, profileIds: [ana.id] },
+        meAuthor: null,
+      });
+    await importInto(1, [msg(1, '2016-05-01T10:00:00'), msg(2, '2018-01-01T10:00:00')]);
+    await importInto(2, [msg(3, '2014-02-03T09:00:00'), msg(4, '2024-12-31T23:00:00')]);
+
+    const { active } = await listPeople(deps);
+    const byName = Object.fromEntries(active.map((p) => [p.displayName, p]));
+    expect(byName.Ana).toMatchObject({ conversationCount: 2, firstMessageAt: '2014-02-03T09:00:00', lastMessageAt: '2024-12-31T23:00:00' });
+    expect(byName.Bo).toMatchObject({ conversationCount: 0, firstMessageAt: null, lastMessageAt: null });
+  });
 });
 
 describe('listPeople: unassigned conversations', () => {

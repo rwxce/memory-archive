@@ -1,31 +1,40 @@
 'use client';
 
-import { useState } from 'react';
-import { ArrowLeft, Loader } from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useCallback, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
+import { AudioHero } from '@/components/audio-hero';
 import { LibraryNotice } from '@/components/library-notice';
-import { PersonAudioItem } from '@/components/person-audio-item';
-import { PersonSections } from '@/components/person-sections';
+import { PersonAudioItem, useAudioAuthor } from '@/components/person-audio-item';
+import { usePeopleBack, usePersonBack } from '@/components/person-back';
+import { EmptyNote, ErrorNote, LoadingNote, PersonNotFound } from '@/components/screen-states';
 import { Shell } from '@/components/screen-shell';
-import { Button } from '@/components/ui/button';
+import { ShowMore } from '@/components/show-more';
 import { useLibrary } from '@/hooks/use-library';
+import { useMediaUrl } from '@/hooks/use-media-url';
 import { usePersonDetails } from '@/hooks/use-person-details';
 import { usePersonMedia } from '@/hooks/use-person-media';
-import { Link } from '@/i18n/navigation';
-import { formatMonth } from './format';
-import { groupByMonth } from './group-by-month';
+import type { PersonMediaItem } from '@/lib/domain/library';
 
 const KINDS = ['audio'] as const;
 
-const linkClass =
-  'text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex min-h-11 w-fit items-center gap-2 rounded-md text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-[3px]';
+/** Consecutive items of the same year (`sentAt` stamps, oldest first). */
+function groupByYear(items: PersonMediaItem[]): Array<{ year: string; items: PersonMediaItem[] }> {
+  const groups: Array<{ year: string; items: PersonMediaItem[] }> = [];
+  for (const item of items) {
+    const year = item.sentAt.slice(0, 4);
+    const last = groups[groups.length - 1];
+    if (last?.year === year) last.items.push(item);
+    else groups.push({ year, items: [item] });
+  }
+  return groups;
+}
 
 /**
  * A person's audio: every voice message and audio file of every conversation kept under them,
- * oldest first, by month. The person is chosen by `?id=` (a static export has no dynamic routes).
- * Rows come 50 at a time with "Show more"; a file is read only when its Play is pressed, and only
- * one plays at a time.
+ * oldest first, by year. The person is chosen by `?id=` (a static export has no dynamic routes).
+ * Rows come 50 at a time with "Show more". A file is read only when its Play is pressed, and one
+ * shared player ("Now playing") plays it, so only one item ever plays at a time.
  */
 export function PersonAudioScreen() {
   const { state, retry } = useLibrary();
@@ -39,108 +48,154 @@ export function PersonAudioScreen() {
   return <PersonAudioContent onRetry={retry} />;
 }
 
+function Hero({
+  item,
+  personId,
+  audio,
+  playing,
+  elapsed,
+  duration,
+  onToggle,
+  onPlaying,
+  onTime,
+  onDuration,
+}: Omit<React.ComponentProps<typeof AudioHero>, 'author' | 'media'> & {
+  onPlaying: (playing: boolean) => void;
+  onTime: (seconds: number) => void;
+  onDuration: (seconds: number) => void;
+}) {
+  const author = useAudioAuthor(item);
+  const media = useMediaUrl({ sha256: item.mediaSha256, mime: item.mediaMime, name: item.mediaName });
+  return (
+    <>
+      <AudioHero item={item} author={author} personId={personId} media={media} playing={playing} elapsed={elapsed} duration={duration} audio={audio} onToggle={onToggle} />
+      {/* The one player of the screen: no controls of its own (the hero is its face). */}
+      <audio
+        ref={audio}
+        src={media.status === 'ready' ? media.url : undefined}
+        autoPlay
+        preload="none"
+        aria-label={author}
+        hidden
+        onPlay={() => onPlaying(true)}
+        onPause={() => onPlaying(false)}
+        onEnded={() => onPlaying(false)}
+        onTimeUpdate={(event) => onTime(event.currentTarget.currentTime)}
+        onLoadedMetadata={(event) => onDuration(event.currentTarget.duration)}
+        onDurationChange={(event) => onDuration(event.currentTarget.duration)}
+      />
+    </>
+  );
+}
+
 function PersonAudioContent({ onRetry }: { onRetry: () => void }) {
   const t = useTranslations('personAudio');
-  const tp = useTranslations('person');
-  const tl = useTranslations('library');
-  const locale = useLocale();
   const id = useSearchParams().get('id');
   const details = usePersonDetails(id);
   const { state: media, loadMore, retry } = usePersonMedia(id, KINDS);
-  const [playing, setPlaying] = useState<number | null>(null);
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const [current, setCurrent] = useState<PersonMediaItem | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [durations, setDurations] = useState<Record<number, number>>({});
+  const peopleBack = usePeopleBack();
+  const person = details.status === 'ready' ? details.details.person : undefined;
+  const personBack = usePersonBack(person ?? { id: id ?? '', displayName: '' });
+
+  const toggle = useCallback(() => {
+    const element = audio.current;
+    if (!element) return;
+    if (element.paused) void Promise.resolve(element.play?.()).catch(() => setPlaying(false));
+    else element.pause();
+  }, []);
+  const choose = (item: PersonMediaItem) => {
+    if (current?.id === item.id) return toggle();
+    setCurrent(item);
+    setElapsed(0);
+    setPlaying(false);
+  };
 
   if (details.status === 'not-found' || media.status === 'not-found') {
     return (
-      <Shell>
-        <section className="bg-card flex flex-col gap-3 rounded-xl border p-6">
-          <h1 className="font-serif text-2xl">{tp('notFoundTitle')}</h1>
-          <p className="text-muted-foreground leading-relaxed">{tp('notFoundBody')}</p>
-          <Link href="/people" className={linkClass}>
-            <ArrowLeft className="size-4" aria-hidden />
-            {tp('back')}
-          </Link>
-        </section>
+      <Shell back={peopleBack}>
+        <PersonNotFound />
       </Shell>
     );
   }
   if (details.status === 'error' || media.status === 'error') {
     return (
-      <Shell>
-        <Link href={id ? `/person?id=${encodeURIComponent(id)}` : '/people'} className={linkClass}>
-          <ArrowLeft className="size-4" aria-hidden />
-          {id ? tp('backToPerson') : tp('back')}
-        </Link>
-        <section role="alert" className="bg-card flex flex-col gap-3 rounded-xl border p-5">
-          <p>{t('loadFailed')}</p>
-          <div>
-            <Button variant="outline" onClick={details.status === 'error' ? onRetry : retry}>
-              {tl('retry')}
-            </Button>
-          </div>
-        </section>
+      <Shell back={person ? personBack : peopleBack}>
+        <ErrorNote onRetry={details.status === 'error' ? onRetry : retry}>{t('loadFailed')}</ErrorNote>
       </Shell>
     );
   }
-  if (details.status === 'loading' || media.status === 'loading') {
+  if (!person || media.status === 'loading') {
     return (
       <Shell>
-        <p role="status" className="text-muted-foreground flex items-center gap-2 py-6">
-          <Loader className="size-4 motion-safe:animate-spin" aria-hidden />
-          {t('loading')}
-        </p>
+        <LoadingNote>{t('loading')}</LoadingNote>
       </Shell>
     );
   }
 
-  const person = details.details.person;
   const { items, total, loadingMore, moreFailed } = media;
-  const groups = groupByMonth(items);
+  const groups = groupByYear(items);
+  const currentDuration = current ? durations[current.id] : undefined;
   return (
-    <Shell>
-      <Link href={`/person?id=${encodeURIComponent(person.id)}`} className={linkClass}>
-        <ArrowLeft className="size-4" aria-hidden />
-        {t('back', { name: person.displayName })}
-      </Link>
-      <header className="flex flex-col gap-1">
-        <h1 className="font-serif text-3xl break-words">{t('title')}</h1>
-        <p className="text-muted-foreground break-words">{t('count', { count: total, name: person.displayName })}</p>
+    <Shell back={personBack}>
+      <header className="flex items-end justify-between gap-3 px-1">
+        <h1 className="font-display text-display">{t('title')}</h1>
+        <p className="text-mu pb-1.5 text-end text-sm break-words">{t('count', { count: total, name: person.displayName })}</p>
       </header>
-      <PersonSections personId={person.id} current="audio" />
+
+      {current && (
+        <Hero
+          key={current.id}
+          item={current}
+          personId={person.id}
+          audio={audio}
+          playing={playing}
+          elapsed={elapsed}
+          duration={currentDuration}
+          onToggle={toggle}
+          onPlaying={setPlaying}
+          onTime={setElapsed}
+          onDuration={(seconds) => {
+            if (Number.isFinite(seconds) && seconds > 0) setDurations((all) => ({ ...all, [current.id]: seconds }));
+          }}
+        />
+      )}
 
       {total === 0 ? (
-        <p className="bg-card text-muted-foreground rounded-xl border p-5 leading-relaxed break-words">{t('empty', { name: person.displayName })}</p>
+        <EmptyNote>{t('empty', { name: person.displayName })}</EmptyNote>
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-5">
           {groups.map((group) => (
-            <section key={group.month} aria-labelledby={`month-${group.month}`} className="flex flex-col gap-3">
-              <h2 id={`month-${group.month}`} className="text-xl font-semibold">
-                {formatMonth(`${group.month}-01`, locale)}
+            <section key={group.year} aria-labelledby={`year-${group.year}`} className="flex flex-col gap-2.5">
+              <h2 id={`year-${group.year}`} className="font-display text-name px-1 sm:text-3xl">
+                {group.year}
               </h2>
-              <ul className="flex flex-col gap-3">
+              <ul className="flex flex-col gap-2">
                 {group.items.map((item) => (
-                  <PersonAudioItem key={item.id} item={item} personId={person.id} active={playing === item.id} onPlay={() => setPlaying(item.id)} />
+                  <PersonAudioItem
+                    key={item.id}
+                    item={item}
+                    current={current?.id === item.id}
+                    playing={playing}
+                    duration={durations[item.id]}
+                    onToggle={() => choose(item)}
+                  />
                 ))}
               </ul>
             </section>
           ))}
-          <div className="flex flex-col items-start gap-2">
-            {items.length < total && (
-              <p role="status" className="text-muted-foreground text-sm">
-                {t('shown', { shown: items.length, total })}
-              </p>
-            )}
-            {moreFailed && (
-              <p role="alert" className="text-destructive text-sm">
-                {t('moreFailed')}
-              </p>
-            )}
-            {items.length < total && (
-              <Button variant="outline" onClick={loadMore} aria-disabled={loadingMore || undefined} className="min-h-11 aria-disabled:pointer-events-none aria-disabled:opacity-50">
-                {loadingMore && <Loader className="motion-safe:animate-spin" aria-hidden />}
-                {loadingMore ? t('loadingMore') : t('showMore')}
-              </Button>
-            )}
-          </div>
+          <ShowMore
+            shown={items.length}
+            total={total}
+            loading={loadingMore}
+            failed={moreFailed}
+            onMore={loadMore}
+            labels={{ shown: t('shown', { shown: items.length, total }), moreFailed: t('moreFailed'), showMore: t('showMore'), loadingMore: t('loadingMore') }}
+          />
         </div>
       )}
     </Shell>

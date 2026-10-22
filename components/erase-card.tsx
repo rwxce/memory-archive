@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Eyebrow } from '@/components/eyebrow';
+import { PillButton } from '@/components/pill-button';
+import { SectionCard } from '@/components/section-card';
 import { useEraseDevice } from '@/hooks/use-erase-device';
 import { useRouter } from '@/i18n/navigation';
 
@@ -43,17 +44,17 @@ export function EraseCard() {
   const erasing = phase === 'erasing';
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('title')}</CardTitle>
-        <CardDescription>{t('description')}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button variant="destructive" onClick={() => setPhase('confirming')}>
+    <SectionCard className="gap-3.5 p-[18px]" aria-labelledby="erase-card-title">
+      <Eyebrow as="h2" id="erase-card-title" tone="muted" className="tracking-widest">
+        {t('title')}
+      </Eyebrow>
+      <p className="text-t2 text-sm leading-relaxed">{t('description')}</p>
+      <div>
+        <PillButton variant="danger" onClick={() => setPhase('confirming')}>
           <Trash2 aria-hidden />
           {t('button')}
-        </Button>
-      </CardContent>
+        </PillButton>
+      </div>
 
       <dialog
         ref={dialog}
@@ -63,10 +64,10 @@ export function EraseCard() {
           event.preventDefault();
           cancel();
         }}
-        className="bg-background text-foreground m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border p-6 shadow-lg backdrop:bg-black/50"
+        className="bg-bg text-foreground m-auto w-[calc(100%-2rem)] max-w-md rounded-3xl p-6 shadow-soft backdrop:bg-black/50"
       >
         <div className="flex flex-col gap-4">
-          <h2 id="erase-title" className="font-serif text-xl">
+          <h2 id="erase-title" className="font-display text-headline">
             {t('dialogTitle')}
           </h2>
           <div id="erase-body" className="flex flex-col gap-2 text-sm">
@@ -77,15 +78,15 @@ export function EraseCard() {
             {phase === 'failed' ? t('failed') : erasing ? <span className="text-muted-foreground">{t('erasing')}</span> : null}
           </p>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button variant="outline" onClick={cancel} disabled={erasing} autoFocus>
+            <PillButton variant="outlined" onClick={cancel} disabled={erasing} autoFocus>
               {t('cancel')}
-            </Button>
-            <Button variant="destructive" onClick={run} disabled={erasing}>
+            </PillButton>
+            <PillButton variant="danger" onClick={run} disabled={erasing}>
               {phase === 'failed' ? t('retry') : t('confirm')}
-            </Button>
+            </PillButton>
           </div>
         </div>
       </dialog>
-    </Card>
+    </SectionCard>
   );
 }

@@ -6,16 +6,33 @@
   "nav": {
     "home": "Home",
     "settings": "Settings",
-    "back": "Back"
+    "back": "Back",
+    "primary": "Main",
+    "brand": "Memory Archive",
+    "searchLabel": "Search",
+    "searchPlaceholder": "Search the whole archive",
+    "tabs": {
+      "people": "People",
+      "search": "Search",
+      "import": "Import",
+      "settings": "Settings"
+    },
+    "sourceCode": "Source code on GitHub"
   },
   "welcome": {
-    "title": "Keep their words close",
     "body": "Bring together the conversations, photos and voice messages of the people who matter to you, and open them again whenever you want.",
     "privacy": "Everything stays on this device. No account, no cloud, no tracking.",
     "start": "Start",
     "open": "Open an archive",
     "openHint": "Already have a Memory Archive file? Open it to continue where you left off.",
-    "comingSoon": "This step is not ready yet. It will arrive in a coming version."
+    "eyebrow": "Memory Archive",
+    "titleStart": "Keep their words",
+    "titleAccent": "close",
+    "mock": {
+      "name": "Mum",
+      "received": "Have you got home yet?",
+      "sent": "Yes, just now"
+    }
   },
   "people": {
     "title": "People",
@@ -69,8 +86,7 @@
     "unassignedTitle": "Not assigned to anyone yet",
     "unassignedHint": "These conversations are safe on this device. Choose who each one belongs to whenever you like.",
     "import": "Import a chat",
-    "history": "Import history",
-    "search": "Search"
+    "eyebrow": "Your archive"
   },
   "library": {
     "loading": "Opening your archive…",
@@ -92,7 +108,8 @@
     "title": "Settings",
     "language": {
       "title": "Language",
-      "description": "The language of the app. Your messages are never translated."
+      "description": "The language of the app. Your messages are never translated.",
+      "current": "Current language"
     },
     "theme": {
       "title": "Appearance",
@@ -109,10 +126,13 @@
     "storage": {
       "title": "Space on this device",
       "loading": "Checking the space used…",
-      "usage": "{used} used of about {total} available to this app",
       "unknown": "This browser does not say how much space the app uses.",
       "persisted": "Your archive is protected: the browser will not delete it on its own.",
-      "notPersisted": "The browser may clear this app’s data if the device runs out of space. Adding the app to your home screen helps keep it safe, and so does exporting a copy from time to time."
+      "notPersisted": "The browser may clear this app’s data if the device runs out of space. Adding the app to your home screen helps keep it safe, and so does exporting a copy from time to time.",
+      "available": "of about {total} available",
+      "photos": "Photos and videos",
+      "messages": "Messages and audio",
+      "meter": "{percent}% of the space used"
     },
     "erase": {
       "title": "Erase everything from this device",
@@ -129,8 +149,11 @@
     },
     "history": {
       "title": "Import history",
-      "description": "See what each import added, and undo one if you need to.",
-      "open": "Open import history"
+      "description": "See what each import added, and undo one if you need to."
+    },
+    "backup": {
+      "title": "Back up the whole archive",
+      "description": "One ZIP file you can open on any device."
     }
   },
   "notFound": {
@@ -156,11 +179,12 @@
       "start": "{count, plural, one {Continue with # file} other {Continue with # files}}"
     },
     "wizard": {
-      "fileOf": "File {index} of {count}: {name}",
       "step": "Step {step} of {total}",
       "toFiles": "Back to the files",
       "back": "Back",
-      "next": "Next"
+      "next": "Next",
+      "fileChip": "File {index} of {count}",
+      "fileSingle": "File"
     },
     "steps": {
       "preview": "What is in this file",
@@ -203,7 +227,8 @@
       "laterHint": "The conversation waits under “Not assigned to anyone yet” on the People screen.",
       "new": "Add a new person",
       "newHint": "Write who this chat is with. They are added to your archive right away.",
-      "conversations": "{count, plural, =0 {No conversations yet} one {# conversation} other {# conversations}}"
+      "conversations": "{count, plural, =0 {No conversations yet} one {# conversation} other {# conversations}}",
+      "newShort": "Added to your archive right away."
     },
     "me": {
       "legend": "Which of these is you in “{title}”?",
@@ -368,11 +393,22 @@
     "sectionTimeline": "Timeline",
     "sectionFavorites": "Favorites",
     "sectionNotes": "Notes",
-    "sectionSearch": "Search"
+    "sectionSearch": "Search",
+    "menuLabel": "More options for {name}",
+    "menuNote": "Note about this person",
+    "menuSearch": "Search in {name}",
+    "since": "since {year}",
+    "statMessages": "messages",
+    "statPictures": "photos and videos",
+    "statVoice": "voice messages",
+    "timelineHint": "All conversations",
+    "galleryCount": "{count, plural, one {# photo or video} other {# photos and videos}}",
+    "audioCount": "{count, plural, one {# voice message} other {# voice messages}}",
+    "favoritesTitle": "Favorites",
+    "showFavorites": "Show all {count, plural, one {# favorite} other {# favorites}}"
   },
   "personAudio": {
     "title": "Audio",
-    "back": "Back to {name}",
     "loading": "Loading voice messages…",
     "loadFailed": "The voice messages could not be read. Nothing was deleted.",
     "count": "{count, plural, one {# voice message or audio file} other {# voice messages and audio files}}",
@@ -386,11 +422,14 @@
     "shown": "Showing {shown} of {total}",
     "showMore": "Show more",
     "loadingMore": "Loading more…",
-    "moreFailed": "Some voice messages could not be read. Nothing was deleted."
+    "moreFailed": "Some voice messages could not be read. Nothing was deleted.",
+    "nowPlaying": "Now playing",
+    "pause": "Pause",
+    "pauseLabel": "Pause voice message from {label}",
+    "seek": "Position in the audio"
   },
   "personGallery": {
     "title": "Gallery",
-    "back": "Back to {name}",
     "loading": "Loading photos and videos…",
     "loadFailed": "The photos and videos could not be read. Nothing was deleted.",
     "count": "{count, plural, one {# photo or video} other {# photos and videos}}",
@@ -409,7 +448,14 @@
     "next": "Next",
     "close": "Close",
     "openInConversation": "Open in conversation",
-    "loadingNext": "Loading the next one…"
+    "loadingNext": "Loading the next one…",
+    "filterLabel": "What to show",
+    "filterAll": "All",
+    "filterPhotos": "Photos",
+    "filterVideos": "Videos",
+    "countPhotos": "{count, plural, one {# photo} other {# photos}}",
+    "countVideos": "{count, plural, one {# video} other {# videos}}",
+    "emptyFiltered": "Nothing of this kind yet in the conversations kept under {name}."
   },
   "conversations": {
     "listLabel": "Conversations",
@@ -470,7 +516,8 @@
       "cancel": "Cancel"
     },
     "open": "Open",
-    "openLabel": "Open “{title}”"
+    "openLabel": "Open “{title}”",
+    "privateChat": "Private chat"
   },
   "history": {
     "title": "Import history",
@@ -502,7 +549,8 @@
     },
     "loadMore": "Show older imports",
     "loadMoreFailed": "Older imports could not be read. Try again.",
-    "nothingAdded": "This import added no messages, so there is nothing to undo."
+    "nothingAdded": "This import added no messages, so there is nothing to undo.",
+    "eyebrow": "Your archive"
   },
   "conversation": {
     "back": "Back to {name}",
@@ -515,8 +563,8 @@
     "empty": "There are no messages in this conversation yet.",
     "feedLabel": "Messages in “{title}”",
     "toolbarLabel": "Move around the conversation",
-    "toStart": "Go to start",
-    "toEnd": "Go to latest",
+    "toStart": "Start",
+    "toEnd": "Latest",
     "date": "Go to date",
     "jumped": "Showing the first message on or after {date}.",
     "noneAfter": "There are no messages on or after {date}.",
@@ -558,7 +606,8 @@
       "error": "This file could not be opened.",
       "playLabel": "Play {name}",
       "saveLabel": "Save {name}",
-      "save": "Save"
+      "save": "Save",
+      "pauseLabel": "Pause {name}"
     },
     "details": {
       "toggle": "Message details",
@@ -579,7 +628,9 @@
       "failed": "The favorite could not be saved. Nothing was deleted."
     },
     "noteLabel": "Note about this message",
-    "search": "Search in this conversation"
+    "search": "Search in this conversation",
+    "goToDate": "Go to date",
+    "noteBadge": "Note"
   },
   "timeline": {
     "back": "Back to {name}",
@@ -674,15 +725,9 @@
   },
   "search": {
     "title": "Search",
-    "backToPerson": "Back to {name}",
-    "backToConversation": "Back to “{title}”",
     "fieldLabel": "Search messages and file names",
     "placeholder": "Search",
     "clear": "Clear search",
-    "scopeAll": "Searching in all conversations",
-    "scopePerson": "Searching in {name}",
-    "scopeConversation": "Searching in “{title}”",
-    "widen": "Search all conversations",
     "hint": "Type a word or a name. Capitals and accents do not matter.",
     "tooShort": "Type at least 2 letters to search.",
     "searching": "Searching…",
@@ -694,8 +739,6 @@
     "resultsLabel": "Search results",
     "you": "You",
     "unknownAuthor": "Unknown sender",
-    "open": "Open in conversation",
-    "openLabel": "Open in conversation “{title}”, {when}",
     "showMore": "Show more",
     "loadingMore": "Loading more…",
     "moreFailed": "Some results could not be read. Nothing was changed.",
@@ -713,6 +756,34 @@
     "cancel": "Cancel",
     "cancelledTitle": "Search is not ready yet",
     "cancelledBody": "Preparing was stopped. What was done is kept, and nothing else changed.",
-    "resume": "Prepare search"
+    "resume": "Prepare search",
+    "everyone": "Everyone",
+    "scopeLabel": "Where to search",
+    "removeScope": "Searching in “{title}”. Remove this filter"
+  },
+  "archive": {
+    "notReady": "Your archive is still opening. Try again in a moment.",
+    "progress": {
+      "preparing": "Getting ready…",
+      "media": "Copying files: {done} of {total}",
+      "finishing": "Finishing…"
+    },
+    "done": {
+      "backup": "The backup was saved as a ZIP file.",
+      "restore": "The archive is open. Everything is on this device."
+    },
+    "error": {
+      "busy": "Another backup or restore is already running. Wait for it to finish and try again.",
+      "notEmpty": "This device already has an archive, so nothing was opened. An archive can only be opened on an empty device.",
+      "invalid": "This file is not a valid Memory Archive file, or it is damaged. Nothing was changed.",
+      "newer": "This file was saved by a newer version of Memory Archive. Update the app to open it. Nothing was changed.",
+      "limit": "The archive is too large to back up in a single file.",
+      "missingMedia": "Some of the archive files are missing, so the backup could not be made. Nothing was changed.",
+      "storage": "There is not enough space on this device, or it could not be written to. Nothing was changed.",
+      "generic": "Something went wrong. Nothing was deleted. Try again."
+    }
+  },
+  "subpage": {
+    "backTo": "Back to"
   }
 }

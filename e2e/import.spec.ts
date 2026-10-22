@@ -24,7 +24,7 @@ const heading = (page: Page, name: string | RegExp) => page.getByRole('heading',
 
 /** People → Import a chat → the file → past the preview. */
 async function chooseExport(page: Page) {
-  await page.getByRole('link', { name: 'Import a chat' }).click();
+  await page.getByRole('link', { name: /^Import( a chat)?$/ }).click();
   await expect(page).toHaveURL(/\/en\/import\/$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Import a chat' })).toBeVisible();
   await page.getByTestId('import-file-input').setInputFiles(exportZip());
@@ -82,7 +82,7 @@ test('imports a chat into a new person, shows the result and keeps working offli
   await expect(page.getByText('This is a new conversation. All 4 messages will be added.')).toBeVisible();
   await next(page);
   await expect(heading(page, /Check and confirm/)).toBeFocused();
-  await expect(page.getByText('Mama', { exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByText('Mama', { exact: true })).toBeVisible();
   expect(await overflowsHorizontally(page)).toBe(false);
   await page.getByRole('button', { name: 'Add 4 messages to Mama' }).click();
 
@@ -97,7 +97,7 @@ test('imports a chat into a new person, shows the result and keeps working offli
   await expect(page.getByRole('heading', { level: 1, name: 'Mama' })).toBeVisible();
   const conversations = page.getByRole('list', { name: 'Conversations' });
   await expect(conversations.getByRole('heading', { name: 'Ana i Bo' })).toBeVisible();
-  await expect(conversations.getByText(/^4 messages/)).toBeVisible();
+  await expect(conversations.getByText(/4 messages/)).toBeVisible();
 
   // Offline: the stored conversation is still there after a reload.
   await page.evaluate(async () => {
@@ -108,7 +108,7 @@ test('imports a chat into a new person, shows the result and keeps working offli
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByRole('heading', { level: 1, name: 'Mama' })).toBeVisible();
-  await expect(page.getByRole('list', { name: 'Conversations' }).getByText(/^4 messages/)).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Conversations' }).getByText(/4 messages/)).toBeVisible();
   await context.setOffline(false);
 });
 
@@ -142,7 +142,7 @@ test('the same export again is "already in the archive" and adds nothing', async
   // Still one conversation with 4 messages.
   await page.getByRole('link', { name: 'Open Mama' }).click();
   await expect(page.getByRole('list', { name: 'Conversations' }).getByRole('listitem')).toHaveCount(1);
-  await expect(page.getByText(/^4 messages/)).toBeVisible();
+  await expect(page.getByText(/4 messages/)).toBeVisible();
 });
 
 test('undo asks first, then removes the conversation the import created', async ({ page }) => {
@@ -171,7 +171,7 @@ test('undo asks first, then removes the conversation the import created', async 
 
 test('a text file is left out with an explanation and nothing is read', async ({ page }) => {
   await startFresh(page);
-  await page.getByRole('link', { name: 'Import a chat' }).click();
+  await page.getByRole('link', { name: /^Import( a chat)?$/ }).click();
   await page.getByTestId('import-file-input').setInputFiles({ name: '_chat.txt', mimeType: 'text/plain', buffer: Buffer.from(CHAT) });
   await expect(page.getByText('1 file was left out: for now only WhatsApp ZIP files can be imported.')).toBeVisible();
   await expect(page.getByText('No files chosen yet.')).toBeVisible();

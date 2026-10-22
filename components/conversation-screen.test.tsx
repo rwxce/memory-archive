@@ -19,6 +19,7 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/sub',
 }));
 
 type Lib = Awaited<ReturnType<typeof createTestLibrary>>;
@@ -104,13 +105,13 @@ describe('ConversationScreen', () => {
     expect(view!.container.querySelector('h1')?.textContent).toBe('Chat with Ana');
     const header = view!.container.querySelector('header')!;
     expect(header.textContent).toContain('3 messages');
-    expect(header.textContent).toContain('Mar 17, 2026');
+    expect(header.textContent).toContain('2026');
     expect(header.textContent).toContain('Kept under Ana M.');
     const back = header.querySelector('a')!;
-    expect(back.textContent).toContain('Back to Ana M.');
+    expect(back.textContent).toContain('Back to Ana M.'); // the pill is an icon; the name is for screen readers
     expect(back.getAttribute('href')).toBe(`/person?id=${ana.id}`);
     const searchLink = header.querySelector<HTMLAnchorElement>('a[href^="/search?conversation="]')!;
-    expect(searchLink.textContent).toBe('Search in this conversation');
+    expect(searchLink.getAttribute('aria-label')).toBe('Search in this conversation');
     expect(searchLink.getAttribute('href')).toMatch(/^\/search\?conversation=[0-9a-f-]{36}$/);
   });
 
@@ -143,8 +144,9 @@ describe('ConversationScreen', () => {
     expect(system.getAttribute('aria-label')).toMatch(/^Notice, /);
     expect(system.querySelector('p')!.className).toContain('italic');
     expect(system.querySelector('time')).toBeNull();
-    // the author's name appears when the author changes, not on every message
-    expect(last.textContent).toContain('Ana');
+    // the author's name appears when the author changes, not on every message; your own bubbles carry none
+    expect(first.textContent).toContain('Bo');
+    expect(last.textContent).not.toContain('Ana');
     expect(feed().getAttribute('aria-busy')).toBe('false');
   });
 
@@ -250,6 +252,8 @@ describe('virtualization', () => {
 
   test('jump to a date: the first message of that day is at the top; a day past the end says so', async () => {
     await open(synthetic(20_000));
+    await click(button(c.goToDate)); // the plain date field lives in the calendar sheet
+    await settle();
     const input = view!.container.querySelector<HTMLInputElement>('input[type="date"]')!;
     expect(input.min).toBe('2020-01-01');
     expect(input.max).toBe('2020-04-09');
@@ -288,7 +292,7 @@ describe('calendar', () => {
     await lib.client.call('linkConversationProfile', { conversationId: CONV, profileId: ana.id });
   };
   const calls = (spy: { mock: { calls: unknown[][] } }) => spy.mock.calls.filter(([name]) => name === 'listConversationDays').length;
-  const trigger = () => button('Calendar');
+  const trigger = () => button(c.goToDate);
   const label = (text: string) => [...view!.container.querySelectorAll<HTMLElement>('#conversation-calendar button')].find((b) => b.getAttribute('aria-label')?.startsWith(text))!;
 
   test('days are read only when the calendar is first opened, once', async () => {
@@ -322,7 +326,6 @@ describe('calendar', () => {
     expect(view!.container.querySelector('#conversation-calendar')).toBeNull();
     expect(view!.container.querySelector('[role="status"]')!.textContent).toBe('Showing the first message on or after Mar 1, 2020.');
     expect(document.activeElement).toBe(trigger());
-    expect(view!.container.querySelector<HTMLInputElement>('input[type="date"]')!.value).toBe('2020-03-01');
   });
 
   test('Escape closes it and returns focus to the button', async () => {
@@ -453,7 +456,7 @@ describe('media', () => {
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
-  test('a video waits for Play; a voice message and a document show native controls and a chip', async () => {
+  test('a video waits for Play; a voice message has its own play button and a document shows a chip', async () => {
     await open(async (lib) => {
       const hash = await withPhoto(lib);
       const blobs = [{ sha256: hash, size: 4, mime: null }];
@@ -468,8 +471,10 @@ describe('media', () => {
       );
     });
     const audio = feed().querySelector('audio')!;
-    expect(audio.getAttribute('preload')).toBe('none');
-    expect(audio.hasAttribute('controls')).toBe(true);
+    // only the length is read up front; the round button is the control, not the browser's bar
+    expect(audio.getAttribute('preload')).toBe('metadata');
+    expect(audio.hasAttribute('controls')).toBe(false);
+    expect(feed().querySelector(`button[aria-label="${en.conversation.media.playLabel.replace('{name}', 'PTT-1.opus')}"]`)).not.toBeNull();
     expect(feed().querySelector('video')).toBeNull();
     expect(URL.createObjectURL).toHaveBeenCalledTimes(1); // only the voice message was read
     const chip = [...feed().querySelectorAll('article')][2];
@@ -482,6 +487,27 @@ describe('media', () => {
     expect(video.getAttribute('preload')).toBe('none');
     expect(video.hasAttribute('controls')).toBe(true);
     expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
+  });
+
+  test('a voice message shows its length only once the file says it, and the button follows the audio', async () => {
+    await open(async (lib) => {
+      const hash = await withPhoto(lib);
+      await seed(lib, [text(1, { type: 'audio', body: '', mediaSha256: hash, mediaName: 'PTT-1.opus' })], [{ sha256: hash, size: 4, mime: null }]);
+    });
+    const audio = feed().querySelector('audio')!;
+    const play = en.conversation.media.playLabel.replace('{name}', 'PTT-1.opus');
+    const pause = en.conversation.media.pauseLabel.replace('{name}', 'PTT-1.opus');
+    expect(feed().querySelector('article')!.textContent).not.toMatch(/(?<!\d)\d:\d\d/);
+    Object.defineProperty(audio, 'duration', { configurable: true, value: 83 });
+    await act(async () => void audio.dispatchEvent(new Event('loadedmetadata')));
+    expect(feed().querySelector('article')!.textContent).toContain('1:23');
+    expect(feed().querySelector(`button[aria-label="${play}"]`)).not.toBeNull();
+    await act(async () => void audio.dispatchEvent(new Event('play')));
+    expect(feed().querySelector(`button[aria-label="${pause}"]`)).not.toBeNull();
+    await act(async () => void audio.dispatchEvent(new Event('ended')));
+    expect(feed().querySelector(`button[aria-label="${play}"]`)).not.toBeNull();
+    // the waveform is decoration
+    expect(feed().querySelector('article span[aria-hidden]')).not.toBeNull();
   });
 
   test('at most three files are read at a time', async () => {

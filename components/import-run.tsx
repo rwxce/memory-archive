@@ -5,7 +5,7 @@ import { AlertCircle, CheckCircle2, CircleDashed, Loader, MinusCircle, Undo2 } f
 import { useLocale, useTranslations } from 'next-intl';
 import { percentOf, currentCheck, type FileItem, type RunState } from '@/components/import-types';
 import { ProblemText } from '@/components/import-steps';
-import { Button } from '@/components/ui/button';
+import { PillButton } from '@/components/pill-button';
 import { cn } from '@/components/ui/utils';
 import { Link } from '@/i18n/navigation';
 import type { ImportProgress } from '@/lib/usecases/import';
@@ -13,7 +13,7 @@ import { formatBytes } from './format';
 
 const busyClass = 'aria-disabled:pointer-events-none aria-disabled:opacity-50';
 const linkClass =
-  'text-primary focus-visible:ring-ring/50 inline-flex min-h-11 w-fit items-center rounded-md text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px]';
+  'text-ac-tx focus-visible:ring-ring/50 inline-flex min-h-11 w-fit items-center rounded-full px-2 text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px]';
 
 const STATUS_ICON = {
   waiting: CircleDashed,
@@ -30,7 +30,7 @@ function Status({ run }: { run: RunState }) {
   const undone = run.status === 'done' && typeof run.undo === 'object';
   const Icon = STATUS_ICON[run.status];
   return (
-    <span className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
+    <span className="text-mu inline-flex items-center gap-1.5 text-sm">
       <Icon className={cn('size-4 shrink-0', run.status === 'running' && 'motion-safe:animate-spin')} aria-hidden />
       {t(undone ? 'undone' : run.status)}
     </span>
@@ -46,7 +46,7 @@ function ProgressBar({ progress, label }: { progress: ImportProgress | undefined
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={percent}
-      className="bg-muted h-2 w-full overflow-hidden rounded-full"
+      className="bg-sf2 h-2 w-full overflow-hidden rounded-full"
     >
       <div
         className={cn('bg-primary h-full rounded-full', percent === undefined ? 'w-1/3 motion-safe:animate-pulse' : 'transition-[width] motion-reduce:transition-none')}
@@ -90,13 +90,13 @@ export function ImportRunning({
 
   return (
     <div className="flex flex-col gap-6">
-      <h2 ref={headingRef} tabIndex={-1} className="font-serif text-2xl outline-none">
+      <h2 ref={headingRef} tabIndex={-1} className="font-display text-headline outline-none">
         {t('title')}
       </h2>
       {current >= 0 && (
-        <section className="bg-card flex min-w-0 flex-col gap-3 rounded-xl border p-4 sm:p-5">
+        <section className="bg-sf lg:in-data-panel:bg-bg flex min-w-0 flex-col gap-3 rounded-3xl p-4 sm:p-5">
           {total > 1 && (
-            <p className="text-muted-foreground text-sm break-words">
+            <p className="text-mu text-sm break-words">
               {t('fileOf', { index: current + 1, count: total, name: items[current].file.name })}
             </p>
           )}
@@ -108,11 +108,11 @@ export function ImportRunning({
         </section>
       )}
       {total > 1 && <Queue items={items} label={t('queue')} />}
-      <p className="text-muted-foreground text-sm leading-relaxed">{t('cancelNote')} {t('keepOpen')}</p>
+      <p className="text-mu text-sm leading-relaxed">{t('cancelNote')} {t('keepOpen')}</p>
       <div>
-        <Button variant="outline" className={busyClass} aria-disabled={cancelling || undefined} onClick={() => !cancelling && onCancel()}>
+        <PillButton variant="outlined" className={busyClass} aria-disabled={cancelling || undefined} onClick={() => !cancelling && onCancel()}>
           {cancelling ? t('cancelling') : t('cancel')}
-        </Button>
+        </PillButton>
       </div>
     </div>
   );
@@ -122,7 +122,7 @@ function Queue({ items, label }: { items: FileItem[]; label: string }) {
   return (
     <ul className="flex flex-col gap-2" aria-label={label}>
       {items.map((item) => (
-        <li key={item.id} className="bg-card flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg border p-3">
+        <li key={item.id} className="bg-sf lg:in-data-panel:bg-bg flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-2xl p-3">
           <span className="min-w-0 text-sm font-medium break-words">{item.file.name}</span>
           <Status run={item.run} />
         </li>
@@ -159,13 +159,13 @@ export function ImportDone({
 
   return (
     <div className="flex flex-col gap-6">
-      <h2 ref={headingRef} tabIndex={-1} className="font-serif text-2xl outline-none">
+      <h2 ref={headingRef} tabIndex={-1} className="font-display text-headline outline-none">
         {t(title)}
       </h2>
-      {cancelled && <p className="text-muted-foreground leading-relaxed">{t('cancelledNote')}</p>}
+      {cancelled && <p className="text-mu leading-relaxed">{t('cancelledNote')}</p>}
       <ul className="flex flex-col gap-4">
         {items.map((item) => (
-          <li key={item.id} className="bg-card flex min-w-0 flex-col gap-3 rounded-xl border p-4 sm:p-5">
+          <li key={item.id} className="bg-sf lg:in-data-panel:bg-bg flex min-w-0 flex-col gap-3 rounded-3xl p-4 sm:p-5">
             <FileResult
               item={item}
               onUndoAsk={() => onUndoAsk(item.id)}
@@ -177,16 +177,16 @@ export function ImportDone({
         ))}
       </ul>
       <div className="flex flex-col gap-3 sm:flex-row">
-        {unfinished && <Button onClick={onRetry}>{t('retry')}</Button>}
-        <Button variant="outline" onClick={onAnother}>
+        {unfinished && <PillButton onClick={onRetry}>{t('retry')}</PillButton>}
+        <PillButton variant="outlined" onClick={onAnother}>
           {t('another')}
-        </Button>
-        <Button variant="outline" asChild>
+        </PillButton>
+        <PillButton variant="outlined" asChild>
           <Link href="/people">{t('people')}</Link>
-        </Button>
-        <Button variant="outline" asChild>
+        </PillButton>
+        <PillButton variant="outlined" asChild>
           <Link href="/import/history">{t('history')}</Link>
-        </Button>
+        </PillButton>
       </div>
     </div>
   );
@@ -240,7 +240,7 @@ function FileResult({
         <h3 className="min-w-0 text-base leading-snug font-semibold break-words">{chatTitle}</h3>
         <Status run={run} />
       </div>
-      <p className="text-muted-foreground -mt-2 text-sm break-words">{item.file.name}</p>
+      <p className="text-mu -mt-2 text-sm break-words">{item.file.name}</p>
 
       {run.status === 'done' && (
         <>
@@ -252,7 +252,7 @@ function FileResult({
                 : t('result.addedUnassigned', { count: run.result.summary.added })}
             </li>
             {run.result.summary.alreadyThere > 0 && <li>{t('result.alreadyThere', { count: run.result.summary.alreadyThere })}</li>}
-            <li className="text-muted-foreground break-words">
+            <li className="text-mu break-words">
               {run.result.createdConversation ? t('result.created', { title: chatTitle }) : t('result.merged', { title: chatTitle })}
             </li>
             {run.result.summary.mediaAdded > 0 && <li>{t('result.media', { count: run.result.summary.mediaAdded })}</li>}
@@ -263,7 +263,7 @@ function FileResult({
             {run.result.dateFormat.ambiguous && (
               <li>{t(run.result.dateFormat.dayFirst ? 'result.dayFirst' : 'result.monthFirst')}</li>
             )}
-            {run.lateCancel && <li className="text-muted-foreground">{t('result.lateCancel')}</li>}
+            {run.lateCancel && <li className="text-mu">{t('result.lateCancel')}</li>}
           </ul>
           )}
 
@@ -271,7 +271,7 @@ function FileResult({
             <div
               role="group"
               aria-labelledby={titleId}
-              className="bg-muted flex min-w-0 flex-col gap-3 rounded-lg p-4"
+              className="bg-sf2 flex min-w-0 flex-col gap-3 rounded-2xl p-4"
               onKeyDown={(event) => {
                 if (event.key === 'Escape' && !event.nativeEvent.isComposing && undo !== 'working') {
                   event.stopPropagation();
@@ -282,7 +282,7 @@ function FileResult({
               <p id={titleId} className="font-semibold">
                 {t('undo.title')}
               </p>
-              <p className="text-muted-foreground text-sm leading-relaxed break-words">
+              <p className="text-mu text-sm leading-relaxed break-words">
                 {run.result.createdConversation
                   ? t('undo.bodyCreated', { count: run.result.summary.added, title: chatTitle })
                   : t('undo.body', { count: run.result.summary.added })}
@@ -291,20 +291,20 @@ function FileResult({
                 {undo === 'failed' ? t('undo.failed') : ''}
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button ref={cancelRef} variant="outline" className={busyClass} aria-disabled={undo === 'working' || undefined} onClick={() => undo !== 'working' && onUndoCancel()}>
+                <PillButton ref={cancelRef} variant="outlined" className={busyClass} aria-disabled={undo === 'working' || undefined} onClick={() => undo !== 'working' && onUndoCancel()}>
                   {t('undo.cancel')}
-                </Button>
-                <Button variant="destructive" className={busyClass} aria-disabled={undo === 'working' || undefined} onClick={() => undo !== 'working' && onUndo()}>
+                </PillButton>
+                <PillButton variant="danger" className={busyClass} aria-disabled={undo === 'working' || undefined} onClick={() => undo !== 'working' && onUndo()}>
                   {t('undo.confirm')}
-                </Button>
+                </PillButton>
               </div>
             </div>
           ) : typeof undo === 'object' ? (
-            <p ref={undoneRef} tabIndex={-1} className="text-muted-foreground outline-none">
+            <p ref={undoneRef} tabIndex={-1} className="text-mu outline-none">
               {t('undo.done', { count: undo.removed })}
             </p>
           ) : undo === 'gone' ? (
-            <p ref={undoneRef} tabIndex={-1} className="text-muted-foreground outline-none">
+            <p ref={undoneRef} tabIndex={-1} className="text-mu outline-none">
               {t('undo.gone')}
             </p>
           ) : (
@@ -319,16 +319,16 @@ function FileResult({
                 </Link>
               )}
               {(run.result.summary.added > 0 || run.result.createdConversation) && (
-                <Button
+                <PillButton
                   ref={undoButton}
-                  variant="ghost"
+                  variant="ghost-link"
                   className="self-start"
                   aria-label={t('result.undoLabel', { title: chatTitle })}
                   onClick={onUndoAsk}
                 >
                   <Undo2 aria-hidden />
                   {t('result.undo')}
-                </Button>
+                </PillButton>
               )}
             </div>
           )}
@@ -342,9 +342,9 @@ function FileResult({
           </p>
           {run.problem === 'changed' && (
             <div>
-              <Button variant="outline" onClick={onReview}>
+              <PillButton variant="outlined" onClick={onReview}>
                 {t('problem.review')}
-              </Button>
+              </PillButton>
             </div>
           )}
         </>

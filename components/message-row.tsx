@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useId, useMemo, useState, type CSSProperties } from 'react';
-import { MessagesSquare } from 'lucide-react';
+import { MessagesSquare, NotebookText } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { ConversationMessage } from '@/lib/domain/library';
@@ -95,14 +95,14 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
   });
 
   const separator = newDay && (
-    <div aria-hidden className="my-2 flex justify-center">
-      <span className="bg-muted text-muted-foreground rounded-full px-3 py-1 text-center text-xs">{formatFullDay(message.sentAt, locale)}</span>
+    <div aria-hidden className="mt-3.5 mb-2.5 flex justify-center">
+      <span className="font-display bg-sf text-t2 rounded-full px-3.5 py-1.5 text-center text-[17px] italic">{formatFullDay(message.sentAt, locale)}</span>
     </div>
   );
   const fromConversation = conversationTitle !== undefined && conversationHref !== undefined && (
     <Link
       href={conversationHref}
-      className="bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring/50 mx-auto mt-2 mb-1 flex min-h-11 w-fit max-w-full items-center gap-1.5 rounded-full px-3 text-xs outline-none focus-visible:ring-[3px]"
+      className="bg-sf2 text-foreground hover:bg-line focus-visible:ring-ring/50 mx-auto mt-2 mb-1 flex min-h-11 w-fit max-w-full items-center gap-1.5 rounded-full px-3 text-xs outline-none focus-visible:ring-[3px]"
     >
       <MessagesSquare className="size-3.5 shrink-0" aria-hidden />
       <span dir="auto" className="min-w-0 truncate">{conversationTitle}</span>
@@ -117,7 +117,7 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
       <article {...common} aria-label={t('noticeLabel', { when })}>
         {separator}
       {fromConversation}
-        <p dir="auto" className="text-muted-foreground mx-auto max-w-[90%] text-center text-sm whitespace-pre-wrap italic [overflow-wrap:anywhere]">
+        <p dir="auto" className="text-mu mx-auto max-w-[90%] py-1.5 text-center text-[13px] whitespace-pre-wrap italic [overflow-wrap:anywhere]">
           <RichText text={message.body || fallback} />
         </p>
       </article>
@@ -141,23 +141,31 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
         {message.isMe && button}
         <div
           className={cn(
-            'flex min-w-0 max-w-[85%] flex-col gap-1 rounded-lg px-2.5 py-1.5 text-sm leading-snug shadow-xs sm:max-w-[75%]',
-            message.isMe ? 'bg-(--bubble-out) text-foreground' : 'bg-card text-card-foreground border',
+            'flex min-w-0 max-w-[85%] flex-col gap-1 text-[15px] leading-[1.45] sm:max-w-[75%]',
+            media ? 'p-1.5' : 'px-3.5 py-2.5',
+            message.isMe ? 'bg-out-b text-out-ink rounded-[22px_22px_6px_22px] [&_time]:text-out-mu' : 'bg-in-b text-foreground rounded-[22px_22px_22px_6px]',
           )}
         >
-          {showAuthor && author && (
-            <span dir="auto" className="sender-name text-[13px] font-semibold [overflow-wrap:anywhere]" style={{ '--sender-hue': senderHue(author) } as CSSProperties}>
+          {showAuthor && author && !message.isMe && (
+            <span dir="auto" className={cn('sender-name text-[13px] font-semibold [overflow-wrap:anywhere]', media && 'px-2 pt-1')} style={{ '--sender-hue': senderHue(author) } as CSSProperties}>
               {author}
             </span>
           )}
           {media && <MessageMedia message={message} />}
-          <div className="flex flex-wrap items-end justify-end gap-x-3">
+          <div className={cn('flex flex-wrap items-end justify-end gap-x-3', media && 'px-2 pb-0.5')}>
             {message.body !== '' && (
               <p dir="auto" className="max-w-full min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
                 <RichText text={message.body} />
               </p>
             )}
-            <time dateTime={message.sentAt} className="text-muted-foreground ms-auto shrink-0 text-[11px] leading-none">
+            {message.hasNote && (
+              // The note button beside the bubble is the control; this badge only shows there is one.
+              <span aria-hidden className="bg-butter text-ink ms-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] leading-none font-semibold">
+                <NotebookText className="size-3" />
+                {t('noteBadge')}
+              </span>
+            )}
+            <time dateTime={message.sentAt} className={cn('text-mu shrink-0 text-[11px] leading-none', !message.hasNote && 'ms-auto')}>
               {time(message.sentAt)}
             </time>
           </div>
@@ -165,7 +173,7 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
         {!message.isMe && button}
       </div>
       {noteOpen && onNoteChanged && (
-        <div id={notePanelId} className="bg-muted/60 mt-1 rounded-lg p-3">
+        <div id={notePanelId} className="bg-sf mt-1 rounded-2xl p-4">
           <NoteEditor
             note={note}
             label={t('noteLabel')}
@@ -185,7 +193,7 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
 export const PlaceholderRow = memo(function PlaceholderRow({ index, top, rowRef }: Pick<MessageRowProps, 'index' | 'top' | 'rowRef'>) {
   return (
     <div aria-hidden data-index={index} ref={rowRef} style={{ ...rowStyle(top), height: 64 }} className={rowClass}>
-      <div className="bg-muted/50 h-10 w-2/5 rounded-lg motion-safe:animate-pulse" />
+      <div className="bg-sf h-10 w-2/5 rounded-[22px] motion-safe:animate-pulse" />
     </div>
   );
 });

@@ -17,6 +17,7 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/sub',
 }));
 
 type Lib = Awaited<ReturnType<typeof createTestLibrary>>;
@@ -87,8 +88,9 @@ async function open(prepare: (lib: Lib) => Promise<{ id: string }>, query?: (id:
 
 const click = (el: Element) => act(async () => (el as HTMLElement).click());
 const items = () => [...view!.container.querySelectorAll('section li')];
-const playButtons = () => [...view!.container.querySelectorAll<HTMLButtonElement>('button')].filter((b) => b.textContent === t.play);
+const playButtons = () => [...view!.container.querySelectorAll<HTMLButtonElement>('section li button')];
 const players = () => view!.container.querySelectorAll('audio');
+const hero = () => view!.container.querySelector('section[aria-label="Now playing"]');
 const text = () => view!.container.textContent ?? '';
 
 beforeEach(() => {
@@ -103,11 +105,11 @@ afterEach(() => {
 });
 
 describe('PersonAudioScreen', () => {
-  test('lists every voice message of the person, oldest first, by month, and reads no file yet', async () => {
+  test('lists every voice message of the person, oldest first, by year, and reads no file yet', async () => {
     const { person } = await open(seed);
     expect(view!.container.querySelector('h1')?.textContent).toBe(t.title);
     expect(text()).toContain('3 voice messages and audio files');
-    expect([...view!.container.querySelectorAll('h2')].map((h) => h.textContent)).toEqual(['January 2026', 'February 2026', 'March 2026']);
+    expect([...view!.container.querySelectorAll('h2')].map((h) => h.textContent)).toEqual(['2026']);
     expect(items()).toHaveLength(3);
     const [first, second, third] = items();
     expect(first.textContent).toContain('Jan 10, 2026, 9:05 AM');
@@ -121,53 +123,75 @@ describe('PersonAudioScreen', () => {
     // a caption is text, never markup
     expect(first.textContent).toContain(HOSTILE);
     expect(view!.container.querySelector('img')).toBeNull();
-    // nothing is read until a player is asked for
+    // nothing is read, and no player is shown, until Play is pressed
     expect(players()).toHaveLength(0);
+    expect(hero()).toBeNull();
     expect(URL.createObjectURL).not.toHaveBeenCalled();
-    // back to the person; sections with the current one marked
+    // the waveforms are decoration
+    expect(first.querySelector('[aria-hidden="true"]')).not.toBeNull();
     expect(view!.container.querySelector(`a[href="/person?id=${person.id}"]`)?.textContent).toBe('Back to Ana');
-    expect(view!.container.querySelector('nav a[aria-current="page"]')?.getAttribute('href')).toBe(`/person/audio?id=${person.id}`);
   });
 
-  test('each item opens its message in its conversation, on that day, coming from the person', async () => {
+  test('Play opens the Now playing card with the way to that message, on that day, coming from the person', async () => {
     const { person } = await open(seed);
-    const links = [...view!.container.querySelectorAll('section li a')].map((a) => a.getAttribute('href'));
-    expect(links).toEqual([
-      `/conversation?id=${PRIVATE}&from=${person.id}&date=2026-01-10`,
-      `/conversation?id=${PRIVATE}&from=${person.id}&date=2026-02-11`,
-      `/conversation?id=${GROUP}&from=${person.id}&date=2026-03-14`,
-    ]);
-    const link = view!.container.querySelector('section li a')!;
+    await click(playButtons()[1]);
+    await settle();
+    const link = hero()!.querySelector('a')!;
+    expect(link.getAttribute('href')).toBe(`/conversation?id=${PRIVATE}&from=${person.id}&date=2026-02-11`);
     expect(link.textContent).toBe(t.open);
-    expect(link.getAttribute('aria-label')).toBe('Open in conversation “Chat with Ana”, Jan 10, 2026, 9:05 AM');
+    expect(link.getAttribute('aria-label')).toBe('Open in conversation “Chat with Ana”, Feb 11, 2026, 9:30 PM');
+    expect(hero()!.textContent).toContain('Bo');
   });
 
-  test('Play reads that one file; starting another one stops the first (one at a time) and frees it', async () => {
+  test('Play reads that one file into the single shared player; choosing another replaces it and frees the first', async () => {
     await open(seed);
     await click(playButtons()[0]);
     await settle();
     expect(players()).toHaveLength(1);
     expect(players()[0].getAttribute('src')).toBe('blob:mock-1');
-    expect(players()[0].hasAttribute('controls')).toBe(true);
-    expect(players()[0].getAttribute('aria-label')).toBe('You, Jan 10, 2026, 9:05 AM');
-    expect(items()[0].contains(players()[0])).toBe(true);
-    expect(document.activeElement).toBe(players()[0]);
+    expect(hero()!.contains(players()[0]) || view!.container.contains(players()[0])).toBe(true);
+    expect(hero()!.textContent).toContain(t.you);
 
-    await click(playButtons()[0]); // the second item (the first now shows a player)
+    await click(playButtons()[1]);
     await settle();
     expect(players()).toHaveLength(1);
-    expect(items()[1].contains(players()[0])).toBe(true);
-    expect(items()[0].querySelector('button')?.textContent).toBe(t.play);
+    expect(players()[0].getAttribute('src')).toBe('blob:mock-2');
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-1');
     expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
   });
 
-  test('a file the archive does not have is a calm note, not an error screen', async () => {
+  test('the length stays out of sight until the player knows it, then shows in the card and the row', async () => {
     await open(seed);
-    await click(items()[2].querySelector('button')!);
+    await click(playButtons()[0]);
     await settle();
-    expect(items()[2].querySelector('[role="note"]')?.textContent).toBe(en.conversation.media.missing);
-    expect(players()).toHaveLength(0);
+    expect(hero()!.textContent).not.toContain('0:17');
+    expect(items()[0].textContent).not.toContain('0:17');
+    const audio = players()[0];
+    Object.defineProperty(audio, 'duration', { value: 17, configurable: true });
+    await act(async () => audio.dispatchEvent(new Event('loadedmetadata')));
+    expect(hero()!.textContent).toContain('0:17');
+    expect(items()[0].textContent).toContain('0:17');
+    expect(items()[1].textContent).not.toContain('0:17');
+  });
+
+  test('the row button toggles the current item: Pause while it plays', async () => {
+    await open(seed);
+    await click(playButtons()[0]);
+    await settle();
+    const audio = players()[0];
+    await act(async () => audio.dispatchEvent(new Event('play')));
+    expect(playButtons()[0].getAttribute('aria-label')).toBe('Pause voice message from You, Jan 10, 2026, 9:05 AM');
+    expect(hero()!.querySelector('button')?.getAttribute('aria-label')).toBe(t.pause);
+    await act(async () => audio.dispatchEvent(new Event('pause')));
+    expect(hero()!.querySelector('button')?.getAttribute('aria-label')).toBe(t.play);
+  });
+
+  test('a file the archive does not have is a calm note in the card, not an error screen', async () => {
+    await open(seed);
+    await click(playButtons()[2]);
+    await settle();
+    expect(hero()!.querySelector('[role="note"]')?.textContent).toBe(en.conversation.media.missing);
+    expect(players()[0].getAttribute('src')).toBeNull();
   });
 
   test('50 at a time: Show more adds the next ones and the count says how many are shown', async () => {
@@ -176,7 +200,7 @@ describe('PersonAudioScreen', () => {
     expect(text()).toContain('60 voice messages and audio files');
     expect(text()).toContain('Showing 50 of 60');
     const more = [...view!.container.querySelectorAll('button')].find((b) => b.textContent === t.showMore)!;
-    expect(more.className).toContain('min-h-11');
+    expect(more.className).toContain('h-11');
     await click(more);
     await settle();
     expect(items()).toHaveLength(60);
@@ -188,7 +212,6 @@ describe('PersonAudioScreen', () => {
     await open((lib) => createProfile(lib.deps, { displayName: 'Bo' }));
     expect(text()).toContain('There are no voice messages yet in the conversations kept under Bo');
     expect(items()).toHaveLength(0);
-    expect(view!.container.querySelector('nav a[aria-current="page"]')).not.toBeNull();
   });
 
   test.each([['an id nobody has', () => `id=${uuid(0x99)}`], ['a malformed id', () => 'id=nope'], ['no id', () => '']])('%s is a calm not-found with the way back', async (_name, query) => {
@@ -216,7 +239,6 @@ describe('PersonAudioScreen', () => {
   test('speaks Catalan', async () => {
     await open(seed, undefined, ca);
     expect(view!.container.querySelector('h1')?.textContent).toBe(ca.personAudio.title);
-    expect(view!.container.querySelector('section li a')?.textContent).toBe(ca.personAudio.open);
-    expect(view!.container.querySelector('section li button')?.textContent).toBe(ca.personAudio.play);
+    expect(view!.container.querySelector('section li button')?.getAttribute('aria-label')).toContain('Reprodueix');
   });
 });

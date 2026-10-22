@@ -7,6 +7,7 @@ import { Link } from '@/i18n/navigation';
 import type { PersonTimelineMessage } from '@/lib/domain/library';
 import { formatDayTime } from './format';
 import { isMediaMessage } from './message-media';
+import { PersonAvatar } from './person-avatar';
 
 const KIND_ICON = { photo: ImageIcon, sticker: ImageIcon, video: Video, audio: Mic, document: FileText } as const;
 const KINDS = ['photo', 'sticker', 'video', 'audio', 'document'] as const;
@@ -18,7 +19,7 @@ export function MediaLine({ message }: { message: PersonTimelineMessage }) {
   if (!kind) return null;
   const Icon = KIND_ICON[kind];
   return (
-    <p className="text-muted-foreground flex items-center gap-2 text-sm break-words">
+    <p className="text-mu flex items-center gap-2 text-sm break-words">
       <Icon className="size-4 shrink-0" aria-hidden />
       <span dir="auto">
         {tm(kind)}
@@ -40,21 +41,22 @@ export function PersonFavoriteItem({ item, personId, onRemove }: { item: PersonT
   const author = item.isMe ? t('you') : item.participantName || t('unknownAuthor');
   const href = `/conversation?id=${encodeURIComponent(item.conversationId)}&from=${encodeURIComponent(personId)}&date=${item.sentAt.slice(0, 10)}`;
   return (
-    <li className="bg-card flex flex-col gap-2 rounded-xl border p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 flex-col gap-1">
-          <p className="text-sm break-words">
-            <time dateTime={item.sentAt} className="font-medium">
-              {when}
-            </time>
-            <span className="text-muted-foreground" dir="auto">
-              {' · '}
+    <li className="bg-sf flex flex-col gap-2 rounded-[20px] px-4 py-3.5 lg:in-data-panel:bg-bg">
+      <div className="flex items-center gap-2">
+        <PersonAvatar name={author} size="sm" className="size-[26px] rounded-lg text-[15px]" />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <p className="min-w-0 truncate text-[13px]">
+            <span className="font-semibold" dir="auto">
               {author}
             </span>
+            <span className="text-mu text-xs" dir="auto">
+              {' · '}
+              {item.conversationTitle}
+            </span>
           </p>
-          <p className="text-muted-foreground text-sm break-words" dir="auto">
-            {item.conversationTitle}
-          </p>
+          <time dateTime={item.sentAt} className="text-mu text-xs">
+            {when}
+          </time>
         </div>
         <Button
           type="button"
@@ -64,21 +66,21 @@ export function PersonFavoriteItem({ item, personId, onRemove }: { item: PersonT
           aria-label={t('remove')}
           title={t('remove')}
           onClick={() => onRemove(item)}
-          className="text-primary -mt-2 -mr-2 shrink-0 rounded-full"
+          className="text-star -me-2 shrink-0 rounded-full"
         >
           <Star className="fill-current" aria-hidden />
         </Button>
       </div>
       {isMediaMessage(item.type) && <MediaLine message={item} />}
       {item.body && (
-        <p className="leading-relaxed break-words whitespace-pre-line" dir="auto">
+        <p className="text-[15px] leading-normal break-words whitespace-pre-line" dir="auto">
           {item.body}
         </p>
       )}
       <Link
         href={href}
         aria-label={t('openLabel', { title: item.conversationTitle, when })}
-        className="text-primary focus-visible:ring-ring/50 flex min-h-11 w-fit items-center rounded-md text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px]"
+        className="text-ac-tx focus-visible:ring-ring/50 -ms-2 flex min-h-11 w-fit items-center rounded-full px-2 text-sm font-semibold underline underline-offset-4 outline-none focus-visible:ring-[3px]"
       >
         {t('open')}
       </Link>

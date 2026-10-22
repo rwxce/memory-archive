@@ -17,6 +17,7 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/sub',
 }));
 
 type Lib = Awaited<ReturnType<typeof createTestLibrary>>;
@@ -131,6 +132,9 @@ describe('PersonTimelineScreen', () => {
 
   test('the date control jumps by date across conversations', async () => {
     await open(seed);
+    // The plain date field lives in the calendar sheet.
+    await click([...view!.container.querySelectorAll('button')].find((b) => b.textContent?.trim() === en.conversation.goToDate)!);
+    await settle();
     const input = view!.container.querySelector<HTMLInputElement>('input[type="date"]')!;
     await type(input, '2026-03-18');
     await settle();
@@ -185,7 +189,7 @@ describe('PersonTimelineScreen', () => {
 
   test('the calendar opens on the timeline and jumps across conversations', async () => {
     await open(seed);
-    await click([...view!.container.querySelectorAll('button')].find((b) => b.textContent?.trim() === en.conversation.calendar.open)!);
+    await click([...view!.container.querySelectorAll('button')].find((b) => b.textContent?.trim() === en.conversation.goToDate)!);
     await settle();
     expect(view!.container.querySelector('section[aria-label="Calendar of this timeline"]')).not.toBeNull();
   });

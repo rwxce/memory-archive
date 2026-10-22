@@ -1,23 +1,24 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { ArrowLeft, Loader, Search, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Loader, Search, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
+import { FilterChip } from '@/components/filter-chip';
 import { LibraryNotice } from '@/components/library-notice';
+import { PillButton } from '@/components/pill-button';
+import { SectionCard } from '@/components/section-card';
+import { ErrorNote } from '@/components/screen-states';
 import { Shell } from '@/components/screen-shell';
 import { SearchIndexProgress } from '@/components/search-index-progress';
 import { SearchResultItem } from '@/components/search-result-item';
-import { Button } from '@/components/ui/button';
+import { ShowMore } from '@/components/show-more';
 import { useLibrary } from '@/hooks/use-library';
+import { usePeople } from '@/hooks/use-people';
 import { isSearchable, useSearch, useSearchInput } from '@/hooks/use-search';
 import { useSearchIndex } from '@/hooks/use-search-index';
 import { useSearchScope, type SearchScopeState } from '@/hooks/use-search-scope';
-import { Link } from '@/i18n/navigation';
 import { MAX_QUERY_CHARS } from '@/lib/domain/search-query';
-
-const linkClass =
-  'text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex min-h-11 w-fit items-center gap-2 rounded-md text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-[3px]';
 
 /**
  * Search over message text and file names, in everything (`/search`), in one person's conversations
@@ -40,51 +41,99 @@ export function SearchScreen() {
 
 function SearchContent() {
   const t = useTranslations('search');
-  const tp = useTranslations('person');
   const params = useSearchParams();
-  const { state: scope, retry: retryScope } = useSearchScope(params.get('person'), params.get('conversation'));
+  const urlPerson = params.get('person');
+  const urlConversation = params.get('conversation');
+  // The scope is set in place by the chips; the address starts it and a link to another scope resets it.
+  const [scopeIds, setScopeIds] = useState({ person: urlPerson, conversation: urlConversation });
+  useEffect(() => setScopeIds({ person: urlPerson, conversation: urlConversation }), [urlPerson, urlConversation]);
+  const { state: scope, retry: retryScope } = useSearchScope(scopeIds.person, scopeIds.conversation);
+
+  const choose = useCallback((next: { person: string | null; conversation: string | null }) => {
+    setScopeIds(next);
+    // Keep the address in step with the scope (replace, so Back leaves the screen, not each chip).
+    const url = new URL(window.location.href);
+    for (const [key, value] of Object.entries(next)) {
+      if (value) url.searchParams.set(key, value);
+      else url.searchParams.delete(key);
+    }
+    if (url.href !== window.location.href) window.history.replaceState(window.history.state, '', url);
+  }, []);
 
   if (scope.status === 'not-found') {
     return (
       <Shell>
-        <section className="bg-card flex flex-col gap-3 rounded-xl border p-6">
-          <h1 className="font-serif text-2xl">{t('notFoundTitle')}</h1>
-          <p className="text-muted-foreground leading-relaxed">{t('notFoundBody')}</p>
-          <Link href="/people" className={linkClass}>
-            <ArrowLeft className="size-4" aria-hidden />
-            {tp('back')}
-          </Link>
-        </section>
+        <SectionCard>
+          <h1 className="font-display text-headline text-balance">{t('notFoundTitle')}</h1>
+          <p className="text-t2 leading-relaxed">{t('notFoundBody')}</p>
+          <div>
+            <PillButton variant="outlined" onClick={() => choose({ person: null, conversation: null })}>
+              {t('everyone')}
+            </PillButton>
+          </div>
+        </SectionCard>
       </Shell>
     );
   }
   if (scope.status === 'error') {
     return (
       <Shell>
-        <RetryCard text={t('loadFailed')} onRetry={retryScope} />
+        <ErrorNote onRetry={retryScope}>{t('loadFailed')}</ErrorNote>
       </Shell>
     );
   }
-  return <SearchPanel scope={scope} initialQuery={params.get('q') ?? ''} />;
+  return <SearchPanel scope={scope} initialQuery={params.get('q') ?? ''} onScope={choose} />;
 }
 
-function RetryCard({ text, onRetry }: { text: string; onRetry: () => void }) {
-  const tl = useTranslations('library');
+/** "Everyone" plus the active people, and the conversation in scope (removable): where the search looks. */
+function ScopeChips({
+  scope,
+  onScope,
+}: {
+  scope: Exclude<SearchScopeState, { status: 'not-found' | 'error' }>;
+  onScope: (next: { person: string | null; conversation: string | null }) => void;
+}) {
+  const t = useTranslations('search');
+  const people = usePeople();
+  const active = people.status === 'ready' ? people.people.active : [];
+  const ready = scope.status === 'ready';
+  const personId = ready && scope.kind === 'person' ? scope.id : null;
+  // An archived person can still be the scope (a link from their page): their chip stays.
+  const extra = ready && scope.kind === 'person' && !active.some((p) => p.id === scope.id) ? [{ id: scope.id!, displayName: scope.label ?? '' }] : [];
   return (
-    <section role="alert" className="bg-card flex flex-col gap-3 rounded-xl border p-5">
-      <p>{text}</p>
-      <div>
-        <Button variant="outline" onClick={onRetry} className="min-h-11">
-          {tl('retry')}
-        </Button>
-      </div>
-    </section>
+    <div role="group" aria-label={t('scopeLabel')} className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 sm:-mx-6 sm:px-6 lg:mx-0 lg:flex-wrap lg:px-0 [&>*]:shrink-0">
+      <FilterChip pressed={ready && scope.kind === 'all'} onPressedChange={() => onScope({ person: null, conversation: null })}>
+        {t('everyone')}
+      </FilterChip>
+      {ready && scope.kind === 'conversation' && (
+        <FilterChip pressed onPressedChange={() => onScope({ person: null, conversation: null })} aria-label={t('removeScope', { title: scope.label ?? '' })} className="max-w-64">
+          <span className="truncate" dir="auto">
+            {scope.label}
+          </span>
+          <X aria-hidden />
+        </FilterChip>
+      )}
+      {[...extra, ...active].map((person) => (
+        <FilterChip key={person.id} pressed={personId === person.id} onPressedChange={() => onScope({ person: person.id, conversation: null })} className="max-w-64">
+          <span className="truncate" dir="auto">
+            {person.displayName}
+          </span>
+        </FilterChip>
+      ))}
+    </div>
   );
 }
 
-function SearchPanel({ scope, initialQuery }: { scope: Exclude<SearchScopeState, { status: 'not-found' | 'error' }>; initialQuery: string }) {
+function SearchPanel({
+  scope,
+  initialQuery,
+  onScope,
+}: {
+  scope: Exclude<SearchScopeState, { status: 'not-found' | 'error' }>;
+  initialQuery: string;
+  onScope: (next: { person: string | null; conversation: string | null }) => void;
+}) {
   const t = useTranslations('search');
-  const tp = useTranslations('person');
   const { input, setInput, query, commit } = useSearchInput(initialQuery.slice(0, MAX_QUERY_CHARS));
   const index = useSearchIndex();
   const ready = scope.status === 'ready';
@@ -104,15 +153,6 @@ function SearchPanel({ scope, initialQuery }: { scope: Exclude<SearchScopeState,
     if (url.href !== window.location.href) window.history.replaceState(window.history.state, '', url);
   }, [query]);
 
-  const kind = ready ? scope.kind : 'all';
-  const back =
-    kind === 'person' && ready
-      ? { href: `/person?id=${encodeURIComponent(scope.id!)}`, text: t('backToPerson', { name: scope.label ?? '' }) }
-      : kind === 'conversation' && ready
-        ? { href: `/conversation?id=${encodeURIComponent(scope.id!)}`, text: t('backToConversation', { title: scope.label ?? '' }) }
-        : { href: '/people', text: tp('back') };
-  const widen = `/search${input.trim() ? `?q=${encodeURIComponent(input.trim())}` : ''}`;
-
   const searchable = isSearchable(query);
   const searching = results.status === 'searching' || (results.status === 'ready' && results.refreshing);
   const status =
@@ -128,68 +168,54 @@ function SearchPanel({ scope, initialQuery }: { scope: Exclude<SearchScopeState,
 
   return (
     <Shell>
-      <Link href={back.href} className={linkClass}>
-        <ArrowLeft className="size-4" aria-hidden />
-        {back.text}
-      </Link>
-      <h1 className="font-serif text-3xl">{t('title')}</h1>
+      <h1 className="font-display text-display">{t('title')}</h1>
 
-      <div className="flex flex-col gap-1">
-        <form
-          role="search"
-          onSubmit={(event) => {
-            event.preventDefault();
-            commit();
-          }}
-          className="relative"
-        >
-          <label htmlFor="search-field" className="sr-only">
-            {t('fieldLabel')}
-          </label>
-          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" aria-hidden />
-          <input
-            id="search-field"
-            ref={inputRef}
-            type="search"
-            enterKeyHint="search"
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            value={input}
-            maxLength={MAX_QUERY_CHARS}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder={t('placeholder')}
-            dir="auto"
-            className="bg-background focus-visible:ring-ring/50 h-12 w-full rounded-lg border pr-12 pl-10 text-base outline-none focus-visible:ring-[3px] [&::-webkit-search-cancel-button]:hidden"
-          />
-          {input && (
-            <button
-              type="button"
-              aria-label={t('clear')}
-              title={t('clear')}
-              onClick={() => {
-                setInput('');
-                inputRef.current?.focus();
-              }}
-              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 absolute top-1/2 right-0 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg outline-none focus-visible:ring-[3px]"
-            >
-              <X className="size-4" aria-hidden />
-            </button>
-          )}
-        </form>
-        <div className="flex min-h-11 flex-wrap items-center gap-x-4 text-sm">
-          <p className="text-muted-foreground break-words" dir="auto">
-            {!ready ? '' : scope.kind === 'all' ? t('scopeAll') : scope.kind === 'person' ? t('scopePerson', { name: scope.label ?? '' }) : t('scopeConversation', { title: scope.label ?? '' })}
-          </p>
-          {ready && scope.kind !== 'all' && (
-            <Link href={widen} className="text-primary focus-visible:ring-ring/50 flex min-h-11 items-center rounded-md font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px]">
-              {t('widen')}
-            </Link>
-          )}
-        </div>
-      </div>
+      <form
+        role="search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          commit();
+        }}
+        className="bg-sf lg:bg-bg border-ac relative flex h-14 items-center rounded-[18px] border-2 border-transparent focus-within:border-ac"
+      >
+        <label htmlFor="search-field" className="sr-only">
+          {t('fieldLabel')}
+        </label>
+        <Search className="text-mu pointer-events-none absolute start-4 size-5" aria-hidden />
+        <input
+          id="search-field"
+          ref={inputRef}
+          type="search"
+          enterKeyHint="search"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          value={input}
+          maxLength={MAX_QUERY_CHARS}
+          onChange={(event) => setInput(event.target.value)}
+          placeholder={t('placeholder')}
+          dir="auto"
+          className="placeholder:text-mu h-full min-w-0 flex-1 bg-transparent ps-12 pe-12 text-[17px] outline-none [&::-webkit-search-cancel-button]:hidden"
+        />
+        {input && (
+          <button
+            type="button"
+            aria-label={t('clear')}
+            title={t('clear')}
+            onClick={() => {
+              setInput('');
+              inputRef.current?.focus();
+            }}
+            className="text-mu hover:text-foreground focus-visible:ring-ring/50 absolute end-1 flex size-11 items-center justify-center rounded-full outline-none focus-visible:ring-[3px]"
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        )}
+      </form>
 
-      <div role="status" aria-live="polite" className="text-muted-foreground -my-3 flex min-h-6 items-center gap-2 text-sm">
+      <ScopeChips scope={scope} onScope={onScope} />
+
+      <div role="status" aria-live="polite" className="text-mu -my-1 flex min-h-5 items-center gap-2 text-[13px]">
         {searching && status && <Loader className="size-4 motion-safe:animate-spin" aria-hidden />}
         {status}
       </div>
@@ -221,61 +247,56 @@ function Body({
   if (state.status === 'building') return <SearchIndexProgress reason={state.reason} done={state.done} total={state.total} onCancel={index.cancel} />;
   if (state.status === 'cancelled') {
     return (
-      <section className="bg-card flex flex-col gap-3 rounded-xl border p-5 leading-relaxed">
+      <SectionCard className="leading-relaxed">
         <p className="font-medium">{t('cancelledTitle')}</p>
-        <p className="text-muted-foreground">{t('cancelledBody')}</p>
+        <p className="text-t2">{t('cancelledBody')}</p>
         <div>
-          <Button variant="outline" onClick={index.start} className="min-h-11">
+          <PillButton variant="outlined" onClick={index.start}>
             {t('resume')}
-          </Button>
+          </PillButton>
         </div>
-      </section>
+      </SectionCard>
     );
   }
   if (state.status === 'unavailable' || (state.status === 'ready' && results.status === 'unavailable')) {
     return (
-      <section className="bg-card flex flex-col gap-2 rounded-xl border p-5 leading-relaxed">
+      <SectionCard className="gap-2 leading-relaxed">
         <p className="font-medium">{t('unavailableTitle')}</p>
-        <p className="text-muted-foreground">{t('unavailableBody')}</p>
-      </section>
+        <p className="text-t2">{t('unavailableBody')}</p>
+      </SectionCard>
     );
   }
-  if (state.status === 'error') return <RetryCard text={t('loadFailed')} onRetry={index.start} />;
+  if (state.status === 'error') return <ErrorNote onRetry={index.start}>{t('loadFailed')}</ErrorNote>;
   if (state.status === 'checking') return null;
 
-  if (!query) return <p className="text-muted-foreground leading-relaxed">{t('hint')}</p>;
-  if (!searchable) return <p className="text-muted-foreground leading-relaxed">{t('tooShort')}</p>;
-  if (results.status === 'error') return <RetryCard text={t('loadFailed')} onRetry={retry} />;
+  if (!query) return <p className="text-mu leading-relaxed">{t('hint')}</p>;
+  if (!searchable) return <p className="text-mu leading-relaxed">{t('tooShort')}</p>;
+  if (results.status === 'error') return <ErrorNote onRetry={retry}>{t('loadFailed')}</ErrorNote>;
   if (results.status !== 'ready') return null;
 
   if (results.items.length === 0 && !results.refreshing) {
     return (
-      <section className="bg-card flex flex-col gap-2 rounded-xl border p-5 leading-relaxed break-words">
+      <SectionCard className="gap-2 leading-relaxed break-words">
         <p dir="auto">{t('noResults', { query })}</p>
-        <p className="text-muted-foreground">{t('noResultsHint')}</p>
-      </section>
+        <p className="text-t2">{t('noResultsHint')}</p>
+      </SectionCard>
     );
   }
   return (
     <div className="flex flex-col gap-4" aria-busy={results.refreshing}>
-      <ul aria-label={t('resultsLabel')} className={`flex flex-col gap-3 ${results.refreshing ? 'opacity-60' : ''}`}>
+      <ul aria-label={t('resultsLabel')} className={`flex flex-col gap-2.5 ${results.refreshing ? 'opacity-60' : ''}`}>
         {results.items.map((item) => (
           <SearchResultItem key={`${item.conversationId}:${item.id}`} item={item} personId={personId} />
         ))}
       </ul>
-      <div className="flex flex-col items-start gap-2">
-        {results.moreFailed && (
-          <p role="alert" className="text-destructive text-sm">
-            {t('moreFailed')}
-          </p>
-        )}
-        {results.hasMore && (
-          <Button variant="outline" onClick={loadMore} aria-disabled={results.loadingMore || undefined} className="min-h-11 aria-disabled:pointer-events-none aria-disabled:opacity-50">
-            {results.loadingMore && <Loader className="motion-safe:animate-spin" aria-hidden />}
-            {results.loadingMore ? t('loadingMore') : t('showMore')}
-          </Button>
-        )}
-      </div>
+      <ShowMore
+        shown={results.items.length}
+        total={results.hasMore ? results.items.length + 1 : results.items.length}
+        loading={results.loadingMore}
+        failed={results.moreFailed}
+        onMore={loadMore}
+        labels={{ shown: '', moreFailed: t('moreFailed'), showMore: t('showMore'), loadingMore: t('loadingMore') }}
+      />
     </div>
   );
 }
