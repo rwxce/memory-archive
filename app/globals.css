@@ -11,49 +11,116 @@
    choice stored on this device). */
 @custom-variant dark (&:is(.dark *));
 
-/* Calm, warm palette — closer to a family photo album than a dashboard.
+/* Palette: calm violet on near-white (light) and a soft charcoal (dark). The shadcn variables
+   below are mapped onto it, so every primitive follows the theme; the extra tokens (--sf2,
+   --ac-soft, --co, --mint, ...) are exposed to Tailwind as bg-sf2, text-ac-tx, bg-mint, ...
    System fonts only: nothing is downloaded. */
 :root {
-  --radius: 0.75rem;
-  --background: oklch(0.985 0.006 80);
-  --foreground: oklch(0.27 0.015 55);
-  --card: oklch(0.995 0.004 80);
-  --card-foreground: oklch(0.27 0.015 55);
-  --popover: oklch(0.995 0.004 80);
-  --popover-foreground: oklch(0.27 0.015 55);
-  --primary: oklch(0.47 0.07 45);
-  --primary-foreground: oklch(0.985 0.006 80);
-  --secondary: oklch(0.95 0.012 75);
-  --secondary-foreground: oklch(0.32 0.02 55);
-  --muted: oklch(0.955 0.01 78);
-  --muted-foreground: oklch(0.5 0.02 60);
-  --accent: oklch(0.93 0.02 70);
-  --accent-foreground: oklch(0.3 0.02 55);
-  --destructive: oklch(0.55 0.17 28);
-  --border: oklch(0.9 0.012 75);
-  --input: oklch(0.88 0.014 75);
-  --ring: oklch(0.6 0.06 50);
+  --radius: 1rem;
+
+  /* Design tokens. */
+  --bg: #ffffff;
+  --sf: #f6f5fa;
+  --sf2: #eeecf5;
+  --line: #e6e3ef;
+  --ink: #17151f;
+  --t2: #45414f;
+  --mu: #6b6679;
+  --ac: #5b45e0;
+  --ac-ink: #ffffff;
+  --ac-soft: #ece8ff;
+  --ac-tx: #4a36c9;
+  --co: #e8553a;
+  --mint: #d3f2e6;
+  --butter: #fff0b8;
+  --peach: #ffe0d3;
+  --btn: #17151f;
+  --btn-ink: #ffffff;
+  --nav-off: #a9a4b8;
+  --glass: rgb(255 255 255 / 0.72);
+  --glass-line: rgb(23 21 31 / 0.08);
+  --glass-tx: #45414f;
+  --in-b: #f3f1f8;
+  --out-b: #5b45e0;
+  --out-ink: #ffffff;
+  --out-mu: #dcd6ff;
+  --mark: #ffe07a;
+  --star: #f5a524;
+  --sh: rgb(23 21 31 / 0.1);
+  --ph-0: #b8a8ff;
+  --ph-1: #ffb49e;
+  --ph-2: #8fd9c0;
+  --ph-3: #ffd66b;
+  --ph-4: #7fa7ff;
+  --ph-5: #f49ac1;
+  --ph-6: #c7b8ff;
+  --ph-7: #9ee3cf;
+
+  /* shadcn variables, mapped onto the tokens. */
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--sf);
+  --card-foreground: var(--ink);
+  --popover: var(--bg);
+  --popover-foreground: var(--ink);
+  --primary: var(--ac);
+  --primary-foreground: var(--ac-ink);
+  --secondary: var(--sf2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--sf);
+  --muted-foreground: var(--mu);
+  --accent: var(--ac-soft);
+  --accent-foreground: var(--ac-tx);
+  /* The coral --co is too light for white text; destructive buttons use a deeper red. */
+  --destructive: #c93a1e;
+  --destructive-foreground: #ffffff;
+  --border: var(--line);
+  /* Form fields need a clearly visible edge (3:1 against the page), unlike decorative lines. */
+  --input: #8a8599;
+  --ring: var(--ac);
 }
 
 .dark {
-  --background: oklch(0.2 0.01 60);
-  --foreground: oklch(0.93 0.01 80);
-  --card: oklch(0.24 0.012 60);
-  --card-foreground: oklch(0.93 0.01 80);
-  --popover: oklch(0.24 0.012 60);
-  --popover-foreground: oklch(0.93 0.01 80);
-  --primary: oklch(0.8 0.07 65);
-  --primary-foreground: oklch(0.22 0.02 55);
-  --secondary: oklch(0.29 0.014 60);
-  --secondary-foreground: oklch(0.92 0.01 80);
-  --muted: oklch(0.27 0.012 60);
-  --muted-foreground: oklch(0.72 0.02 70);
-  --accent: oklch(0.31 0.016 60);
-  --accent-foreground: oklch(0.93 0.01 80);
-  --destructive: oklch(0.65 0.17 28);
-  --border: oklch(0.33 0.014 60);
-  --input: oklch(0.36 0.014 60);
-  --ring: oklch(0.7 0.06 60);
+  --bg: #1c1b22;
+  --sf: #26242e;
+  --sf2: #302e39;
+  --line: #3a3844;
+  --ink: #e8e6ef;
+  --t2: #c2bece;
+  --mu: #a39eb2;
+  --ac: #9a8ef0;
+  --ac-ink: #1c1b22;
+  --ac-soft: #363050;
+  --ac-tx: #b9afff;
+  --co: #f08f78;
+  --mint: #24403a;
+  --butter: #433c25;
+  --peach: #46302a;
+  --btn: #3a3746;
+  --btn-ink: #e8e6ef;
+  --nav-off: #8f8aa0;
+  --glass: rgb(52 50 62 / 0.72);
+  --glass-line: rgb(255 255 255 / 0.08);
+  --glass-tx: #c2bece;
+  --in-b: #2a2833;
+  --out-b: #9a8ef0;
+  --out-ink: #1c1b22;
+  --out-mu: #2e2850;
+  --mark: #5e4e1f;
+  --star: #e9b04a;
+  --sh: rgb(0 0 0 / 0.3);
+  --ph-0: #7468c4;
+  --ph-1: #b9806f;
+  --ph-2: #5a9584;
+  --ph-3: #ad9450;
+  --ph-4: #5e7bbf;
+  --ph-5: #a9728e;
+  --ph-6: #8b80cc;
+  --ph-7: #6ca595;
+
+  --destructive: #f08f78;
+  --destructive-foreground: #1c1b22;
+  --input: #6b6679;
 }
 
 @theme inline {
@@ -72,16 +139,63 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-bg: var(--bg);
+  --color-ink: var(--ink);
+  --color-sf: var(--sf);
+  --color-sf2: var(--sf2);
+  --color-line: var(--line);
+  --color-t2: var(--t2);
+  --color-mu: var(--mu);
+  --color-ac: var(--ac);
+  --color-ac-ink: var(--ac-ink);
+  --color-ac-soft: var(--ac-soft);
+  --color-ac-tx: var(--ac-tx);
+  --color-co: var(--co);
+  --color-mint: var(--mint);
+  --color-butter: var(--butter);
+  --color-peach: var(--peach);
+  --color-btn: var(--btn);
+  --color-btn-ink: var(--btn-ink);
+  --color-nav-off: var(--nav-off);
+  --color-glass: var(--glass);
+  --color-glass-line: var(--glass-line);
+  --color-glass-tx: var(--glass-tx);
+  --color-in-b: var(--in-b);
+  --color-out-b: var(--out-b);
+  --color-out-ink: var(--out-ink);
+  --color-out-mu: var(--out-mu);
+  --color-mark: var(--mark);
+  --color-star: var(--star);
+  --color-ph-0: var(--ph-0);
+  --color-ph-1: var(--ph-1);
+  --color-ph-2: var(--ph-2);
+  --color-ph-3: var(--ph-3);
+  --color-ph-4: var(--ph-4);
+  --color-ph-5: var(--ph-5);
+  --color-ph-6: var(--ph-6);
+  --color-ph-7: var(--ph-7);
+  --shadow-soft: 0 8px 24px var(--sh);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
-  --font-serif: ui-serif, 'New York', Georgia, Cambria, 'Times New Roman', serif;
+  /* System serifs (no web font): set a little smaller and looser than the condensed display
+     face of the design, so they read as calm headings rather than shouting. */
+  --font-serif: ui-serif, 'New York', 'Iowan Old Style', 'Palatino Linotype', Georgia, Cambria, 'Times New Roman', serif;
+  --text-display: 2.5rem;
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.015em;
+  --text-headline: 1.875rem;
+  --text-headline--line-height: 1.15;
+  --text-headline--letter-spacing: -0.01em;
+  --text-name: 1.375rem;
+  --text-name--line-height: 1.2;
 }
 
 @layer base {
@@ -107,17 +221,17 @@
   }
 }
 
-/* Conversation view: bubble colors and per-sender name colors (the standalone viewer's palette).
-   Name colors keep their contrast on the bubble in both themes. */
-:root {
-  --bubble-out: #d9fdd3;
-}
-.dark {
-  --bubble-out: #005c4b;
-}
+/* Conversation view: per-sender name colors (the standalone viewer's palette). Bubbles use
+   --in-b / --out-b / --out-ink above. Name colors keep their contrast on the bubble in both themes. */
 .sender-name {
   color: hsl(var(--sender-hue) 70% 28%);
 }
 .dark .sender-name {
   color: hsl(var(--sender-hue) 80% 88%);
+}
+
+/* Display headings: a serif at regular weight. */
+@utility font-display {
+  font-family: var(--font-serif);
+  font-weight: 400;
 }

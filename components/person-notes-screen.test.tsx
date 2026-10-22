@@ -19,6 +19,7 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/sub',
 }));
 
 const t = en.personNotes;
@@ -42,7 +43,7 @@ const writeAll = async (lib: Lib) => {
   await setNote(lib.deps, { kind: 'message', conversationId: CHAT, messageId: seeded.chatIds[3] }, HOSTILE);
   await setNote(lib.deps, { kind: 'message', conversationId: GROUP, messageId: seeded.groupIds[0] }, 'group note');
 };
-const cards = () => [...view!.container.querySelectorAll('li.rounded-xl')];
+const cards = () => [...view!.container.querySelectorAll('main ul > li')];
 const card = (text: string) => cards().find((c) => c.textContent?.includes(text))!;
 const click = (el: Element | null | undefined) => act(async () => (el as HTMLElement).click());
 const button = (root: Element, label: string) => [...root.querySelectorAll('button')].find((b) => b.textContent === label)!;
@@ -74,7 +75,6 @@ describe('PersonNotesScreen', () => {
     expect(card('About the chat').querySelector('a')!.getAttribute('href')).toBe(`/conversation?id=${CHAT}&from=${seeded.ana.id}`);
     expect(card('About Ana').querySelector('a')!.getAttribute('href')).toBe(`/person?id=${seeded.ana.id}`);
     expect(card('group note').querySelector('a')!.getAttribute('href')).toContain(`id=${GROUP}`);
-    expect(view!.container.querySelector('nav[aria-label="Sections"] [aria-current="page"]')!.textContent).toBe('Notes');
   });
 
   test('edits a note in place with the shared editor, and the card shows the new text', async () => {
@@ -161,6 +161,10 @@ describe('PersonNotesScreen', () => {
 describe('the note on a person page', () => {
   test('is a labelled editor that saves, shows when it was saved and lists in Notes', async () => {
     const lib = await open(<PersonScreen />);
+    // The person's note opens from the "..." menu.
+    await click(view!.container.querySelector('button[aria-haspopup="menu"]'));
+    await click([...view!.container.querySelectorAll('[role="menuitem"]')].find((i) => i.textContent?.trim() === en.person.menuNote));
+    await settle();
     const field = view!.container.querySelector('textarea')!;
     expect(view!.container.querySelector(`label[for="${field.id}"]`)!.textContent).toBe(n.label.profile);
     expect(view!.container.querySelector('nav[aria-label="Sections"]')!.textContent).toContain('Notes');

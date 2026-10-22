@@ -1,8 +1,10 @@
 'use client';
 
-import { AlertCircle, Loader } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Button } from '@/components/ui/button';
+import { PillButton } from '@/components/pill-button';
+import { SectionCard } from '@/components/section-card';
+import { LoadingNote } from '@/components/screen-states';
 import type { LibraryState } from '@/hooks/use-library';
 
 /**
@@ -13,27 +15,22 @@ export function LibraryNotice({ state, onRetry }: { state: Exclude<LibraryState,
   const t = useTranslations('library');
 
   if (state.status === 'loading') {
-    return (
-      <p role="status" className="text-muted-foreground flex items-center gap-2 py-6">
-        <Loader className="size-4 motion-safe:animate-spin" aria-hidden />
-        {t('loading')}
-      </p>
-    );
+    return <LoadingNote>{t('loading')}</LoadingNote>;
   }
 
   const key = state.status === 'error' ? 'error' : state.problem === 'newer-version' ? 'newerVersion' : 'inUse';
   return (
-    <section role="alert" className="bg-card flex flex-col gap-3 rounded-xl border p-5">
-      <h2 className="flex items-start gap-2 text-lg font-semibold">
-        <AlertCircle className="text-primary mt-1 size-5 shrink-0" aria-hidden />
+    <SectionCard role="alert">
+      <h2 className="font-display text-name flex items-start gap-2">
+        <AlertCircle className="text-co mt-1 size-5 shrink-0" aria-hidden />
         {t(`${key}.title`)}
       </h2>
-      <p className="text-muted-foreground leading-relaxed">{t(`${key}.body`)}</p>
+      <p className="text-t2 leading-relaxed">{t(`${key}.body`)}</p>
       <div>
-        <Button variant="outline" onClick={onRetry}>
+        <PillButton variant="outlined" onClick={onRetry}>
           {t('retry')}
-        </Button>
+        </PillButton>
       </div>
-    </section>
+    </SectionCard>
   );
 }

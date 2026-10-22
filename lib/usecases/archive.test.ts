@@ -9,7 +9,8 @@ import { openThumbStore } from '../storage/opfs-thumb-store';
 import { createMemoryDirectory } from '../storage/test-opfs-directory';
 import { webpBlob } from '../storage/test-thumbnail';
 import { unzipSync } from 'fflate';
-import { exportArchive, restoreArchiveIntoEmptyLibrary } from './archive';
+import { exportArchive, exportArchiveFromLibrary, restoreArchiveFromZip, restoreArchiveIntoEmptyLibrary, type ArchiveProgress } from './archive';
+import { createTestLibrary } from './test-client';
 
 const ID = '3f2b8c1e-5d4a-4b6f-9a7e-0c1d2e3f4a5b';
 
@@ -113,3 +114,104 @@ describe('archive use cases', () => {
     expect(await b.thumbStore.usage()).toEqual({ count: 0, bytes: 0 });
   });
 });
+
+describe('archive use cases through the database client (the PWA path)', () => {
+  async function withMedia() {
+    const lib = await createTestLibrary();
+    const bytes = new Uint8Array(5000).map((_, i) => (i * 7) % 251);
+    const { sha256, size } = await lib.deps.blobStore.put(bytes);
+    await lib.client.call('createProfile', { id: ID, displayName: 'Ana', now: '2026-01-01T00:00:00Z' });
+    lib.opened.db.run('INSERT INTO blobs (sha256, size) VALUES (?, ?)', [sha256, size]);
+    return { lib, sha256 };
+  }
+
+  test('export then restore into an empty library round-trips data and media, reporting progress', async () => {
+    const { lib: a, sha256 } = await withMedia();
+    const exported: ArchiveProgress[] = [];
+    const { blob, fileName, blobCount } = await exportArchiveFromLibrary(a.deps, {
+      appVersion: '1',
+      now: new Date('2026-05-06T00:00:00Z'),
+      onProgress: (p) => exported.push(p),
+    });
+    expect(fileName).toBe('memory-archive-2026-05-06.zip');
+    expect(blobCount).toBe(1);
+    expect(exported).toEqual([{ phase: 'preparing' }, { phase: 'media', done: 1, total: 1 }, { phase: 'finishing' }]);
+
+    const b = await createTestLibrary();
+    const restored: ArchiveProgress[] = [];
+    const result = await restoreArchiveFromZip(b.deps, blob, { onProgress: (p) => restored.push(p) });
+    expect(result.blobCount).toBe(1);
+    expect(restored).toEqual([
+      { phase: 'preparing' },
+      { phase: 'media', done: 0, total: 1 },
+      { phase: 'media', done: 1, total: 1 },
+      { phase: 'finishing' },
+    ]);
+    expect((await b.client.call('listProfiles')).map((p) => p.displayName)).toEqual(['Ana']);
+    expect(await b.client.call('listBlobHashes')).toEqual([sha256]);
+    expect(await b.deps.blobStore.verify(sha256)).toBe('ok');
+  });
+
+  test('the archive from the client path is the same format the direct path reads', async () => {
+    const { lib: a } = await withMedia();
+    const { blob } = await exportArchiveFromLibrary(a.deps, { appVersion: '1' });
+    const direct = await library();
+    await restoreArchiveIntoEmptyLibrary(direct, blob);
+    expect(direct.db.all('SELECT display_name FROM profiles')).toEqual([{ display_name: 'Ana' }]);
+  });
+
+  test('restoring into a library that has data is refused and changes nothing', async () => {
+    const { lib: a } = await withMedia();
+    const { blob } = await exportArchiveFromLibrary(a.deps, { appVersion: '1' });
+    const b = await createTestLibrary();
+    await b.client.call('createProfile', { id: ID, displayName: 'Bo', now: '2026-01-01T00:00:00Z' });
+    await expect(restoreArchiveFromZip(b.deps, blob)).rejects.toMatchObject({ name: 'ArchiveError', code: 'target-not-empty' });
+    expect((await b.client.call('listProfiles')).map((p) => p.displayName)).toEqual(['Bo']);
+    expect(await b.deps.blobStore.list()).toEqual([]);
+  });
+
+  test('the worker itself refuses a non-empty target (not only the page check)', async () => {
+    const b = await createTestLibrary();
+    await b.client.call('createProfile', { id: ID, displayName: 'Bo', now: '2026-01-01T00:00:00Z' });
+    await expect(b.client.call('restoreDatabase', { database: new Uint8Array(200), blobs: [] })).rejects.toMatchObject({ code: 'constraint' });
+    await expect(b.client.call('restoreDatabase', { database: 'x' as unknown as Uint8Array, blobs: [] })).rejects.toMatchObject({ code: 'invalid' });
+  });
+
+  test('a file that is not an archive, and a tampered one, fail with ArchiveError and leave the library empty', async () => {
+    const b = await createTestLibrary();
+    await expect(restoreArchiveFromZip(b.deps, new Blob(['not a zip at all']))).rejects.toMatchObject({ code: 'not-an-archive' });
+    const { lib: a } = await withMedia();
+    const { blob } = await exportArchiveFromLibrary(a.deps, { appVersion: '1' });
+    const files = unzipSync(new Uint8Array(await blob.arrayBuffer()));
+    const dbName = Object.keys(files).find((n) => n.endsWith('.sqlite'))!;
+    files[dbName] = files[dbName].slice().fill(7, 200, 400);
+    const { zipSync } = await import('fflate');
+    await expect(restoreArchiveFromZip(b.deps, new Blob([zipSync(files)]))).rejects.toMatchObject({ name: 'ArchiveError' });
+    expect(await b.client.call('isLibraryEmpty')).toBe(true);
+    expect(await b.deps.blobStore.list()).toEqual([]);
+  });
+
+  test('export fails with blob-missing when a referenced file is gone, and a second operation is busy', async () => {
+    const { lib: a, sha256 } = await withMedia();
+    const running = exportArchiveFromLibrary(a.deps, { appVersion: '1' });
+    await expect(exportArchiveFromLibrary(a.deps, { appVersion: '1' })).rejects.toMatchObject({ code: 'busy' });
+    await running;
+    await a.deps.blobStore.delete(sha256);
+    await expect(exportArchiveFromLibrary(a.deps, { appVersion: '1' })).rejects.toMatchObject({ code: 'blob-missing' });
+  });
+});
+
+describe('a large archive', () => {
+  test('output past the folding threshold still restores byte for byte', async () => {
+    const a = await library();
+    const big = new Uint8Array(20 * 1024 * 1024).map((_, i) => (i * 2654435761) >>> 24);
+    const { sha256, size } = await a.blobStore.put(big);
+    a.db.run('INSERT INTO blobs (sha256, size) VALUES (?, ?)', [sha256, size]);
+    const { blob } = await exportArchive(a, { appVersion: '1' });
+    const b = await library();
+    await restoreArchiveIntoEmptyLibrary(b, blob);
+    expect(await b.blobStore.verify(sha256)).toBe('ok');
+    expect(await b.blobStore.size(sha256)).toBe(size);
+  }, 60_000);
+});
+

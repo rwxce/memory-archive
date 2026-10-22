@@ -29,6 +29,8 @@ export interface RestoreHooks {
    * is the exact list of media the archive carries, for cross-checking.
    */
   applyDatabase(database: Uint8Array, blobs: ArchiveBlobRef[]): Promise<void>;
+  /** Called before the first media file (done 0) and after each one, with the total to store. */
+  onProgress?(done: number, total: number): void;
 }
 
 export interface RestoreOptions {
@@ -204,6 +206,8 @@ export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: Re
 
     // 5. Blobs: streamed through the store, hash-verified on the way.
     const blobs: ArchiveBlobRef[] = [];
+    const total = manifest.entries.length - 1;
+    hooks.onProgress?.(0, total);
     for (const item of manifest.entries) {
       if (item.path === DB_PATH) continue;
       blobs.push({ sha256: item.sha256, size: item.size });
@@ -219,6 +223,7 @@ export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: Re
       if (stored.sha256 !== item.sha256 || stored.size !== item.size) {
         throw new ArchiveError('integrity', 'a stored media file does not match the manifest');
       }
+      hooks.onProgress?.(blobs.length, total);
     }
 
     // 6. Database last.

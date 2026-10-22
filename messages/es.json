@@ -6,16 +6,33 @@
   "nav": {
     "home": "Inicio",
     "settings": "Ajustes",
-    "back": "Atrás"
+    "back": "Atrás",
+    "primary": "Principal",
+    "brand": "Memory Archive",
+    "searchLabel": "Buscar",
+    "searchPlaceholder": "Busca en todo el archivo",
+    "tabs": {
+      "people": "Personas",
+      "search": "Buscar",
+      "import": "Importar",
+      "settings": "Ajustes"
+    },
+    "sourceCode": "Código fuente en GitHub"
   },
   "welcome": {
-    "title": "Conserva sus palabras cerca",
     "body": "Reúne las conversaciones, las fotos y los mensajes de voz de las personas que te importan, y vuelve a ellos siempre que quieras.",
     "privacy": "Todo se queda en este dispositivo. Sin cuenta, sin nube, sin seguimiento.",
     "start": "Empezar",
     "open": "Abrir un archivo",
     "openHint": "¿Ya tienes un fichero de Memory Archive? Ábrelo para seguir donde lo dejaste.",
-    "comingSoon": "Este paso aún no está listo. Llegará en una próxima versión."
+    "eyebrow": "Memory Archive",
+    "titleStart": "Conserva sus palabras",
+    "titleAccent": "cerca",
+    "mock": {
+      "name": "Mamá",
+      "received": "¿Ya has llegado a casa?",
+      "sent": "Sí, ahora mismo"
+    }
   },
   "people": {
     "title": "Personas",
@@ -69,8 +86,7 @@
     "unassignedTitle": "Aún sin asignar a nadie",
     "unassignedHint": "Estas conversaciones están a salvo en este dispositivo. Elige a quién pertenece cada una cuando quieras.",
     "import": "Importar una conversación",
-    "history": "Historial de importaciones",
-    "search": "Buscar"
+    "eyebrow": "Tu archivo"
   },
   "library": {
     "loading": "Abriendo tu archivo…",
@@ -92,7 +108,8 @@
     "title": "Ajustes",
     "language": {
       "title": "Idioma",
-      "description": "El idioma de la aplicación. Tus mensajes nunca se traducen."
+      "description": "El idioma de la aplicación. Tus mensajes nunca se traducen.",
+      "current": "Idioma actual"
     },
     "theme": {
       "title": "Apariencia",
@@ -109,10 +126,13 @@
     "storage": {
       "title": "Espacio en este dispositivo",
       "loading": "Comprobando el espacio usado…",
-      "usage": "{used} usados de unos {total} disponibles para la aplicación",
       "unknown": "Este navegador no indica cuánto espacio usa la aplicación.",
       "persisted": "Tu archivo está protegido: el navegador no lo borrará por su cuenta.",
-      "notPersisted": "El navegador podría borrar los datos de la aplicación si el dispositivo se queda sin espacio. Añadir la aplicación a la pantalla de inicio ayuda a conservarlos, y también exportar una copia de vez en cuando."
+      "notPersisted": "El navegador podría borrar los datos de la aplicación si el dispositivo se queda sin espacio. Añadir la aplicación a la pantalla de inicio ayuda a conservarlos, y también exportar una copia de vez en cuando.",
+      "available": "de unos {total} disponibles",
+      "photos": "Fotos y vídeos",
+      "messages": "Mensajes y audio",
+      "meter": "{percent} % del espacio usado"
     },
     "erase": {
       "title": "Borrar todo de este dispositivo",
@@ -129,8 +149,11 @@
     },
     "history": {
       "title": "Historial de importaciones",
-      "description": "Mira lo que ha añadido cada importación y deshaz una si lo necesitas.",
-      "open": "Abrir el historial de importaciones"
+      "description": "Mira lo que ha añadido cada importación y deshaz una si lo necesitas."
+    },
+    "backup": {
+      "title": "Haz una copia de todo el archivo",
+      "description": "Un solo fichero ZIP que puedes abrir en cualquier dispositivo."
     }
   },
   "notFound": {
@@ -156,11 +179,12 @@
       "start": "{count, plural, one {Continuar con # fichero} other {Continuar con # ficheros}}"
     },
     "wizard": {
-      "fileOf": "Fichero {index} de {count}: {name}",
       "step": "Paso {step} de {total}",
       "toFiles": "Volver a los ficheros",
       "back": "Atrás",
-      "next": "Siguiente"
+      "next": "Siguiente",
+      "fileChip": "Archivo {index} de {count}",
+      "fileSingle": "Archivo"
     },
     "steps": {
       "preview": "Qué hay en este fichero",
@@ -203,7 +227,8 @@
       "laterHint": "La conversación espera en «Aún sin asignar a nadie», en la pantalla de Personas.",
       "new": "Añadir una persona nueva",
       "newHint": "Escribe con quién es este chat. Se añade a tu archivo al momento.",
-      "conversations": "{count, plural, =0 {Aún no hay conversaciones} one {# conversación} other {# conversaciones}}"
+      "conversations": "{count, plural, =0 {Aún no hay conversaciones} one {# conversación} other {# conversaciones}}",
+      "newShort": "Se añade a tu archivo al instante."
     },
     "me": {
       "legend": "¿Cuál de estos eres tú en «{title}»?",
@@ -368,11 +393,22 @@
     "sectionTimeline": "Cronología",
     "sectionFavorites": "Favoritos",
     "sectionNotes": "Notas",
-    "sectionSearch": "Buscar"
+    "sectionSearch": "Buscar",
+    "menuLabel": "Más opciones para {name}",
+    "menuNote": "Nota sobre esta persona",
+    "menuSearch": "Buscar en {name}",
+    "since": "desde {year}",
+    "statMessages": "mensajes",
+    "statPictures": "fotos y vídeos",
+    "statVoice": "notas de voz",
+    "timelineHint": "Todas las conversaciones",
+    "galleryCount": "{count, plural, one {# foto o vídeo} other {# fotos y vídeos}}",
+    "audioCount": "{count, plural, one {# mensaje de voz} other {# mensajes de voz}}",
+    "favoritesTitle": "Favoritos",
+    "showFavorites": "Mostrar {count, plural, one {el # favorito} other {los # favoritos}}"
   },
   "personAudio": {
     "title": "Audio",
-    "back": "Volver a {name}",
     "loading": "Cargando mensajes de voz…",
     "loadFailed": "No se han podido leer los mensajes de voz. No se ha borrado nada.",
     "count": "{count, plural, one {# mensaje de voz o archivo de audio} other {# mensajes de voz y archivos de audio}}",
@@ -386,11 +422,14 @@
     "shown": "Se muestran {shown} de {total}",
     "showMore": "Mostrar más",
     "loadingMore": "Cargando más…",
-    "moreFailed": "Algunos mensajes de voz no se han podido leer. No se ha borrado nada."
+    "moreFailed": "Algunos mensajes de voz no se han podido leer. No se ha borrado nada.",
+    "nowPlaying": "Suena ahora",
+    "pause": "Pausa",
+    "pauseLabel": "Pausar el mensaje de voz de {label}",
+    "seek": "Posición en el audio"
   },
   "personGallery": {
     "title": "Galería",
-    "back": "Volver a {name}",
     "loading": "Cargando fotos y vídeos…",
     "loadFailed": "No se han podido leer las fotos y los vídeos. No se ha borrado nada.",
     "count": "{count, plural, one {# foto o vídeo} other {# fotos y vídeos}}",
@@ -409,7 +448,14 @@
     "next": "Siguiente",
     "close": "Cerrar",
     "openInConversation": "Abrir en la conversación",
-    "loadingNext": "Cargando la siguiente…"
+    "loadingNext": "Cargando la siguiente…",
+    "filterLabel": "Qué quieres ver",
+    "filterAll": "Todo",
+    "filterPhotos": "Fotos",
+    "filterVideos": "Vídeos",
+    "countPhotos": "{count, plural, one {# foto} other {# fotos}}",
+    "countVideos": "{count, plural, one {# vídeo} other {# vídeos}}",
+    "emptyFiltered": "Todavía no hay nada de este tipo en las conversaciones de {name}."
   },
   "conversations": {
     "listLabel": "Conversaciones",
@@ -470,7 +516,8 @@
       "cancel": "Cancelar"
     },
     "open": "Abrir",
-    "openLabel": "Abrir «{title}»"
+    "openLabel": "Abrir «{title}»",
+    "privateChat": "Chat privado"
   },
   "history": {
     "title": "Historial de importaciones",
@@ -502,7 +549,8 @@
     },
     "loadMore": "Mostrar importaciones anteriores",
     "loadMoreFailed": "No se han podido leer las importaciones anteriores. Inténtalo de nuevo.",
-    "nothingAdded": "Esta importación no añadió ningún mensaje, así que no hay nada que deshacer."
+    "nothingAdded": "Esta importación no añadió ningún mensaje, así que no hay nada que deshacer.",
+    "eyebrow": "Tu archivo"
   },
   "conversation": {
     "back": "Volver a {name}",
@@ -515,8 +563,8 @@
     "empty": "Aún no hay mensajes en esta conversación.",
     "feedLabel": "Mensajes de «{title}»",
     "toolbarLabel": "Moverse por la conversación",
-    "toStart": "Ir al principio",
-    "toEnd": "Ir a lo más reciente",
+    "toStart": "Inicio",
+    "toEnd": "Más reciente",
     "date": "Ir a la fecha",
     "jumped": "Mostrando el primer mensaje a partir del {date}.",
     "noneAfter": "No hay mensajes a partir del {date}.",
@@ -558,7 +606,8 @@
       "error": "No se ha podido abrir este archivo.",
       "playLabel": "Reproducir {name}",
       "saveLabel": "Guardar {name}",
-      "save": "Guardar"
+      "save": "Guardar",
+      "pauseLabel": "Pausar {name}"
     },
     "details": {
       "toggle": "Detalles del mensaje",
@@ -579,7 +628,9 @@
       "failed": "No se ha podido guardar el favorito. No se ha borrado nada."
     },
     "noteLabel": "Nota sobre este mensaje",
-    "search": "Buscar en esta conversación"
+    "search": "Buscar en esta conversación",
+    "goToDate": "Ir a la fecha",
+    "noteBadge": "Nota"
   },
   "timeline": {
     "back": "Volver a {name}",
@@ -674,15 +725,9 @@
   },
   "search": {
     "title": "Búsqueda",
-    "backToPerson": "Volver a {name}",
-    "backToConversation": "Volver a «{title}»",
     "fieldLabel": "Buscar en mensajes y nombres de archivo",
     "placeholder": "Buscar",
     "clear": "Borrar la búsqueda",
-    "scopeAll": "Buscando en todas las conversaciones",
-    "scopePerson": "Buscando en {name}",
-    "scopeConversation": "Buscando en «{title}»",
-    "widen": "Buscar en todas las conversaciones",
     "hint": "Escribe una palabra o un nombre. No importan las mayúsculas ni los acentos.",
     "tooShort": "Escribe al menos 2 letras para buscar.",
     "searching": "Buscando…",
@@ -694,8 +739,6 @@
     "resultsLabel": "Resultados de la búsqueda",
     "you": "Tú",
     "unknownAuthor": "Remitente desconocido",
-    "open": "Abrir en la conversación",
-    "openLabel": "Abrir en la conversación «{title}», {when}",
     "showMore": "Mostrar más",
     "loadingMore": "Cargando más…",
     "moreFailed": "No se han podido leer algunos resultados. No se ha cambiado nada.",
@@ -713,6 +756,34 @@
     "cancel": "Cancelar",
     "cancelledTitle": "La búsqueda aún no está lista",
     "cancelledBody": "Se detuvo la preparación. Lo que ya estaba hecho se conserva y no se ha cambiado nada más.",
-    "resume": "Preparar la búsqueda"
+    "resume": "Preparar la búsqueda",
+    "everyone": "Todos",
+    "scopeLabel": "Dónde buscar",
+    "removeScope": "Buscando en «{title}». Quitar este filtro"
+  },
+  "archive": {
+    "notReady": "El archivo aún se está abriendo. Vuelve a intentarlo en un momento.",
+    "progress": {
+      "preparing": "Preparando…",
+      "media": "Copiando ficheros: {done} de {total}",
+      "finishing": "Terminando…"
+    },
+    "done": {
+      "backup": "La copia se ha guardado como fichero ZIP.",
+      "restore": "El archivo se ha abierto. Todo está en este dispositivo."
+    },
+    "error": {
+      "busy": "Ya hay una copia o una apertura en marcha. Espera a que termine y vuelve a intentarlo.",
+      "notEmpty": "Este dispositivo ya tiene un archivo, así que no se ha abierto nada. Solo se puede abrir un archivo en un dispositivo vacío.",
+      "invalid": "Este fichero no es un archivo de Memory Archive válido, o está dañado. No se ha cambiado nada.",
+      "newer": "Este archivo lo guardó una versión más nueva de Memory Archive. Actualiza la aplicación para abrirlo. No se ha cambiado nada.",
+      "limit": "El archivo es demasiado grande para copiarlo en un solo fichero.",
+      "missingMedia": "Falta algún fichero del archivo, así que no se ha podido hacer la copia. No se ha cambiado nada.",
+      "storage": "No hay suficiente espacio en este dispositivo o no se ha podido escribir. No se ha cambiado nada.",
+      "generic": "Algo ha ido mal. No se ha borrado nada. Vuelve a intentarlo."
+    }
+  },
+  "subpage": {
+    "backTo": "Volver a"
   }
 }

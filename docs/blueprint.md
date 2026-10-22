@@ -746,7 +746,10 @@ test type or architecture rule means updating this file **in the same PR**.
   `AM`/`PM`, `(file attached)`, system lines, multiline, identical same-minute messages),
   iOS en-US with and without media (U+202F before `AM`/`PM`, U+200E system lines), Android
   es (`p. m.`), iOS es (`<adjunto: …>`), Android pt (24h, no comma) and Android ca
-  (best-effort strings).
+  (best-effort strings). `scripts/showcase-fixtures.mjs` (called by the generator) adds
+  `fixtures/showcase/`: six invented Catalan chats (Android ca, owner "Tu"; 1:1 chats and two
+  groups) with generated PNG photos and quiet WAV voice notes under `.opus` names, seeded and
+  deterministic. They feed the README screenshots, not the test suite.
 - **Real-data guard:** `scripts/no-real-data.test.ts` scans every git-tracked text file and fails on any
   valid Brazilian CPF number or on a denylist of scrubbed real names/credentials (stored as sha256
   hashes of normalized word sequences, so the test does not reintroduce them).
@@ -904,6 +907,12 @@ test type or architecture rule means updating this file **in the same PR**.
   locale page in `out/` and that no HTML/CSS loads a remote resource, that the manifest has
   its icons, a maskable icon and the share target, and that `out/sw.js` precaches every
   page).
+- **`pnpm screenshots`** — README pictures, not part of `pnpm check` or `pnpm e2e`.
+  `e2e/screenshots.spec.ts` under its own `playwright.screenshots.config.ts` (`playwright.config.ts`
+  ignores it) imports the showcase chats (locale `ca`, labels read from `messages/ca.json`),
+  stars some messages, adds a note, and writes `docs/screenshots/{mobile,desktop}-{light,dark}-<screen>.png`
+  (mobile 390x844 @2x, desktop 1440x900). Run `pnpm build` first; re-run it after a UI change and commit
+  the PNGs.
 - **`pnpm preview`** — `scripts/serve-out.mjs`, a dependency-free static server for `out/`
   on `127.0.0.1` (honours `NEXT_PUBLIC_BASE_PATH`, serves `404.html`, refuses path
   traversal).

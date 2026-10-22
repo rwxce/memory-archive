@@ -1,6 +1,6 @@
 import { strToU8, zipSync } from 'fflate';
 import type { Page } from '@playwright/test';
-import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test } from './fixtures';
+import { addPerson, backToPerson, expect, openSection, importFromPeople, overflowsHorizontally, startFresh, test } from './fixtures';
 
 /**
  * Favorite messages against the built app, with the real workers and OPFS: a small synthetic chat is
@@ -28,14 +28,15 @@ test('star a message in the Timeline and in the conversation; both appear in Fav
   await page.getByRole('list', { name: 'People' }).getByRole('link', { name: 'Mama' }).click();
 
   // empty first
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Favorites' }).click();
+  await openSection(page, 'Favorites');
   await expect(page).toHaveURL(/\/en\/person\/favorites\/\?id=[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Favorites' })).toBeVisible();
   await expect(page.getByText('Mama has no favorite messages yet.')).toBeVisible();
   await expect(page.getByText('press the star beside a message')).toBeVisible();
 
   // star the third message from the timeline
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Timeline' }).click();
+  await backToPerson(page, 'Mama');
+  await openSection(page, 'Timeline');
   await expect(article(page, 4)).toBeInViewport();
   const star = starOf(page, 3);
   await expect(star).toHaveAttribute('aria-pressed', 'false');
@@ -50,7 +51,7 @@ test('star a message in the Timeline and in the conversation; both appear in Fav
 
   // it is in Favorites, linked to its day; star another in the conversation itself
   await page.getByRole('link', { name: 'Back to Mama' }).click();
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Favorites' }).click();
+  await openSection(page, 'Favorites');
   const items = page.locator('section li');
   await expect(items).toHaveCount(1);
   await expect(items.first()).toContainText('Third hello');
@@ -65,7 +66,7 @@ test('star a message in the Timeline and in the conversation; both appear in Fav
 
   // two favorites, oldest first; remove one from the list
   await page.getByRole('link', { name: 'Back to Mama' }).click();
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Favorites' }).click();
+  await openSection(page, 'Favorites');
   await expect(items).toHaveCount(2);
   await expect(items.nth(0)).toContainText('First hello');
   await expect(items.nth(1)).toContainText('Third hello');

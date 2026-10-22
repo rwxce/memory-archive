@@ -6,16 +6,33 @@
   "nav": {
     "home": "Inici",
     "settings": "Configuració",
-    "back": "Enrere"
+    "back": "Enrere",
+    "primary": "Principal",
+    "brand": "Memory Archive",
+    "searchLabel": "Cerca",
+    "searchPlaceholder": "Cerca en tot l'arxiu",
+    "tabs": {
+      "people": "Persones",
+      "search": "Cerca",
+      "import": "Importa",
+      "settings": "Ajustos"
+    },
+    "sourceCode": "Codi font a GitHub"
   },
   "welcome": {
-    "title": "Conserva les seves paraules a prop",
     "body": "Aplega les converses, les fotos i els missatges de veu de les persones que t'importen, i torna-hi sempre que vulguis.",
     "privacy": "Tot es queda en aquest dispositiu. Sense compte, sense núvol, sense seguiment.",
     "start": "Comença",
     "open": "Obre un arxiu",
     "openHint": "Ja tens un fitxer de Memory Archive? Obre'l per continuar on ho vas deixar.",
-    "comingSoon": "Aquest pas encara no està llest. Arribarà en una propera versió."
+    "eyebrow": "Memory Archive",
+    "titleStart": "Conserva les seves paraules",
+    "titleAccent": "a prop",
+    "mock": {
+      "name": "Mama",
+      "received": "Ja has arribat a casa?",
+      "sent": "Sí, ara mateix"
+    }
   },
   "people": {
     "title": "Persones",
@@ -69,8 +86,7 @@
     "unassignedTitle": "Encara no assignades a ningú",
     "unassignedHint": "Aquestes converses són segures en aquest dispositiu. Tria de qui és cadascuna quan vulguis.",
     "import": "Importa una conversa",
-    "history": "Historial d’importacions",
-    "search": "Cerca"
+    "eyebrow": "El teu arxiu"
   },
   "library": {
     "loading": "Obrint el teu arxiu…",
@@ -92,7 +108,8 @@
     "title": "Configuració",
     "language": {
       "title": "Idioma",
-      "description": "L'idioma de l'aplicació. Els teus missatges no es tradueixen mai."
+      "description": "L'idioma de l'aplicació. Els teus missatges no es tradueixen mai.",
+      "current": "Idioma actual"
     },
     "theme": {
       "title": "Aparença",
@@ -109,10 +126,13 @@
     "storage": {
       "title": "Espai en aquest dispositiu",
       "loading": "Comprovant l’espai que s’utilitza…",
-      "usage": "{used} utilitzats d’uns {total} disponibles per a l’aplicació",
       "unknown": "Aquest navegador no indica quant espai fa servir l’aplicació.",
       "persisted": "El teu arxiu està protegit: el navegador no l’esborrarà pel seu compte.",
-      "notPersisted": "El navegador podria esborrar les dades de l’aplicació si el dispositiu es queda sense espai. Afegir l’aplicació a la pantalla d’inici ajuda a conservar-les, i també exportar-ne una còpia de tant en tant."
+      "notPersisted": "El navegador podria esborrar les dades de l’aplicació si el dispositiu es queda sense espai. Afegir l’aplicació a la pantalla d’inici ajuda a conservar-les, i també exportar-ne una còpia de tant en tant.",
+      "available": "d'uns {total} disponibles",
+      "photos": "Fotos i vídeos",
+      "messages": "Missatges i àudio",
+      "meter": "{percent}% de l'espai utilitzat"
     },
     "erase": {
       "title": "Esborra-ho tot d’aquest dispositiu",
@@ -129,8 +149,11 @@
     },
     "history": {
       "title": "Historial d’importacions",
-      "description": "Mira què ha afegit cada importació i desfés-ne una si ho necessites.",
-      "open": "Obre l’historial d’importacions"
+      "description": "Mira què ha afegit cada importació i desfés-ne una si ho necessites."
+    },
+    "backup": {
+      "title": "Fes una còpia de tot l'arxiu",
+      "description": "Un sol fitxer ZIP que pots obrir en qualsevol dispositiu."
     }
   },
   "notFound": {
@@ -156,11 +179,12 @@
       "start": "{count, plural, one {Continua amb # fitxer} other {Continua amb # fitxers}}"
     },
     "wizard": {
-      "fileOf": "Fitxer {index} de {count}: {name}",
       "step": "Pas {step} de {total}",
       "toFiles": "Torna als fitxers",
       "back": "Enrere",
-      "next": "Següent"
+      "next": "Següent",
+      "fileChip": "Fitxer {index} de {count}",
+      "fileSingle": "Fitxer"
     },
     "steps": {
       "preview": "Què hi ha en aquest fitxer",
@@ -203,7 +227,8 @@
       "laterHint": "La conversa espera a «Encara no assignades a ningú», a la pantalla de Persones.",
       "new": "Afegeix una persona nova",
       "newHint": "Escriu amb qui és aquest xat. S’afegeix al teu arxiu a l’instant.",
-      "conversations": "{count, plural, =0 {Encara cap conversa} one {# conversa} other {# converses}}"
+      "conversations": "{count, plural, =0 {Encara cap conversa} one {# conversa} other {# converses}}",
+      "newShort": "S'afegeix al teu arxiu a l'instant."
     },
     "me": {
       "legend": "Quin d’aquests ets tu a «{title}»?",
@@ -368,11 +393,22 @@
     "sectionTimeline": "Cronologia",
     "sectionFavorites": "Preferits",
     "sectionNotes": "Notes",
-    "sectionSearch": "Cerca"
+    "sectionSearch": "Cerca",
+    "menuLabel": "Més opcions per a {name}",
+    "menuNote": "Nota sobre aquesta persona",
+    "menuSearch": "Cerca a {name}",
+    "since": "des del {year}",
+    "statMessages": "missatges",
+    "statPictures": "fotos i vídeos",
+    "statVoice": "notes de veu",
+    "timelineHint": "Totes les converses",
+    "galleryCount": "{count, plural, one {# foto o vídeo} other {# fotos i vídeos}}",
+    "audioCount": "{count, plural, one {# missatge de veu} other {# missatges de veu}}",
+    "favoritesTitle": "Preferits",
+    "showFavorites": "Mostra {count, plural, one {el # preferit} other {els # preferits}}"
   },
   "personAudio": {
     "title": "Àudio",
-    "back": "Torna a {name}",
     "loading": "Carregant missatges de veu…",
     "loadFailed": "No s'han pogut llegir els missatges de veu. No s'ha esborrat res.",
     "count": "{count, plural, one {# missatge de veu o fitxer d'àudio} other {# missatges de veu i fitxers d'àudio}}",
@@ -386,11 +422,14 @@
     "shown": "Es mostren {shown} de {total}",
     "showMore": "Mostra'n més",
     "loadingMore": "Carregant-ne més…",
-    "moreFailed": "Alguns missatges de veu no s'han pogut llegir. No s'ha esborrat res."
+    "moreFailed": "Alguns missatges de veu no s'han pogut llegir. No s'ha esborrat res.",
+    "nowPlaying": "Ara sona",
+    "pause": "Pausa",
+    "pauseLabel": "Pausa el missatge de veu de {label}",
+    "seek": "Posició a l'àudio"
   },
   "personGallery": {
     "title": "Galeria",
-    "back": "Torna a {name}",
     "loading": "Carregant fotos i vídeos…",
     "loadFailed": "No s'han pogut llegir les fotos i els vídeos. No s'ha esborrat res.",
     "count": "{count, plural, one {# foto o vídeo} other {# fotos i vídeos}}",
@@ -409,7 +448,14 @@
     "next": "Següent",
     "close": "Tanca",
     "openInConversation": "Obre a la conversa",
-    "loadingNext": "Carregant la següent…"
+    "loadingNext": "Carregant la següent…",
+    "filterLabel": "Què vols veure",
+    "filterAll": "Tot",
+    "filterPhotos": "Fotos",
+    "filterVideos": "Vídeos",
+    "countPhotos": "{count, plural, one {# foto} other {# fotos}}",
+    "countVideos": "{count, plural, one {# vídeo} other {# vídeos}}",
+    "emptyFiltered": "Encara no hi ha res d'aquest tipus a les converses de {name}."
   },
   "conversations": {
     "listLabel": "Converses",
@@ -470,7 +516,8 @@
       "cancel": "Cancel·la"
     },
     "open": "Obre",
-    "openLabel": "Obre «{title}»"
+    "openLabel": "Obre «{title}»",
+    "privateChat": "Xat privat"
   },
   "history": {
     "title": "Historial d’importacions",
@@ -502,7 +549,8 @@
     },
     "loadMore": "Mostra importacions anteriors",
     "loadMoreFailed": "No s’han pogut llegir les importacions anteriors. Torna-ho a provar.",
-    "nothingAdded": "Aquesta importació no va afegir cap missatge, així que no hi ha res a desfer."
+    "nothingAdded": "Aquesta importació no va afegir cap missatge, així que no hi ha res a desfer.",
+    "eyebrow": "El teu arxiu"
   },
   "conversation": {
     "back": "Torna a {name}",
@@ -515,8 +563,8 @@
     "empty": "Encara no hi ha cap missatge en aquesta conversa.",
     "feedLabel": "Missatges de «{title}»",
     "toolbarLabel": "Moure's per la conversa",
-    "toStart": "Ves a l'inici",
-    "toEnd": "Ves al més recent",
+    "toStart": "Inici",
+    "toEnd": "Més recent",
     "date": "Ves a la data",
     "jumped": "Es mostra el primer missatge a partir del {date}.",
     "noneAfter": "No hi ha cap missatge a partir del {date}.",
@@ -558,7 +606,8 @@
       "error": "No s'ha pogut obrir aquest fitxer.",
       "playLabel": "Reprodueix {name}",
       "saveLabel": "Desa {name}",
-      "save": "Desa"
+      "save": "Desa",
+      "pauseLabel": "Pausa {name}"
     },
     "details": {
       "toggle": "Detalls del missatge",
@@ -579,7 +628,9 @@
       "failed": "No s'ha pogut desar el preferit. No s'ha esborrat res."
     },
     "noteLabel": "Nota sobre aquest missatge",
-    "search": "Cerca en aquesta conversa"
+    "search": "Cerca en aquesta conversa",
+    "goToDate": "Ves a la data",
+    "noteBadge": "Nota"
   },
   "timeline": {
     "back": "Torna a {name}",
@@ -674,15 +725,9 @@
   },
   "search": {
     "title": "Cerca",
-    "backToPerson": "Torna a {name}",
-    "backToConversation": "Torna a «{title}»",
     "fieldLabel": "Cerca en missatges i noms de fitxer",
     "placeholder": "Cerca",
     "clear": "Esborra la cerca",
-    "scopeAll": "Cerques a totes les converses",
-    "scopePerson": "Cerques a {name}",
-    "scopeConversation": "Cerques a «{title}»",
-    "widen": "Cerca a totes les converses",
     "hint": "Escriu una paraula o un nom. No importen les majúscules ni els accents.",
     "tooShort": "Escriu almenys 2 lletres per cercar.",
     "searching": "Cercant…",
@@ -694,8 +739,6 @@
     "resultsLabel": "Resultats de la cerca",
     "you": "Tu",
     "unknownAuthor": "Remitent desconegut",
-    "open": "Obre a la conversa",
-    "openLabel": "Obre a la conversa «{title}», {when}",
     "showMore": "Mostra’n més",
     "loadingMore": "Carregant-ne més…",
     "moreFailed": "No s’han pogut llegir alguns resultats. No s’ha canviat res.",
@@ -713,6 +756,34 @@
     "cancel": "Cancel·la",
     "cancelledTitle": "La cerca encara no està a punt",
     "cancelledBody": "S’ha aturat la preparació. El que ja s’havia fet es conserva i no s’ha canviat res més.",
-    "resume": "Prepara la cerca"
+    "resume": "Prepara la cerca",
+    "everyone": "Tothom",
+    "scopeLabel": "On cerques",
+    "removeScope": "Cerques a «{title}». Treu aquest filtre"
+  },
+  "archive": {
+    "notReady": "L'arxiu encara s'està obrint. Torna-ho a provar d'aquí un moment.",
+    "progress": {
+      "preparing": "Preparant…",
+      "media": "Copiant fitxers: {done} de {total}",
+      "finishing": "Acabant…"
+    },
+    "done": {
+      "backup": "La còpia s'ha desat com a fitxer ZIP.",
+      "restore": "L'arxiu s'ha obert. Tot és en aquest dispositiu."
+    },
+    "error": {
+      "busy": "Ja hi ha una còpia o una obertura en marxa. Espera que acabi i torna-ho a provar.",
+      "notEmpty": "Aquest dispositiu ja té un arxiu, així que no s'ha obert res. Només es pot obrir un arxiu en un dispositiu buit.",
+      "invalid": "Aquest fitxer no és un arxiu de Memory Archive vàlid, o està malmès. No s'ha canviat res.",
+      "newer": "Aquest arxiu l'ha desat una versió més nova de Memory Archive. Actualitza l'aplicació per obrir-lo. No s'ha canviat res.",
+      "limit": "L'arxiu és massa gran per fer-ne una còpia en un sol fitxer.",
+      "missingMedia": "Falta algun fitxer de l'arxiu, així que no s'ha pogut fer la còpia. No s'ha canviat res.",
+      "storage": "No hi ha prou espai en aquest dispositiu o no s'hi ha pogut escriure. No s'ha canviat res.",
+      "generic": "Alguna cosa ha anat malament. No s'ha esborrat res. Torna-ho a provar."
+    }
+  },
+  "subpage": {
+    "backTo": "Torna a"
   }
 }

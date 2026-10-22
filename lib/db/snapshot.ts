@@ -18,6 +18,17 @@ export interface BlobRow {
   size: number;
 }
 
+/** What `exportDatabase` returns; read in one synchronous step so the three parts describe the same moment. */
+export interface DatabaseExport {
+  schemaVersion: number;
+  database: Uint8Array;
+  blobs: BlobRow[];
+}
+
+export function exportDatabase(db: SqlDb): DatabaseExport {
+  return { schemaVersion: readUserVersion(db), database: serializeDb(db), blobs: listBlobs(db) };
+}
+
 /** The database file as bytes (SQLite serialization). */
 export function serializeDb(db: SqlDb): Uint8Array {
   if (!db.serialize) throw new DbError('unavailable', 'this database handle cannot be serialized');

@@ -1,4 +1,4 @@
-// App icons, generated from code: a book with a heart on a warm brown tile.
+// App icons, generated from code: a book with a heart on a violet tile.
 // No image tools, no downloads — a tiny PNG encoder (node:zlib) and signed
 // distance functions, plus the matching SVG. Output is deterministic and
 // committed; `generate-icons.test.ts` fails when it is stale.
@@ -17,8 +17,8 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { crc32, deflateSync } from 'node:zlib';
 
-export const BRAND = { tile: [0x7f, 0x4e, 0x38], ink: [0xfb, 0xf8, 0xf3] };
-export const BRAND_HEX = { tile: '#7f4e38', ink: '#fbf8f3' };
+export const BRAND = { tile: [0x5b, 0x45, 0xe0], ink: [0xff, 0xff, 0xff] };
+export const BRAND_HEX = { tile: '#5b45e0', ink: '#ffffff' };
 
 // Geometry in a 512×512 design space.
 const BOOK = { x0: 148, y0: 108, x1: 364, y1: 404, r: 30, stroke: 26 };

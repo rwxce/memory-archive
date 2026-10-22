@@ -34,6 +34,7 @@
     "preview": "node scripts/serve-out.mjs",
     "smoke": "node scripts/smoke.mjs",
     "e2e": "playwright test",
+    "screenshots": "playwright test -c playwright.screenshots.config.ts",
     "i18n:check": "node scripts/check-i18n-parity.mjs",
     "typecheck": "NEXT_TELEMETRY_DISABLED=1 next typegen && tsc --noEmit",
     "lint": "eslint .",

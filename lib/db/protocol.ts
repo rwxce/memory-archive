@@ -18,6 +18,7 @@ import type {
   SearchStatus,
   StoredMessage,
 } from '../domain/library';
+import type { BlobRow, DatabaseExport } from './snapshot';
 import type { DbErrorData } from './errors';
 import type { DbInfo } from './open';
 import type { SearchInput } from './search';
@@ -39,6 +40,7 @@ import type {
   SetFavoriteInput,
   SetNoteInput,
   SetProfileArchivedInput,
+  StorageBreakdown,
   UndoImportBatchResult,
   UpdateProfileInput,
 } from './queries';
@@ -75,6 +77,17 @@ export interface DbOps {
   listImportBatches: { params: ListImportBatchesInput | undefined; result: ImportBatchRow[] };
   undoImportBatch: { params: { batchId: string }; result: UndoImportBatchResult };
   listBlobHashes: { params: undefined; result: string[] };
+  getStorageBreakdown: { params: undefined; result: StorageBreakdown };
+  /** The whole library as a backup needs it: schema version, SQLite bytes and media list, from one moment. */
+  exportDatabase: { params: undefined; result: DatabaseExport };
+  /** True when no table holds a row. */
+  isLibraryEmpty: { params: undefined; result: boolean };
+  /**
+   * Loads a backup's database into an EMPTY library, all or nothing (`loadSnapshot`): `constraint`
+   * when the library has data, `invalid` / `newer-schema` for a bad snapshot. `blobs` must equal the
+   * snapshot's own media list. Replaces the search index (rebuilt on the next search).
+   */
+  restoreDatabase: { params: { database: Uint8Array; blobs: BlobRow[] }; result: null };
   listMessages: {
     params: { conversationId: string; after?: MessageCursor; limit?: number };
     result: StoredMessage[];

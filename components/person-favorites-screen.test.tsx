@@ -19,6 +19,7 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/sub',
 }));
 
 type Lib = Awaited<ReturnType<typeof createTestLibrary>>;
@@ -116,7 +117,6 @@ describe('PersonFavoritesScreen', () => {
     expect(group.textContent).toContain('Family group');
     expect(text()).not.toContain('not starred');
     expect(view!.container.querySelector('a[href="/person?id=' + person.id + '"]')?.textContent).toBe('Back to Ana');
-    expect(view!.container.querySelector('nav a[aria-current="page"]')?.getAttribute('href')).toBe(`/person/favorites?id=${person.id}`);
   });
 
   test('"Open in conversation" goes to that message\'s day, coming from the person', async () => {

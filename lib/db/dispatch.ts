@@ -1,3 +1,4 @@
+import type { BlobRow } from './snapshot';
 import type { MediaMessageType } from '../domain/library';
 import { DbError, toDbError } from './errors';
 import type { OpenedDb } from './open';
@@ -20,6 +21,7 @@ import {
   getPersonTimelineBounds,
   getPersonTimelineWindow,
   getProfile,
+  getStorageBreakdown,
   importMessages,
   linkConversationProfile,
   listConversationDays,
@@ -44,9 +46,10 @@ import {
   type NoteScope,
 } from './queries';
 import { discardSearchIndex, getSearchStatus, searchMessages, stepSearchIndex } from './search';
-import { listBlobs } from './snapshot';
+import { exportDatabase, isLibraryEmpty, listBlobs, loadSnapshot } from './snapshot';
 
-type Handlers = { [K in DbOpName]: (opened: OpenedDb, params: DbOps[K]['params']) => DbOps[K]['result'] };
+/** Most handlers are synchronous; `restoreDatabase` awaits the scratch database. `serve.ts` runs requests one at a time. */
+type Handlers = { [K in DbOpName]: (opened: OpenedDb, params: DbOps[K]['params']) => DbOps[K]['result'] | Promise<DbOps[K]['result']> };
 
 /** Params come from outside the type system: refuse anything but an object. */
 function requireParams(p: unknown): Record<string, unknown> {
@@ -82,6 +85,18 @@ const HANDLERS: Handlers = {
     return undoImportBatch(db, batchId);
   },
   listBlobHashes: ({ db }) => listBlobs(db).map((b) => b.sha256),
+  getStorageBreakdown: ({ db }) => getStorageBreakdown(db),
+  exportDatabase: ({ db }) => exportDatabase(db),
+  isLibraryEmpty: ({ db }) => isLibraryEmpty(db),
+  restoreDatabase: async ({ db }, p) => {
+    const params = requireParams(p);
+    if (!(params.database instanceof Uint8Array) || !Array.isArray(params.blobs)) {
+      throw new DbError('invalid', 'database must be bytes and blobs a list');
+    }
+    if (!isLibraryEmpty(db)) throw new DbError('constraint', 'the library already has data');
+    await loadSnapshot(db, params.database, { expectBlobs: params.blobs as BlobRow[] });
+    return null;
+  },
   listMessages: ({ db }, p) => {
     const params = requireParams(p);
     return listMessages(db, params.conversationId as string, {
@@ -145,12 +160,15 @@ const HANDLERS: Handlers = {
  * failures become `{ ok: false, error }` instead of throwing, so one bad
  * request never takes the worker down.
  */
-export function handleDbRequest(opened: OpenedDb, request: DbRequest): DbResponse {
+export function handleDbRequest(opened: OpenedDb, request: DbRequest): DbResponse | Promise<DbResponse> {
+  const fail = (error: unknown): DbResponse => ({ id: request.id, ok: false, error: toDbError(error).toJSON() });
   try {
     if (!Object.hasOwn(HANDLERS, request.op)) throw new DbError('invalid', 'unknown operation');
     const handler = HANDLERS[request.op] as (opened: OpenedDb, params: unknown) => unknown;
-    return { id: request.id, ok: true, result: handler(opened, request.params) };
+    const result = handler(opened, request.params);
+    if (result instanceof Promise) return result.then((value): DbResponse => ({ id: request.id, ok: true, result: value }), fail);
+    return { id: request.id, ok: true, result };
   } catch (error) {
-    return { id: request.id, ok: false, error: toDbError(error).toJSON() };
+    return fail(error);
   }
 }

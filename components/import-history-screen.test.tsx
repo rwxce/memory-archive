@@ -22,6 +22,7 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/sub',
 }));
 
 type Lib = Awaited<ReturnType<typeof createTestLibrary>>;

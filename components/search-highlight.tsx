@@ -23,7 +23,7 @@ export function Highlighted({ text, ranges }: { text: string; ranges: SearchRang
     <>
       {splitByRanges(text, ranges).map((part, i) =>
         part.match ? (
-          <mark key={i} className="bg-primary/20 text-foreground rounded-sm px-0.5 font-medium">
+          <mark key={i} className="bg-mark text-ink rounded px-[3px]">
             {part.text}
           </mark>
         ) : (

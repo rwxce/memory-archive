@@ -33,7 +33,7 @@ test('erase everything: asks first, empties the library, goes back to the welcom
   await importFromPeople(page, exportZip(), 'Mama', /^Add [\d,]+ messages to Mama$/);
   await expect(page.getByText(/new messages added to Mama\./)).toBeVisible();
   await page.goto('/en/settings/');
-  await expect(page.getByTestId('storage-usage')).toContainText('used of about');
+  await expect(page.getByTestId('storage-usage')).toContainText('of about');
   const before = await usedBytes(page);
   expect(before).toBeGreaterThan(2_500_000);
 

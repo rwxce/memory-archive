@@ -17,6 +17,7 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/sub',
 }));
 
 /** An IntersectionObserver the test drives: tiles are "far" until `show` says otherwise. */
@@ -142,7 +143,6 @@ describe('PersonGalleryScreen', () => {
     ]);
     expect(URL.createObjectURL).not.toHaveBeenCalled();
     expect(view!.container.querySelector('img')).toBeNull();
-    expect(view!.container.querySelector('nav a[aria-current="page"]')?.getAttribute('href')).toBe(`/person/gallery?id=${person.id}`);
     expect(view!.container.querySelector(`a[href="/person?id=${person.id}"]`)?.textContent).toBe('Back to Ana');
   });
 
@@ -197,11 +197,33 @@ describe('PersonGalleryScreen', () => {
     expect(text()).toContain('61 photos and videos');
     expect(text()).toContain('Showing 50 of 61');
     const more = [...view!.container.querySelectorAll('button')].find((b) => b.textContent === t.showMore)!;
-    expect(more.className).toContain('min-h-11');
+    expect(more.className).toContain('h-11');
     await click(more);
     await settle();
     expect(tiles()).toHaveLength(61);
     expect(text()).not.toContain('Showing');
+  });
+
+  test('the filter shows only photos or only videos, with their own count', async () => {
+    await open(seed);
+    const radio = (name: string) => [...view!.container.querySelectorAll('[role="radio"]')].find((r) => r.textContent === name)!;
+    expect(view!.container.querySelectorAll('[role="radio"]')).toHaveLength(3);
+    await click(radio(t.filterVideos));
+    await settle();
+    expect(tiles()).toHaveLength(1);
+    expect(text()).toContain('1 video');
+    await click(radio(t.filterPhotos));
+    await settle();
+    expect(tiles()).toHaveLength(3);
+    expect(text()).toContain('3 photos');
+    expect(radio(t.filterPhotos).getAttribute('aria-checked')).toBe('true');
+  });
+
+  test('the first tile of a month with three or more is the large one', async () => {
+    await open((lib) => seed(lib, 3));
+    const feb = view!.container.querySelectorAll('section')[1];
+    expect(feb.querySelector('li')?.className).toContain('col-span-2');
+    expect(view!.container.querySelectorAll('section')[0].querySelector('li')?.className ?? '').not.toContain('col-span-2');
   });
 
   test('a person without photos or videos gets a calm empty state', async () => {

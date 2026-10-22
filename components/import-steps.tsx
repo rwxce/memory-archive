@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useId, useState, type Ref } from 'react';
-import { AlertCircle, AlertTriangle, Loader } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Loader, Plus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Choice, ChoiceGroup } from '@/components/import-choice';
 import { currentCheck, type Blocker, type FileItem } from '@/components/import-types';
+import { PersonAvatar } from '@/components/person-avatar';
 import { ProfileForm, type ProfileFormValues } from '@/components/profile-form';
-import { Button } from '@/components/ui/button';
+import { PillButton } from '@/components/pill-button';
 import { cn } from '@/components/ui/utils';
 import type { Person } from '@/lib/usecases/library';
 import { spaceFits, type ImportProblem } from '@/lib/usecases/import-wizard';
@@ -34,12 +35,12 @@ export function ProblemText({ problem, reading = false }: { problem: ImportProbl
 function Loading({ children, detail, live = true }: { children: string; detail?: string; live?: boolean }) {
   return (
     <div className="flex flex-col gap-1 py-4">
-      <p role={live ? 'status' : undefined} className="text-muted-foreground flex items-center gap-2">
+      <p role={live ? 'status' : undefined} className="text-mu flex items-center gap-2">
         <Loader className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden />
         {children}
       </p>
       {detail && (
-        <p aria-hidden className="text-muted-foreground pl-6 text-sm">
+        <p aria-hidden className="text-mu pl-6 text-sm">
           {detail}
         </p>
       )}
@@ -49,7 +50,7 @@ function Loading({ children, detail, live = true }: { children: string; detail?:
 
 function Failure({ problem, reading, children }: { problem: ImportProblem | 'changed'; reading?: boolean; children?: React.ReactNode }) {
   return (
-    <section role="alert" className="bg-card flex flex-col gap-3 rounded-xl border p-5">
+    <section role="alert" className="bg-sf lg:in-data-panel:bg-bg flex flex-col gap-3 rounded-3xl p-5">
       <p className="flex items-start gap-2 leading-relaxed break-words">
         <AlertCircle className="text-destructive mt-1 size-5 shrink-0" aria-hidden />
         <ProblemText problem={problem} reading={reading} />
@@ -62,11 +63,11 @@ function Failure({ problem, reading, children }: { problem: ImportProblem | 'cha
 const Notice = ({ children, tone = 'info' }: { children: React.ReactNode; tone?: 'info' | 'warning' }) => (
   <p
     className={cn(
-      'flex items-start gap-2 rounded-lg p-3 text-sm leading-relaxed break-words',
-      tone === 'warning' ? 'border-primary/40 bg-primary/10 border' : 'bg-muted text-muted-foreground',
+      'flex items-start gap-2 rounded-2xl p-3 text-sm leading-relaxed break-words',
+      tone === 'warning' ? 'border-primary/40 bg-primary/10 border' : 'bg-sf2 text-mu',
     )}
   >
-    {tone === 'warning' && <AlertTriangle className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />}
+    {tone === 'warning' && <AlertTriangle className="text-ac-tx mt-0.5 size-4 shrink-0" aria-hidden />}
     <span className="min-w-0">{children}</span>
   </p>
 );
@@ -84,12 +85,12 @@ export function PreviewStep({ item, onRetry, onRemove }: { item: FileItem; onRet
   if (preview.status === 'error') {
     return (
       <Failure problem={preview.problem} reading>
-        <Button variant="outline" onClick={onRetry}>
+        <PillButton variant="outlined" onClick={onRetry}>
           {t('retry')}
-        </Button>
-        <Button variant="ghost" onClick={onRemove}>
+        </PillButton>
+        <PillButton variant="ghost-link" onClick={onRemove}>
           {t('removeFile')}
-        </Button>
+        </PillButton>
       </Failure>
     );
   }
@@ -98,23 +99,23 @@ export function PreviewStep({ item, onRetry, onRemove }: { item: FileItem; onRet
   const kinds = (['photo', 'video', 'audio', 'sticker', 'document'] as const).filter((kind) => p.media.byKind[kind]);
   return (
     <div className="flex flex-col gap-5">
-      <dl className="bg-card grid min-w-0 gap-x-6 gap-y-1 rounded-xl border p-4 sm:grid-cols-[9rem_1fr] sm:gap-y-4 sm:p-5">
-        <dt className="text-muted-foreground mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('chat')}</dt>
+      <dl className="bg-sf lg:in-data-panel:bg-bg grid min-w-0 gap-x-6 gap-y-1 rounded-3xl p-4 sm:grid-cols-[9rem_1fr] sm:gap-y-4 sm:p-5">
+        <dt className="text-mu mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('chat')}</dt>
         <dd className="font-medium break-words">{p.chatTitle}</dd>
-        <dt className="text-muted-foreground mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('type')}</dt>
+        <dt className="text-mu mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('type')}</dt>
         <dd>{p.isGroup ? t('group') : t('private')}</dd>
-        <dt className="text-muted-foreground mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('messages')}</dt>
+        <dt className="text-mu mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('messages')}</dt>
         <dd>{t('messageCount', { count: p.messageCount })}</dd>
-        <dt className="text-muted-foreground mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('period')}</dt>
+        <dt className="text-mu mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('period')}</dt>
         <dd>{formatDateRange(p.firstAt, p.lastAt, locale)}</dd>
-        <dt className="text-muted-foreground mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('media')}</dt>
+        <dt className="text-mu mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('media')}</dt>
         <dd className="flex flex-col gap-1">
           {p.media.totalCount === 0 ? (
             t('mediaNone')
           ) : (
             <>
               <span>{t('mediaTotal', { count: p.media.totalCount, size: formatBytes(p.media.totalBytes, locale) })}</span>
-              <ul className="text-muted-foreground flex flex-col gap-0.5 text-sm">
+              <ul className="text-mu flex flex-col gap-0.5 text-sm">
                 {kinds.map((kind) => (
                   <li key={kind}>
                     {t(`kind.${kind}`, { count: p.media.byKind[kind]!.count })} ({formatBytes(p.media.byKind[kind]!.bytes, locale)})
@@ -179,14 +180,28 @@ export function PersonStep({
             name={name}
             checked={!adding && chosen?.kind === 'person' && chosen.id === person.id}
             onSelect={() => onChoose({ kind: 'person', id: person.id, name: person.displayName })}
-            label={person.displayName}
+            leading={<PersonAvatar name={person.displayName} className="size-11 rounded-[14px] text-2xl" />}
+            label={<span dir="auto">{person.displayName}</span>}
             hint={[person.relationship, t('conversations', { count: person.conversationCount })].filter(Boolean).join(' · ')}
           />
         ))}
-        <Choice id={`${name}-new`} name={name} checked={adding} onSelect={() => onAdding(true)} label={t('new')} />
+        <Choice
+          id={`${name}-new`}
+          name={name}
+          variant="dashed"
+          checked={adding}
+          onSelect={() => onAdding(true)}
+          leading={
+            <span aria-hidden className="bg-sf2 flex size-11 shrink-0 items-center justify-center rounded-[14px]">
+              <Plus className="size-5" />
+            </span>
+          }
+          label={t('new')}
+          hint={t('newShort')}
+        />
         {adding && (
           <div className="flex flex-col gap-3 pl-1">
-            <p className="text-muted-foreground text-sm leading-relaxed">{t('newHint')}</p>
+            <p className="text-mu text-sm leading-relaxed">{t('newHint')}</p>
             <ProfileForm
               onSubmit={async (values) => {
                 setFocusId(await onCreate(values));
@@ -201,6 +216,7 @@ export function PersonStep({
         )}
         <Choice
           name={name}
+          variant="link"
           checked={!adding && chosen?.kind === 'later'}
           onSelect={() => onChoose({ kind: 'later' })}
           label={t('later')}
@@ -252,7 +268,7 @@ export function MeStep({
               }
               note={
                 item.guessedMe === author.name && (
-                  <span className="text-primary text-sm font-medium break-words">{t('guess')}</span>
+                  <span className="text-ac-tx text-sm font-medium break-words">{t('guess')}</span>
                 )
               }
             />
@@ -357,7 +373,7 @@ export function CheckStep({
       {/* One live region that is there from the start: what it holds swaps from "checking" to the answer, so the answer is announced. */}
       <div aria-live="polite" data-testid="check-live" className="flex flex-col gap-3">
         {state?.status === 'error' ? (
-          <section className="bg-card flex flex-col gap-3 rounded-xl border p-5">
+          <section className="bg-sf lg:in-data-panel:bg-bg flex flex-col gap-3 rounded-3xl p-5">
             <p className="flex items-start gap-2 leading-relaxed break-words">
               <AlertCircle className="text-destructive mt-1 size-5 shrink-0" aria-hidden />
               <span>
@@ -365,16 +381,16 @@ export function CheckStep({
               </span>
             </p>
             <div>
-              <Button variant="outline" onClick={onRetry}>
+              <PillButton variant="outlined" onClick={onRetry}>
                 {t('retry')}
-              </Button>
+              </PillButton>
             </div>
           </section>
         ) : !answer ? (
           // While the dates are still to be read one way, nothing is being checked.
           date && !item.dateOrder ? null : <Loading live={false}>{t('loading')}</Loading>
         ) : answer.duplicates.status === 'existing' ? (
-          <section className="bg-card flex flex-col gap-2 rounded-xl border p-5">
+          <section className="bg-sf lg:in-data-panel:bg-bg flex flex-col gap-2 rounded-3xl p-5">
             <h3 className="text-lg font-semibold">{t('existingTitle')}</h3>
             <p className="leading-relaxed break-words">
               {t('existingBody', { title: answer.duplicates.title, count: answer.duplicates.alreadyThere })}
@@ -382,7 +398,7 @@ export function CheckStep({
             <p className="leading-relaxed font-medium">{t('existingNew', { count: answer.duplicates.wouldAdd })}</p>
           </section>
         ) : answer.duplicates.status === 'new' ? (
-          <section className="bg-card rounded-xl border p-5">
+          <section className="bg-sf lg:in-data-panel:bg-bg rounded-3xl p-5">
             <p className="leading-relaxed">{t('new', { count: answer.messageCount })}</p>
           </section>
         ) : null}
@@ -417,12 +433,12 @@ export function ConfirmStep({
 
   return (
     <div className="flex flex-col gap-5">
-      <dl className="bg-card grid min-w-0 gap-x-6 gap-y-1 rounded-xl border p-4 sm:grid-cols-[9rem_1fr] sm:gap-y-4 sm:p-5">
-        <dt className="text-muted-foreground mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('forPerson')}</dt>
+      <dl className="bg-sf lg:in-data-panel:bg-bg grid min-w-0 gap-x-6 gap-y-1 rounded-3xl p-4 sm:grid-cols-[9rem_1fr] sm:gap-y-4 sm:p-5">
+        <dt className="text-mu mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('forPerson')}</dt>
         <dd className="font-medium break-words">{personName ?? t('forNobody')}</dd>
-        <dt className="text-muted-foreground mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('you')}</dt>
+        <dt className="text-mu mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('you')}</dt>
         <dd className="break-words">{me}</dd>
-        <dt className="text-muted-foreground mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('add')}</dt>
+        <dt className="text-mu mt-3 text-sm first:mt-0 sm:mt-0 sm:pt-0.5">{t('add')}</dt>
         <dd>{tp('messageCount', { count: add })}</dd>
       </dl>
 
@@ -442,7 +458,7 @@ export function ConfirmStep({
       {space.videoBytes > 0 && (
         <label
           className={cn(
-            'bg-card flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border p-3 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
+            'bg-sf lg:in-data-panel:bg-bg flex min-h-11 cursor-pointer items-start gap-3 rounded-2xl p-3 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
             item.skipVideos && 'border-primary bg-primary/5',
           )}
         >
@@ -454,7 +470,7 @@ export function ConfirmStep({
           />
           <span className="flex min-w-0 flex-col gap-1">
             <span className="font-medium">{t('skipVideos')}</span>
-            <span className="text-muted-foreground text-sm leading-relaxed break-words">
+            <span className="text-mu text-sm leading-relaxed break-words">
               {t('skipVideosHint', { size: formatBytes(space.videoBytes, locale) })}
             </span>
           </span>

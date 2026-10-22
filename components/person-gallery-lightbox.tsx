@@ -8,9 +8,9 @@ import { Link } from '@/i18n/navigation';
 import type { PersonMediaItem } from '@/lib/domain/library';
 import { formatDayTime } from './format';
 import { galleryItemHref } from './person-gallery-href';
-import { Button } from './ui/button';
+import { PillButton } from './pill-button';
 
-const note = 'text-muted-foreground flex flex-col items-center gap-2 px-6 text-center text-sm break-words';
+const note = 'text-mu flex flex-col items-center gap-2 px-6 text-center text-sm break-words';
 const padding = 'pt-[max(0.75rem,env(safe-area-inset-top))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))]';
 
 /** A video holds its file only while it is the one shown; leaving it stops and releases it. */
@@ -52,7 +52,7 @@ function Stage({ item, next }: { item: PersonMediaItem; next?: PersonMediaItem }
   }
   return (
     <p role="status" className={note}>
-      <ImageIcon className="text-muted-foreground/60 size-8 motion-safe:animate-pulse" aria-hidden />
+      <ImageIcon className="text-mu/60 size-8 motion-safe:animate-pulse" aria-hidden />
       {tm('loading', { name })}
     </p>
   );
@@ -137,14 +137,14 @@ export function PersonGalleryLightbox({ items, index, total, personId, loadingMo
       onClose={onClose}
       onCancel={onClose}
       onKeyDown={onKeyDown}
-      className={`bg-background text-foreground m-0 hidden h-dvh max-h-none w-dvw max-w-none flex-col gap-3 border-0 open:flex ${padding}`}
+      className={`bg-bg text-foreground m-0 hidden h-dvh max-h-none w-dvw max-w-none flex-col gap-3 border-0 open:flex ${padding}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h2 className="font-serif text-xl break-words" dir="auto">
+          <h2 className="font-display text-name break-words" dir="auto">
             {item.conversationTitle}
           </h2>
-          <p className="text-muted-foreground text-sm break-words">
+          <p className="text-mu text-sm break-words">
             {kind}, {when}
             {item.participantName ? (
               <>
@@ -154,9 +154,9 @@ export function PersonGalleryLightbox({ items, index, total, personId, loadingMo
             ) : null}
           </p>
         </div>
-        <Button variant="outline" size="icon" onClick={onClose} aria-label={t('close')} className="min-h-11 min-w-11">
+        <PillButton variant="outlined" size="md" onClick={onClose} aria-label={t('close')} className="size-11 shrink-0 px-0">
           <X aria-hidden />
-        </Button>
+        </PillButton>
       </div>
 
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
@@ -177,22 +177,22 @@ export function PersonGalleryLightbox({ items, index, total, personId, loadingMo
         )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={previous} aria-disabled={atStart || undefined} className={navButton}>
+            <PillButton variant="outlined" onClick={previous} aria-disabled={atStart || undefined} className={navButton}>
               <ChevronLeft aria-hidden />
               {t('previous')}
-            </Button>
-            <Button variant="outline" onClick={forward} aria-disabled={atEnd || undefined} className={navButton}>
+            </PillButton>
+            <PillButton variant="outlined" onClick={forward} aria-disabled={atEnd || undefined} className={navButton}>
               {t('next')}
               <ChevronRight aria-hidden />
-            </Button>
+            </PillButton>
           </div>
-          <p role="status" className="text-muted-foreground flex items-center gap-2 text-sm">
+          <p role="status" className="text-mu flex items-center gap-2 text-sm">
             {loadingMore && <Loader className="size-4 motion-safe:animate-spin" aria-hidden />}
             {loadingMore ? t('loadingNext') : t('position', { current: index + 1, total: items.length })}
           </p>
           <Link
             href={galleryItemHref(item, personId)}
-            className="text-foreground focus-visible:ring-ring/50 flex min-h-11 items-center rounded-md px-2 text-sm underline underline-offset-4 outline-none focus-visible:ring-[3px]"
+            className="text-ac-tx focus-visible:ring-ring/50 flex min-h-11 items-center rounded-full px-3 text-sm font-semibold underline underline-offset-4 outline-none focus-visible:ring-[3px]"
           >
             {t('openInConversation')}
           </Link>

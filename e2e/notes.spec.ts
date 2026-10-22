@@ -1,6 +1,6 @@
 import { strToU8, zipSync } from 'fflate';
 import type { Page } from '@playwright/test';
-import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test } from './fixtures';
+import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test, personMenu } from './fixtures';
 
 /**
  * Notes against the built app, with the real workers and OPFS: a note is written on a message in the
@@ -54,7 +54,7 @@ test('write a note on a message, see and edit it in Notes, add a person note, de
   // it is in the person's Notes with the quoted message; edit it there
   await page.getByRole('link', { name: 'Back to Mama' }).click();
   await sections(page).getByRole('link', { name: 'Notes' }).click();
-  const cards = page.locator('main li.rounded-xl');
+  const cards = page.locator('main ul > li');
   await expect(cards).toHaveCount(1);
   await expect(cards.first()).toContainText('She hummed this one.');
   await expect(cards.first()).toContainText('Second hello');
@@ -67,6 +67,7 @@ test('write a note on a message, see and edit it in Notes, add a person note, de
 
   // a note on the person
   await page.getByRole('link', { name: 'Back to Mama' }).click();
+  await personMenu(page, 'Mama', 'Note about this person');
   await page.getByLabel('Note about this person').fill('My mother.');
   await page.getByRole('button', { name: 'Save note' }).click();
   await expect(page.getByText(/^Saved /)).toBeVisible();

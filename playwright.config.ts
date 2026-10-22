@@ -9,6 +9,8 @@ const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: 'e2e',
+  // README screenshots have their own config (playwright.screenshots.config.ts, `pnpm screenshots`).
+  testIgnore: '**/screenshots.spec.ts',
   // Every test gets a fresh browser context, so a fresh OPFS; tests are independent.
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

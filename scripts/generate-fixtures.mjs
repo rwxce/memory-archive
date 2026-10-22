@@ -9,6 +9,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { zipSync } from 'fflate';
+import { writeShowcase } from './showcase-fixtures.mjs';
 
 const ROOT = process.cwd();
 const FIXTURES = path.join(ROOT, 'fixtures');
@@ -265,6 +266,8 @@ function main() {
   // html-media/theme/media tests read the pre-built Notas zip.
   buildZip(NOTAS, NOTAS_TXT, NOTAS_MEDIA);
   for (const f of FORMAT_FIXTURES) buildRootZip(f);
+  // Catalan demo set for the README screenshots (`pnpm screenshots`): fixtures/showcase/.
+  writeShowcase(FIXTURES);
   console.log('[generate-fixtures] wrote synthetic fixtures to', FIXTURES);
 }
 

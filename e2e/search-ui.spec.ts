@@ -1,6 +1,6 @@
 import { strToU8, zipSync } from 'fflate';
 import type { Page } from '@playwright/test';
-import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test } from './fixtures';
+import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test, personMenu } from './fixtures';
 
 /**
  * The search screen against the built app, with the real workers and OPFS: a synthetic chat is
@@ -34,12 +34,12 @@ test('search from People: accents ignored, matches marked, a result opens its co
     }).observe(document, { childList: true, subtree: true });
   });
   await seedMama(page);
-  await page.getByRole('link', { name: 'Search', exact: true }).click();
+  await page.goto('/en/search/');
   await expect(page).toHaveURL(/\/en\/search\/$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Search' })).toBeVisible();
-  await expect(page.getByText('Searching in all conversations')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Everyone' })).toHaveAttribute('aria-pressed', 'true');
 
-  const field = page.getByRole('searchbox', { name: 'Search messages and file names' });
+  const field = page.getByRole('main').getByRole('searchbox', { name: 'Search messages and file names' });
   await field.fill('c');
   await expect(page.getByText('Type at least 2 letters to search.')).toBeVisible();
   await field.fill('canco');
@@ -64,38 +64,38 @@ test('search from People: accents ignored, matches marked, a result opens its co
 
   // a result opens its conversation on that day
   await field.fill('platja');
-  const open = list.getByRole('link', { name: /Open in conversation/ });
-  await expect(open).toHaveCount(1);
+  await expect(list.getByRole('listitem')).toHaveCount(1);
+  const open = list.getByRole('link');
   await open.click();
   await expect(page).toHaveURL(/\/en\/conversation\/\?id=[0-9a-f-]{36}&date=2026-03-18$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Ana i Bo' })).toBeVisible();
 
   // Back returns to the search with the query
   await page.goBack();
-  await expect(page.getByRole('searchbox')).toHaveValue('platja');
+  await expect(page.getByRole('main').getByRole('searchbox')).toHaveValue('platja');
 });
 
 test('search from a person and from a conversation is scoped, and can widen', async ({ page }, testInfo) => {
   await seedMama(page);
   await page.getByRole('list', { name: 'People' }).getByRole('link', { name: 'Mama' }).click();
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Search' }).click();
+  await personMenu(page, 'Mama', /^Search in Mama/);
   await expect(page).toHaveURL(/\/en\/search\/\?person=[0-9a-f-]{36}$/);
-  await expect(page.getByText('Searching in Mama')).toBeVisible();
-  const field = page.getByRole('searchbox');
+  await expect(page.getByRole('button', { name: 'Mama' })).toHaveAttribute('aria-pressed', 'true');
+  const field = page.getByRole('main').getByRole('searchbox');
   await field.fill('platja');
   const list = page.getByRole('list', { name: 'Search results' });
   await expect(list.getByRole('listitem')).toHaveCount(1);
-  await expect(list.getByRole('link', { name: /Open in conversation/ })).toHaveAttribute('href', /\/en\/conversation\/\?id=[0-9a-f-]{36}&from=[0-9a-f-]{36}&date=2026-03-18$/);
+  await expect(list.getByRole('link').first()).toHaveAttribute('href', /\/en\/conversation\/\?id=[0-9a-f-]{36}&from=[0-9a-f-]{36}&date=2026-03-18$/);
   if (process.env.E2E_SHOTS) await page.screenshot({ path: `${process.env.E2E_SHOTS}/search-scoped-${testInfo.project.name}.png` });
-  await page.getByRole('link', { name: 'Search all conversations' }).click();
-  await expect(page.getByText('Searching in all conversations')).toBeVisible();
+  await page.getByRole('button', { name: 'Everyone' }).click();
+  await expect(page.getByRole('button', { name: 'Everyone' })).toHaveAttribute('aria-pressed', 'true');
 
   // from the conversation header
-  await list.getByRole('link', { name: /Open in conversation/ }).click();
+  await list.getByRole('link').first().click();
   await page.getByRole('link', { name: 'Search in this conversation' }).click();
   await expect(page).toHaveURL(/\/en\/search\/\?conversation=[0-9a-f-]{36}$/);
-  await expect(page.getByText('Searching in “Ana i Bo”')).toBeVisible();
-  await page.getByRole('searchbox').fill('lluna plena 7');
+  await expect(page.getByRole('button', { name: 'Searching in “Ana i Bo”. Remove this filter' })).toBeVisible();
+  await page.getByRole('main').getByRole('searchbox').fill('lluna plena 7');
   await expect(page.getByRole('list', { name: 'Search results' }).getByRole('listitem')).toHaveCount(1);
 
   // an address that matches nothing is calm
