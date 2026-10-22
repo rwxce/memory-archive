@@ -62,7 +62,7 @@ test('csv: url_titles round-trips as a JSON map', async () => {
   const msg = {
     timestamp_iso: '2026-07-23T09:47:18',
     type: 'text' as const,
-    author: 'Guionardo',
+    author: 'Alice',
     text: 'see https://example.com/page',
     media: '',
     urlTitles: { 'https://example.com/page': 'Example Page' },
@@ -76,7 +76,7 @@ test('csv: url_titles round-trips as a JSON map', async () => {
 test('csv: legacy 5-column row parses with empty urlTitles', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-csvurl2-'));
   const p = path.join(dir, 'messages.csv');
-  fs.writeFileSync(p, 'timestamp_iso,type,author,text,media\n2026-07-23T09:47:18,text,Guionardo,hi,\n');
+  fs.writeFileSync(p, 'timestamp_iso,type,author,text,media\n2026-07-23T09:47:18,text,Alice,hi,\n');
   const back = readCsv(p);
   assert.deepEqual(back[0].urlTitles, {});
 });
@@ -534,7 +534,7 @@ test('render: link label uses stored urlTitles when present', async () => {
   const csv = path.join(dir, 'messages.csv');
   const rows = fs.readFileSync(csv, 'utf8').trimEnd().split('\n');
   rows.push(
-    '2026-08-01T10:00:00,text,Guionardo,visit https://example.com/foo,,"{' +
+    '2026-08-01T10:00:00,text,Alice,visit https://example.com/foo,,"{' +
       '"https://example.com/foo":"Example Foo"}"',
   );
   fs.writeFileSync(csv, rows.join('\n') + '\n');

@@ -20,16 +20,16 @@ async function collect<T>(it: AsyncIterable<T>): Promise<T[]> {
 describe('chat title and key', () => {
   test('every language prefix gives the same title and key', () => {
     for (const name of [
-      'WhatsApp Chat - Maria Pau',
-      'WhatsApp Chat with Maria Pau',
-      'Chat de WhatsApp con Maria Pau',
-      'Conversa do WhatsApp com Maria Pau',
-      'Xat de WhatsApp amb Maria Pau',
-      '00000068-Conversa do WhatsApp com Maria Pau',
-      'Maria Pau',
+      'WhatsApp Chat - Dana Example',
+      'WhatsApp Chat with Dana Example',
+      'Chat de WhatsApp con Dana Example',
+      'Conversa do WhatsApp com Dana Example',
+      'Xat de WhatsApp amb Dana Example',
+      '00000068-Conversa do WhatsApp com Dana Example',
+      'Dana Example',
     ]) {
-      expect(chatTitleOf(name)).toBe('Maria Pau');
-      expect(chatKeyOf(name)).toBe('maria pau');
+      expect(chatTitleOf(name)).toBe('Dana Example');
+      expect(chatKeyOf(name)).toBe('dana example');
     }
   });
 
@@ -46,7 +46,7 @@ describe('chat title and key', () => {
 
 describe('chat entry helpers', () => {
   test('slugifyChatName strips the prefix, diacritics and punctuation', () => {
-    expect(slugifyChatName('WhatsApp Chat - Plataforma WK')).toBe('plataforma-wk');
+    expect(slugifyChatName('WhatsApp Chat - Example Org')).toBe('example-org');
     expect(slugifyChatName('WhatsApp Chat - Ação & Café!')).toBe('acao-cafe');
   });
 

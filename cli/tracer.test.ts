@@ -11,7 +11,7 @@ import { parseCsvRecords as parseCsv, unescapeField } from '@/lib/exporters/lega
 
 const ROOT = process.cwd();
 const SAMPLES = [
-  'WhatsApp Chat - Plataforma WK',
+  'WhatsApp Chat - Example Org',
   'WhatsApp Chat - Notas pessoais',
 ];
 
@@ -33,7 +33,7 @@ async function parseSample(chat: string): Promise<string[][]> {
 
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 
-test('Plataforma WK: header + no BOM + ISO timestamps', async () => {
+test('Example Org: header + no BOM + ISO timestamps', async () => {
   const zip = buildZip(SAMPLES[0]);
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-out-'));
   await runParser(zip, { out });
@@ -56,15 +56,15 @@ test('Plataforma WK: header + no BOM + ISO timestamps', async () => {
   }
 });
 
-test('Plataforma WK: core rows extracted correctly', async () => {
+test('Example Org: core rows extracted correctly', async () => {
   const records = await parseSample(SAMPLES[0]);
 
   assert.ok(
     records.some(
       (r) =>
-        r[0] === '2026-07-23T09:47:18' &&
+        r[0] === '2020-07-23T09:47:18' &&
         r[1] === 'text' &&
-        r[2] === 'Plataforma WK' &&
+        r[2] === 'Example Org' &&
         r[3] ===
           'Messages and calls are end-to-end encrypted. Only people in this chat can read, listen to, or share them.' &&
         r[4] === '',
@@ -75,11 +75,11 @@ test('Plataforma WK: core rows extracted correctly', async () => {
   assert.ok(
     records.some(
       (r) =>
-        r[0] === '2026-07-23T12:41:48' &&
+        r[0] === '2020-07-23T12:41:48' &&
         r[1] === 'sticker' &&
-        r[2] === 'Guionardo Furlan' &&
+        r[2] === 'Alice Example' &&
         r[3] === '' &&
-        r[4] === '00003010-STICKER-2026-07-23-12-41-49.webp',
+        r[4] === '00003010-STICKER-2020-07-23-12-41-49.webp',
     ),
     'line 10 (sticker, empty text)',
   );
@@ -89,27 +89,27 @@ test('Plataforma WK: core rows extracted correctly', async () => {
     records.some(
       (r) =>
         r[1] === 'photo' &&
-        r[2] === 'Camilla Araujo WK' &&
+        r[2] === 'Carol Sample' &&
         r[3] === '' &&
-        r[4] === '00003036-PHOTO-2026-07-23-23-31-30.jpg',
+        r[4] === '00003036-PHOTO-2020-07-23-23-31-30.jpg',
     ),
     'lines 36-37 merged into a single photo row',
   );
   assert.ok(
     !records.some(
-      (r) => r[0] === '2026-07-23T23:31:29' && r[3] === '' && r[4] === '',
+      (r) => r[0] === '2020-07-23T23:31:29' && r[3] === '' && r[4] === '',
     ),
     'no phantom empty-text row at 23:31:29',
   );
 
-  // Same-second burst: 5 distinct Gian Carlo photo rows.
-  const gianSrc = fs
+  // Same-second burst: 5 distinct Bob Sample photo rows.
+  const bobSrc = fs
     .readFileSync(path.join(ROOT, 'fixtures', SAMPLES[0], '_chat.txt'), 'utf8')
     .split('\n')
     .find((l) => l.includes('00003046'))!;
-  const gianAuthor = gianSrc.match(/\] (.+?):/)?.[1] ?? '';
+  const bobAuthor = bobSrc.match(/\] (.+?):/)?.[1] ?? '';
   const burst = records.filter(
-    (r) => r[1] === 'photo' && r[2] === gianAuthor && r[0].startsWith('2026-07-24T10:41'),
+    (r) => r[1] === 'photo' && r[2] === bobAuthor && r[0].startsWith('2020-07-24T10:41'),
   );
   assert.equal(burst.length, 5, 'five same-second burst rows');
   assert.equal(
@@ -118,13 +118,13 @@ test('Plataforma WK: core rows extracted correctly', async () => {
     'burst rows have distinct media filenames',
   );
 
-  // Continuation join: Senha line folded into the Rede row.
-  const contRow = records.find((r) => r[3].includes('Senha: TIMEWK2026'));
+  // Continuation join: Password line folded into the Wi-Fi row.
+  const contRow = records.find((r) => r[3].includes('Password: example-password'));
   assert.ok(contRow, 'continuation row exists');
-  assert.ok(contRow![3].includes('Rede: Conexão WK - Staff'), 'joined with \\n');
+  assert.ok(contRow![3].includes('Wi-Fi: Example Network'), 'joined with \\n');
   // G-01-4: embedded newline is ESCAPED — every row stays ONE physical line.
   assert.ok(
-    contRow![3].includes('Rede: Conexão WK - Staff\\nSenha: TIMEWK2026'),
+    contRow![3].includes('Wi-Fi: Example Network\\nPassword: example-password'),
     'newline written as literal \\n escape',
   );
   for (const r of records) {
@@ -135,16 +135,16 @@ test('Plataforma WK: core rows extracted correctly', async () => {
       );
     }
   }
-  assert.ok(!records.some((r) => r[3] === 'Senha: TIMEWK2026'), 'no separate Senha row');
+  assert.ok(!records.some((r) => r[3] === 'Password: example-password'), 'no separate Password row');
 
   // Raw bidi author preserved verbatim.
   const src = fs
     .readFileSync(path.join(ROOT, 'fixtures', SAMPLES[0], '_chat.txt'), 'utf8')
     .split('\n')
-    .find((l) => l.includes('99951'))!;
+    .find((l) => l.includes('555 0100'))!;
   const rawAuthor = src.match(/\] (.+?): /)![1];
   assert.ok(
-    records.some((r) => r[0] === '2026-07-23T12:15:28' && unescapeField(r[2]) === rawAuthor),
+    records.some((r) => r[0] === '2020-07-23T12:15:28' && unescapeField(r[2]) === rawAuthor),
     'bidi-wrapped phone author preserved raw',
   );
 });
@@ -155,26 +155,26 @@ test('Notas pessoais: header, first row, sticker, caption+attachment', async () 
   assert.ok(records[0], 'has rows');
   assert.ok(
     records.some(
-      (r) => r[0] === '2026-03-17T13:17:59' && r[3] === 'https://lefthook.dev/',
+      (r) => r[0] === '2020-03-17T13:17:59' && r[3] === 'https://lefthook.dev/',
     ),
     'first row',
   );
   assert.ok(
     records.some(
       (r) =>
-        r[0] === '2026-04-03T15:17:12' &&
+        r[0] === '2020-04-03T15:17:12' &&
         r[1] === 'sticker' &&
-        r[4] === '00000008-STICKER-2026-04-03-15-17-12.webp',
+        r[4] === '00000008-STICKER-2020-04-03-15-17-12.webp',
     ),
     'sticker row (line 37)',
   );
   assert.ok(
     records.some(
       (r) =>
-        r[0] === '2026-05-29T17:23:37' &&
+        r[0] === '2020-05-29T17:23:37' &&
         r[1] === 'photo' &&
-        r[3] === 'Taxa João Furlan' &&
-        r[4] === '00000091-PHOTO-2026-05-29-17-23-37.jpg',
+        r[3] === 'Example caption' &&
+        r[4] === '00000091-PHOTO-2020-05-29-17-23-37.jpg',
     ),
     'caption + attachment row (line 124): caption kept, media set',
   );

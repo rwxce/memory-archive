@@ -11,7 +11,7 @@ import { renderOutputs } from './pipeline';
 import type { Message } from '@/lib/importers/whatsapp';
 
 const ROOT = process.cwd();
-const WK = 'WhatsApp Chat - Plataforma WK';
+const ORG = 'WhatsApp Chat - Example Org';
 const NOTAS = 'WhatsApp Chat - Notas pessoais';
 
 async function runFixture(chat: string, out: string): Promise<void> {
@@ -43,59 +43,59 @@ function readJson(out: string, chat: string) {
   );
 }
 
-test('WK: JSON envelope structure and metadata', async () => {
+test('ORG: JSON envelope structure and metadata', async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-json-'));
-  await runFixture(WK, out);
-  const env = readJson(out, WK);
+  await runFixture(ORG, out);
+  const env = readJson(out, ORG);
 
-  assert.equal(env.metadata.chatName, 'Plataforma WK');
+  assert.equal(env.metadata.chatName, 'Example Org');
   assert.equal(typeof env.metadata.messageCount, 'number');
   assert.ok(env.metadata.messageCount > 0);
-  assert.deepEqual(env.metadata.dateRange, ['2026-07-23', '2026-08-20']);
+  assert.deepEqual(env.metadata.dateRange, ['2020-07-23', '2020-08-20']);
   assert.equal(env.metadata.exportSource, 'whatsapp-export');
 
   const first = env.messages[0];
   for (const k of ['timestampIso', 'type', 'author', 'text', 'media', 'day', 'time']) {
     assert.ok(k in first, `missing field ${k}`);
   }
-  assert.equal(first.day, '2026-07-23');
+  assert.equal(first.day, '2020-07-23');
   assert.equal(first.time, '09:47:18');
 });
 
-test('WK: message count matches CSV row count', async () => {
+test('ORG: message count matches CSV row count', async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-json2-'));
-  await runFixture(WK, out);
-  const env = readJson(out, WK);
+  await runFixture(ORG, out);
+  const env = readJson(out, ORG);
   const csv = fs
-    .readFileSync(path.join(outDirFor(out, WK), 'messages.csv'), 'utf8')
+    .readFileSync(path.join(outDirFor(out, ORG), 'messages.csv'), 'utf8')
     .trim()
     .split('\n');
   assert.equal(env.metadata.messageCount, csv.length - 1);
 });
 
-test('WK: Markdown day sections, format, media, deleted', async () => {
+test('ORG: Markdown day sections, format, media, deleted', async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-md-'));
-  await runFixture(WK, out);
-  const md = fs.readFileSync(path.join(outDirFor(out, WK), 'messages.md'), 'utf8');
+  await runFixture(ORG, out);
+  const md = fs.readFileSync(path.join(outDirFor(out, ORG), 'messages.md'), 'utf8');
 
-  assert.ok(md.includes('## 23 de julho de 2026'), 'pt-BR day section');
+  assert.ok(md.includes('## 23 de julho de 2020'), 'pt-BR day section');
   assert.ok(
     md.includes(
-      '**Plataforma WK** · 09:47 — Messages and calls are end-to-end encrypted',
+      '**Example Org** · 09:47 — Messages and calls are end-to-end encrypted',
     ),
     'first message format',
   );
   assert.ok(
-    md.includes('![00003010-STICKER-2026-07-23-12-41-49.webp](media/00003010-STICKER-2026-07-23-12-41-49.webp)'),
+    md.includes('![00003010-STICKER-2020-07-23-12-41-49.webp](media/00003010-STICKER-2020-07-23-12-41-49.webp)'),
     'sticker embedded as Markdown image',
   );
   assert.ok(md.includes('*Mensagem apagada*'), 'deleted message italic');
 });
 
-test('WK: Markdown messages are separated by blank lines (no merge)', async () => {
+test('ORG: Markdown messages are separated by blank lines (no merge)', async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-md-sep-'));
-  await runFixture(WK, out);
-  const md = fs.readFileSync(path.join(outDirFor(out, WK), 'messages.md'), 'utf8');
+  await runFixture(ORG, out);
+  const md = fs.readFileSync(path.join(outDirFor(out, ORG), 'messages.md'), 'utf8');
   const lines = md.split('\n');
   const headers = lines
     .map((l, i) => ({ l, i }))
@@ -116,15 +116,15 @@ test('Notas: deleted + document-omitted render in Markdown', async () => {
 
   assert.ok(md.includes('*Mensagem apagada*'), 'deleted');
   assert.ok(
-    md.includes('*document omitted*') || md.includes('autorizacao\\_atividade.pdf'),
+    md.includes('*document omitted*') || md.includes('sample\\_document.pdf'),
     'document omitted marker preserved',
   );
 });
 
-test('WK: HTML shell has data island, toolbar, theme toggle, day-pill', async () => {
+test('ORG: HTML shell has data island, toolbar, theme toggle, day-pill', async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-html-'));
-  await runFixture(WK, out);
-  const html = fs.readFileSync(path.join(outDirFor(out, WK), 'messages.html'), 'utf8');
+  await runFixture(ORG, out);
+  const html = fs.readFileSync(path.join(outDirFor(out, ORG), 'messages.html'), 'utf8');
 
   assert.ok(html.includes('<script type="application/json" id="chat-data">'), 'data island');
   assert.ok(html.includes('id="toolbar"'), 'toolbar');
@@ -134,7 +134,7 @@ test('WK: HTML shell has data island, toolbar, theme toggle, day-pill', async ()
   assert.ok(html.includes('textContent'), 'textContent usage');
   assert.ok(
     html.includes('class="media-img"') &&
-      html.includes('00003010-STICKER-2026-07-23-12-41-49.webp'),
+      html.includes('00003010-STICKER-2020-07-23-12-41-49.webp'),
     'media rendered as resolved <img> (not placeholder)',
   );
 });
@@ -142,10 +142,10 @@ test('WK: HTML shell has data island, toolbar, theme toggle, day-pill', async ()
 test('XSS: adversarial content renders inert in all three outputs (OUT-05)', async () => {
   const chat = 'WhatsApp Chat - XSS Test';
   const lines = [
-    '23/07/2026 09:47 - Owner: <script>alert("xss")</script>',
-    '23/07/2026 09:48 - Owner: <img src=x onerror="alert(1)">',
-    '23/07/2026 09:49 - Owner: javascript:alert(1)',
-    '23/07/2026 09:50 - Owner: Normal message',
+    '23/07/2020 09:47 - Owner: <script>alert("xss")</script>',
+    '23/07/2020 09:48 - Owner: <img src=x onerror="alert(1)">',
+    '23/07/2020 09:49 - Owner: javascript:alert(1)',
+    '23/07/2020 09:50 - Owner: Normal message',
   ].join('\n');
   const zipped = zipSync({ [`${chat}/_chat.txt`]: Buffer.from(lines, 'utf8') });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-xss-'));
@@ -181,40 +181,40 @@ test('XSS: adversarial content renders inert in all three outputs (OUT-05)', asy
 
 test('HTML: per-sender accent color is deterministic and distinct', async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-color-'));
-  await runFixture(WK, out);
-  const html = fs.readFileSync(path.join(outDirFor(out, WK), 'messages.html'), 'utf8');
+  await runFixture(ORG, out);
+  const html = fs.readFileSync(path.join(outDirFor(out, ORG), 'messages.html'), 'utf8');
   // Same author hue is consistent; find two distinct author colors.
   const hues = [...html.matchAll(/color:hsl\((\d+), 70%, 60%\)/g)].map((m) => m[1]);
   assert.ok(hues.length >= 2, 'multiple accent colors applied');
   assert.notEqual(hues[0], hues[1], 'distinct senders map to distinct hues');
 });
 
-test('WK: chat title shown in HTML header and Markdown H1', async () => {
+test('ORG: chat title shown in HTML header and Markdown H1', async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-title-'));
-  await runFixture(WK, out);
-  const html = fs.readFileSync(path.join(outDirFor(out, WK), 'messages.html'), 'utf8');
-  const md = fs.readFileSync(path.join(outDirFor(out, WK), 'messages.md'), 'utf8');
+  await runFixture(ORG, out);
+  const html = fs.readFileSync(path.join(outDirFor(out, ORG), 'messages.html'), 'utf8');
+  const md = fs.readFileSync(path.join(outDirFor(out, ORG), 'messages.md'), 'utf8');
 
   assert.ok(
-    html.includes('id="chat-title"') && html.includes('Plataforma WK'),
+    html.includes('id="chat-title"') && html.includes('Example Org'),
     'HTML header shows chat title',
   );
-  assert.ok(md.startsWith('# Plataforma WK'), 'Markdown starts with chat title H1');
+  assert.ok(md.startsWith('# Example Org'), 'Markdown starts with chat title H1');
 });
 
 test('JSON: message carries urlTitles map', async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-jsonurl-'));
-  await runFixture(WK, out);
-  const env = readJson(out, WK);
+  await runFixture(ORG, out);
+  const env = readJson(out, ORG);
   const withUrl = env.messages.find((m: { text?: string }) => m.text && /https?:\/\//.test(m.text));
-  // WK sample has no URLs; assert the field exists and is an object.
+  // ORG sample has no URLs; assert the field exists and is an object.
   assert.ok(
     withUrl === undefined || (withUrl.urlTitles && typeof withUrl.urlTitles === 'object'),
     'urlTitles present as object',
   );
   // Unit-check toRendered maps it through.
   const r = toRendered({
-    timestamp_iso: '2026-07-23T09:47:18',
+    timestamp_iso: '2020-07-23T09:47:18',
     type: 'text',
     author: 'a',
     text: 'x',
@@ -226,22 +226,22 @@ test('JSON: message carries urlTitles map', async () => {
 
 test('render: link label uses stored urlTitles when present', async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-linkurl-'));
-  await runFixture(WK, out);
-  const dir = outDirFor(out, WK);
+  await runFixture(ORG, out);
+  const dir = outDirFor(out, ORG);
   // Hand-write a CSV row with a URL + url_titles, then re-render md/html.
   const csv = path.join(dir, 'messages.csv');
   const rows = fs.readFileSync(csv, 'utf8').trimEnd().split('\n');
   const extra: Message = {
-    timestamp_iso: '2026-08-01T10:00:00',
+    timestamp_iso: '2020-08-01T10:00:00',
     type: 'text',
-    author: 'Guionardo',
+    author: 'Alice',
     text: 'visit https://example.com/foo',
     media: '',
     urlTitles: { 'https://example.com/foo': 'Example Foo' },
   };
   rows.push(csvRow(extra).trimEnd());
   fs.writeFileSync(csv, rows.join('\n') + '\n');
-  await renderOutputs(dir, 'WK');
+  await renderOutputs(dir, 'ORG');
   const md = fs.readFileSync(path.join(dir, 'messages.md'), 'utf8');
   const html = fs.readFileSync(path.join(dir, 'messages.html'), 'utf8');
   assert.ok(md.includes('[Example Foo](https://example.com/foo)'), 'md uses stored title');
@@ -252,8 +252,8 @@ test('render: link label uses stored urlTitles when present', async () => {
 test('render: URLs become links in HTML + Markdown; JSON text unchanged', async () => {
   const chat = 'WhatsApp Chat - Link Test';
   const lines = [
-    '23/07/2026 09:47 - Owner: check this https://www.github.com/owner/repo?x=1 please',
-    '23/07/2026 09:48 - Owner: visit https://example.com/ for docs',
+    '23/07/2020 09:47 - Owner: check this https://www.github.com/owner/repo?x=1 please',
+    '23/07/2020 09:48 - Owner: visit https://example.com/ for docs',
   ].join('\n');
   const zipped = zipSync({ [`${chat}/_chat.txt`]: Buffer.from(lines, 'utf8') });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-link-'));

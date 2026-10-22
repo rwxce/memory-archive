@@ -82,7 +82,7 @@ Phase 01 parsing-model-core — streaming tracer parser delivered (01-01 ✓).
 - [Phase ?]: Omitted-marker brackets optional (Android drops them); detection is lazy in-stream single pass
 - [Phase ?]: runParser returns added-count; CSV merge is the incremental source-of-truth mechanism (D-13/D-16/D-17)
 - [Phase 02]: Single CLI run emits CSV+JSON+MD+HTML; renderers re-read messages.csv (D-20/D-22)
-- [Phase 02]: metadata.chatName = display name (e.g. "Plataforma WK"); folder = slug (plataforma-wk)
+- [Phase 02]: metadata.chatName = display name (e.g. "Example Org"); folder = slug (example-org)
 - [Phase 02]: Outgoing side = most-frequent author (no self marker in export); SHA-256(author)%360 -> hue
 - [Phase 02]: eta 4.6 unavailable offline -> HTML shell via inline TS templates (deviation)
 - [Phase 03]: reconcileMedia reads the ZIP central directory (random-access) + streams each member via Node `zlib.createInflateRaw` — required because fflate's streaming inflate breaks on data-descriptor members (the sample's nested `.zip` attachment), so the planned fflate `file.start()` path was replaced (deviation, Rule 1)

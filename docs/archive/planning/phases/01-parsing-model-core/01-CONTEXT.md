@@ -56,9 +56,9 @@ as the **CSV source-of-truth**. The CSV is the foundation every downstream phase
 - `.planning/PROJECT.md` — Context (locale-dependent format is the central hard problem), Constraints (streaming, TS/Node, portability)
 
 ### Real sample data (ground-truth format reference)
-- `data/WhatsApp Chat - Plataforma WK/_chat.txt` — pt-BR reference: bracketed `DD/MM/YYYY, HH:MM:SS` 24h, `U+200E` prefix before `[`, `<attached: FILENAME>` media, system events, same-second multi-attachment (lines 37–38)
+- `data/WhatsApp Chat - Example Org/_chat.txt` — pt-BR reference: bracketed `DD/MM/YYYY, HH:MM:SS` 24h, `U+200E` prefix before `[`, `<attached: FILENAME>` media, system events, same-second multi-attachment (lines 37–38)
 - `data/WhatsApp Chat - Notas pessoais/_chat.txt` — second real sample export
-- `data/WhatsApp Chat - Plataforma WK/` and `data/WhatsApp Chat - Notas pessoais/` — extracted media folders (stickers `.webp`, photos `.jpg`, video `.mp4`, documents `.pdf`) for reconciliation testing
+- `data/WhatsApp Chat - Example Org/` and `data/WhatsApp Chat - Notas pessoais/` — extracted media folders (stickers `.webp`, photos `.jpg`, video `.mp4`, documents `.pdf`) for reconciliation testing
 
 ### Stack / technical guidance
 - `AGENTS.md` (STACK.md research) — fflate streaming `Unzip` (memory-safe), `node:readline` line streaming, date-fns for construction/formatting
@@ -85,8 +85,8 @@ as the **CSV source-of-truth**. The CSV is the foundation every downstream phase
 
 - Real `_chat.txt` media appears as `<attached: 00003010-STICKER-2026-07-23-12-41-49.webp>` on its own line, often following an **empty-body** timestamped line (e.g. line 36 empty body, line 37 the attachment). The parser must attach media to the preceding empty-body message, not create a phantom message.
 - Same-second multiple attachments occur (lines 37–38 share `23:31:29`) — dedupe by full key, not timestamp alone.
-- Senders may include `~ ` prefixes and phone numbers (`‪+55 47 99951‑9144‬`) — the `author` column should preserve the raw sender string; normalization/display is a later concern.
-- Chats contain plaintext secrets (e.g. `Senha: TIMEWK2026`) — noted; redaction is **out of scope** for v1.
+- Senders may include `~ ` prefixes and phone numbers (`‪+00 555 0100 1234‬`) — the `author` column should preserve the raw sender string; normalization/display is a later concern.
+- Chats contain plaintext secrets (e.g. `Password: example-password`) — noted; redaction is **out of scope** for v1.
 
 </specifics>
 

@@ -42,7 +42,7 @@ Closes G-01-16: real WhatsApp exports (which store `_chat.txt` at the archive ro
 ## Verification Results
 
 - `npm test` → **30/30 pass**.
-- Real-export CLI smoke: `npx tsx src/index.ts "data/WhatsApp Chat - Plataforma WK.zip" --out /tmp/uat2 --verbose` → `/tmp/uat2/WhatsApp Chat - Plataforma WK/messages.csv`, detection report printed, 134 messages merged.
+- Real-export CLI smoke: `npx tsx src/index.ts "data/WhatsApp Chat - Example Org.zip" --out /tmp/uat2 --verbose` → `/tmp/uat2/WhatsApp Chat - Example Org/messages.csv`, detection report printed, 134 messages merged.
 
 ## Deviations from Plan
 

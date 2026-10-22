@@ -35,7 +35,7 @@ This gives you the three requested outputs (MD/HTML/JSON) and media reconciliati
 | `parser/parse-chat.ts` | **The parser core.** Stateful async generator `parseChat(lines: AsyncIterable<string>): AsyncIterable<ChatEvent>`. Stitches continuation lines, classifies headers, normalizes numerics/bidi. Emits `ChatEvent` (raw-parsed, before date construction). | `formats.ts`, `classify.ts`, `media-ref.ts`, `model` |
 | `parser/formats.ts` | Locale timestamp **registry** + `detectFormat(sampleLines)`. The hardest sub-problem (see Pitfall C1). | `model` |
 | `parser/classify.ts` | Distinguishes user message / system / call / `<Media omitted>` / `Mensagem apagada` (deleted) / document. | `model` |
-| `parser/media-ref.ts` | Extracts referenced media filename(s) from a line body. **Key real-world finding:** documents embed their filename in the body (`autorizacao_atividade.pdf • 2 páginas document omitted`), while images/video/audio use `IMG-/VID-/PTT-` WA-prefixed names. | `model` |
+| `parser/media-ref.ts` | Extracts referenced media filename(s) from a line body. **Key real-world finding:** documents embed their filename in the body (`sample_document.pdf • 2 páginas document omitted`), while images/video/audio use `IMG-/VID-/PTT-` WA-prefixed names. | `model` |
 | `render/to-json.ts` | Serializes normalized messages → structured JSON (easiest, first). | `model` |
 | `render/to-markdown.ts` | Custom `MarkdownWriter` (no dep) — `**Sender** _time_\n\nbody`. | `model`, `escape.ts` |
 | `render/to-html.ts` | eta templates (bubble + page layout). | `model`, `escape.ts`, eta |
@@ -92,9 +92,9 @@ This gives you the three requested outputs (MD/HTML/JSON) and media reconciliati
 **Streaming note (Pitfall M4):** `parse-chat` is an `async generator`; it yields `ChatEvent`s as lines arrive, so the renderer and `OutputSink` can write incrementally. The whole transcript is never held in memory. HTML inlining of media is the only place a size cap (`--embed-max-mb`, skip video) is needed.
 
 **Real-sample edge cases to design for (observed in `WhatsApp Chat - Notas pessoais.zip`):**
-- Format `[17/03/2026, 13:17:58] Guionardo Furlan: …` — iOS bracket, `DD/MM/YYYY`, 24h, pt-BR locale (comma + space between date and time, `]` + space before sender).
+- Format `[17/03/2026, 13:17:58] Alice Example: …` — iOS bracket, `DD/MM/YYYY`, 24h, pt-BR locale (comma + space between date and time, `]` + space before sender).
 - Invisible bidi marks (`U+200E`) prefix some lines (e.g. `‎image omitted`, `‎Mensagem apagada`) — strip before matching (Pitfall M5).
-- Documents embed their original filename in the body (`autorizacao_atividade.pdf • 2 páginas document omitted`) and the matching file `96980389904-IRPF-D-0-0211-31-07-2026-08-03.pdf` exists in the ZIP — so document reconciliation must match by embedded name, not WA-prefix.
+- Documents embed their original filename in the body (`sample_document.pdf • 2 páginas document omitted`) and the matching file `12345678900-DOC-D-0-0211-31-07-2026-08-03.pdf` exists in the ZIP — so document reconciliation must match by embedded name, not WA-prefix.
 - A **nested ZIP** (`00000068-Conversa do WhatsApp com Notas pessoais.zip`) sits inside the export — the `ChatArchiveReader` should flag/handle nested archives rather than silently skip them (defer to v1.1, but the port must not preclude it).
 
 ---

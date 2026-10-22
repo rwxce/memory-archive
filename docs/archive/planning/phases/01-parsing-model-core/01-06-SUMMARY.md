@@ -38,13 +38,13 @@ Closes G-01-17: output folders are now the bare chat name, slugified for termina
 
 ## What Was Built
 
-- **src/extract.ts** — exported `slugifyChatName`: strips the `WhatsApp Chat - ` prefix, removes diacritics via NFD normalization, lowercases, collapses non-alphanumeric runs to `-`. `chatNameFromZip` applies it to both folder-wrapped and root-level-derived names. `WhatsApp Chat - Plataforma WK` → `plataforma-wk`; `WhatsApp Chat - Notas pessoais` → `notas-pessoais`.
+- **src/extract.ts** — exported `slugifyChatName`: strips the `WhatsApp Chat - ` prefix, removes diacritics via NFD normalization, lowercases, collapses non-alphanumeric runs to `-`. `chatNameFromZip` applies it to both folder-wrapped and root-level-derived names. `WhatsApp Chat - Example Org` → `example-org`; `WhatsApp Chat - Notas pessoais` → `notas-pessoais`.
 - **Tests** — all three suites now compute expected output dirs through the same helper; root-level test expects `root-level`.
 
 ## Verification Results
 
 - `npm test` → **30/30 pass**.
-- Real-export smoke: `npx tsx src/index.ts "data/WhatsApp Chat - Plataforma WK.zip" --out /tmp/uat3` → `/tmp/uat3/plataforma-wk/messages.csv`.
+- Real-export smoke: `npx tsx src/index.ts "data/WhatsApp Chat - Example Org.zip" --out /tmp/uat3` → `/tmp/uat3/example-org/messages.csv`.
 
 ## Deviations from Plan
 

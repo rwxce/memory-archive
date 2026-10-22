@@ -10,7 +10,7 @@ import type { Detection } from './timestamp';
 
 /** Sender separator (D-09): optional ` - ` wrapper, then `Name: body`.
  * The separator is `:` + whitespace, or `:` at end-of-line (empty-body
- * messages like `[..] Camilla:`). Requiring `\s|$` keeps URLs (`https://…`)
+ * messages like `[..] Carol:`). Requiring `\s|$` keeps URLs (`https://…`)
  * from being mistaken for senders. */
 const SENDER_RE = /^(?:\s*-\s*)?(.+?):(?:\s|$)([\s\S]*)$/;
 /** iOS media marker, per export language: `<attached: F>` (en),

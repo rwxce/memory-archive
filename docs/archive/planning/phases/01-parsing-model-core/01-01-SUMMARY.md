@@ -58,7 +58,7 @@ Streaming fflate→readline→state-machine parser that turns a WhatsApp export 
 - **src/parse/message.ts** — async-generator state machine: continuations joined with `\n`, empty-body→same-author-attachment merged (no phantom rows), same-second bursts preserved as distinct rows, `<attached:` classified (sticker/photo/video/document), omitted/deleted/system markers.
 - **src/csv.ts** — RFC-4180 quoting; header `timestamp_iso,type,author,text,media`; UTF-8 no BOM.
 - **src/model.ts + src/index.ts** — `runParser` orchestrator writing `${out}/<chat>/messages.csv`; commander CLI with `<zip>` positional and `--out/--day-first/--month-first/--verbose`.
-- **test/tracer.test.ts** — builds in-memory ZIPs from BOTH real samples via `zipSync`, runs the full streaming path, asserts header/no-BOM/ISO shape, sticker row, continuation join (`Senha: TIMEWK2026`), 36→37 photo merge, 5-row same-second burst with distinct media, raw bidi author, caption+attachment row, and a cross-sample phantom-row guard.
+- **test/tracer.test.ts** — builds in-memory ZIPs from BOTH real samples via `zipSync`, runs the full streaming path, asserts header/no-BOM/ISO shape, sticker row, continuation join (`Password: example-password`), 36→37 photo merge, 5-row same-second burst with distinct media, raw bidi author, caption+attachment row, and a cross-sample phantom-row guard.
 
 ## Verification Results
 
@@ -86,7 +86,7 @@ Streaming fflate→readline→state-machine parser that turns a WhatsApp export 
 - **Commit:** f8e86ac
 
 **3. [Rule 1 - Bug] Empty-body timestamped lines misclassified as system**
-- **Found during:** Task 2 tests (phantom `system` row `Camilla Araujo WK:` at 23:31:29)
+- **Found during:** Task 2 tests (phantom `system` row `Carol Sample:` at 23:31:29)
 - **Issue:** SENDER_RE required `:\s`; `[ts] Name:` (colon at EOL) failed → became a phantom system row instead of merging with the attachment
 - **Fix:** separator is now `(?:\s|$)` — still rejects `https://…` URL false positives
 - **Files modified:** src/parse/message.ts

@@ -63,7 +63,7 @@ All content is XSS-escaped (OUT-05). Media renders as labeled placeholders pendi
 ### Canonical References
 - **Downstream agents MUST read** `.planning/REQUIREMENTS.md` — OUT-01..OUT-05 definitions (this phase's acceptance).
 - **Stack guidance:** `AGENTS.md` — Tech stack constraints (TypeScript/Node ESM; core reusable in web frontend). STACK research recommends eta 4.6 for templating (confirmed in D-42).
-- **Ground truth:** `data/WhatsApp Chat - Plataforma WK/_chat.txt` — real pt-BR sample incl. bidi authors, emoji, omitted markers.
+- **Ground truth:** `data/WhatsApp Chat - Example Org/_chat.txt` — real pt-BR sample incl. bidi authors, emoji, omitted markers.
 - `data/WhatsApp Chat - Notas pessoais/_chat.txt` — second sample with deleted/document-omitted cases.
 
 ### Deferred Ideas (not blocking)
@@ -93,7 +93,7 @@ All content is XSS-escaped (OUT-05). Media renders as labeled placeholders pendi
 - `src/csv.ts` — `readCsv()` parses messages.csv back into `Message[]`; renderers consume this directly
 - `src/model.ts` — `runParser()` orchestrator; rendering hooks in after CSV write
 - `src/index.ts` — commander CLI with `--out/--day-first/--month-first/--verbose`
-- `data/WhatsApp Chat - Plataforma WK/_chat.txt` — real pt-BR sample
+- `data/WhatsApp Chat - Example Org/_chat.txt` — real pt-BR sample
 - `data/WhatsApp Chat - Notas pessoais/_chat.txt` — second sample with deleted/document-omitted cases
 
 ## Decisions Recorded
