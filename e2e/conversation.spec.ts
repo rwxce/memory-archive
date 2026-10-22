@@ -109,6 +109,48 @@ test.describe('a small conversation', () => {
     await expect(page.getByRole('link', { name: 'Back to People' })).toBeVisible();
   });
 
+  test('the calendar jumps to a day with messages from the keyboard, and Escape closes it', async ({ page }) => {
+    await startFresh(page);
+    await addPerson(page, 'Mama');
+    await importFromPeople(page, zip(), 'Mama', /^Add [\d,]+ messages to Mama$/);
+    await expect(page.getByText(/new messages added to Mama\./)).toBeVisible();
+    await openConversation(page);
+    const feed = feedOf(page);
+    await expect(article(feed, COUNT)).toBeInViewport();
+
+    const trigger = page.getByRole('button', { name: 'Calendar' });
+    await trigger.click();
+    const panel = page.getByRole('region', { name: 'Calendar of this conversation' });
+    // one year only, so it opens on its months; only March has messages
+    await expect(panel.getByRole('heading', { name: 'Choose a month in 2026' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'April, no messages' })).toBeDisabled();
+    expect(await overflowsHorizontally(page)).toBe(false);
+    await panel.getByRole('button', { name: 'March, 600 messages' }).click();
+
+    // the grid: empty days are not actions; arrows move, Enter chooses
+    const grid = panel.getByRole('grid', { name: 'March 2026' });
+    await expect(grid.getByRole('button', { name: 'Monday, March 16, 2026, no messages' })).toHaveAttribute('aria-disabled', 'true');
+    const first = grid.getByRole('button', { name: 'Tuesday, March 17, 2026, 100 messages' });
+    await first.focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await expect(grid.getByRole('button', { name: /^Thursday, March 19, 2026/ })).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Enter');
+    await expect(panel).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await expect(article(feed, 301)).toBeInViewport();
+    await expect(article(feed, 301)).toContainText('Friday, March 20, 2026');
+    await expect(page.getByRole('status').filter({ hasText: 'Showing the first message on or after Mar 20, 2026.' })).toBeVisible();
+
+    // Escape closes it and gives focus back
+    await page.keyboard.press('Enter');
+    await expect(panel.getByRole('heading', { name: 'Choose a month in 2026' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(panel).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  });
+
   test('Back returns to where the person was reading', async ({ page }) => {
     await startFresh(page);
     await addPerson(page, 'Mama');

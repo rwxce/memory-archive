@@ -278,6 +278,81 @@ describe('virtualization', () => {
   });
 });
 
+describe('calendar', () => {
+  const synthetic = async (lib: Lib) => {
+    const ana = await createProfile(lib.deps, { displayName: 'Ana M.' });
+    createSyntheticConversation(lib.opened.db, { count: 20_000, conversationId: CONV });
+    await lib.client.call('linkConversationProfile', { conversationId: CONV, profileId: ana.id });
+  };
+  const calls = (spy: { mock: { calls: unknown[][] } }) => spy.mock.calls.filter(([name]) => name === 'listConversationDays').length;
+  const trigger = () => button('Calendar');
+  const label = (text: string) => [...view!.container.querySelectorAll<HTMLElement>('#conversation-calendar button')].find((b) => b.getAttribute('aria-label')?.startsWith(text))!;
+
+  test('days are read only when the calendar is first opened, once', async () => {
+    const lib = await createTestLibrary();
+    await synthetic(lib);
+    const spy = vi.spyOn(lib.client, 'call');
+    search = `id=${CONV}`;
+    view = await renderWithLibrary(<ConversationScreen />, { lib });
+    await settle();
+    expect(calls(spy)).toBe(0);
+    expect(trigger().getAttribute('aria-expanded')).toBe('false');
+    await click(trigger());
+    await settle();
+    expect(calls(spy)).toBe(1);
+    expect(trigger().getAttribute('aria-expanded')).toBe('true');
+    await click(trigger());
+    await click(trigger());
+    await settle();
+    expect(calls(spy)).toBe(1);
+  });
+
+  test('choosing a day jumps the feed there, announces it, closes the calendar and returns focus to the button', async () => {
+    await open(synthetic);
+    await click(trigger());
+    await settle();
+    expect(view!.container.querySelector('#conversation-calendar h2')!.textContent).toBe('Choose a month in 2020'); // one year: no years step
+    await click(label('March'));
+    await click(label('Sunday, March 1, 2020'));
+    await settle();
+    expect(feed().scrollTop).toBe(12_000 * ROW);
+    expect(view!.container.querySelector('#conversation-calendar')).toBeNull();
+    expect(view!.container.querySelector('[role="status"]')!.textContent).toBe('Showing the first message on or after Mar 1, 2020.');
+    expect(document.activeElement).toBe(trigger());
+    expect(view!.container.querySelector<HTMLInputElement>('input[type="date"]')!.value).toBe('2020-03-01');
+  });
+
+  test('Escape closes it and returns focus to the button', async () => {
+    await open(synthetic);
+    await click(trigger());
+    await settle();
+    await act(async () => void view!.container.querySelector('#conversation-calendar h2')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    expect(view!.container.querySelector('#conversation-calendar')).toBeNull();
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  test('a failed read says so, keeps the conversation, and Try again reads it', async () => {
+    const lib = await createTestLibrary();
+    await synthetic(lib);
+    const real = lib.client.call.bind(lib.client) as (name: string, args?: unknown) => Promise<unknown>;
+    let failing = true;
+    vi.spyOn(lib.client, 'call').mockImplementation(((name: string, args?: unknown) =>
+      name === 'listConversationDays' && failing ? Promise.reject(new Error('boom')) : real(name, args)) as never);
+    search = `id=${CONV}`;
+    view = await renderWithLibrary(<ConversationScreen />, { lib });
+    await settle();
+    await click(trigger());
+    await settle();
+    const alert = view!.container.querySelector('#conversation-calendar [role="alert"]')!;
+    expect(alert.textContent).toContain('The calendar could not be read. Nothing was deleted.');
+    failing = false;
+    await click([...alert.querySelectorAll('button')].find((b) => b.textContent === 'Try again')!);
+    await settle();
+    expect(view!.container.querySelector('#conversation-calendar h2')!.textContent).toBe('Choose a month in 2020');
+    expect(feed()).toBeTruthy();
+  });
+});
+
 describe('untrusted text', () => {
   const hostile = [
     '<img src=x onerror="window.pwned=1"> <b>bold</b> <script>window.pwned=2</script>',

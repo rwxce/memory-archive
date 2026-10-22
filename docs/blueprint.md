@@ -52,7 +52,13 @@ test type or architecture rule means updating this file **in the same PR**.
     view and resolves where to start: the end, a valid `?date=` (a calendar-invalid one is
     ignored), or the position saved for the tab (`hooks/conversation-position.ts`,
     `sessionStorage`, index and offset only). The date picker jumps (the latest pick wins) and
-    announces it. Media: `hooks/use-media-url.ts` makes object URLs through a small queue
+    announces it. The *Calendar* button
+    opens a panel (`components/conversation-calendar.tsx`, `calendar-day-grid.tsx`): years, the
+    months of a year, then a Monday-first grid of days where only days with messages can be
+    chosen (arrow keys, Home/End, Escape; one tab stop). It reads `listConversationDays` lazily on
+    first open (`hooks/use-conversation-days.ts`: loading / error / Retry, kept while the screen
+    lives) and aggregates with pure string helpers (`hooks/calendar-days.ts`, no timezone).
+    Choosing a day uses the same jump as the date picker and closes the panel. Media: `hooks/use-media-url.ts` makes object URLs through a small queue
     (`hooks/media-queue.ts`, 3 reads at once, cancelled on unmount, revoked on cleanup); photos,
     stickers and voice notes load as rows come into view, video and documents only on tap.
     Message text is rendered as React text; `splitLinks` (`lib/usecases/message-text.ts`) only
