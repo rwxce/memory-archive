@@ -349,7 +349,8 @@
     "importsLink": "Importacions d’aquesta persona",
     "backToPerson": "Torna a aquesta persona",
     "sectionsLabel": "Seccions",
-    "sectionAudio": "Àudio"
+    "sectionAudio": "Àudio",
+    "sectionGallery": "Galeria"
   },
   "personAudio": {
     "title": "Àudio",
@@ -368,6 +369,22 @@
     "showMore": "Mostra'n més",
     "loadingMore": "Carregant-ne més…",
     "moreFailed": "Alguns missatges de veu no s'han pogut llegir. No s'ha esborrat res."
+  },
+  "personGallery": {
+    "title": "Galeria",
+    "back": "Torna a {name}",
+    "loading": "Carregant fotos i vídeos…",
+    "loadFailed": "No s'han pogut llegir les fotos i els vídeos. No s'ha esborrat res.",
+    "count": "{count, plural, one {# foto o vídeo} other {# fotos i vídeos}}",
+    "empty": "Encara no hi ha cap foto ni cap vídeo a les converses guardades a {name}. Quan n'hi hagi, apareixeran aquí.",
+    "photo": "Foto",
+    "video": "Vídeo",
+    "tileLabel": "Obre a la conversa «{title}»: {kind}, {when}",
+    "videoName": "Vídeo",
+    "shown": "Es mostren {shown} de {total}",
+    "showMore": "Mostra'n més",
+    "loadingMore": "Carregant-ne més…",
+    "moreFailed": "Algunes fotos i vídeos no s'han pogut llegir. No s'ha esborrat res."
   },
   "conversations": {
     "listLabel": "Converses",
