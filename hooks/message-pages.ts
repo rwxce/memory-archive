@@ -31,6 +31,13 @@ export function pagesFor(start: number, end: number, count: number, pageSize = P
   return order;
 }
 
+/**
+ * Identifies a message across feeds: on a person's timeline the rows carry their conversation; in a
+ * conversation they do not, and `feedId` is that conversation's id.
+ */
+export const messageKey = (feedId: string, message: ConversationMessage): string =>
+  `${'conversationId' in message ? String((message as { conversationId: unknown }).conversationId) : feedId}:${message.id}`;
+
 /** A bounded cache of pages by page number. */
 export class PageCache {
   private readonly pages = new Map<number, Page>();
@@ -63,6 +70,23 @@ export class PageCache {
       if (this.pages.size <= this.max) break;
       this.pages.delete(p);
     }
+  }
+
+  /**
+   * Replaces, in place, every cached message `change` returns a new object for (the row before a page
+   * is a copy of another page's last row, so it is replaced too). Positions and counts do not move.
+   */
+  update(change: (message: ConversationMessage) => ConversationMessage | undefined): boolean {
+    let changed = false;
+    for (const [key, page] of this.pages) {
+      const before = page.before && change(page.before);
+      const messages = page.messages.map((m) => change(m) ?? m);
+      const touched = before !== null && before !== undefined ? true : messages.some((m, i) => m !== page.messages[i]);
+      if (!touched) continue;
+      changed = true;
+      this.pages.set(key, { ...page, messages, before: before ?? page.before });
+    }
+    return changed;
   }
 
   at(index: number): MessageAt | undefined {

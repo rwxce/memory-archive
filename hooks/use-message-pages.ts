@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ConversationMessage } from '@/lib/domain/library';
-import { MAX_PAGES, PAGE_SIZE, PageCache, pagesFor, type MessageAt } from './message-pages';
+import { MAX_PAGES, PAGE_SIZE, PageCache, messageKey, pagesFor, type MessageAt } from './message-pages';
 
 export interface MessagePages {
   /** The message at a position, when its page is loaded. */
@@ -14,6 +14,12 @@ export interface MessagePages {
   /** A page could not be read; `retry` asks again. */
   failed: boolean;
   retry(): void;
+  /**
+   * Sets the favorite mark of one message in the cache, in place: no read, no change of position or
+   * height. The value is remembered, so a page of that message read later (or read before the change
+   * and arriving after it) shows it too.
+   */
+  setFavorite(message: ConversationMessage, favorite: boolean): void;
   /** Changes whenever a page arrives or goes, so rows can re-read `at`. */
   version: number;
 }
@@ -38,6 +44,7 @@ export function useMessagePages(sourceKey: string, count: number, readWindow: Re
       keep: new Set<number>(),
       center: 0,
       last: { start: 0, end: 0 },
+      overrides: new Map<string, boolean>(),
       dead: false,
     }),
     [readWindow, sourceKey, maxPages, pageSize],
@@ -60,8 +67,12 @@ export function useMessagePages(sourceKey: string, count: number, readWindow: Re
         (rows) => {
           store.inFlight.delete(page);
           if (store.dead) return;
-          const before = page > 0 ? (rows[0] ?? null) : null;
-          store.cache.set({ index: page, messages: page > 0 ? rows.slice(1) : rows, before });
+          const marked = rows.map((m) => {
+            const mark = store.overrides.get(messageKey(sourceKey, m));
+            return mark === undefined || mark === m.isFavorite ? m : { ...m, isFavorite: mark };
+          });
+          const before = page > 0 ? (marked[0] ?? null) : null;
+          store.cache.set({ index: page, messages: page > 0 ? marked.slice(1) : marked, before });
           store.cache.trim(store.center, store.keep);
           bump();
         },
@@ -73,7 +84,7 @@ export function useMessagePages(sourceKey: string, count: number, readWindow: Re
         },
       );
     },
-    [readWindow, pageSize, store, bump],
+    [readWindow, pageSize, sourceKey, store, bump],
   );
 
   const request = useCallback(
@@ -94,7 +105,17 @@ export function useMessagePages(sourceKey: string, count: number, readWindow: Re
     bump();
   }, [store, request, bump]);
 
+  const setFavorite = useCallback(
+    (message: ConversationMessage, favorite: boolean) => {
+      const key = messageKey(sourceKey, message);
+      store.overrides.set(key, favorite);
+      const changed = store.cache.update((m) => (m.id === message.id && messageKey(sourceKey, m) === key && m.isFavorite !== favorite ? { ...m, isFavorite: favorite } : undefined));
+      if (changed) bump();
+    },
+    [sourceKey, store, bump],
+  );
+
   const at = useCallback((index: number) => store.cache.at(index), [store, version]);
 
-  return { at, request, busy: store.inFlight.size > 0, failed: store.failed.size > 0, retry, version };
+  return { at, request, busy: store.inFlight.size > 0, failed: store.failed.size > 0, retry, setFavorite, version };
 }

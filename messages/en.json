@@ -351,7 +351,8 @@
     "sectionsLabel": "Sections",
     "sectionAudio": "Audio",
     "sectionGallery": "Gallery",
-    "sectionTimeline": "Timeline"
+    "sectionTimeline": "Timeline",
+    "sectionFavorites": "Favorites"
   },
   "personAudio": {
     "title": "Audio",
@@ -555,7 +556,12 @@
         "whatsapp": "WhatsApp"
       }
     },
-    "openFromTimeline": "Open this conversation on this day"
+    "openFromTimeline": "Open this conversation on this day",
+    "favorite": {
+      "add": "Add to favorites",
+      "remove": "Remove from favorites",
+      "failed": "The favorite could not be saved. Nothing was deleted."
+    }
   },
   "timeline": {
     "back": "Back to {name}",
@@ -566,5 +572,25 @@
     "feedLabel": "Messages of {name}, from all conversations",
     "toolbarLabel": "Move around the timeline",
     "calendarLabel": "Calendar of this timeline"
+  },
+  "personFavorites": {
+    "title": "Favorites",
+    "back": "Back to {name}",
+    "loading": "Loading favorites…",
+    "loadFailed": "The favorites could not be read. Nothing was deleted.",
+    "count": "{count, plural, one {# favorite message} other {# favorite messages}}",
+    "empty": "{name} has no favorite messages yet.",
+    "emptyHint": "To add one, open a conversation and press the star beside a message.",
+    "you": "You",
+    "unknownAuthor": "Unknown sender",
+    "remove": "Remove from favorites",
+    "removed": "Removed from favorites. The message stays in its conversation.",
+    "removeFailed": "The favorite could not be removed. Nothing was deleted.",
+    "open": "Open in conversation",
+    "openLabel": "Open in conversation “{title}”, {when}",
+    "shown": "Showing {shown} of {total}",
+    "showMore": "Show more",
+    "loadingMore": "Loading more…",
+    "moreFailed": "Some favorites could not be read. Nothing was deleted."
   }
 }
