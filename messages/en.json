@@ -114,6 +114,19 @@
       "persisted": "Your archive is protected: the browser will not delete it on its own.",
       "notPersisted": "The browser may clear this app’s data if the device runs out of space. Adding the app to your home screen helps keep it safe, and so does exporting a copy from time to time."
     },
+    "erase": {
+      "title": "Erase everything from this device",
+      "description": "Your archive lives inside this device’s browser, in private storage the browser manages. It is not a normal folder, so you will not find these files in your file manager. Erasing removes every conversation, photo and setting from here.",
+      "button": "Erase everything from this device",
+      "dialogTitle": "Erase everything from this device?",
+      "dialogBody": "All messages, photos and settings in this app will be removed from this device. This cannot be undone. Nothing is sent anywhere, and copies you saved elsewhere are not touched.",
+      "backupAdvice": "Make a backup ZIP first if you want to keep your archive. You can export one from the archive screens.",
+      "confirm": "Erase everything",
+      "cancel": "Cancel",
+      "erasing": "Erasing…",
+      "failed": "Not everything could be erased. If the app is open in another tab or window, close it and try again.",
+      "retry": "Try again"
+    },
     "history": {
       "title": "Import history",
       "description": "See what each import added, and undo one if you need to.",

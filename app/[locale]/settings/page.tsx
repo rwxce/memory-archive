@@ -2,6 +2,7 @@ import { use } from 'react';
 import { useTranslations } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { AppHeader } from '@/components/app-header';
+import { EraseCard } from '@/components/erase-card';
 import { LanguagePicker } from '@/components/language-picker';
 import { StorageCard } from '@/components/storage-card';
 import { ThemePicker } from '@/components/theme-picker';
@@ -43,6 +44,8 @@ export default function SettingsPage({ params }: { params: Promise<{ locale: str
         </Card>
 
         <StorageCard />
+
+        <EraseCard />
 
         <Card>
           <CardHeader>

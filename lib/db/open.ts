@@ -1,5 +1,6 @@
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { DbError, toDbError } from './errors';
+import { OPFS_DB_FILE, OPFS_DIRECTORY, OPFS_SEARCH_FILE } from './opfs-names';
 import { migrate, readUserVersion } from './migrations';
 import { registerSearchTarget, type SearchTarget } from './search';
 import { wrapOo1Db, type SqlDb } from './sql';
@@ -18,11 +19,7 @@ export interface OpenedDb {
   info: DbInfo;
 }
 
-/** OPFS directory and file the library lives in; part of the on-device format. */
-export const OPFS_DIRECTORY = '/memory-archive-db';
-export const OPFS_DB_FILE = '/library.sqlite3';
-/** The derived full-text index (`search.ts`): same pool, never backed up, always rebuildable. */
-export const OPFS_SEARCH_FILE = '/search.sqlite3';
+export { OPFS_DIRECTORY, OPFS_DB_FILE, OPFS_SEARCH_FILE };
 /**
  * Files the pool must be able to hold: two databases, a rollback journal each, a super-journal
  * and some temporary files (the pool does not grow by itself; the default is 6).

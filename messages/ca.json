@@ -114,6 +114,19 @@
       "persisted": "El teu arxiu està protegit: el navegador no l’esborrarà pel seu compte.",
       "notPersisted": "El navegador podria esborrar les dades de l’aplicació si el dispositiu es queda sense espai. Afegir l’aplicació a la pantalla d’inici ajuda a conservar-les, i també exportar-ne una còpia de tant en tant."
     },
+    "erase": {
+      "title": "Esborra-ho tot d’aquest dispositiu",
+      "description": "El teu arxiu viu dins del navegador d’aquest dispositiu, en un emmagatzematge privat que gestiona el navegador. No és una carpeta normal, així que no trobaràs aquests fitxers al gestor d’arxius. Esborrar elimina d’aquí totes les converses, fotos i opcions.",
+      "button": "Esborra-ho tot d’aquest dispositiu",
+      "dialogTitle": "Vols esborrar-ho tot d’aquest dispositiu?",
+      "dialogBody": "Es trauran d’aquest dispositiu tots els missatges, fotos i opcions de l’aplicació. No es pot desfer. No s’envia res enlloc i les còpies que hagis desat en un altre lloc no es toquen.",
+      "backupAdvice": "Fes abans una còpia de seguretat en ZIP si vols conservar el teu arxiu. La pots exportar des de les pantalles de l’arxiu.",
+      "confirm": "Esborra-ho tot",
+      "cancel": "Cancel·la",
+      "erasing": "Esborrant…",
+      "failed": "No s’ha pogut esborrar tot. Si l’aplicació és oberta en una altra pestanya o finestra, tanca-la i torna-ho a provar.",
+      "retry": "Torna-ho a provar"
+    },
     "history": {
       "title": "Historial d’importacions",
       "description": "Mira què ha afegit cada importació i desfés-ne una si ho necessites.",

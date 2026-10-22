@@ -34,6 +34,8 @@ interface LibraryContextValue {
   /** Starts opening the library (once); screens call this when they mount. */
   start(): void;
   retry(): void;
+  /** Closes the open library, if any, and forgets it (erase-device: the files must be free to remove). */
+  release(): void;
 }
 
 const LibraryContext = createContext<LibraryContextValue | undefined>(undefined);
@@ -128,6 +130,13 @@ export function LibraryProvider({ children, open = defaultOpen }: { children: Re
     run();
   }, [run]);
 
+  const releaseNow = useCallback(() => {
+    supersede();
+    library.current?.close({ force: true });
+    library.current = undefined;
+    attempt.current = undefined;
+  }, [supersede]);
+
   useEffect(() => {
     const release = () => {
       supersede();
@@ -156,7 +165,10 @@ export function LibraryProvider({ children, open = defaultOpen }: { children: Re
     await Promise.all([...reloaders.current].map((reload) => reload()));
   }, []);
 
-  const value = useMemo(() => ({ state, register, refresh, start, retry }), [state, register, refresh, start, retry]);
+  const value = useMemo(
+    () => ({ state, register, refresh, start, retry, release: releaseNow }),
+    [state, register, refresh, start, retry, releaseNow],
+  );
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
 }
 
@@ -177,6 +189,11 @@ export function useLibrary(): { state: LibraryState; retry: () => void } {
 export function useLibraryState(): { state: LibraryState; retry: () => void } {
   const { state, retry } = useLibraryContext();
   return { state, retry };
+}
+
+/** Lets go of the library connection without asking for it to open (used before erasing the device). */
+export function useLibraryRelease(): () => void {
+  return useLibraryContext().release;
 }
 
 /** For hooks that already sit under a screen that called `useLibrary`. */
