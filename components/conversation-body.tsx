@@ -214,7 +214,7 @@ export function ConversationBody({ source }: { source: FeedSource }) {
       <div
         role="toolbar"
         aria-label={kind === 'timeline' ? tt('toolbarLabel') : t('toolbarLabel')}
-        className="bg-glass border-glass-line shadow-soft mx-4 mt-2 mb-[max(1rem,env(safe-area-inset-bottom))] grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] gap-1 rounded-[22px] border p-1.5 backdrop-blur-[20px] backdrop-saturate-[180%]"
+        className="bg-glass border-glass-line shadow-soft mx-4 mt-2 mb-[max(1rem,env(safe-area-inset-bottom))] grid w-auto sm:mx-auto sm:w-full sm:max-w-xl shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] gap-1 rounded-[22px] border p-1.5 backdrop-blur-[20px] backdrop-saturate-[180%]"
       >
         <button type="button" onClick={list.scrollToStart} className={`${toolButton} hover:bg-sf2 text-foreground`}>
           <ArrowUp aria-hidden />

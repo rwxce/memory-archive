@@ -889,8 +889,10 @@ test type or architecture rule means updating this file **in the same PR**.
   report and screenshots as an artifact.
 - **`branch-policy-guard.yml`** — `pull_request_target`; `main` only accepts PRs from `dev` of this repository (not a fork's `dev`)
   titled `release: vX.Y.Z`.
-- **`release.yml`** — on push to `main`: reads the version from the commit subject, creates the
-  tag and GitHub Release, back-merges `main` into `dev` (`-s ours`). No release bot.
+- **`release.yml`** — on push to `main`: reads the version from the commit subject, strips the
+  `Co-authored-by:` trailers a web squash-merge adds (recreates the commit, same tree, and
+  force-pushes `main` with a lease; `scripts/clean-release-message.mjs` + test), creates the tag
+  and GitHub Release, back-merges `main` into `dev` (`-s ours`). No release bot.
 - **`dependabot.yml`** — npm and GitHub Actions, target `dev`, 7-day cooldown.
 - **`CODEOWNERS`** and **PR template** (`.github/pull_request_template.md`).
 - **`pages.yml`** — on push to `main` (and manually): `pnpm build` with

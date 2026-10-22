@@ -108,8 +108,15 @@ describe('the import history screen', () => {
     expect(view.container.querySelector('h1')?.textContent).toBe(h.title);
     expect(view.container.querySelector('h2')?.textContent).toBe(h.emptyTitle);
     expect(view.container.querySelector('a[href="/import"]')?.textContent).toBe(h.import);
-    expect(view.container.querySelector('a[href="/people"]')?.textContent).toBe(h.back);
+    expect(view.container.querySelector('a[href="/settings"]')?.textContent).toBe(h.back);
     expect(entries(view)).toHaveLength(0);
+  });
+
+  test('goes back to the import tab when it was opened from there', async () => {
+    view = await open(undefined, 'from=import');
+    const links = [...view.container.querySelectorAll('a[href="/import"]')].map((a) => a.textContent);
+    expect(links).toContain(h.backImport);
+    expect(view.container.querySelector('a[href="/settings"]')).toBeNull();
   });
 
   test('lists the imports newest first with what each one added, where it is kept and when', async () => {

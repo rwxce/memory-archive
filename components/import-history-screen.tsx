@@ -91,6 +91,7 @@ function HistoryContent({ person, onRetry, paging }: { person: { id: string; nam
   const tu = useTranslations('import.undo');
   const tl = useTranslations('library');
   const locale = useLocale();
+  const from = useSearchParams().get('from');
   const { state, loadingMore, loadMore } = useImportHistory(person?.id ?? null, paging);
   const actions = useImportActions();
   const [panel, setPanel] = useState<Panel>();
@@ -144,7 +145,12 @@ function HistoryContent({ person, onRetry, paging }: { person: { id: string; nam
       )}
     </div>
   );
-  const back = person ? { href: `/person?id=${encodeURIComponent(person.id)}`, label: t('backPerson', { name: person.name }) } : { href: '/people', label: t('back') };
+  // Back to where the history was opened from: the person, the import tab, or Settings (its home).
+  const back = person
+    ? { href: `/person?id=${encodeURIComponent(person.id)}`, label: t('backPerson', { name: person.name }) }
+    : from === 'import'
+      ? { href: '/import', label: t('backImport') }
+      : { href: '/settings', label: t('back') };
 
   if (state.status === 'loading') {
     return (

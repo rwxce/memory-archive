@@ -62,7 +62,7 @@ export function ImportChoose({
         </h1>
         <p className="text-mu leading-relaxed">{t('intro')}</p>
         <Link
-          href="/import/history"
+          href="/import/history?from=import"
           className="text-ac-tx focus-visible:ring-ring/50 flex min-h-11 w-fit items-center rounded-full px-2 text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px]"
         >
           {t('historyLink')}

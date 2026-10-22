@@ -130,7 +130,7 @@ describe('the import wizard', () => {
       expect(text(view)).toContain(m.choose.empty);
       expect(buttonNamed(view, /^Continue with/)?.getAttribute('aria-disabled')).toBe('true');
       expect(view.container.querySelector('a[href="/people"]')?.textContent).toBe(m.backToPeople);
-      expect(view.container.querySelector('a[href="/import/history"]')?.textContent).toBe(m.historyLink);
+      expect(view.container.querySelector('a[href="/import/history?from=import"]')?.textContent).toBe(m.historyLink);
     });
 
     test('lists the ZIPs it is given, leaves other files out and says so, and can remove one', async () => {
