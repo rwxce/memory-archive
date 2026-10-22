@@ -85,6 +85,18 @@ test type or architecture rule means updating this file **in the same PR**.
     pressed (`useMediaUrl` + the shared media queue, object URL revoked on cleanup); only one item holds a
     player at a time, so starting another stops the first. Each item links to `/conversation?id=&from=&date=`.
     Loading, empty, error with retry, and not-found states.
+  - **Favorites** (`/[locale]/person/favorites/?id=<uuid>`, `components/person-favorites-screen.tsx` /
+    `person-favorite-item.tsx`, section link in `person-sections.tsx`): the starred messages of every
+    conversation kept under the person, oldest first, by month, from `hooks/use-person-favorites.ts`
+    (`listFavorites({ profileId })`, 50 and "Show more", later pages read from the number shown so a
+    removal never skips one). Each card shows when, who, the conversation, the text (or the media kind and
+    file name; no file is read here) and "Open in conversation". Its star removes the favorite once it is
+    stored; the card leaves the list with a calm live-region note and no undo (the message stays, one
+    press re-stars it). The star on a message row (`components/favorite-button.tsx`, beside Details, not on
+    system / deleted / omitted notices) is optimistic: `hooks/use-favorite-toggle.ts` patches the paged
+    cache in place (`useMessagePages().setFavorite`, remembered per message so a page read later or
+    in flight shows it; no refetch, no height change), rolls back and announces on failure, and ignores
+    taps while that message's write runs. Stars in the gallery / lightbox are a follow-up.
   - **Conversation** (`/[locale]/conversation/?id=<uuid>[&from=<person>][&date=YYYY-MM-DD]`,
     `components/conversation-screen.tsx` / `conversation-body.tsx` / `message-row.tsx` /
     `message-media.tsx`, opened from the conversation lists with an *Open* link): a virtualized
@@ -670,6 +682,7 @@ test type or architecture rule means updating this file **in the same PR**.
   - Thumbnails — `lib/storage/opfs-thumb-store.test.ts` (hash/size validation, get/put/delete/clear, cap and LRU eviction, partial write never served, failed write, no-`move()`, tmp sweep, separate from blobs), `thumbnail.test.ts` (fake `createImageBitmap` / `OffscreenCanvas`: orientation, webp / jpeg fallback, undecodable, closing), `lib/usecases/tile-image.test.ts`, `hooks/use-tile-image.test.tsx`, and in `import.test.ts` / `archive.test.ts` (thumbs deleted with their blob, not in the exported ZIP, restore from an empty or stale cache).
   - UI — `components/person-timeline-screen.test.tsx` and `hooks/use-person-timeline.test.tsx` (merge order across two conversations, label only where the conversation changes with hrefs, hostile title as text, "me" alignment, date jump, saved position, empty / not-found / error + retry, start at date / saved position / end, Catalan); e2e `e2e/person-timeline.spec.ts` (two chats imported into one person, order, labels, date jump, calendar, Back, small DOM at 390 and 1440).
   - UI — `components/person-gallery-screen.test.tsx` (kinds, month groups, near-screen reads and URL revoke with a driven IntersectionObserver, video reads nothing, missing and undecodable, Show more, empty / not-found / error + retry, Catalan), `components/person-gallery-lightbox.test.tsx` (dialog stub for happy-dom: open, arrows, ends, missing, read-ahead and revoke, focus return, next page and its failure), `hooks/use-near-viewport.test.tsx`, `e2e/person-gallery.spec.ts` (real PNGs and a video, lazy loading on scroll, keyboard, lightbox open / arrows / Escape / next page / open in the conversation, at 390 and 1440 px);
+  - UI — `components/message-favorite.test.tsx` and `hooks/use-favorite-toggle.test.tsx` (star on messages only, aria-pressed, optimistic mark with unchanged row positions, persisted, rollback with live message, in-flight taps ignored, timeline rows save in their own conversation, page read later keeps the mark, Catalan), `components/person-favorites-screen.test.tsx` and `hooks/use-person-favorites.test.tsx` (month groups, text as text, media line, hrefs, remove with live note and failure alert, Show more without skips, empty / error + retry / not-found), `hooks/message-pages.test.ts` (`PageCache.update`, `messageKey`), `e2e/favorites.spec.ts` (star from the Timeline and the conversation, Favorites list, remove, reload keeps it, at 390 and 1440 px)
   - UI — `components/person-audio-screen.test.tsx` and `hooks/use-person-media.test.tsx` (month groups, Open-in-conversation hrefs, one player at a time, missing file, Show more, empty / not-found / error + retry, Catalan; paging, kinds, failed page, ids), `e2e/person-audio.spec.ts` (import, sections link, play one at a time, open in the conversation, at 390 and 1440 px); `components/person-screen.test.tsx` (details, not-found, archived person, edit, archive,
     rename validation / double submit / failure / Escape and IME, move, link, unlink incl. the last
     person, busy guard, focus and live-region behaviour), `components/people-screen.test.tsx`

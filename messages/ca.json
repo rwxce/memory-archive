@@ -351,7 +351,8 @@
     "sectionsLabel": "Seccions",
     "sectionAudio": "Àudio",
     "sectionGallery": "Galeria",
-    "sectionTimeline": "Cronologia"
+    "sectionTimeline": "Cronologia",
+    "sectionFavorites": "Preferits"
   },
   "personAudio": {
     "title": "Àudio",
@@ -555,7 +556,12 @@
         "whatsapp": "WhatsApp"
       }
     },
-    "openFromTimeline": "Obre aquesta conversa en aquest dia"
+    "openFromTimeline": "Obre aquesta conversa en aquest dia",
+    "favorite": {
+      "add": "Afegeix als preferits",
+      "remove": "Treu dels preferits",
+      "failed": "No s'ha pogut desar el preferit. No s'ha esborrat res."
+    }
   },
   "timeline": {
     "back": "Torna a {name}",
@@ -566,5 +572,25 @@
     "feedLabel": "Missatges de {name}, de totes les converses",
     "toolbarLabel": "Moure's per la cronologia",
     "calendarLabel": "Calendari d'aquesta cronologia"
+  },
+  "personFavorites": {
+    "title": "Preferits",
+    "back": "Torna a {name}",
+    "loading": "Carregant preferits…",
+    "loadFailed": "No s'han pogut llegir els preferits. No s'ha esborrat res.",
+    "count": "{count, plural, one {# missatge preferit} other {# missatges preferits}}",
+    "empty": "{name} encara no té missatges preferits.",
+    "emptyHint": "Per afegir-ne un, obre una conversa i prem l'estrella al costat d'un missatge.",
+    "you": "Tu",
+    "unknownAuthor": "Remitent desconegut",
+    "remove": "Treu dels preferits",
+    "removed": "Tret dels preferits. El missatge continua a la seva conversa.",
+    "removeFailed": "No s'ha pogut treure el preferit. No s'ha esborrat res.",
+    "open": "Obre a la conversa",
+    "openLabel": "Obre a la conversa «{title}», {when}",
+    "shown": "Mostrant {shown} de {total}",
+    "showMore": "Mostra'n més",
+    "loadingMore": "Carregant-ne més…",
+    "moreFailed": "No s'han pogut llegir alguns preferits. No s'ha esborrat res."
   }
 }

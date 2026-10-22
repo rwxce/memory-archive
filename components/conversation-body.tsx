@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CalendarDays, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { savePosition } from '@/hooks/conversation-position';
 import type { ConversationDay, ConversationMessage, PersonTimelineMessage } from '@/lib/domain/library';
 import { useConversationDays } from '@/hooks/use-conversation-days';
+import { useFavoriteToggle } from '@/hooks/use-favorite-toggle';
 import { useMessagePages } from '@/hooks/use-message-pages';
 import { useVirtualList, type ListStart } from '@/hooks/use-virtual-list';
 import { ConversationCalendar } from './conversation-calendar';
@@ -57,6 +58,7 @@ export function ConversationBody({ source }: { source: FeedSource }) {
   const list = useVirtualList({ count, start });
   const pages = useMessagePages(id, count, source.readWindow);
   const [status, setStatus] = useState('');
+  const toggleFavorite = useFavoriteToggle(id, pages.setFavorite, useCallback(() => setStatus(t('favorite.failed')), [t]));
   const [day, setDay] = useState('');
   const [calendarOpen, setCalendarOpen] = useState(false);
   const calendarButton = useRef<HTMLButtonElement>(null);
@@ -196,6 +198,7 @@ export function ConversationBody({ source }: { source: FeedSource }) {
                 message={message}
                 previous={previous}
                 rowRef={list.rowRef}
+                onToggleFavorite={toggleFavorite}
                 conversationTitle={named?.conversationTitle}
                 conversationHref={
                   named && source.timeline

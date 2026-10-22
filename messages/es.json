@@ -351,7 +351,8 @@
     "sectionsLabel": "Secciones",
     "sectionAudio": "Audio",
     "sectionGallery": "Galería",
-    "sectionTimeline": "Cronología"
+    "sectionTimeline": "Cronología",
+    "sectionFavorites": "Favoritos"
   },
   "personAudio": {
     "title": "Audio",
@@ -555,7 +556,12 @@
         "whatsapp": "WhatsApp"
       }
     },
-    "openFromTimeline": "Abrir esta conversación en este día"
+    "openFromTimeline": "Abrir esta conversación en este día",
+    "favorite": {
+      "add": "Añadir a favoritos",
+      "remove": "Quitar de favoritos",
+      "failed": "No se ha podido guardar el favorito. No se ha borrado nada."
+    }
   },
   "timeline": {
     "back": "Volver a {name}",
@@ -566,5 +572,25 @@
     "feedLabel": "Mensajes de {name}, de todas las conversaciones",
     "toolbarLabel": "Moverse por la cronología",
     "calendarLabel": "Calendario de esta cronología"
+  },
+  "personFavorites": {
+    "title": "Favoritos",
+    "back": "Volver a {name}",
+    "loading": "Cargando favoritos…",
+    "loadFailed": "No se han podido leer los favoritos. No se ha borrado nada.",
+    "count": "{count, plural, one {# mensaje favorito} other {# mensajes favoritos}}",
+    "empty": "{name} aún no tiene mensajes favoritos.",
+    "emptyHint": "Para añadir uno, abre una conversación y pulsa la estrella junto a un mensaje.",
+    "you": "Tú",
+    "unknownAuthor": "Remitente desconocido",
+    "remove": "Quitar de favoritos",
+    "removed": "Quitado de favoritos. El mensaje sigue en su conversación.",
+    "removeFailed": "No se ha podido quitar el favorito. No se ha borrado nada.",
+    "open": "Abrir en la conversación",
+    "openLabel": "Abrir en la conversación «{title}», {when}",
+    "shown": "Mostrando {shown} de {total}",
+    "showMore": "Mostrar más",
+    "loadingMore": "Cargando más…",
+    "moreFailed": "No se han podido leer algunos favoritos. No se ha borrado nada."
   }
 }

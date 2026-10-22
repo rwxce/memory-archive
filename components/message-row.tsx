@@ -8,6 +8,7 @@ import type { ConversationMessage } from '@/lib/domain/library';
 import { splitLinks } from '@/lib/usecases/message-text';
 import { cn } from '@/components/ui/utils';
 import { useMessageSource } from '@/hooks/use-message-source';
+import { FavoriteButton } from './favorite-button';
 import { formatFullDay } from './format';
 import { DetailsButton, MessageDetails } from './message-details';
 import { isMediaMessage, MessageMedia } from './message-media';
@@ -55,6 +56,8 @@ export interface MessageRowProps {
   conversationTitle?: string;
   conversationHref?: string;
   rowRef: (element: HTMLElement | null) => void | (() => void);
+  /** The star was pressed on a message (not offered on notices). */
+  onToggleFavorite?: (message: ConversationMessage) => void;
 }
 
 const rowStyle = (top: number): CSSProperties => ({ transform: `translateY(${top}px)` });
@@ -66,7 +69,7 @@ const rowClass = 'absolute inset-x-0 top-0 px-3 py-0.5 sm:px-4';
  * quiet centered notice. The article carries its place in the feed and an accessible name with the
  * author and the time.
  */
-export const MessageRow = memo(function MessageRow({ conversationId, index, count, top, message, previous, conversationTitle, conversationHref, rowRef }: MessageRowProps) {
+export const MessageRow = memo(function MessageRow({ conversationId, index, count, top, message, previous, conversationTitle, conversationHref, rowRef, onToggleFavorite }: MessageRowProps) {
   const t = useTranslations('conversation');
   const locale = useLocale();
   const newDay = previous === null || day(previous.sentAt) !== day(message.sentAt);
@@ -110,7 +113,12 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
 
   const showAuthor = newDay || previous === null || previous.participantName !== message.participantName || isNotice(previous.type);
   const media = isMediaMessage(message.type);
-  const button = <DetailsButton open={open} panelId={panelId} onToggle={() => setOpen((value) => !value)} />;
+  const button = (
+    <div className="flex shrink-0 items-center">
+      {onToggleFavorite && <FavoriteButton favorite={message.isFavorite} onToggle={() => onToggleFavorite(message)} />}
+      <DetailsButton open={open} panelId={panelId} onToggle={() => setOpen((value) => !value)} />
+    </div>
+  );
   return (
     <article {...common} aria-label={author ? t('messageLabel', { author, when }) : when}>
       {separator}

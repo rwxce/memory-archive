@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { ConversationMessage } from '@/lib/domain/library';
-import { PageCache, pagesFor, type Page } from './message-pages';
+import { PageCache, messageKey, pagesFor, type Page } from './message-pages';
 
 const msg = (id: number): ConversationMessage => ({
   id,
@@ -63,5 +63,29 @@ describe('PageCache', () => {
     for (let p = 0; p < 5; p++) cache.set(page(p));
     cache.trim(0, new Set([0, 1, 2, 3]));
     expect(cache.keys()).toEqual([0, 1, 2, 3]);
+  });
+});
+
+describe('PageCache.update', () => {
+  test('replaces the matching message in place, in its page and as the row before the next page', () => {
+    const cache = new PageCache(5, 10);
+    cache.set(page(0));
+    cache.set(page(1));
+    const untouched = cache.at(3)!.message;
+    const changed = cache.update((m) => (m.id === 9 ? { ...m, isFavorite: true } : undefined));
+    expect(changed).toBe(true);
+    expect(cache.at(9)!.message.isFavorite).toBe(true);
+    expect(cache.at(10)!.previous!.isFavorite).toBe(true);
+    // everything else keeps its identity and position
+    expect(cache.at(3)!.message).toBe(untouched);
+    expect(cache.keys()).toEqual([0, 1]);
+    expect(cache.update(() => undefined)).toBe(false);
+  });
+});
+
+describe('messageKey', () => {
+  test('a timeline row names its own conversation; a conversation row takes the feed id', () => {
+    expect(messageKey('conv-a', msg(4))).toBe('conv-a:4');
+    expect(messageKey('timeline:p', { ...msg(4), conversationId: 'conv-b', conversationTitle: 't' } as ConversationMessage)).toBe('conv-b:4');
   });
 });
