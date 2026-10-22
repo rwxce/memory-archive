@@ -5,6 +5,7 @@ import {
   type ConversationDay,
   type ConversationMessage,
   type ConversationSummary,
+  type MessageSource,
   type Participant,
 } from '../domain/library';
 import { isMimeType } from '../domain/profile';
@@ -55,6 +56,11 @@ export function getMessageWindow(
 /** Offset of the first message on or after a local date `YYYY-MM-DD`; `null` when all are earlier. */
 export function findMessageOffsetByDate(deps: LibraryDeps, conversationId: string, date: string): Promise<number | null> {
   return deps.client.call('findMessageOffsetByDate', { conversationId, date });
+}
+
+/** The import (file/label, date) that first added a message; `not-found` if it is not in that conversation. */
+export function getMessageSource(deps: LibraryDeps, conversationId: string, messageId: number): Promise<MessageSource> {
+  return deps.client.call('getMessageSource', { conversationId, messageId });
 }
 
 /** Days that have messages, with counts and first offsets (for the calendar). */

@@ -5,6 +5,7 @@ import type {
   ConversationSummary,
   MediaMessageType,
   MessageCursor,
+  MessageSource,
   Participant,
   PersonMediaItem,
   Profile,
@@ -71,6 +72,7 @@ export interface DbOps {
   getMessageWindow: { params: { conversationId: string; offset: number; limit: number }; result: ConversationMessage[] };
   findMessageOffsetByDate: { params: { conversationId: string; date: string }; result: number | null };
   listConversationDays: { params: { conversationId: string }; result: ConversationDay[] };
+  getMessageSource: { params: { conversationId: string; messageId: number }; result: MessageSource };
   countPersonMedia: { params: { profileId: string; kinds: MediaMessageType[] }; result: number };
   listPersonMedia: {
     params: { profileId: string; kinds: MediaMessageType[]; offset: number; limit: number };

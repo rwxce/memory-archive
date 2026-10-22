@@ -11,6 +11,7 @@ import {
   type ConversationSummary,
   type MediaMessageType,
   type MessageCursor,
+  type MessageSource,
   type NewMessage,
   type NewParticipant,
   type Participant,
@@ -1042,6 +1043,24 @@ export function listConversationDays(db: SqlDb, conversationId: string): Convers
       ORDER BY date LIMIT ?`,
     [id, MAX_DAYS],
   );
+}
+
+/**
+ * Where a message came from: the import batch that first added it (a re-import skips duplicates,
+ * so the message stays with the first batch). The pair is checked, so an id of another
+ * conversation is `not-found`, never revealed. `invalid` for a malformed id.
+ */
+export function getMessageSource(db: SqlDb, conversationId: string, messageId: number): MessageSource {
+  const id = requireUuid(conversationId, 'conversation id');
+  if (!Number.isSafeInteger(messageId) || messageId < 1) invalid('message id must be a positive integer');
+  const [row] = db.all<Omit<MessageSource, 'messageId'>>(
+    `SELECT b.source AS source, b.source_label AS sourceLabel, b.created_at AS importedAt, b.id AS batchId
+       FROM messages m JOIN import_batches b ON b.id = m.batch_id
+      WHERE m.id = ? AND m.conversation_id = ?`,
+    [messageId, id],
+  );
+  if (!row) notFound('message');
+  return { messageId, ...row };
 }
 
 // ------------------------------------------------------ a person's media list

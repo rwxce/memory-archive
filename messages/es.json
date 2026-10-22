@@ -534,6 +534,18 @@
       "playLabel": "Reproducir {name}",
       "saveLabel": "Guardar {name}",
       "save": "Guardar"
+    },
+    "details": {
+      "toggle": "Detalles del mensaje",
+      "loading": "Cargando los detalles…",
+      "source": "Origen: {name}",
+      "sourceFile": "Origen: {name} ({file})",
+      "imported": "Importado el {date}",
+      "notFound": "Este mensaje ya no está en el archivo.",
+      "failed": "No se han podido leer los detalles. No se ha borrado nada.",
+      "sources": {
+        "whatsapp": "WhatsApp"
+      }
     }
   }
 }

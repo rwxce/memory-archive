@@ -1,11 +1,13 @@
 'use client';
 
-import { memo, useMemo, type CSSProperties } from 'react';
+import { memo, useId, useMemo, useState, type CSSProperties } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ConversationMessage } from '@/lib/domain/library';
 import { splitLinks } from '@/lib/usecases/message-text';
 import { cn } from '@/components/ui/utils';
+import { useMessageSource } from '@/hooks/use-message-source';
 import { formatFullDay } from './format';
+import { DetailsButton, MessageDetails } from './message-details';
 import { isMediaMessage, MessageMedia } from './message-media';
 import { senderHue } from './sender-color';
 
@@ -40,6 +42,7 @@ function RichText({ text }: { text: string }) {
 }
 
 export interface MessageRowProps {
+  conversationId: string;
   index: number;
   count: number;
   top: number;
@@ -58,13 +61,17 @@ const rowClass = 'absolute inset-x-0 top-0 px-3 py-0.5 sm:px-4';
  * quiet centered notice. The article carries its place in the feed and an accessible name with the
  * author and the time.
  */
-export const MessageRow = memo(function MessageRow({ index, count, top, message, previous, rowRef }: MessageRowProps) {
+export const MessageRow = memo(function MessageRow({ conversationId, index, count, top, message, previous, rowRef }: MessageRowProps) {
   const t = useTranslations('conversation');
   const locale = useLocale();
   const newDay = previous === null || day(previous.sentAt) !== day(message.sentAt);
   const when = `${formatFullDay(message.sentAt, locale)}, ${time(message.sentAt)}`;
   const notice = isNotice(message.type);
   const author = message.participantName ?? '';
+  // Details open under the bubble; the row's own height change is picked up by the list's row measuring.
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const source = useMessageSource(conversationId, message.id, open);
 
   const separator = newDay && (
     <div aria-hidden className="my-2 flex justify-center">
@@ -87,10 +94,12 @@ export const MessageRow = memo(function MessageRow({ index, count, top, message,
 
   const showAuthor = newDay || previous === null || previous.participantName !== message.participantName || isNotice(previous.type);
   const media = isMediaMessage(message.type);
+  const button = <DetailsButton open={open} panelId={panelId} onToggle={() => setOpen((value) => !value)} />;
   return (
     <article {...common} aria-label={author ? t('messageLabel', { author, when }) : when}>
       {separator}
-      <div className={cn('flex', message.isMe ? 'justify-end' : 'justify-start')}>
+      <div className={cn('group/row flex items-center', message.isMe ? 'justify-end' : 'justify-start')}>
+        {message.isMe && button}
         <div
           className={cn(
             'flex min-w-0 max-w-[85%] flex-col gap-1 rounded-lg px-2.5 py-1.5 text-sm leading-snug shadow-xs sm:max-w-[75%]',
@@ -114,7 +123,9 @@ export const MessageRow = memo(function MessageRow({ index, count, top, message,
             </time>
           </div>
         </div>
+        {!message.isMe && button}
       </div>
+      {open && <MessageDetails id={panelId} align={message.isMe ? 'end' : 'start'} state={source.state} onRetry={source.retry} />}
     </article>
   );
 });
