@@ -41,6 +41,7 @@ describe('migrate', () => {
       'favorites',
       'import_batches',
       'messages',
+      'notes',
       'participants',
       'profiles',
     ]);
@@ -528,21 +529,21 @@ describe('migration v4 to v5 (favorites)', () => {
   test('adds only the favorites table: existing tables and rows are untouched, and the schema is the same fresh or migrated', async () => {
     const db = await v4WithData();
     const before = db.all("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
-    expect(migrate(db)).toEqual({ from: 4, to: 5 });
+    expect(migrate(db, MIGRATIONS.slice(0, 5))).toEqual({ from: 4, to: 5 });
     expect(readUserVersion(db)).toBe(5);
     const after = db.all<{ name: string }>("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
     expect(after.filter((t) => t.name !== 'favorites')).toEqual(before);
     expect(db.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: HASH }]);
     expect(db.all('SELECT * FROM favorites')).toEqual([]);
     const fresh = await emptyDb();
-    migrate(fresh);
+    migrate(fresh, MIGRATIONS.slice(0, 5));
     const dump = (d: SqlDb) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
     expect(dump(db)).toEqual(dump(fresh));
   });
 
   test('schema of the favorites table is pinned (keyed by conversation and fingerprint, no link to messages)', async () => {
     const db = await emptyDb();
-    migrate(db);
+    migrate(db, MIGRATIONS.slice(0, 5));
     expect(db.all<{ sql: string }>("SELECT sql FROM sqlite_master WHERE name = 'favorites'")[0].sql).toMatchInlineSnapshot(`
       "CREATE TABLE favorites (
         conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
@@ -555,7 +556,7 @@ describe('migration v4 to v5 (favorites)', () => {
 
   test('one row per message, a malformed fingerprint is refused and a favorite goes with its conversation', async () => {
     const db = await v4WithData();
-    migrate(db);
+    migrate(db, MIGRATIONS.slice(0, 5));
     const add = (fp: string) => db.run('INSERT INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [CONVERSATION, fp, 't']);
     add(HASH);
     expect(() => add(HASH)).toThrow(/UNIQUE|PRIMARY/);
@@ -575,6 +576,116 @@ describe('migration v4 to v5 (favorites)', () => {
     expect(() => migrate(db, broken)).toThrow();
     expect(readUserVersion(db)).toBe(4);
     expect(db.all("SELECT name FROM sqlite_master WHERE name = 'favorites'")).toHaveLength(0);
-    expect(migrate(db)).toEqual({ from: 4, to: 5 });
+    expect(migrate(db, MIGRATIONS.slice(0, 5))).toEqual({ from: 4, to: 5 });
+  });
+});
+
+describe('migration v5 to v6 (notes)', () => {
+  const FP2 = 'cd'.repeat(32);
+  async function v5WithData() {
+    const db = await emptyDb();
+    db.exec('PRAGMA foreign_keys = ON');
+    migrate(db, MIGRATIONS.slice(0, 5));
+    db.run('INSERT INTO profiles (id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)', [PROFILE, 'Ana', 't', 't']);
+    db.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [CONVERSATION, 'Chat', 'whatsapp', 't']);
+    db.run('INSERT INTO import_batches (id, conversation_id, source, created_at, added_count) VALUES (?, ?, ?, ?, 1)', [BATCH, CONVERSATION, 'whatsapp', 't']);
+    db.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [CONVERSATION, BATCH, HASH, '2026-01-01T10:00:00', 'text']);
+    db.run('INSERT INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [CONVERSATION, HASH, 't']);
+    return db;
+  }
+
+  test('adds only the notes table: existing tables and rows are untouched, and the schema is the same fresh or migrated', async () => {
+    const db = await v5WithData();
+    const before = db.all("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
+    expect(migrate(db)).toEqual({ from: 5, to: 6 });
+    expect(readUserVersion(db)).toBe(6);
+    const after = db.all<{ name: string }>("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
+    expect(after.filter((t) => t.name !== 'notes')).toEqual(before);
+    expect(db.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: HASH }]);
+    expect(db.all('SELECT fingerprint FROM favorites')).toEqual([{ fingerprint: HASH }]);
+    expect(db.all('SELECT * FROM notes')).toEqual([]);
+    const fresh = await emptyDb();
+    migrate(fresh);
+    const dump = (d: SqlDb) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
+    expect(dump(db)).toEqual(dump(fresh));
+  });
+
+  test('schema of the notes table is pinned (real keys, kind-checked columns, one note per target, no link to messages)', async () => {
+    const db = await emptyDb();
+    migrate(db);
+    expect(db.all<{ sql: string }>("SELECT sql FROM sqlite_master WHERE name = 'notes'")[0].sql).toMatchInlineSnapshot(`
+      "CREATE TABLE notes (
+        kind            TEXT NOT NULL CHECK (kind IN ('profile', 'conversation', 'message')),
+        profile_id      TEXT REFERENCES profiles(id) ON DELETE CASCADE,
+        conversation_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
+        fingerprint     TEXT CHECK (fingerprint IS NULL OR (length(fingerprint) = 64 AND fingerprint NOT GLOB '*[^0-9a-f]*')),
+        body            TEXT NOT NULL,
+        created_at      TEXT NOT NULL,
+        updated_at      TEXT NOT NULL,
+        CHECK (
+          (kind = 'profile' AND profile_id IS NOT NULL AND conversation_id IS NULL AND fingerprint IS NULL) OR
+          (kind = 'conversation' AND profile_id IS NULL AND conversation_id IS NOT NULL AND fingerprint IS NULL) OR
+          (kind = 'message' AND profile_id IS NULL AND conversation_id IS NOT NULL AND fingerprint IS NOT NULL)
+        )
+      ) STRICT"
+    `);
+    expect(db.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'notes' ORDER BY name")).toEqual([
+      { name: 'notes_one_per_conversation' },
+      { name: 'notes_one_per_message' },
+      { name: 'notes_one_per_profile' },
+    ]);
+  });
+
+  test('each kind needs exactly its columns, and there is one note per target', async () => {
+    const db = await v5WithData();
+    migrate(db);
+    const add = (kind: string, profile: string | null, conversation: string | null, fp: string | null) =>
+      db.run('INSERT INTO notes (kind, profile_id, conversation_id, fingerprint, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [kind, profile, conversation, fp, 'text', 't', 't']);
+    add('profile', PROFILE, null, null);
+    add('conversation', null, CONVERSATION, null);
+    add('message', null, CONVERSATION, HASH);
+    add('message', null, CONVERSATION, FP2); // a message note whose message does not exist: dormant, allowed
+    expect(() => add('profile', PROFILE, null, null)).toThrow(/UNIQUE/);
+    expect(() => add('conversation', null, CONVERSATION, null)).toThrow(/UNIQUE/);
+    expect(() => add('message', null, CONVERSATION, HASH)).toThrow(/UNIQUE/);
+    // wrong columns for the kind
+    expect(() => add('profile', null, CONVERSATION, null)).toThrow(/CHECK/);
+    expect(() => add('profile', PROFILE, CONVERSATION, null)).toThrow(/CHECK/);
+    expect(() => add('conversation', PROFILE, CONVERSATION, null)).toThrow(/CHECK/);
+    expect(() => add('conversation', null, CONVERSATION, HASH)).toThrow(/CHECK|UNIQUE/);
+    expect(() => add('message', null, CONVERSATION, null)).toThrow(/CHECK/);
+    expect(() => add('message', PROFILE, CONVERSATION, HASH)).toThrow(/CHECK/);
+    expect(() => add('other', PROFILE, null, null)).toThrow(/CHECK/);
+    // malformed fingerprint, unknown targets
+    expect(() => add('message', null, CONVERSATION, 'AB'.repeat(32))).toThrow(/CHECK/);
+    expect(() => add('message', null, CONVERSATION, 'ab')).toThrow(/CHECK/);
+    expect(() => add('profile', BATCH, null, null)).toThrow(/FOREIGN/);
+    expect(() => add('conversation', null, BATCH, null)).toThrow(/FOREIGN/);
+    expect(() => db.run("INSERT INTO notes VALUES ('profile', ?, NULL, NULL, NULL, 't', 't')", [PROFILE])).toThrow(/NOT NULL|UNIQUE/);
+  });
+
+  test('a message note outlives its message and goes with its conversation; a profile note goes with its profile', async () => {
+    const db = await v5WithData();
+    migrate(db);
+    db.run("INSERT INTO notes (kind, conversation_id, fingerprint, body, created_at, updated_at) VALUES ('message', ?, ?, 'x', 't', 't')", [CONVERSATION, HASH]);
+    db.run("INSERT INTO notes (kind, conversation_id, body, created_at, updated_at) VALUES ('conversation', ?, 'x', 't', 't')", [CONVERSATION]);
+    db.run("INSERT INTO notes (kind, profile_id, body, created_at, updated_at) VALUES ('profile', ?, 'x', 't', 't')", [PROFILE]);
+    db.run('DELETE FROM messages');
+    expect(db.all('SELECT kind FROM notes ORDER BY kind')).toHaveLength(3);
+    db.run('DELETE FROM favorites');
+    db.run('DELETE FROM import_batches');
+    db.run('DELETE FROM conversations');
+    expect(db.all('SELECT kind FROM notes')).toEqual([{ kind: 'profile' }]);
+    db.run('DELETE FROM profiles');
+    expect(db.all('SELECT * FROM notes')).toEqual([]);
+  });
+
+  test('a failure in v6 leaves the v5 database as it was, and a retry succeeds', async () => {
+    const db = await v5WithData();
+    const broken: Migration[] = [...MIGRATIONS.slice(0, 5), { version: 6, sql: `${MIGRATIONS[5].sql} INSERT INTO missing_table VALUES (1);` }];
+    expect(() => migrate(db, broken)).toThrow();
+    expect(readUserVersion(db)).toBe(5);
+    expect(db.all("SELECT name FROM sqlite_master WHERE name LIKE 'notes%'")).toHaveLength(0);
+    expect(migrate(db)).toEqual({ from: 5, to: 6 });
   });
 });

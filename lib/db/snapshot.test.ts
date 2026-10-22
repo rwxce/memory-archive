@@ -113,19 +113,33 @@ describe('loadSnapshot', () => {
     expect(target.all("SELECT name FROM sqlite_master WHERE name = 'messages_by_time'")).toHaveLength(1);
   });
 
-  test('a schema v4 snapshot restores by migrating to v5: messages kept, favorites empty', async () => {
+  test('a schema v4 snapshot restores by migrating to the current schema: messages kept, favorites and notes empty', async () => {
     const v4 = await bareDb(MIGRATIONS.slice(0, 4));
     v4.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [ID2, 'Chat', 'whatsapp', NOW]);
     v4.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
     v4.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
     const target = (await openMemoryDb()).db;
     expect(await loadSnapshot(target, serializeDb(v4))).toEqual({ from: 4, to: SCHEMA_VERSION });
-    expect(SCHEMA_VERSION).toBe(5);
+    expect(SCHEMA_VERSION).toBe(6);
     expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
     expect(target.all('SELECT * FROM favorites')).toEqual([]);
+    expect(target.all('SELECT * FROM notes')).toEqual([]);
   });
 
-  test('a current (v5) snapshot round-trips with its index and its favorites, anchored by fingerprint', async () => {
+  test('a schema v5 snapshot restores by migrating to v6: messages and favorites kept, notes empty', async () => {
+    const v5 = await bareDb(MIGRATIONS.slice(0, 5));
+    v5.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [ID2, 'Chat', 'whatsapp', NOW]);
+    v5.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
+    v5.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
+    v5.run('INSERT INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [ID2, 'ab'.repeat(32), NOW]);
+    const target = (await openMemoryDb()).db;
+    expect(await loadSnapshot(target, serializeDb(v5))).toEqual({ from: 5, to: 6 });
+    expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
+    expect(target.all('SELECT fingerprint FROM favorites')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
+    expect(target.all('SELECT * FROM notes')).toEqual([]);
+  });
+
+  test('a current (v6) snapshot round-trips with its index, favorites and notes, anchored by fingerprint', async () => {
     const source = (await openMemoryDb()).db;
     createConversation(source, { id: ID2, title: 'Chat', source: 'whatsapp', isGroup: false, profileIds: [], participants: [], now: NOW });
     source.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
@@ -133,10 +147,40 @@ describe('loadSnapshot', () => {
     source.run('INSERT INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [ID2, 'ab'.repeat(32), NOW]);
     // a dormant favorite (its message is not in the archive) travels too
     source.run('INSERT INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [ID2, 'cd'.repeat(32), NOW]);
+    createProfile(source, { id: ID1, displayName: 'Ana', now: NOW });
+    const note = (kind: string, profile: string | null, conversation: string | null, fingerprint: string | null, body: string) =>
+      source.run('INSERT INTO notes (kind, profile_id, conversation_id, fingerprint, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [kind, profile, conversation, fingerprint, body, NOW, NOW]);
+    note('profile', ID1, null, null, 'about Ana');
+    note('conversation', null, ID2, null, 'about the chat');
+    note('message', null, ID2, 'ab'.repeat(32), 'about a message');
+    note('message', null, ID2, 'cd'.repeat(32), 'dormant');
     const target = (await openMemoryDb()).db;
-    expect(await loadSnapshot(target, serializeDb(source))).toEqual({ from: 5, to: 5 });
+    expect(await loadSnapshot(target, serializeDb(source))).toEqual({ from: SCHEMA_VERSION, to: SCHEMA_VERSION });
     expect(target.all("SELECT name FROM sqlite_master WHERE name = 'messages_by_time'")).toHaveLength(1);
     expect(target.all('SELECT * FROM favorites ORDER BY fingerprint')).toEqual(source.all('SELECT * FROM favorites ORDER BY fingerprint'));
+    expect(target.all('SELECT * FROM notes ORDER BY body')).toEqual(source.all('SELECT * FROM notes ORDER BY body'));
+    expect(target.all('SELECT * FROM notes')).toHaveLength(4);
+  });
+
+  test('refuses a note of an unknown conversation or profile', async () => {
+    const orphan = (await openMemoryDb()).db;
+    orphan.exec('PRAGMA foreign_keys = OFF');
+    orphan.run("INSERT INTO notes (kind, conversation_id, body, created_at, updated_at) VALUES ('conversation', ?, 'x', ?, ?)", [ID2, NOW, NOW]);
+    await expectInvalid(orphan, /foreign key/);
+    const orphanProfile = (await openMemoryDb()).db;
+    orphanProfile.exec('PRAGMA foreign_keys = OFF');
+    orphanProfile.run("INSERT INTO notes (kind, profile_id, body, created_at, updated_at) VALUES ('profile', ?, 'x', ?, ?)", [ID1, NOW, NOW]);
+    await expectInvalid(orphanProfile, /foreign key/);
+  });
+
+  test('refuses a malformed note (wrong columns for its kind) as written by a hostile or broken device', async () => {
+    const bad = (await openMemoryDb()).db;
+    expect(() => bad.run("INSERT INTO notes (kind, body, created_at, updated_at) VALUES ('message', 'x', ?, ?)", [NOW, NOW])).toThrow(/CHECK/);
+    // CHECKs can be bypassed by a crafted file: the loader re-inserts every row under the current CHECKs
+    const crafted = (await openMemoryDb()).db;
+    crafted.exec('PRAGMA ignore_check_constraints = ON');
+    crafted.run("INSERT INTO notes (kind, body, created_at, updated_at) VALUES ('message', 'x', ?, ?)", [NOW, NOW]);
+    await expectInvalid(crafted, /CHECK|constraint/i);
   });
 
   test('refuses a favorite of an unknown conversation or with a malformed fingerprint', async () => {

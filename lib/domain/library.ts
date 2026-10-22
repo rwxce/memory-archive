@@ -150,6 +150,8 @@ export interface ConversationMessage {
   mediaMime: string | null;
   /** The user marked it as a favorite (kept by fingerprint, so it survives backup and restore). */
   isFavorite: boolean;
+  /** The user wrote a note on it (kept by fingerprint like the favorite mark). */
+  hasNote: boolean;
 }
 
 /** A message in a person's combined timeline: the conversation view's message plus where it was said. */
@@ -217,4 +219,40 @@ export interface BlobRef {
   sha256: string;
   size: number;
   mime: string | null;
+}
+
+/** What a note is attached to. A message is named by the screen's local id and stored by fingerprint. */
+export type NoteTarget =
+  | { kind: 'profile'; profileId: string }
+  | { kind: 'conversation'; conversationId: string }
+  | { kind: 'message'; conversationId: string; messageId: number };
+
+/** One stored note: never empty (an empty text deletes the note). Instants are UTC ISO 8601. */
+export interface Note {
+  kind: NoteTarget['kind'];
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A note with what is needed to show and open it. Untrusted text: names, titles, message text. */
+export interface NoteItem extends Note {
+  /** Set for a profile note. */
+  profileId: string | null;
+  profileName: string | null;
+  /** Set for a conversation and a message note. */
+  conversationId: string | null;
+  conversationTitle: string | null;
+  /** The annotated message (message notes only; a note whose message is not in the archive is not listed). */
+  message: NoteMessage | null;
+}
+
+export interface NoteMessage {
+  id: number;
+  sentAt: string;
+  type: MessageType;
+  participantName: string | null;
+  isMe: boolean;
+  body: string;
+  mediaName: string;
 }

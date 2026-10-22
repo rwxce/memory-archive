@@ -178,12 +178,54 @@ CREATE TABLE favorites (
 ) STRICT;
 `;
 
+/**
+ * v6 (expand only): notes, one editable text per profile, conversation or message. A new table
+ * only: no existing column, row or index changes, so a v1-v5 backup restores by migrating (the
+ * table starts empty). Notes are personal text: they live in the snapshot, hence in every backup.
+ *
+ * One table with a `kind` and the real target columns (not a generic `target_key` string), so the
+ * foreign keys are real: `profile_id` and `conversation_id` are `ON DELETE CASCADE` (a note goes
+ * with its conversation, like favorites; profiles are archived, never deleted, so that cascade
+ * only guards the invariant). A message note is anchored like a favorite, by
+ * `(conversation_id, fingerprint)`, never by the local message id, and has NO foreign key to
+ * `messages`: undoing an import and importing again must not lose the note; a note whose message
+ * is gone is dormant (no read returns it) and comes back with the message.
+ *
+ * The CHECK ties each kind to exactly its columns. One note per target is guaranteed by unique
+ * indexes (NULLs are distinct, so a kind never collides with another): `profile_id`;
+ * `(conversation_id, fingerprint)` for messages, which also serves the cascade and the window
+ * join; `conversation_id` only for the conversation kind. An empty note is never stored (saving
+ * an empty text deletes the row) and the text bound lives in the application
+ * (`domain/profile.ts`), not in a CHECK. `created_at` / `updated_at` are UTC instants from the
+ * caller; `created_at` is kept when the text is edited.
+ */
+const V6 = `
+CREATE TABLE notes (
+  kind            TEXT NOT NULL CHECK (kind IN ('profile', 'conversation', 'message')),
+  profile_id      TEXT REFERENCES profiles(id) ON DELETE CASCADE,
+  conversation_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
+  fingerprint     TEXT CHECK (fingerprint IS NULL OR (length(fingerprint) = 64 AND fingerprint NOT GLOB '*[^0-9a-f]*')),
+  body            TEXT NOT NULL,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL,
+  CHECK (
+    (kind = 'profile' AND profile_id IS NOT NULL AND conversation_id IS NULL AND fingerprint IS NULL) OR
+    (kind = 'conversation' AND profile_id IS NULL AND conversation_id IS NOT NULL AND fingerprint IS NULL) OR
+    (kind = 'message' AND profile_id IS NULL AND conversation_id IS NOT NULL AND fingerprint IS NOT NULL)
+  )
+) STRICT;
+CREATE UNIQUE INDEX notes_one_per_profile ON notes(profile_id);
+CREATE UNIQUE INDEX notes_one_per_message ON notes(conversation_id, fingerprint);
+CREATE UNIQUE INDEX notes_one_per_conversation ON notes(conversation_id) WHERE kind = 'conversation';
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, sql: V1 },
   { version: 2, sql: V2 },
   { version: 3, sql: V3 },
   { version: 4, sql: V4 },
   { version: 5, sql: V5 },
+  { version: 6, sql: V6 },
 ];
 
 /** Schema version this build produces and understands. */
