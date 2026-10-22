@@ -15,6 +15,7 @@ const msg = (id: number): ConversationMessage => ({
   mediaName: '',
   mediaMime: null,
   isFavorite: false,
+  hasNote: false,
 });
 const page = (index: number, size = 10): Page => ({
   index,

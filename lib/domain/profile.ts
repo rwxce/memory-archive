@@ -1,5 +1,5 @@
 /**
- * Input rules for profile and conversation details. Pure: shared by the use
+ * Input rules for profile, conversation and note details. Pure: shared by the use
  * cases (early, friendly checks) and `lib/db/queries.ts` (the boundary that
  * also receives requests from outside the type system).
  *
@@ -11,6 +11,8 @@ export const PROFILE_NAME_MAX = 100;
 export const PROFILE_RELATIONSHIP_MAX = 60;
 export const PROFILE_DESCRIPTION_MAX = 2000;
 export const CONVERSATION_TITLE_MAX = 200;
+/** A note on a person, conversation or message. */
+export const NOTE_MAX = 10_000;
 
 const CONTROL = /\p{Cc}/u;
 /** Control characters a multi-line text may keep: tab, line feed, carriage return. */
@@ -73,3 +75,6 @@ export const normalizeDescription = (value: unknown) =>
 
 export const normalizeConversationTitle = (value: unknown) =>
   text(value, 'title', CONVERSATION_TITLE_MAX, { required: true, multiline: false });
+
+/** The text of a note; line breaks allowed. Empty means "no note": saving it deletes the note. */
+export const normalizeNote = (value: unknown) => text(value, 'note', NOTE_MAX, { required: false, multiline: true });

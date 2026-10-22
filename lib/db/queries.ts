@@ -12,6 +12,9 @@ import {
   type MediaMessageType,
   type MessageCursor,
   type MessageSource,
+  type Note,
+  type NoteItem,
+  type NoteTarget,
   type NewMessage,
   type NewParticipant,
   type Participant,
@@ -25,6 +28,7 @@ import {
   isMimeType,
   normalizeConversationTitle,
   normalizeDescription,
+  normalizeNote,
   normalizeProfileName,
   normalizeRelationship,
 } from '../domain/profile';
@@ -989,10 +993,10 @@ export function countMessages(db: SqlDb, conversationId: string): number {
 }
 
 /** A window row as SQLite returns it: the flags are 0 / 1 and `isSystem` is derived. */
-type WindowRow<T extends ConversationMessage> = Omit<T, 'isMe' | 'isSystem' | 'isFavorite'> & { isMe: number; isFavorite: number };
+type WindowRow<T extends ConversationMessage> = Omit<T, 'isMe' | 'isSystem' | 'isFavorite' | 'hasNote'> & { isMe: number; isFavorite: number; hasNote: number };
 
 function toWindowMessage<T extends ConversationMessage>(m: WindowRow<T>): T {
-  return { ...m, isMe: m.isMe === 1, isSystem: m.type === 'system', isFavorite: m.isFavorite === 1 } as unknown as T;
+  return { ...m, isMe: m.isMe === 1, isSystem: m.type === 'system', isFavorite: m.isFavorite === 1, hasNote: m.hasNote === 1 } as unknown as T;
 }
 
 /** The ids of one window, straight off `messages_timeline` (covering: no table lookups, no sort). */
@@ -1002,12 +1006,14 @@ export const WINDOW_IDS_SQL = `SELECT id FROM messages WHERE conversation_id = ?
 export const MESSAGE_WINDOW_SQL = `
   SELECT m.id, m.sent_at AS sentAt, m.ordinal, m.type, p.display_name AS participantName,
          COALESCE(p.is_me, 0) AS isMe, m.body, m.media_sha256 AS mediaSha256,
-         m.media_name AS mediaName, b.mime AS mediaMime, f.fingerprint IS NOT NULL AS isFavorite
+         m.media_name AS mediaName, b.mime AS mediaMime, f.fingerprint IS NOT NULL AS isFavorite,
+         nt.fingerprint IS NOT NULL AS hasNote
     FROM (${WINDOW_IDS_SQL}) w
     JOIN messages m ON m.id = w.id
     LEFT JOIN participants p ON p.id = m.participant_id
     LEFT JOIN blobs b ON b.sha256 = m.media_sha256
     LEFT JOIN favorites f ON f.conversation_id = m.conversation_id AND f.fingerprint = m.fingerprint
+    LEFT JOIN notes nt ON nt.conversation_id = m.conversation_id AND nt.fingerprint = m.fingerprint
    ORDER BY m.sent_at, m.ordinal, m.id`;
 
 /**
@@ -1167,13 +1173,14 @@ export const TIMELINE_WINDOW_SQL = `
   SELECT m.id, m.conversation_id AS conversationId, c.title AS conversationTitle, m.sent_at AS sentAt,
          m.ordinal, m.type, p.display_name AS participantName, COALESCE(p.is_me, 0) AS isMe, m.body,
          m.media_sha256 AS mediaSha256, m.media_name AS mediaName, b.mime AS mediaMime,
-         f.fingerprint IS NOT NULL AS isFavorite
+         f.fingerprint IS NOT NULL AS isFavorite, nt.fingerprint IS NOT NULL AS hasNote
     FROM (${TIMELINE_IDS_SQL}) w
     JOIN messages m ON m.id = w.id
     JOIN conversations c ON c.id = m.conversation_id
     LEFT JOIN participants p ON p.id = m.participant_id
     LEFT JOIN blobs b ON b.sha256 = m.media_sha256
     LEFT JOIN favorites f ON f.conversation_id = m.conversation_id AND f.fingerprint = m.fingerprint
+    LEFT JOIN notes nt ON nt.conversation_id = m.conversation_id AND nt.fingerprint = m.fingerprint
    ORDER BY m.sent_at, m.ordinal, m.conversation_id, m.id`;
 
 /**
@@ -1306,7 +1313,8 @@ export function listFavorites(db: SqlDb, scope: FavoriteScope | undefined, offse
     .all<WindowRow<PersonTimelineMessage>>(
       `SELECT m.id, m.conversation_id AS conversationId, c.title AS conversationTitle, m.sent_at AS sentAt,
               m.ordinal, m.type, p.display_name AS participantName, COALESCE(p.is_me, 0) AS isMe, m.body,
-              m.media_sha256 AS mediaSha256, m.media_name AS mediaName, b.mime AS mediaMime, 1 AS isFavorite
+              m.media_sha256 AS mediaSha256, m.media_name AS mediaName, b.mime AS mediaMime, 1 AS isFavorite,
+              nt.fingerprint IS NOT NULL AS hasNote
          FROM (SELECT m.id FROM favorites f
                  CROSS JOIN messages m ON m.conversation_id = f.conversation_id AND m.fingerprint = f.fingerprint
                 WHERE 1 = 1 ${where}
@@ -1315,8 +1323,198 @@ export function listFavorites(db: SqlDb, scope: FavoriteScope | undefined, offse
          JOIN conversations c ON c.id = m.conversation_id
          LEFT JOIN participants p ON p.id = m.participant_id
          LEFT JOIN blobs b ON b.sha256 = m.media_sha256
+         LEFT JOIN notes nt ON nt.conversation_id = m.conversation_id AND nt.fingerprint = m.fingerprint
         ORDER BY m.sent_at, m.ordinal, m.conversation_id, m.id`,
       [...params, n, offset],
     )
     .map(toWindowMessage);
+}
+
+// ------------------------------------------------------------------- notes
+
+export interface SetNoteInput {
+  target: NoteTarget;
+  /** The text; trimmed. Empty (after trimming) deletes the note. */
+  body: string;
+  /** UTC instant (ISO 8601); recorded as `created_at` / `updated_at`. */
+  now: string;
+}
+
+/** The target as stored: the message id of the screen is resolved to the fingerprint here. */
+interface NoteKey {
+  kind: NoteTarget['kind'];
+  profileId: string | null;
+  conversationId: string | null;
+  fingerprint: string | null;
+}
+
+/** Validates a target (strictly: no field of another kind) and checks it exists. `not-found` otherwise. */
+function resolveNoteTarget(db: SqlDb, target: unknown): NoteKey {
+  const t = requireRecord(target, 'target');
+  const only = (...allowed: string[]) => {
+    for (const key of Object.keys(t)) if (key !== 'kind' && !allowed.includes(key)) invalid(`a ${String(t.kind)} note has no ${key}`);
+  };
+  if (t.kind === 'profile') {
+    only('profileId');
+    return { kind: 'profile', profileId: requireProfile(db, t.profileId), conversationId: null, fingerprint: null };
+  }
+  if (t.kind === 'conversation') {
+    only('conversationId');
+    return { kind: 'conversation', profileId: null, conversationId: requireConversation(db, t.conversationId), fingerprint: null };
+  }
+  if (t.kind === 'message') {
+    only('conversationId', 'messageId');
+    const conversationId = requireUuid(t.conversationId, 'conversation id');
+    if (typeof t.messageId !== 'number' || !Number.isSafeInteger(t.messageId) || t.messageId < 1) invalid('message id must be a positive integer');
+    // The pair is checked: a message of another conversation is not-found, never revealed.
+    const [row] = db.all<{ fingerprint: string }>('SELECT fingerprint FROM messages WHERE id = ? AND conversation_id = ?', [t.messageId, conversationId]);
+    if (!row) notFound('message');
+    return { kind: 'message', profileId: null, conversationId, fingerprint: row.fingerprint };
+  }
+  return invalid('note kind must be profile, conversation or message');
+}
+
+/** The WHERE of one note over `notes`, by kind (every branch hits a unique index). */
+function noteWhere(key: NoteKey): { where: string; params: SqlValue[] } {
+  if (key.kind === 'profile') return { where: 'profile_id = ?', params: [key.profileId] };
+  if (key.kind === 'conversation') return { where: "kind = 'conversation' AND conversation_id = ?", params: [key.conversationId] };
+  return { where: 'conversation_id = ? AND fingerprint = ?', params: [key.conversationId, key.fingerprint] };
+}
+
+const NOTE_COLUMNS = 'kind, body, created_at AS createdAt, updated_at AS updatedAt';
+
+/** The note on a target, or `null` when there is none. `not-found` when the target does not exist. */
+export function getNote(db: SqlDb, target: NoteTarget): Note | null {
+  const { where, params } = noteWhere(resolveNoteTarget(db, target));
+  return db.all<Note>(`SELECT ${NOTE_COLUMNS} FROM notes WHERE ${where}`, params)[0] ?? null;
+}
+
+/**
+ * Saves the note of a target: creates it, replaces its text (the first `created_at` stays,
+ * `updated_at` moves only when the text really changes) or, when the trimmed text is empty,
+ * deletes it (returns `null`). `invalid` for a text over the bound, `not-found` for an unknown
+ * target (a message must belong to the conversation). Never logs the text.
+ */
+export function setNote(db: SqlDb, input: SetNoteInput): Note | null {
+  requireRecord(input, 'params');
+  const body = field(normalizeNote, input.body);
+  requireString(input.now, 'now');
+  return transaction(db, () => {
+    const key = resolveNoteTarget(db, input.target);
+    const { where, params } = noteWhere(key);
+    if (body === '') {
+      db.run(`DELETE FROM notes WHERE ${where}`, params);
+      return null;
+    }
+    const [existing] = db.all<Note>(`SELECT ${NOTE_COLUMNS} FROM notes WHERE ${where}`, params);
+    if (!existing) {
+      db.run('INSERT INTO notes (kind, profile_id, conversation_id, fingerprint, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [
+        key.kind,
+        key.profileId,
+        key.conversationId,
+        key.fingerprint,
+        body,
+        input.now,
+        input.now,
+      ]);
+      return { kind: key.kind, body, createdAt: input.now, updatedAt: input.now };
+    }
+    if (existing.body === body) return existing;
+    db.run(`UPDATE notes SET body = ?, updated_at = ? WHERE ${where}`, [body, input.now, ...params]);
+    return { ...existing, body, updatedAt: input.now };
+  });
+}
+
+export interface NoteScope {
+  /** The person's own note plus the notes of the conversations linked to them (and their messages). */
+  profileId?: string;
+  /** The conversation's note plus the notes of its messages. At most one of the two; none = the whole archive. */
+  conversationId?: string;
+}
+
+/** Validates the scope and returns its condition over `n` (notes) and its parameters. */
+function noteScope(db: SqlDb, scope: NoteScope | undefined): { where: string; params: SqlValue[] } {
+  const s = scope === undefined ? {} : requireRecord(scope, 'scope');
+  if (s.profileId !== undefined && s.conversationId !== undefined) invalid('scope takes a profile or a conversation, not both');
+  if (s.profileId !== undefined) {
+    const id = requireProfile(db, s.profileId);
+    return {
+      where: 'AND (n.profile_id = ? OR n.conversation_id IN (SELECT conversation_id FROM conversation_profiles WHERE profile_id = ?))',
+      params: [id, id],
+    };
+  }
+  if (s.conversationId !== undefined) return { where: 'AND n.conversation_id = ?', params: [requireConversation(db, s.conversationId)] };
+  return { where: '', params: [] };
+}
+
+/** A message note is visible only while its message is in the archive (otherwise it is dormant). */
+const NOTE_VISIBLE = "(n.kind <> 'message' OR m.id IS NOT NULL)";
+const NOTE_MESSAGE_JOIN = "LEFT JOIN messages m ON n.kind = 'message' AND m.conversation_id = n.conversation_id AND m.fingerprint = n.fingerprint";
+
+/** How many notes are visible in the scope (dormant message notes are not counted). */
+export function countNotes(db: SqlDb, scope?: NoteScope): number {
+  const { where, params } = noteScope(db, scope);
+  const [row] = db.all<{ n: number }>(`SELECT count(*) AS n FROM notes n ${NOTE_MESSAGE_JOIN} WHERE ${NOTE_VISIBLE} ${where}`, params);
+  return row.n;
+}
+
+type NoteRow = Omit<NoteItem, 'message'> & {
+  messageId: number | null;
+  messageSentAt: string | null;
+  messageType: NonNullable<NoteItem['message']>['type'] | null;
+  messageAuthor: string | null;
+  messageIsMe: number;
+  messageBody: string | null;
+  messageMediaName: string | null;
+};
+
+/**
+ * `limit` notes from position `offset`, the most recently edited first (`updated_at` descending;
+ * ties by creation then storage order, so pages never overlap), each with the names and, for a
+ * message note, the message it is on. Limit clamped to 1..MAX_WINDOW; past the end is empty.
+ */
+export function listNotes(db: SqlDb, scope: NoteScope | undefined, offset: number, limit: number): NoteItem[] {
+  const { where, params } = noteScope(db, scope);
+  if (!Number.isSafeInteger(offset) || offset < 0) invalid('offset must be a non-negative integer');
+  if (!Number.isFinite(limit)) invalid('limit must be a number');
+  const n = Math.min(Math.max(Math.trunc(limit), 1), MAX_WINDOW);
+  return db
+    .all<NoteRow>(
+      `SELECT n.kind, n.body, n.created_at AS createdAt, n.updated_at AS updatedAt,
+              n.profile_id AS profileId, pr.display_name AS profileName,
+              n.conversation_id AS conversationId, c.title AS conversationTitle,
+              m.id AS messageId, m.sent_at AS messageSentAt, m.type AS messageType,
+              p.display_name AS messageAuthor, COALESCE(p.is_me, 0) AS messageIsMe,
+              m.body AS messageBody, m.media_name AS messageMediaName
+         FROM notes n
+         ${NOTE_MESSAGE_JOIN}
+         LEFT JOIN profiles pr ON pr.id = n.profile_id
+         LEFT JOIN conversations c ON c.id = n.conversation_id
+         LEFT JOIN participants p ON p.id = m.participant_id
+        WHERE ${NOTE_VISIBLE} ${where}
+        ORDER BY n.updated_at DESC, n.created_at DESC, n.rowid DESC LIMIT ? OFFSET ?`,
+      [...params, n, offset],
+    )
+    .map((r) => ({
+      kind: r.kind,
+      body: r.body,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      profileId: r.profileId,
+      profileName: r.profileName,
+      conversationId: r.conversationId,
+      conversationTitle: r.conversationTitle,
+      message:
+        r.messageId === null
+          ? null
+          : {
+              id: r.messageId,
+              sentAt: r.messageSentAt!,
+              type: r.messageType!,
+              participantName: r.messageAuthor,
+              isMe: r.messageIsMe === 1,
+              body: r.messageBody!,
+              mediaName: r.messageMediaName!,
+            },
+    }));
 }

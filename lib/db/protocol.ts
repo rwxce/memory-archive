@@ -6,6 +6,9 @@ import type {
   MediaMessageType,
   MessageCursor,
   MessageSource,
+  Note,
+  NoteItem,
+  NoteTarget,
   Participant,
   PersonMediaItem,
   PersonTimelineMessage,
@@ -27,8 +30,10 @@ import type {
   ImportMessagesResult,
   ListImportBatchesInput,
   MoveConversationInput,
+  NoteScope,
   ProfileState,
   SetFavoriteInput,
+  SetNoteInput,
   SetProfileArchivedInput,
   UndoImportBatchResult,
   UpdateProfileInput,
@@ -87,6 +92,10 @@ export interface DbOps {
   listPersonTimelineDays: { params: { profileId: string }; result: ConversationDay[] };
   setFavorite: { params: SetFavoriteInput; result: { messageId: number; isFavorite: boolean } };
   countFavorites: { params: { scope?: FavoriteScope } | undefined; result: number };
+  getNote: { params: { target: NoteTarget }; result: Note | null };
+  setNote: { params: SetNoteInput; result: Note | null };
+  countNotes: { params: { scope?: NoteScope } | undefined; result: number };
+  listNotes: { params: { scope?: NoteScope; offset: number; limit: number }; result: NoteItem[] };
   listFavorites: { params: { scope?: FavoriteScope; offset: number; limit: number }; result: PersonTimelineMessage[] };
 }
 

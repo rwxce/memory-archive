@@ -7,6 +7,7 @@ import {
   countMessages,
   countPersonMedia,
   countFavorites,
+  countNotes,
   createProfile,
   findExistingFingerprints,
   findImportCandidates,
@@ -15,6 +16,7 @@ import {
   getConversationBounds,
   getMessageSource,
   getMessageWindow,
+  getNote,
   getPersonTimelineBounds,
   getPersonTimelineWindow,
   getProfile,
@@ -23,6 +25,7 @@ import {
   listConversationDays,
   listConversations,
   listFavorites,
+  listNotes,
   listImportBatches,
   listMessages,
   listPersonMedia,
@@ -32,11 +35,13 @@ import {
   moveConversation,
   renameConversation,
   setFavorite,
+  setNote,
   setProfileArchived,
   undoImportBatch,
   unlinkConversationProfile,
   updateProfile,
   type FavoriteScope,
+  type NoteScope,
 } from './queries';
 import { listBlobs } from './snapshot';
 
@@ -116,6 +121,13 @@ const HANDLERS: Handlers = {
   listFavorites: ({ db }, p) => {
     const params = requireParams(p);
     return listFavorites(db, params.scope as FavoriteScope | undefined, params.offset as number, params.limit as number);
+  },
+  getNote: ({ db }, p) => getNote(db, requireParams(p).target as DbOps['getNote']['params']['target']),
+  setNote: ({ db }, p) => setNote(db, p),
+  countNotes: ({ db }, p) => countNotes(db, p === undefined ? undefined : (requireParams(p).scope as NoteScope | undefined)),
+  listNotes: ({ db }, p) => {
+    const params = requireParams(p);
+    return listNotes(db, params.scope as NoteScope | undefined, params.offset as number, params.limit as number);
   },
 };
 
