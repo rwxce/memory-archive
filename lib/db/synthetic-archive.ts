@@ -11,6 +11,7 @@ import { transaction, type SqlDb } from './sql';
  * - 200 messages a day from 2020-01-01, in pairs sharing the same second (`ordinal` 0 and 1), so
  *   same-time ordering is exercised;
  * - author `Ana` (the user, `is_me`) or `Bo`, alternating by `i`;
+ * - several conversations can share one database (they share the blobs);
  * - every 10th message is a photo of one of 32 blobs, every 97th a system notice (no author).
  */
 export const SYNTHETIC_MESSAGES_PER_DAY = 200;
@@ -48,7 +49,7 @@ export function createSyntheticConversation(
     newConversation: { title: 'Synthetic', sourceKey: 'synthetic', isGroup: false, profileIds: [] },
   });
   // (blobs are added after: an import with no message referring to them would drop them again)
-  for (let n = 0; n < BLOBS; n++) db.run('INSERT INTO blobs (sha256, size, mime) VALUES (?, 1, ?)', [syntheticBlobHash(n), n % 2 ? 'image/png' : null]);
+  for (let n = 0; n < BLOBS; n++) db.run('INSERT OR IGNORE INTO blobs (sha256, size, mime) VALUES (?, 1, ?)', [syntheticBlobHash(n), n % 2 ? 'image/png' : null]);
   db.run('INSERT INTO participants (conversation_id, display_name, is_me) VALUES (?, ?, 1), (?, ?, 0)', [conversationId, 'Ana', conversationId, 'Bo']);
   // the bulk rows are one statement over a counter.
   transaction(db, () => {

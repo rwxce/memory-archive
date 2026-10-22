@@ -31,6 +31,11 @@ export const MESSAGE_TYPES = [
 
 export type MessageType = (typeof MESSAGE_TYPES)[number];
 
+/** The message types that carry a file: what a media list (a person's audio, photos...) can ask for. */
+export const MEDIA_MESSAGE_TYPES = ['photo', 'video', 'audio', 'sticker', 'document'] as const;
+
+export type MediaMessageType = (typeof MEDIA_MESSAGE_TYPES)[number];
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const LOCAL_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
@@ -139,6 +144,24 @@ export interface ConversationMessage {
   isMe: boolean;
   body: string;
   mediaSha256: string | null;
+  /** Original file name (untrusted, display only), or ''. */
+  mediaName: string;
+  /** Media type recorded for the blob at import time, or null when unknown. */
+  mediaMime: string | null;
+}
+
+/** One media message in a person's media list, across all their conversations. */
+export interface PersonMediaItem {
+  id: number;
+  conversationId: string;
+  conversationTitle: string;
+  sentAt: string;
+  type: MediaMessageType;
+  participantName: string | null;
+  isMe: boolean;
+  /** The caption ('' when none). */
+  body: string;
+  mediaSha256: string;
   /** Original file name (untrusted, display only), or ''. */
   mediaName: string;
   /** Media type recorded for the blob at import time, or null when unknown. */

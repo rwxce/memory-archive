@@ -1,9 +1,11 @@
+import type { MediaMessageType } from '../domain/library';
 import { DbError, toDbError } from './errors';
 import type { OpenedDb } from './open';
 import type { DbOpName, DbOps, DbRequest, DbResponse } from './protocol';
 import {
   createConversation,
   countMessages,
+  countPersonMedia,
   createProfile,
   findExistingFingerprints,
   findImportCandidates,
@@ -17,6 +19,7 @@ import {
   listConversations,
   listImportBatches,
   listMessages,
+  listPersonMedia,
   listParticipants,
   listProfiles,
   moveConversation,
@@ -77,6 +80,14 @@ const HANDLERS: Handlers = {
     return findMessageOffsetByDate(db, params.conversationId as string, params.date as string);
   },
   listConversationDays: ({ db }, p) => listConversationDays(db, requireParams(p).conversationId as string),
+  countPersonMedia: ({ db }, p) => {
+    const params = requireParams(p);
+    return countPersonMedia(db, params.profileId as string, params.kinds as MediaMessageType[]);
+  },
+  listPersonMedia: ({ db }, p) => {
+    const params = requireParams(p);
+    return listPersonMedia(db, params.profileId as string, params.kinds as MediaMessageType[], params.offset as number, params.limit as number);
+  },
 };
 
 /**
