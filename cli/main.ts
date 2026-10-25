@@ -143,7 +143,7 @@ Examples:
       'write <out>/<chat>.jsonl (fingerprint, ts, author, text) for an LLM to read; see docs/research-workflow.md',
     )
     .argument('<zip>', 'path to a WhatsApp "Export chat" ZIP')
-    .option('--out <dir>', 'output folder (default: output/research, gitignored)')
+    .option('--out <dir>', 'output folder (default: research/, gitignored)')
     .action(async (zip: string, opts: Record<string, unknown>) => {
       try {
         printResearchWarning();

@@ -32,6 +32,12 @@ export const isDateParam = (value: string | null): value is string => {
   return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(value);
 };
 
+/** `message` is a local message id as written in `?message=` (a positive integer); anything else is ignored. */
+export const parseMessageParam = (value: string | null): number | null => {
+  if (value === null || !/^[1-9]\d{0,14}$/.test(value)) return null;
+  return Number(value);
+};
+
 /**
  * Opens one conversation for the view. An id that is missing, malformed or unknown is
  * `not-found` (a calm screen), not an error.

@@ -8,6 +8,7 @@ import {
   countHighlights,
   countHighlightsByCategory,
   deleteHighlight,
+  deleteHighlights,
   importFindings,
   listHighlightMessages,
   listHighlights,
@@ -163,6 +164,46 @@ describe('highlights use cases', () => {
     await lib.client.call('undoImportBatch', { batchId: uuid(100) });
     expect(lib.opened.db.all('SELECT * FROM highlights')).toEqual([]);
     expect(lib.opened.db.all('SELECT * FROM highlight_messages')).toEqual([]);
+  });
+
+  test('delete all removes only the scope, with links, and a re-import brings them back', async () => {
+    const lib = await setup();
+    const BOB = uuid(2);
+    const C3 = uuid(12);
+    await lib.client.call('createProfile', { id: BOB, displayName: 'Bob', now: NOW });
+    await lib.client.call('importMessages', {
+      batchId: uuid(102),
+      conversationId: C3,
+      source: 'whatsapp',
+      sourceLabel: 'y.zip',
+      now: NOW,
+      blobs: [],
+      messages: [message(7)],
+      newConversation: { title: 'Chat 3', sourceKey: 'chat3', isGroup: false, profileIds: [BOB] },
+      meAuthor: 'Ana',
+    });
+    const file1 = findings([hl('a', 'moment', [fp(1)]), hl('b', 'pattern', [fp(2), fp(3)])]);
+    await importFindings(lib, C1, file1);
+    await importFindings(lib, C2, findings([hl('c', 'interest', [fp(5)])], { name: 'Chat 2' }));
+    await importFindings(lib, C3, findings([hl('d', 'moment', [fp(7)])], { name: 'Chat 3' }));
+
+    expect(await deleteHighlights(lib, { conversationId: C2 })).toBe(1);
+    expect(await countHighlights(lib)).toBe(3);
+    expect(await deleteHighlights(lib, { profileId: ANA })).toBe(2); // C1 only: C2 is already empty
+    expect(await listHighlights(lib, undefined, 0)).toMatchObject([{ id: 'd', conversationId: C3 }]);
+    expect(lib.opened.db.all('SELECT highlight_id FROM highlight_messages')).toEqual([{ highlight_id: 'd' }]);
+    expect(await deleteHighlights(lib, { profileId: ANA })).toBe(0);
+
+    expect(await importFindings(lib, C1, file1)).toMatchObject({ imported: 2, unchanged: 0 });
+    expect(await countHighlights(lib, { scope: { profileId: ANA } })).toBe(2);
+    expect((await listHighlightMessages(lib, C1, 'b')).map((m) => m.body)).toEqual(['synthetic 2', 'synthetic 3']);
+
+    const code = async (p: Promise<unknown>) => ((await p.then(() => null, (e: unknown) => e)) as DbError | null)?.code;
+    expect(await code(deleteHighlights(lib, {} as never))).toBe('invalid');
+    expect(await code(deleteHighlights(lib, { profileId: ANA, conversationId: C1 } as never))).toBe('invalid');
+    expect(await code(deleteHighlights(lib, { profileId: uuid(999) }))).toBe('not-found');
+    expect(await code(deleteHighlights(lib, { conversationId: uuid(999) }))).toBe('not-found');
+    expect(await countHighlights(lib)).toBe(3);
   });
 
   test('failures are DbErrors; an invalid file imports nothing', async () => {

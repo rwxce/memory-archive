@@ -346,7 +346,7 @@ describe('PeopleScreen', () => {
       expect(status(view)).toBe('“Old chat” now belongs to Ana. The messages were not changed.');
       expect([...section(view)!.querySelectorAll('li h3')].map((h) => h.textContent)).toEqual(['Old group']);
       expect(view.container.querySelector('li')!.textContent).toContain('1 conversation');
-      expect(document.activeElement).toBe(section(view)!.querySelector('h2'));
+      await vi.waitFor(() => expect(document.activeElement).toBe(section(view!)!.querySelector('h2')), { timeout: 3000 });
 
       await click(buttonByLabel(view, 'Assign to…: “Old group”'));
       await act(async () => {
@@ -357,7 +357,7 @@ describe('PeopleScreen', () => {
       await submit(view.container.querySelector('form'));
       await settle();
       expect(section(view)).toBeUndefined();
-      expect(document.activeElement).toBe(view.container.querySelector('h1'));
+      await vi.waitFor(() => expect(document.activeElement).toBe(view!.container.querySelector('h1')), { timeout: 3000 });
     });
 
     test('can be renamed in place and cannot be assigned to no one', async () => {

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
+import { DeleteAllHighlights } from '@/components/delete-all-highlights';
 import { FilterChip } from '@/components/filter-chip';
 import { HighlightsImport } from '@/components/highlights-import';
 import { LibraryNotice } from '@/components/library-notice';
@@ -13,7 +14,7 @@ import { ShowMore } from '@/components/show-more';
 import { Shell } from '@/components/screen-shell';
 import { useLibrary } from '@/hooks/use-library';
 import { usePersonDetails } from '@/hooks/use-person-details';
-import { highlightKey, usePersonHighlightCounts, usePersonHighlights } from '@/hooks/use-person-highlights';
+import { highlightKey, useDeleteAllHighlights, usePersonHighlightCounts, usePersonHighlights } from '@/hooks/use-person-highlights';
 import { HIGHLIGHT_CATEGORIES, type HighlightCategory, type HighlightItem } from '@/lib/domain/highlights';
 import type { ImportFindingsResult } from '@/lib/usecases/highlights';
 
@@ -23,7 +24,7 @@ type Filter = 'all' | HighlightCategory;
  * A person's highlights: key moments, patterns and interests imported from a findings file, grouped by
  * category and in the order of their first message, 50 at a time per group with "Show more". A chip
  * row narrows the list to one category. Each highlight can be opened in its conversation (the day
- * of its first message) or deleted after asking; the list says what happened in a live region. The
+ * of its first message) or deleted after asking, and "Delete all" (also after asking) clears the person's list; the list says what happened in a live region. The
  * import card sits below. The person is chosen by `?id=`. Everything from a file is shown as text.
  */
 export function PersonHighlightsScreen() {
@@ -99,6 +100,7 @@ function PersonHighlightsContent({ onRetry }: { onRetry: () => void }) {
   const id = useSearchParams().get('id');
   const details = usePersonDetails(id);
   const counts = usePersonHighlightCounts(id);
+  const deleteAll = useDeleteAllHighlights(id);
   const [filter, setFilter] = useState<Filter>('all');
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState('');
@@ -193,6 +195,22 @@ function PersonHighlightsContent({ onRetry }: { onRetry: () => void }) {
             />
           ))}
         </div>
+      )}
+
+      {total > 0 && (
+        <DeleteAllHighlights
+          name={person.displayName}
+          count={total}
+          onConfirm={async () => {
+            const deleted = await deleteAll();
+            if (deleted === null) return false;
+            focusHeading.current = true;
+            setNotice(t('deletedAll', { count: deleted }));
+            setRevision((n) => n + 1);
+            counts.reload();
+            return true;
+          }}
+        />
       )}
 
       <HighlightsImport

@@ -25,6 +25,7 @@ import { usePersonOverview } from '@/hooks/use-person-overview';
 import { useProfileActions } from '@/hooks/use-people';
 import { Link } from '@/i18n/navigation';
 import type { PersonDetails } from '@/lib/usecases/library';
+import { withEmojiPresentation } from './emoji';
 import { formatDay } from './format';
 import { isMediaMessage } from './message-media';
 
@@ -267,8 +268,8 @@ function PersonContent({ onRetry }: { onRetry: () => void }) {
         </header>
 
         {person.description && (
-          <p className="font-display bg-peach text-ink rounded-[18px] px-4 py-3.5 text-xl leading-snug break-words whitespace-pre-line italic lg:col-span-2 lg:row-start-2 lg:max-w-[680px] lg:rounded-[22px] lg:px-[22px] lg:py-[18px] lg:text-[1.625rem]">
-            {person.description}
+          <p className="font-display bg-peach text-ink rounded-[18px] px-4 py-3.5 text-xl leading-snug break-words whitespace-pre-line italic [font-variant-emoji:emoji] lg:col-span-2 lg:row-start-2 lg:max-w-[680px] lg:rounded-[22px] lg:px-[22px] lg:py-[18px] lg:text-[1.625rem]">
+            {withEmojiPresentation(person.description)}
           </p>
         )}
 

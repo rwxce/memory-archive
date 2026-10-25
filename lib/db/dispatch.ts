@@ -13,7 +13,9 @@ import {
   findExistingFingerprints,
   findImportCandidates,
   findMessageOffsetByDate,
+  findMessageOffsetById,
   findPersonTimelineOffsetByDate,
+  findPersonTimelineOffsetById,
   getConversationBounds,
   getMessageSource,
   getMessageWindow,
@@ -49,6 +51,7 @@ import {
   countHighlights,
   countHighlightsByCategory,
   deleteHighlight,
+  deleteHighlights,
   importHighlights,
   listHighlightMessages,
   listHighlights,
@@ -124,6 +127,10 @@ const HANDLERS: Handlers = {
     const params = requireParams(p);
     return findMessageOffsetByDate(db, params.conversationId as string, params.date as string);
   },
+  findMessageOffsetById: ({ db }, p) => {
+    const params = requireParams(p);
+    return findMessageOffsetById(db, params.conversationId as string, params.messageId as number);
+  },
   listConversationDays: ({ db }, p) => listConversationDays(db, requireParams(p).conversationId as string),
   getMessageSource: ({ db }, p) => {
     const params = requireParams(p);
@@ -145,6 +152,10 @@ const HANDLERS: Handlers = {
   findPersonTimelineOffsetByDate: ({ db }, p) => {
     const params = requireParams(p);
     return findPersonTimelineOffsetByDate(db, params.profileId as string, params.date as string);
+  },
+  findPersonTimelineOffsetById: ({ db }, p) => {
+    const params = requireParams(p);
+    return findPersonTimelineOffsetById(db, params.profileId as string, params.messageId as number);
   },
   listPersonTimelineDays: ({ db }, p) => listPersonTimelineDays(db, requireParams(p).profileId as string),
   getSearchStatus: ({ db }) => getSearchStatus(db),
@@ -175,6 +186,7 @@ const HANDLERS: Handlers = {
     const params = requireParams(p);
     return listHighlightMessages(db, params.conversationId as string, params.highlightId as string);
   },
+  deleteHighlights: ({ db }, p) => deleteHighlights(db, requireParams(p).scope as HighlightScope),
   deleteHighlight: ({ db }, p) => {
     const params = requireParams(p);
     return deleteHighlight(db, params.conversationId as string, params.highlightId as string);

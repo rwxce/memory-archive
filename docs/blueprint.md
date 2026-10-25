@@ -372,7 +372,7 @@ test type or architecture rule means updating this file **in the same PR**.
 - **Node CLI (`cli/`)** — `index.ts` (bin entry) → `main.ts` (`buildCli`, commander with
   positional options): the default import command, `import-legacy <file>` and
   `render <dir>` (`cli/legacy.ts`), and the dev-only research pair `export-for-research <zip>`
-  (JSONL of fingerprint / ts / author / text into gitignored `output/research/`) and
+  (JSONL of fingerprint / ts / author / text into gitignored `research/`) and
   `check-findings <file>` (`cli/research.ts`; see [`research-workflow.md`](research-workflow.md)).
   Plus the `fs.openAsBlob` adapter, CSV/media/output
   writing and link-title fetching. Pipeline (`cli/pipeline.ts`): `parseWhatsAppZip` →
@@ -985,7 +985,8 @@ test type or architecture rule means updating this file **in the same PR**.
   - `testing-expert` — tests, fixtures, regressions.
   - `responsive-ui-designer` — router for UI work (mobile-first PWA, `ca`/`es`/`en`).
 - **Commands — PR flow** (`.rulesync/commands/`): `pr-plan` → `pr-precheck` → `pr-make` →
-  `pr-review` → `pr-triage`.
+  `pr-review` → `pr-triage`; `pr-ship` is full autopilot (task PR → CI fix loop → squash-merge into `dev` →
+  version bump PR → release PR → merge into `main` → release and Pages checked; worktree on `dev`).
 - **Skills** (`.rulesync/skills/`): `debugging`, `highlights-research`, `interview-me`, `pr-scope`,
   `pr-review`, `security-audit`, `rulesync`. Planned with the UI: a design skill and `local-test`
   (Playwright, mobile + desktop viewports).
@@ -1000,7 +1001,8 @@ test type or architecture rule means updating this file **in the same PR**.
 - **Permissions** (`.rulesync/permissions.jsonc`) — read-only `gh` allowed; `gh` comment,
   review and mutating `gh api` denied (also with `-R`/`--repo`); `.env*`, secrets, build
   output, `fixtures/`, outputs, any WhatsApp export (`_chat.txt`, `WhatsApp Chat*.txt`, ZIPs)
-  read-denied, including `cat`-style reads through the shell. A `codexcli` block restates the rules in a form Codex
+  read-denied, including `cat`-style reads through the shell. `research/` (highlights research
+  export) is "ask" for Claude Code and opencode, denied for Codex, skipped for Cursor. A `codexcli` block restates the rules in a form Codex
   can enforce. **Ignore list** (`.rulesync/.aiignore`, deprecated upstream) only feeds
   `.cursorignore`.
 - **MCP servers** (`.rulesync/mcp.jsonc`) — Playwright only, pinned (not `@latest`, which would

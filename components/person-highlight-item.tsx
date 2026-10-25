@@ -1,12 +1,17 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { ChevronDown, Trash2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { PillButton } from '@/components/pill-button';
+import { ErrorNote } from '@/components/screen-states';
+import { useHighlightMessages } from '@/hooks/use-highlight-messages';
 import { Link } from '@/i18n/navigation';
-import type { HighlightItem } from '@/lib/domain/highlights';
-import { formatDay } from './format';
+import type { HighlightItem, HighlightMessage } from '@/lib/domain/highlights';
+import { conversationHref } from './conversation-link';
+import { withEmojiPresentation } from './emoji';
+import { formatDay, formatDayTime } from './format';
+import { isMediaMessage } from './message-media';
 
 const linkClass = 'text-ac-tx focus-visible:ring-ring/50 -ms-2 flex min-h-11 w-fit items-center rounded-full px-2 text-sm font-semibold underline underline-offset-4 outline-none focus-visible:ring-[3px]';
 
@@ -71,6 +76,70 @@ function DeleteDialog({ title, onCancel, onConfirm }: { title: string; onCancel:
   );
 }
 
+/** How many of a highlight's messages are listed before "Show all". */
+const MESSAGES_PREVIEW = 3;
+
+/** What a message shows in one line: its text, or the kind of file (and its text, if it has any). */
+function MessageLine({ message }: { message: HighlightMessage }) {
+  const tm = useTranslations('conversation.media');
+  const kind = isMediaMessage(message.type) ? message.type : null;
+  const text = withEmojiPresentation(message.body);
+  return (
+    <span dir="auto" className="line-clamp-1 text-[15px] break-words">
+      {kind && <span className="text-mu">{tm(kind)}{text ? ' · ' : ''}</span>}
+      {text}
+    </span>
+  );
+}
+
+/**
+ * The messages of a highlight as quick links, each to that exact message: read only when opened,
+ * three at first and "Show all" for the rest. Text, names and file names are only rendered as text.
+ */
+function HighlightMessages({ item, personId, messages }: { item: HighlightItem; personId: string; messages: HighlightMessage[] }) {
+  const t = useTranslations('personHighlights');
+  const locale = useLocale();
+  const [all, setAll] = useState(false);
+  const shown = all ? messages : messages.slice(0, MESSAGES_PREVIEW);
+  return (
+    <>
+      <ul aria-label={t('messagesLabel', { title: item.title })} className="flex flex-col gap-1">
+        {shown.map((message) => {
+          const author = message.isMe ? t('you') : message.participantName || t('unknownAuthor');
+          const when = formatDayTime(message.sentAt, locale);
+          return (
+            <li key={message.id}>
+              <Link
+                href={conversationHref({ conversationId: item.conversationId, personId, sentAt: message.sentAt, messageId: message.id, back: 'highlights' })}
+                aria-label={t('messageOpen', { author, when })}
+                className="bg-bg hover:bg-sf2 focus-visible:ring-ring/50 flex min-h-11 min-w-0 flex-col justify-center rounded-xl px-3 py-1.5 outline-none focus-visible:ring-[3px] lg:in-data-panel:bg-sf"
+              >
+                <span className="text-mu min-w-0 truncate text-xs">
+                  <span dir="auto" className="font-semibold">
+                    {author}
+                  </span>
+                  {' · '}
+                  <time dateTime={message.sentAt}>{when}</time>
+                </span>
+                <MessageLine message={message} />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+      {!all && messages.length > MESSAGES_PREVIEW && (
+        <button
+          type="button"
+          onClick={() => setAll(true)}
+          className="text-ac-tx focus-visible:ring-ring/50 -ms-2 flex min-h-11 w-fit items-center rounded-full px-2 text-sm font-semibold underline underline-offset-4 outline-none focus-visible:ring-[3px]"
+        >
+          {t('showAllMessages', { count: messages.length })}
+        </button>
+      )}
+    </>
+  );
+}
+
 /**
  * One highlight as a card: its title and summary, which conversation, how many messages and the day
  * of the first one, the way to that day in the conversation and a delete button that asks first.
@@ -89,7 +158,12 @@ export function PersonHighlightItem({
   const locale = useLocale();
   const [asking, setAsking] = useState(false);
   const day = formatDay(item.firstSentAt, locale);
-  const href = `/conversation?id=${encodeURIComponent(item.conversationId)}&from=${encodeURIComponent(personId)}&date=${item.firstSentAt.slice(0, 10)}`;
+  const [expanded, setExpanded] = useState(false);
+  const { state: messages, retry } = useHighlightMessages(item.conversationId, item.id, expanded);
+  // Once its messages are known the main link goes to the first one, else to the day of the first.
+  const first = messages.status === 'ready' ? messages.messages[0] : undefined;
+  const href = conversationHref({ conversationId: item.conversationId, personId, sentAt: first?.sentAt ?? item.firstSentAt, messageId: first?.id, back: 'highlights' });
+  const panelId = `highlight-messages-${item.conversationId}-${item.id}`;
 
   return (
     <li className="bg-sf flex flex-col gap-2 rounded-[20px] px-4 py-3.5 lg:in-data-panel:bg-bg">
@@ -119,6 +193,30 @@ export function PersonHighlightItem({
         {' · '}
         <time dateTime={item.firstSentAt.slice(0, 10)}>{day}</time>
       </p>
+      {item.messageCount > 0 && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls={panelId}
+          onClick={() => setExpanded((open) => !open)}
+          className="text-foreground hover:bg-sf2 focus-visible:ring-ring/50 -ms-2 flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-sm font-medium outline-none focus-visible:ring-[3px] [&_svg]:size-4"
+        >
+          <ChevronDown aria-hidden className={expanded ? 'rotate-180' : undefined} />
+          {expanded ? t('hideMessages') : t('showMessages', { count: item.messageCount })}
+        </button>
+      )}
+      <div id={panelId} hidden={!expanded} className="flex flex-col gap-1">
+        {expanded &&
+          (messages.status === 'ready' ? (
+            <HighlightMessages item={item} personId={personId} messages={messages.messages} />
+          ) : messages.status === 'error' ? (
+            <ErrorNote onRetry={retry}>{t('messagesFailed')}</ErrorNote>
+          ) : (
+            <p role="status" className="text-mu text-sm">
+              {t('messagesLoading')}
+            </p>
+          ))}
+      </div>
       <Link href={href} aria-label={t('openLabel', { title: item.title, when: day })} className={linkClass}>
         {t('open')}
       </Link>

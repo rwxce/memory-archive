@@ -1046,6 +1046,24 @@ export function findMessageOffsetByDate(db: SqlDb, conversationId: string, date:
 }
 
 /**
+ * Offset of one message in the conversation's order (sent_at, ordinal, id): how many messages come
+ * strictly before it. `null` when the id is not a message of this conversation (so a stale link
+ * never lands on the wrong place). The comparison is spelled out so it is one range scan on messages_timeline.
+ */
+export function findMessageOffsetById(db: SqlDb, conversationId: string, messageId: number): number | null {
+  const id = requireConversation(db, conversationId);
+  if (!Number.isSafeInteger(messageId) || messageId < 1) invalid('message id must be a positive integer');
+  const [at] = db.all<{ sentAt: string; ordinal: number }>('SELECT sent_at AS sentAt, ordinal FROM messages WHERE id = ? AND conversation_id = ?', [messageId, id]);
+  if (!at) return null;
+  const [row] = db.all<{ before: number }>(
+    `SELECT count(*) AS before FROM messages WHERE conversation_id = ?
+        AND (sent_at < ? OR (sent_at = ? AND (ordinal < ? OR (ordinal = ? AND id < ?))))`,
+    [id, at.sentAt, at.sentAt, at.ordinal, at.ordinal, messageId],
+  );
+  return row.before;
+}
+
+/**
  * Every local day with messages, in order, with its count and the offset of its first message
  * (the running total of the days before it). One pass over the index; at most MAX_DAYS rows.
  */
@@ -1205,6 +1223,26 @@ export function findPersonTimelineOffsetByDate(db: SqlDb, profileId: string, dat
   const from = `${date}T00:00:00`;
   if (db.all(`SELECT 1 FROM messages m WHERE ${TIMELINE_MEMBER} AND m.sent_at >= ? LIMIT 1`, [id, from]).length === 0) return null;
   const [row] = db.all<{ before: number }>(`SELECT count(*) AS before FROM messages m WHERE ${TIMELINE_MEMBER} AND m.sent_at < ?`, [id, from]);
+  return row.before;
+}
+
+/**
+ * Offset of one message in the person's timeline order (sent_at, ordinal, conversation_id, id), `null`
+ * when it is not in a conversation linked to the profile.
+ */
+export function findPersonTimelineOffsetById(db: SqlDb, profileId: string, messageId: number): number | null {
+  const id = requireProfile(db, profileId);
+  if (!Number.isSafeInteger(messageId) || messageId < 1) invalid('message id must be a positive integer');
+  const [at] = db.all<{ sentAt: string; ordinal: number; conv: string }>(
+    `SELECT m.sent_at AS sentAt, m.ordinal, m.conversation_id AS conv FROM messages m WHERE ${TIMELINE_MEMBER} AND m.id = ?`,
+    [id, messageId],
+  );
+  if (!at) return null;
+  const [row] = db.all<{ before: number }>(
+    `SELECT count(*) AS before FROM messages m WHERE ${TIMELINE_MEMBER}
+        AND (m.sent_at < ? OR (m.sent_at = ? AND (m.ordinal < ? OR (m.ordinal = ? AND (m.conversation_id < ? OR (m.conversation_id = ? AND m.id < ?))))))`,
+    [id, at.sentAt, at.sentAt, at.ordinal, at.ordinal, at.conv, at.conv, messageId],
+  );
   return row.before;
 }
 

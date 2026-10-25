@@ -65,15 +65,15 @@
       "name": "Nom",
       "relationship": "Relació (opcional)",
       "relationshipHint": "Per exemple: mare, amic, parella.",
-      "description": "Notes (opcional)",
-      "descriptionHint": "Qualsevol cosa que vulguis recordar d'aquesta persona.",
+      "description": "Frase (opcional)",
+      "descriptionHint": "Una frase seva que vulguis tenir a la vista.",
       "create": "Afegeix la persona",
       "save": "Desa els canvis",
       "cancel": "Cancel·la",
       "nameRequired": "Escriu un nom per continuar.",
       "nameTooLong": "El nom pot tenir fins a {max} caràcters.",
       "relationshipTooLong": "La relació pot tenir fins a {max} caràcters.",
-      "descriptionTooLong": "Les notes poden tenir fins a {max} caràcters.",
+      "descriptionTooLong": "La frase pot tenir fins a {max} caràcters.",
       "invalidText": "Una part del text no es pot desar. Treu-ne els caràcters estranys i torna-ho a provar.",
       "saveFailed": "No s'ha pogut desar. No s'ha canviat res. Torna-ho a provar."
     },
@@ -555,6 +555,8 @@
     "eyebrow": "El teu arxiu"
   },
   "conversation": {
+    "backHighlights": "Tornar als destacats de {name}",
+    "backFavorites": "Tornar als preferits de {name}",
     "back": "Torna a {name}",
     "notFoundTitle": "No trobem aquesta conversa",
     "notFoundBody": "Pot ser que l'enllaç estigui desactualitzat. No s'ha esborrat res.",
@@ -569,6 +571,7 @@
     "toEnd": "Més recent",
     "date": "Ves a la data",
     "jumped": "Es mostra el primer missatge a partir del {date}.",
+    "jumpedToMessage": "Missatge de {date}.",
     "noneAfter": "No hi ha cap missatge a partir del {date}.",
     "loadingMessages": "Carregant missatges…",
     "pagesFailed": "Alguns missatges no s'han pogut llegir. No s'ha esborrat res.",
@@ -737,7 +740,7 @@
     "all": "Tots",
     "category": {
       "moment": "Moments",
-      "pattern": "Patrons",
+      "pattern": "Costums",
       "interest": "Interessos"
     },
     "groupTitle": "{category} ({count})",
@@ -757,7 +760,22 @@
     "shown": "Es mostren {shown} de {total}",
     "showMore": "Mostra’n més",
     "loadingMore": "Carregant-ne més…",
-    "moreFailed": "No s’han pogut llegir alguns destacats. No s’ha eliminat res."
+    "moreFailed": "No s’han pogut llegir alguns destacats. No s’ha eliminat res.",
+    "showMessages": "Mostra els missatges ({count})",
+    "hideMessages": "Amaga els missatges",
+    "messagesLoading": "Carregant els missatges…",
+    "messagesFailed": "No s’han pogut llegir els missatges. No s’ha esborrat res.",
+    "messagesLabel": "Missatges de «{title}»",
+    "messageOpen": "Obre el missatge de {author}, {when}",
+    "showAllMessages": "Mostra’ls tots ({count})",
+    "you": "Tu",
+    "unknownAuthor": "Remitent desconegut",
+    "deleteAll": "Esborra-ho tot",
+    "deleteAllTitle": "Vols esborrar tots els destacats de {name}?",
+    "deleteAllBody": "S’esborraran d’aquest dispositiu {count, plural, one {# destacat} other {tots # destacats}} de {name}. Els missatges es queden a les seves converses. Si després tornes a importar el fitxer de troballes, els destacats tornen.",
+    "deleteAllConfirm": "Esborra-ho tot",
+    "deleteAllFailed": "No s’han pogut esborrar els destacats. No s’ha canviat res.",
+    "deletedAll": "{count, plural, =0 {No hi havia cap destacat per esborrar.} one {S’ha esborrat # destacat.} other {S’han esborrat # destacats.}} Els missatges es queden a les seves converses. Pots tornar a importar el fitxer."
   },
   "highlightsImport": {
     "title": "Importa destacats",
@@ -856,5 +874,16 @@
   },
   "subpage": {
     "backTo": "Torna a"
+  },
+  "phrase": {
+    "action": "Fes-la la frase de {name}",
+    "title": "Vols canviar la frase de {name}?",
+    "body": "{name} ja té una frase. Si continues, es canviarà per aquest missatge. El missatge original no es toca.",
+    "current": "Frase actual",
+    "confirm": "Canvia la frase",
+    "cancel": "Cancel·la",
+    "saved": "S’ha desat la frase de {name}.",
+    "failed": "No s’ha pogut desar la frase de {name}. No s’ha canviat res.",
+    "saving": "Desant…"
   }
 }

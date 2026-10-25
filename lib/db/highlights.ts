@@ -242,3 +242,26 @@ export function deleteHighlight(db: SqlDb, conversationId: string, highlightId: 
     return found;
   });
 }
+
+/**
+ * Deletes every highlight of a person (`profileId`) or of one conversation (`conversationId`),
+ * dormant ones included, with their message links, all or nothing. Returns how many highlights
+ * were deleted (0 when there were none). Unlike the read filters the scope is required and takes
+ * exactly one of the two: `invalid` otherwise, `not-found` for an unknown profile or conversation.
+ * Importing the findings file again brings them back.
+ */
+export function deleteHighlights(db: SqlDb, scope: HighlightScope): number {
+  const s = requireRecord(scope, 'scope');
+  if ((s.profileId === undefined) === (s.conversationId === undefined)) invalid('scope takes a profile or a conversation');
+  const { where, params } = highlightFilter(db, { scope });
+  // `where` is written over the alias `h`; the subquery keeps the two deletes on the same rows.
+  const rows = `SELECT h.conversation_id, h.id FROM highlights h WHERE 1 = 1 ${where}`;
+  return transaction(db, () => {
+    const n = db.all<{ n: number }>(`SELECT count(*) AS n FROM (${rows})`, params)[0].n;
+    if (n > 0) {
+      db.run(`DELETE FROM highlight_messages WHERE (conversation_id, highlight_id) IN (${rows})`, params);
+      db.run(`DELETE FROM highlights WHERE (conversation_id, id) IN (${rows})`, params);
+    }
+    return n;
+  });
+}

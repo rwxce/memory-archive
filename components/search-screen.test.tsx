@@ -126,7 +126,9 @@ describe('SearchScreen', () => {
 
   test('a result opens its conversation at that day; scoped to a person it keeps the way back', async () => {
     await open('q=canco');
-    expect(results().map((li) => li.querySelector('a')!.getAttribute('href'))).toEqual([`/conversation?id=${GROUP}&date=2026-03-14`, `/conversation?id=${PRIVATE}&date=2026-02-11`]);
+    const hrefs = results().map((li) => li.querySelector('a')!.getAttribute('href')!);
+    expect(hrefs.every((h) => /&message=[1-9]\d*$/.test(h))).toBe(true);
+    expect(hrefs.map((h) => h.replace(/&message=\d+$/, ''))).toEqual([`/conversation?id=${GROUP}&date=2026-03-14`, `/conversation?id=${PRIVATE}&date=2026-02-11`]);
     // the whole card is the link: its name is what it says
     expect(results()[0].querySelector('a')!.textContent).toContain('Family group');
     view!.unmount();
@@ -136,7 +138,7 @@ describe('SearchScreen', () => {
     view = await renderWithLibrary(<SearchScreen />, { lib: view!.lib });
     await settle();
     expect(results()).toHaveLength(1);
-    expect(results()[0].querySelector('a')!.getAttribute('href')).toBe(`/conversation?id=${PRIVATE}&from=${data.ana.id}&date=2026-02-11`);
+    expect(results()[0].querySelector('a')!.getAttribute('href')).toMatch(new RegExp(`^/conversation\\?id=${PRIVATE}&from=${data.ana.id}&date=2026-02-11&message=[1-9]\\d*$`));
   });
 
   const chip = (name: string) => [...view!.container.querySelectorAll<HTMLButtonElement>('[role="group"] button')].find((b) => b.textContent?.startsWith(name))!;

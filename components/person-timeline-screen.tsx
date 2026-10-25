@@ -11,9 +11,9 @@ import { usePeopleBack, usePersonBack } from '@/components/person-back';
 import { EmptyNote, ErrorNote, LoadingNote, PersonNotFound } from '@/components/screen-states';
 import { FeedShell, Shell } from '@/components/screen-shell';
 import { useLibrary, useLibraryDeps } from '@/hooks/use-library';
-import { isDateParam } from '@/hooks/use-conversation';
+import { isDateParam, parseMessageParam } from '@/hooks/use-conversation';
 import { timelinePositionKey, usePersonTimeline, type OpenTimeline } from '@/hooks/use-person-timeline';
-import { findPersonTimelineOffsetByDate, getPersonTimelineWindow, listPersonTimelineDays } from '@/lib/usecases/person-timeline';
+import { findPersonTimelineOffsetByDate, findPersonTimelineOffsetById, getPersonTimelineWindow, listPersonTimelineDays } from '@/lib/usecases/person-timeline';
 import { formatDateRange } from './format';
 
 /**
@@ -42,6 +42,7 @@ function PersonTimelineContent() {
   const params = useSearchParams();
   const id = params.get('id');
   const date = params.get('date');
+  const messageId = parseMessageParam(params.get('message'));
   const { state, retry } = usePersonTimeline(id, isDateParam(date) ? date : null);
 
   const peopleBack = usePeopleBack();
@@ -90,14 +91,14 @@ function PersonTimelineContent() {
           <EmptyNote>{t('empty', { name: person.name })}</EmptyNote>
         </div>
       ) : (
-        <TimelineFeed key={person.id} timeline={timeline} />
+        <TimelineFeed key={person.id} timeline={timeline} messageId={messageId} />
       )}
     </FeedShell>
   );
 }
 
 /** The timeline's feed: the person's reads, handed to the shared body. */
-function TimelineFeed({ timeline }: { timeline: OpenTimeline }) {
+function TimelineFeed({ timeline, messageId }: { timeline: OpenTimeline; messageId: number | null }) {
   const t = useTranslations('timeline');
   const deps = useLibraryDeps()!;
   const { person, bounds, start } = timeline;
@@ -111,10 +112,11 @@ function TimelineFeed({ timeline }: { timeline: OpenTimeline }) {
       start,
       readWindow: (offset, limit) => getPersonTimelineWindow(deps, person.id, offset, limit),
       findOffset: (day) => findPersonTimelineOffsetByDate(deps, person.id, day),
+      findMessageOffset: (message) => findPersonTimelineOffsetById(deps, person.id, message),
       listDays: () => listPersonTimelineDays(deps, person.id),
       timeline: { personId: person.id },
     }),
     [deps, person.id, person.name, bounds, start, t],
   );
-  return <ConversationBody source={source} />;
+  return <ConversationBody source={source} messageId={messageId} />;
 }

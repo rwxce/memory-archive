@@ -16,7 +16,7 @@ import { formatDay } from './format';
 import { MessageRow, PlaceholderRow } from './message-row';
 
 const inputClass =
-  'bg-bg border-input h-11 min-w-0 rounded-xl border px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]';
+  'bg-bg border-input h-9 min-w-0 rounded-xl border px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]';
 const toolButton =
   'focus-visible:ring-ring/50 flex h-12 items-center justify-center gap-1.5 rounded-2xl px-2 text-[13px] font-medium whitespace-nowrap outline-none focus-visible:ring-[3px] [&_svg]:size-4';
 
@@ -35,6 +35,8 @@ export interface FeedSource {
   start: ListStart;
   readWindow(offset: number, limit: number): Promise<ConversationMessage[]>;
   findOffset(date: string): Promise<number | null>;
+  /** Where a message (by its local id) is in the feed; `null` when it is not in it. Without it `messageId` is ignored. */
+  findMessageOffset?(messageId: number): Promise<number | null>;
   listDays(): Promise<ConversationDay[]>;
   /**
    * A person's timeline: rows carry their conversation (`PersonTimelineMessage`); the title is
@@ -50,14 +52,17 @@ const isTimelineMessage = (message: ConversationMessage): message is PersonTimel
 /**
  * The jump controls and the virtualized feed. Only the rows near the view are in the DOM
  * (see `useVirtualList`); their messages come a page at a time (`useMessagePages`). Render it
- * with `key={source.id}`: a new feed starts with fresh state.
+ * with `key={source.id}`: a new feed starts with fresh state. With `messageId` the feed scrolls to
+ * that message once opened (the start position already put the day in view), marks it for a moment
+ * (a ring that fades; no fade under reduced motion), moves focus to it and says so politely; a
+ * message that is not found leaves the feed where it opened.
  */
-export function ConversationBody({ source }: { source: FeedSource }) {
+export function ConversationBody({ source, messageId = null }: { source: FeedSource; messageId?: number | null }) {
   const kind = source.timeline ? 'timeline' : 'conversation';
   const t = useTranslations('conversation');
   const tt = useTranslations('timeline');
   const locale = useLocale();
-  const { id, count, start, findOffset, listDays } = source;
+  const { id, count, start, findOffset, findMessageOffset, listDays } = source;
   const list = useVirtualList({ count, start });
   const pages = useMessagePages(id, count, source.readWindow);
   const [status, setStatus] = useState('');
@@ -68,6 +73,7 @@ export function ConversationBody({ source }: { source: FeedSource }) {
   const [day, setDay] = useState('');
   const [calendarOpen, setCalendarOpen] = useState(false);
   const calendarButton = useRef<HTMLButtonElement>(null);
+  const [viewed, setViewed] = useState<string | null>(null);
   const calendar = useConversationDays(listDays, calendarOpen);
 
   const { start: from, end: to } = list.range;
@@ -88,6 +94,43 @@ export function ConversationBody({ source }: { source: FeedSource }) {
       save();
     };
   }, [id]);
+
+  // The message a link pointed at: scrolled to once, flashed for ~1.5 s once its row exists, focused once its row exists.
+  const [target, setTarget] = useState<number | null>(null);
+  const [marked, setMarked] = useState(false);
+  const focused = useRef(false);
+  const { scrollToIndex } = list;
+  useEffect(() => {
+    if (messageId === null || !findMessageOffset || count === 0) return;
+    let alive = true;
+    findMessageOffset(messageId).then(
+      (offset) => {
+        if (!alive || offset === null) return;
+        focused.current = false;
+        scrollToIndex(offset);
+        setTarget(offset);
+        setMarked(true);
+      },
+      () => alive && setStatus(t('pagesFailed')),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [messageId, findMessageOffset, count, scrollToIndex, t]);
+  // The flash is taken off a moment after the row first exists (and is focused), not after the scroll was asked.
+  const fadeTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(fadeTimer.current), []);
+  const targetMessage = target === null ? undefined : pages.at(target);
+  useEffect(() => {
+    if (target === null || focused.current || !targetMessage) return;
+    const row = list.scrollerRef.current?.querySelector<HTMLElement>(`[data-index="${target}"]`);
+    if (!row) return;
+    focused.current = true;
+    window.clearTimeout(fadeTimer.current);
+    fadeTimer.current = window.setTimeout(() => setMarked(false), 1500);
+    row.focus({ preventScroll: true });
+    setStatus(t('jumpedToMessage', { date: formatDay(targetMessage.message.sentAt, locale) }));
+  });
 
   const jumpToken = useRef(0);
   const jump = async (value: string) => {
@@ -171,6 +214,7 @@ export function ConversationBody({ source }: { source: FeedSource }) {
                   message={message}
                   previous={previous}
                   rowRef={list.rowRef}
+                  marked={index === target ? marked : undefined}
                   onToggleFavorite={toggleFavorite}
                   noteDrafts={noteDrafts.current}
                   onNoteChanged={setNote}
@@ -190,6 +234,7 @@ export function ConversationBody({ source }: { source: FeedSource }) {
             state={calendar.state}
             first={firstDay ?? null}
             last={lastDay ?? null}
+            current={viewed || lastDay || null}
             onPick={(date) => {
               void jump(date);
               closeCalendar();
@@ -198,9 +243,9 @@ export function ConversationBody({ source }: { source: FeedSource }) {
             onRetry={calendar.retry}
             label={kind === 'timeline' ? tt('calendarLabel') : undefined}
             footer={
-              <label className="text-mu flex min-w-0 items-center gap-2 text-sm">
+              <label className="text-mu flex min-w-0 items-center justify-between gap-2 text-sm">
                 <span>{t('date')}</span>
-                <input type="date" className={inputClass} value={day} min={firstDay} max={lastDay} onChange={(event) => void jump(event.target.value)} />
+                <input type="date" className={inputClass} value={day || viewed || lastDay || ''} min={firstDay} max={lastDay} onChange={(event) => void jump(event.target.value)} />
               </label>
             }
           />
@@ -225,7 +270,13 @@ export function ConversationBody({ source }: { source: FeedSource }) {
           type="button"
           aria-expanded={calendarOpen}
           aria-controls={calendarOpen ? 'conversation-calendar' : undefined}
-          onClick={() => (calendarOpen ? closeCalendar() : setCalendarOpen(true))}
+          onClick={() => {
+            if (calendarOpen) return closeCalendar();
+            // The day at the top of the view: where the calendar and its date field start.
+            const at = list.position();
+            setViewed(at ? (pages.at(at.index)?.message.sentAt.slice(0, 10) ?? null) : null);
+            setCalendarOpen(true);
+          }}
           className={`${toolButton} bg-ac text-ac-ink text-sm font-semibold`}
         >
           <CalendarDays aria-hidden />

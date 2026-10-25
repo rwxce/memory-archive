@@ -57,7 +57,7 @@ test('star a message in the Timeline and in the conversation; both appear in Fav
   await expect(items.first()).toContainText('Third hello');
   await expect(items.first()).toContainText('Feb 11, 2026, 9:30 PM');
   await items.first().getByRole('link', { name: /^Open in conversation/ }).click();
-  await expect(page).toHaveURL(/\/en\/conversation\/\?id=[0-9a-f-]{36}&from=[0-9a-f-]{36}&date=2026-02-11$/);
+  await expect(page).toHaveURL(/\/en\/conversation\/\?id=[0-9a-f-]{36}&from=[0-9a-f-]{36}&date=2026-02-11&message=[0-9]+&back=favorites$/);
   await expect(starOf(page, 3)).toHaveAttribute('aria-pressed', 'true');
   await expect(article(page, 4)).toBeInViewport();
   await starOf(page, 1).click();
@@ -65,8 +65,9 @@ test('star a message in the Timeline and in the conversation; both appear in Fav
   if (process.env.E2E_SHOTS) await page.screenshot({ path: `${process.env.E2E_SHOTS}/favorites-conversation-${testInfo.project.name}.png` });
 
   // two favorites, oldest first; remove one from the list
-  await page.getByRole('link', { name: 'Back to Mama' }).click();
-  await openSection(page, 'Favorites');
+  // Back returns to the favorites it was opened from.
+  await page.getByRole('link', { name: "Back to Mama's favorites" }).click();
+  await expect(page).toHaveURL(/\/en\/person\/favorites\/\?id=[0-9a-f-]{36}$/);
   await expect(items).toHaveCount(2);
   await expect(items.nth(0)).toContainText('First hello');
   await expect(items.nth(1)).toContainText('Third hello');
