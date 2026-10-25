@@ -61,7 +61,7 @@ test('import a findings file, list highlights by category, filter, open one, del
   await expect(page.getByText('3 highlights added', { exact: true })).toBeVisible();
   await expect(page.getByText('3 highlights about Mama')).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Moments (2)' })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 2, name: 'Patterns (1)' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Rituals (1)' })).toBeVisible();
   expect(await overflowsHorizontally(page)).toBe(false);
   await shot('list');
 
@@ -74,9 +74,9 @@ test('import a findings file, list highlights by category, filter, open one, del
 
   // filter
   const chips = page.getByRole('group', { name: 'Show' });
-  await chips.getByRole('button', { name: /^Patterns/ }).click();
+  await chips.getByRole('button', { name: /^Rituals/ }).click();
   await expect(page.locator('main h3')).toHaveText(['Bo always answers within a minute']);
-  await expect(chips.getByRole('button', { name: /^Patterns/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(chips.getByRole('button', { name: /^Rituals/ })).toHaveAttribute('aria-pressed', 'true');
   await chips.getByRole('button', { name: /^All/ }).click();
   await expect(page.locator('main h3')).toHaveCount(3);
 
@@ -104,5 +104,5 @@ test('import a findings file, list highlights by category, filter, open one, del
 
   // open one at the day of its first message
   await page.locator('main li').filter({ hasText: 'A Valentine evening' }).getByRole('link', { name: /^Open/ }).click();
-  await expect(page).toHaveURL(/\/en\/conversation\/\?id=[0-9a-f-]{36}&from=[0-9a-f-]{36}&date=2026-02-14$/);
+  await expect(page).toHaveURL(/\/en\/conversation\/\?id=[0-9a-f-]{36}&from=[0-9a-f-]{36}&date=2026-02-14&back=highlights$/);
 });
