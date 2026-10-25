@@ -37,7 +37,14 @@ so it can be imported into the app later without duplicating anything.
    Exit code 1 and a list of `path: message` lines when something is wrong. Fix it or ask the LLM
    to fix those paths, then validate again.
 
-4. Importing the file into the app arrives in a later change.
+4. Import the file into the conversation it was made from. The import is idempotent by highlight
+   `id`: importing the same file twice changes nothing, and importing an edited file updates the
+   highlights whose content changed. Fingerprints that are not in that conversation are skipped
+   and counted, and a highlight left with no known message is skipped and reported. If the file's
+   `conversation` block (message count, first fingerprint) does not match the conversation you are
+   importing into, you get a warning, but the import still runs. Imported highlights are stored in
+   the local archive and travel with backups. Deleting a highlight in the app does not remember
+   it: importing its file again brings it back.
 
 ## findings.json (version 1)
 

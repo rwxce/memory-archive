@@ -40,7 +40,18 @@ fingerprints plus the user's summaries, never the chat itself. Full reference:
 3. **Validate**: `pnpm cli check-findings output/research/findings.json`. It prints
    `path: message` lines and no chat content, so you may read its output. Fix by telling the
    user which paths to correct or re-run the LLM on those; do not open the file to edit it.
-4. **Import** into the app: not available yet (planned PR B: "Destacats"). Say so.
+4. **Import** into the app (user, in the PWA): open the person, then Highlights, then the import
+   card, and pick `findings.json`. The file is read locally; an invalid file lists only JSON
+   paths and fixed messages. The target conversation is preselected when it is named like the
+   file, otherwise the user chooses. The result shows added, updated, unchanged and skipped
+   counts plus warnings (message count differs, first message not found). Skipped
+   fingerprints are ones not in the archive (the chat was not imported, or is a different
+   export). Re-importing the same file is safe: highlights are matched by `id`, so an edited
+   file updates them and an unchanged one changes nothing. A highlight the user deleted comes
+   back on re-import. Highlights travel in full backups and restores.
+   - To update a finding, keep its `id` and change the text; to remove one for good, delete it
+     in the app and drop it from the file before importing again.
+   - Opening a highlight lands on the day of its first message, not the exact message.
 
 ## Good highlights (advice for the prompt)
 

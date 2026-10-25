@@ -1,4 +1,4 @@
-import { isSha256Hex } from './library';
+import { isSha256Hex, type MessageType } from './library';
 
 /**
  * `findings.json` version 1: the file a person (or a tool they run outside the app) hands to
@@ -213,4 +213,63 @@ export function parseFindings(input: unknown): FindingsResult {
 
   if (errors.length > 0 || !conversation) return { ok: false, errors };
   return { ok: true, value: { version: FINDINGS_VERSION, conversation, highlights } };
+}
+
+/** Largest `findings.json` text accepted (UTF-16 code units): above the biggest valid file. */
+export const MAX_FINDINGS_TEXT = 32 * 1024 * 1024;
+
+/** `JSON.parse` + `parseFindings` for the raw text of a file. Never throws; errors carry no file content. */
+export function parseFindingsText(text: string): FindingsResult {
+  if (typeof text !== 'string' || text.length > MAX_FINDINGS_TEXT) {
+    return { ok: false, errors: [{ code: 'too-long', path: '', message: 'The file is too large.' }] };
+  }
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return { ok: false, errors: [{ code: 'not-object', path: '', message: 'The file is not valid JSON.' }] };
+  }
+  return parseFindings(json);
+}
+
+// ------------------------------------------------------------------ stored highlights
+
+/** A stored highlight with what a list needs. Untrusted text: title, summary, author, conversation title. */
+export interface HighlightItem {
+  id: string;
+  conversationId: string;
+  conversationTitle: string;
+  category: HighlightCategory;
+  title: string;
+  summary: string;
+  createdBy: string;
+  /** The instant the author wrote in the file. */
+  createdAt: string;
+  importedAt: string;
+  /** How many of its messages are in the archive now. */
+  messageCount: number;
+  /** Local time of its earliest message in the archive; lists are ordered by it. */
+  firstSentAt: string;
+}
+
+/** One message of a highlight, in the order the author listed them. `id` is the local id (to open it). */
+export interface HighlightMessage {
+  id: number;
+  sentAt: string;
+  type: MessageType;
+  participantName: string | null;
+  isMe: boolean;
+  body: string;
+  mediaName: string;
+}
+
+/** What an import did, counted per highlight. */
+export interface HighlightImportCounts {
+  imported: number;
+  updated: number;
+  unchanged: number;
+  /** Highlights left out because none of their messages is in the conversation (ids, in file order). */
+  skippedHighlights: string[];
+  /** Fingerprints of the file (counted per highlight) that are not in the conversation. */
+  skippedFingerprints: number;
 }

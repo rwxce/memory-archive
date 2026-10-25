@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { FINDINGS_LIMITS, parseFindings } from './highlights';
+import { FINDINGS_LIMITS, MAX_FINDINGS_TEXT, parseFindings, parseFindingsText } from './highlights';
 
 const FP = 'a'.repeat(64);
 
@@ -123,5 +123,14 @@ describe('parseFindings', () => {
   test('does not mutate or trust prototype keys', () => {
     const r = parseFindings(JSON.parse('{"version":1,"__proto__":{"x":1},"conversation":{"name":"n","messageCount":0},"highlights":[]}'));
     expect(r.ok).toBe(true);
+  });
+});
+
+describe('parseFindingsText', () => {
+  test('parses valid text and never throws on bad text', () => {
+    expect(parseFindingsText(JSON.stringify(valid()))).toMatchObject({ ok: true });
+    expect(parseFindingsText('{ nope')).toMatchObject({ ok: false, errors: [{ message: 'The file is not valid JSON.' }] });
+    expect(parseFindingsText('null')).toMatchObject({ ok: false });
+    expect(parseFindingsText('x'.repeat(MAX_FINDINGS_TEXT + 1))).toMatchObject({ ok: false, errors: [{ code: 'too-long' }] });
   });
 });

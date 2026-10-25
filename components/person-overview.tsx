@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { ImageOff, Images, NotebookPen, Play, Star } from 'lucide-react';
+import { Highlighter, ImageOff, Images, NotebookPen, Play, Star } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useNearViewport } from '@/hooks/use-near-viewport';
 import { useTileImage } from '@/hooks/use-tile-image';
@@ -156,6 +156,13 @@ export function PersonBento({ personId, overview }: { personId: string; overview
         <span>
           <span className="block text-[15px] font-semibold">{t('sectionNotes')}</span>
           {overview && <span className="text-t2 block text-[13px]">{number.format(overview.notes)}</span>}
+        </span>
+      </Link>
+      <Link href={`/person/highlights?id=${id}`} className={cn(card, 'bg-mint col-span-full flex items-center gap-2.5 rounded-[20px] p-3.5 lg:col-span-1')}>
+        <Highlighter className="text-ink size-[22px] shrink-0" aria-hidden />
+        <span>
+          <span className="block text-[15px] font-semibold">{t('sectionHighlights')}</span>
+          {overview && <span className="text-t2 block text-[13px]">{number.format(overview.highlights)}</span>}
         </span>
       </Link>
       </div>
