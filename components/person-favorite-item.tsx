@@ -4,10 +4,13 @@ import { FileText, Image as ImageIcon, Mic, Star, Video } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/navigation';
+import type { PhraseTarget } from '@/hooks/use-phrase';
 import type { PersonTimelineMessage } from '@/lib/domain/library';
+import { conversationHref } from './conversation-link';
 import { formatDayTime } from './format';
 import { isMediaMessage } from './message-media';
 import { PersonAvatar } from './person-avatar';
+import { PhraseAction } from './phrase-action';
 
 const KIND_ICON = { photo: ImageIcon, sticker: ImageIcon, video: Video, audio: Mic, document: FileText } as const;
 const KINDS = ['photo', 'sticker', 'video', 'audio', 'document'] as const;
@@ -34,12 +37,12 @@ export function MediaLine({ message }: { message: PersonTimelineMessage }) {
  * name of the file), a star to remove it from favorites and the way to the message. Text, names and
  * titles are untrusted and only ever rendered as text.
  */
-export function PersonFavoriteItem({ item, personId, onRemove }: { item: PersonTimelineMessage; personId: string; onRemove: (item: PersonTimelineMessage) => void }) {
+export function PersonFavoriteItem({ item, personId, phraseTarget, onRemove }: { item: PersonTimelineMessage; personId: string; phraseTarget?: PhraseTarget; onRemove: (item: PersonTimelineMessage) => void }) {
   const t = useTranslations('personFavorites');
   const locale = useLocale();
   const when = formatDayTime(item.sentAt, locale);
   const author = item.isMe ? t('you') : item.participantName || t('unknownAuthor');
-  const href = `/conversation?id=${encodeURIComponent(item.conversationId)}&from=${encodeURIComponent(personId)}&date=${item.sentAt.slice(0, 10)}`;
+  const href = conversationHref({ conversationId: item.conversationId, personId, sentAt: item.sentAt, messageId: item.id, back: 'favorites' });
   return (
     <li className="bg-sf flex flex-col gap-2 rounded-[20px] px-4 py-3.5 lg:in-data-panel:bg-bg">
       <div className="flex items-center gap-2">
@@ -76,6 +79,11 @@ export function PersonFavoriteItem({ item, personId, onRemove }: { item: PersonT
         <p className="text-[15px] leading-normal break-words whitespace-pre-line" dir="auto">
           {item.body}
         </p>
+      )}
+      {phraseTarget && (
+        <div className="flex flex-col gap-1">
+          <PhraseAction body={item.body} target={phraseTarget} />
+        </div>
       )}
       <Link
         href={href}

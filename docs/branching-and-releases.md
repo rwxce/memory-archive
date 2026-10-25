@@ -16,6 +16,9 @@
 
 ## Releasing
 
+`/pr-ship` runs all of this on autopilot for agents (plus the task PR before it); invoking it
+is the explicit request to merge the release PR into `main`.
+
 1. Bump `version` in `package.json` on `dev` (semver; still `0.x` until the Memory Archive app
    reaches its first complete release).
 2. Open a PR `dev` → `main` titled exactly `release: vX.Y.Z`.

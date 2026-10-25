@@ -38,3 +38,6 @@ playwright-report/
 
 # Playwright MCP scratch
 .playwright-mcp/
+
+# Highlights research export (chat content, never commit)
+research/

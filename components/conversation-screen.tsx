@@ -13,17 +13,18 @@ import { PersonAvatar } from '@/components/person-avatar';
 import { PillButton } from '@/components/pill-button';
 import { SectionCard } from '@/components/section-card';
 import { FeedShell, Shell } from '@/components/screen-shell';
-import { isDateParam, useConversation, type OpenConversation } from '@/hooks/use-conversation';
+import { isDateParam, parseMessageParam, useConversation, type OpenConversation } from '@/hooks/use-conversation';
 import { useLibrary, useLibraryDeps } from '@/hooks/use-library';
 import { Link } from '@/i18n/navigation';
-import { findMessageOffsetByDate, getMessageWindow, listConversationDays } from '@/lib/usecases/conversation-view';
+import { findMessageOffsetByDate, findMessageOffsetById, getMessageWindow, listConversationDays } from '@/lib/usecases/conversation-view';
+import { parseBackParam } from './conversation-link';
 import { formatNames } from './format';
 import { yearSpan } from './person-meta';
 
 /**
  * One conversation: its title, who it is kept under, how many messages and from when to when, and
  * the virtualized message feed. The conversation is chosen by `?id=` (a static export has no
- * dynamic routes); `?date=YYYY-MM-DD` opens at that day and `?from=` is the person to go back to.
+ * dynamic routes); `?date=YYYY-MM-DD` opens at that day, `?message=` (a local message id) then scrolls to that message and marks it, and `?from=` is the person to go back to.
  * An id that matches nothing gets a calm "not found", never an error.
  */
 export function ConversationScreen() {
@@ -47,6 +48,8 @@ function ConversationContent({ onRetry }: { onRetry: () => void }) {
   const id = params.get('id');
   const date = params.get('date');
   const from = params.get('from');
+  const backTo = parseBackParam(params.get('back'));
+  const messageId = parseMessageParam(params.get('message'));
   const { state, retry } = useConversation(id, isDateParam(date) ? date : null);
 
   if (state.status === 'loading') {
@@ -86,8 +89,9 @@ function ConversationContent({ onRetry }: { onRetry: () => void }) {
   const { view, people } = conversation;
   const back = people.find((person) => person.id === from) ?? people[0];
   const span = yearSpan({ firstMessageAt: view.bounds.firstSentAt, lastMessageAt: view.bounds.lastSentAt });
-  const backHref = back ? `/person?id=${encodeURIComponent(back.id)}` : '/people';
-  const backLabel = back ? t('back', { name: back.name }) : tn('tabs.people');
+  const section = back && backTo ? backTo : null;
+  const backHref = back ? `/person${section ? `/${section}` : ''}?id=${encodeURIComponent(back.id)}` : '/people';
+  const backLabel = back ? (section === 'highlights' ? t('backHighlights', { name: back.name }) : section === 'favorites' ? t('backFavorites', { name: back.name }) : t('back', { name: back.name })) : tn('tabs.people');
 
   return (
     <FeedShell>
@@ -122,13 +126,13 @@ function ConversationContent({ onRetry }: { onRetry: () => void }) {
         </Link>
         <ConversationNote key={view.conversation.id} conversationId={view.conversation.id} />
       </header>
-      <ConversationFeed key={view.conversation.id} conversation={conversation} />
+      <ConversationFeed key={view.conversation.id} conversation={conversation} messageId={messageId} />
     </FeedShell>
   );
 }
 
 /** The conversation's feed: its own reads, handed to the shared body. */
-function ConversationFeed({ conversation }: { conversation: OpenConversation }) {
+function ConversationFeed({ conversation, messageId }: { conversation: OpenConversation; messageId: number | null }) {
   const t = useTranslations('conversation');
   const deps = useLibraryDeps()!;
   const { view, start } = conversation;
@@ -144,9 +148,10 @@ function ConversationFeed({ conversation }: { conversation: OpenConversation }) 
       start,
       readWindow: (offset, limit) => getMessageWindow(deps, id, offset, limit),
       findOffset: (date) => findMessageOffsetByDate(deps, id, date),
+      findMessageOffset: (message) => findMessageOffsetById(deps, id, message),
       listDays: () => listConversationDays(deps, id),
     }),
     [deps, id, title, view.bounds, start, t],
   );
-  return <ConversationBody source={source} />;
+  return <ConversationBody source={source} messageId={messageId} />;
 }

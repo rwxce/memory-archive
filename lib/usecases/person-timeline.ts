@@ -28,6 +28,11 @@ export function findPersonTimelineOffsetByDate(deps: LibraryDeps, profileId: str
   return deps.client.call('findPersonTimelineOffsetByDate', { profileId, date });
 }
 
+/** Offset of one message in the person's timeline (0-based); `null` when it is not in it. */
+export function findPersonTimelineOffsetById(deps: LibraryDeps, profileId: string, messageId: number): Promise<number | null> {
+  return deps.client.call('findPersonTimelineOffsetById', { profileId, messageId });
+}
+
 /** Days that have messages, with counts and first offsets. */
 export function listPersonTimelineDays(deps: LibraryDeps, profileId: string): Promise<ConversationDay[]> {
   return deps.client.call('listPersonTimelineDays', { profileId });

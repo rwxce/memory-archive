@@ -15,6 +15,7 @@ import { DetailsButton, MessageDetails } from './message-details';
 import { isMediaMessage, MessageMedia } from './message-media';
 import { NoteButton } from './note-button';
 import { NoteEditor } from './note-editor';
+import { withEmojiPresentation } from './emoji';
 import { senderHue } from './sender-color';
 
 const day = (stamp: string) => stamp.slice(0, 10);
@@ -29,7 +30,7 @@ function RichText({ text }: { text: string }) {
     <>
       {parts.map((part, i) =>
         part.kind === 'text' ? (
-          part.text
+          withEmojiPresentation(part.text)
         ) : (
           <a
             key={i}
@@ -59,6 +60,8 @@ export interface MessageRowProps {
   conversationTitle?: string;
   conversationHref?: string;
   rowRef: (element: HTMLElement | null) => void | (() => void);
+  /** The message a link pointed at: `true` while it carries the ring, `false` once the ring fades; `undefined` for every other row. */
+  marked?: boolean;
   /** The star was pressed on a message (not offered on notices). */
   onToggleFavorite?: (message: ConversationMessage) => void;
   /** Unsaved note text by `conversationId:messageId`; a row that remounts opens its note again when it has a draft. */
@@ -76,7 +79,7 @@ const rowClass = 'absolute inset-x-0 top-0 px-3 py-0.5 sm:px-4';
  * quiet centered notice. The article carries its place in the feed and an accessible name with the
  * author and the time.
  */
-export const MessageRow = memo(function MessageRow({ conversationId, index, count, top, message, previous, conversationTitle, conversationHref, rowRef, onToggleFavorite, noteDrafts, onNoteChanged }: MessageRowProps) {
+export const MessageRow = memo(function MessageRow({ conversationId, index, count, top, message, previous, conversationTitle, conversationHref, rowRef, marked, onToggleFavorite, noteDrafts, onNoteChanged }: MessageRowProps) {
   const t = useTranslations('conversation');
   const locale = useLocale();
   const newDay = previous === null || day(previous.sentAt) !== day(message.sentAt);
@@ -109,7 +112,16 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
       <span className="sr-only">{t('openFromTimeline')}</span>
     </Link>
   );
-  const common = { 'data-index': index, ref: rowRef, 'aria-posinset': index + 1, 'aria-setsize': count, style: rowStyle(top), className: rowClass };
+  const common = {
+    'data-index': index,
+    ref: rowRef,
+    'aria-posinset': index + 1,
+    'aria-setsize': count,
+    style: rowStyle(top),
+    // The linked message can take focus (not by Tab) so the reader and the keyboard land on it; the row flashes once (see .jump-flash).
+    ...(marked === undefined ? {} : { tabIndex: -1 }),
+    className: cn(rowClass, marked !== undefined && 'rounded-2xl outline-none', marked === true && 'jump-flash'),
+  };
 
   if (notice) {
     const fallback = message.type === 'deleted' ? t('deleted') : message.type === 'omitted' ? t('omitted') : '';
@@ -154,7 +166,7 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
           {media && <MessageMedia message={message} />}
           <div className={cn('flex flex-wrap items-end justify-end gap-x-3', media && 'px-2 pb-0.5')}>
             {message.body !== '' && (
-              <p dir="auto" className="max-w-full min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
+              <p dir="auto" className="max-w-full min-w-0 whitespace-pre-wrap [font-variant-emoji:emoji] [overflow-wrap:anywhere]">
                 <RichText text={message.body} />
               </p>
             )}
@@ -184,7 +196,7 @@ export const MessageRow = memo(function MessageRow({ conversationId, index, coun
           />
         </div>
       )}
-      {open && <MessageDetails id={panelId} align={message.isMe ? 'end' : 'start'} state={source.state} onRetry={source.retry} />}
+      {open && <MessageDetails id={panelId} align={message.isMe ? 'end' : 'start'} state={source.state} onRetry={source.retry} conversationId={conversationId} body={message.body} />}
     </article>
   );
 });

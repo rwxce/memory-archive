@@ -98,7 +98,11 @@
       "**/_chat.txt": "deny",
       // Android exports are named "WhatsApp Chat with <name>.txt".
       "WhatsApp Chat*.txt": "deny",
-      "**/WhatsApp Chat*.txt": "deny"
+      "**/WhatsApp Chat*.txt": "deny",
+      // Highlights research export (JSONL of one chat). The only chat content an
+      // agent may read, and only when the user asked for highlights research in this session;
+      // every read still asks. See the privacy rule in CLAUDE.md.
+      "research/": "ask"
     }
   },
   // Codex CLI prefix rules match literal words (only a trailing " *" is a wildcard), so the

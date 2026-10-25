@@ -65,15 +65,15 @@
       "name": "Name",
       "relationship": "Relationship (optional)",
       "relationshipHint": "For example: mother, friend, partner.",
-      "description": "Notes (optional)",
-      "descriptionHint": "Anything you want to remember about them.",
+      "description": "Phrase (optional)",
+      "descriptionHint": "A line of theirs you want to keep in view.",
       "create": "Add person",
       "save": "Save changes",
       "cancel": "Cancel",
       "nameRequired": "Write a name to continue.",
       "nameTooLong": "The name can have up to {max} characters.",
       "relationshipTooLong": "The relationship can have up to {max} characters.",
-      "descriptionTooLong": "The notes can have up to {max} characters.",
+      "descriptionTooLong": "The phrase can have up to {max} characters.",
       "invalidText": "Some of the text cannot be saved. Remove unusual characters and try again.",
       "saveFailed": "It could not be saved. Nothing was changed. Try again."
     },
@@ -555,6 +555,8 @@
     "eyebrow": "Your archive"
   },
   "conversation": {
+    "backHighlights": "Back to {name}'s highlights",
+    "backFavorites": "Back to {name}'s favorites",
     "back": "Back to {name}",
     "notFoundTitle": "We could not find this conversation",
     "notFoundBody": "The link may be out of date. Nothing was deleted.",
@@ -569,6 +571,7 @@
     "toEnd": "Latest",
     "date": "Go to date",
     "jumped": "Showing the first message on or after {date}.",
+    "jumpedToMessage": "Message from {date}.",
     "noneAfter": "There are no messages on or after {date}.",
     "loadingMessages": "Loading messages…",
     "pagesFailed": "Some messages could not be read. Nothing was deleted.",
@@ -737,7 +740,7 @@
     "all": "All",
     "category": {
       "moment": "Moments",
-      "pattern": "Patterns",
+      "pattern": "Rituals",
       "interest": "Interests"
     },
     "groupTitle": "{category} ({count})",
@@ -757,7 +760,22 @@
     "shown": "Showing {shown} of {total}",
     "showMore": "Show more",
     "loadingMore": "Loading more…",
-    "moreFailed": "Some highlights could not be read. Nothing was deleted."
+    "moreFailed": "Some highlights could not be read. Nothing was deleted.",
+    "showMessages": "Show messages ({count})",
+    "hideMessages": "Hide messages",
+    "messagesLoading": "Loading messages…",
+    "messagesFailed": "The messages could not be read. Nothing was deleted.",
+    "messagesLabel": "Messages in “{title}”",
+    "messageOpen": "Open the message from {author}, {when}",
+    "showAllMessages": "Show all {count}",
+    "you": "You",
+    "unknownAuthor": "Unknown sender",
+    "deleteAll": "Delete all",
+    "deleteAllTitle": "Delete all highlights of {name}?",
+    "deleteAllBody": "All {count, plural, one {# highlight} other {# highlights}} about {name} will be deleted from this device. The messages stay in their conversations. You can import the findings file again afterwards to bring them back.",
+    "deleteAllConfirm": "Delete all",
+    "deleteAllFailed": "The highlights could not be deleted. Nothing was changed.",
+    "deletedAll": "{count, plural, =0 {There were no highlights to delete.} one {# highlight deleted.} other {# highlights deleted.}} The messages stay in their conversations. You can import the file again."
   },
   "highlightsImport": {
     "title": "Import highlights",
@@ -856,5 +874,16 @@
   },
   "subpage": {
     "backTo": "Back to"
+  },
+  "phrase": {
+    "action": "Use as {name}'s phrase",
+    "title": "Change {name}'s phrase?",
+    "body": "{name} already has a phrase. If you continue, it is replaced by this message. The original message is not touched.",
+    "current": "Current phrase",
+    "confirm": "Change phrase",
+    "cancel": "Cancel",
+    "saved": "{name}'s phrase was saved.",
+    "failed": "{name}'s phrase could not be saved. Nothing was changed.",
+    "saving": "Saving…"
   }
 }

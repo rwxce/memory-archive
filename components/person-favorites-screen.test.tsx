@@ -121,7 +121,10 @@ describe('PersonFavoritesScreen', () => {
 
   test('"Open in conversation" goes to that message\'s day, coming from the person', async () => {
     const { person } = await open(seed);
-    const links = [...view!.container.querySelectorAll('section li a')].map((a) => a.getAttribute('href'));
+    const hrefs = [...view!.container.querySelectorAll('section li a')].map((a) => a.getAttribute('href')!);
+    // each link names the exact message (its local id) and keeps the day for older readers
+    expect(hrefs.every((h) => /&message=[1-9]\d*&back=favorites$/.test(h))).toBe(true);
+    const links = hrefs.map((h) => h.replace(/&message=\d+&back=favorites$/, ''));
     expect(links).toEqual([
       `/conversation?id=${PRIVATE}&from=${person.id}&date=2026-02-11`,
       `/conversation?id=${PRIVATE}&from=${person.id}&date=2026-02-13`,
@@ -206,5 +209,29 @@ describe('PersonFavoritesScreen', () => {
   test('is translated', async () => {
     await open(seed, undefined, ca);
     expect(view!.container.querySelector('h1')?.textContent).toBe(ca.personFavorites.title);
+  });
+
+  test('"Use as phrase" sets the person\'s phrase from a favorite, asks before replacing, and is absent on a favorite without text', async () => {
+    const { lib, person } = await open(async (l) => {
+      const ana = await seed(l);
+      const photoOnly = uuid(0x22);
+      await load(l, photoOnly, 'Photos', ana.id, [msg('2026-04-02T10:00:00', { type: 'photo', mediaSha256: SHA, mediaName: 'IMG-2.jpg', body: '' })]);
+      await star(l, photoOnly, ['*photo']);
+      return ana;
+    });
+    const buttons = () => [...view!.container.querySelectorAll('button')].filter((b) => b.textContent === "Use as Ana's phrase");
+    expect(buttons()).toHaveLength(3);
+    await click(buttons()[2]);
+    await settle();
+    const phrase = async () => (await lib.client.call('getProfile', { id: person.id }))?.description;
+    expect(await phrase()).toBe('from the group');
+    expect(text()).toContain("Ana's phrase was saved.");
+    await click(buttons()[0]);
+    const dialog = view!.container.querySelector('dialog')!;
+    expect(dialog.textContent).toContain('from the group');
+    expect(await phrase()).toBe('from the group');
+    await click([...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Change phrase')!);
+    await settle();
+    expect(await phrase()).toBe(HOSTILE);
   });
 });

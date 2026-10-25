@@ -67,7 +67,7 @@ test('search from People: accents ignored, matches marked, a result opens its co
   await expect(list.getByRole('listitem')).toHaveCount(1);
   const open = list.getByRole('link');
   await open.click();
-  await expect(page).toHaveURL(/\/en\/conversation\/\?id=[0-9a-f-]{36}&date=2026-03-18$/);
+  await expect(page).toHaveURL(/\/en\/conversation\/\?id=[0-9a-f-]{36}&date=2026-03-18&message=[0-9]+$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Ana i Bo' })).toBeVisible();
 
   // Back returns to the search with the query
@@ -85,7 +85,7 @@ test('search from a person and from a conversation is scoped, and can widen', as
   await field.fill('platja');
   const list = page.getByRole('list', { name: 'Search results' });
   await expect(list.getByRole('listitem')).toHaveCount(1);
-  await expect(list.getByRole('link').first()).toHaveAttribute('href', /\/en\/conversation\/\?id=[0-9a-f-]{36}&from=[0-9a-f-]{36}&date=2026-03-18$/);
+  await expect(list.getByRole('link').first()).toHaveAttribute('href', /\/en\/conversation\/\?id=[0-9a-f-]{36}&from=[0-9a-f-]{36}&date=2026-03-18&message=[0-9]+$/);
   if (process.env.E2E_SHOTS) await page.screenshot({ path: `${process.env.E2E_SHOTS}/search-scoped-${testInfo.project.name}.png` });
   await page.getByRole('button', { name: 'Everyone' }).click();
   await expect(page.getByRole('button', { name: 'Everyone' })).toHaveAttribute('aria-pressed', 'true');

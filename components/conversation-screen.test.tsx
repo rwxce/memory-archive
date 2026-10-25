@@ -4,6 +4,7 @@ import en from '@/messages/en.json';
 import ca from '@/messages/ca.json';
 import { createSyntheticConversation } from '@/lib/db/synthetic-archive';
 import type { NewMessage } from '@/lib/domain/library';
+import { getMessageWindow } from '@/lib/usecases/conversation-view';
 import { createProfile } from '@/lib/usecases/profiles';
 import { createTestLibrary } from '@/lib/usecases/test-client';
 import { MAX_PAGES, PAGE_SIZE } from '@/hooks/message-pages';
@@ -113,6 +114,28 @@ describe('ConversationScreen', () => {
     const searchLink = header.querySelector<HTMLAnchorElement>('a[href^="/search?conversation="]')!;
     expect(searchLink.getAttribute('aria-label')).toBe('Search in this conversation');
     expect(searchLink.getAttribute('href')).toMatch(/^\/search\?conversation=[0-9a-f-]{36}$/);
+  });
+
+  test('?back= returns to the Highlights or Favorites of the person; any other value is ignored (never a path)', async () => {
+    const ana = { id: '' };
+    await open(async (lib) => void Object.assign(ana, (await seed(lib, [text(1)])).ana));
+    const backLink = () => view!.container.querySelector('header a')!;
+    const reopen = async (extra: string) => {
+      const lib = view!.lib;
+      view!.unmount();
+      search = `id=${CONV}&from=${ana.id}${extra}`;
+      view = await renderWithLibrary(<ConversationScreen />, { lib });
+      await settle();
+    };
+    await reopen('&back=highlights');
+    expect(backLink().getAttribute('href')).toBe(`/person/highlights?id=${ana.id}`);
+    expect(backLink().textContent).toBe("Back to Ana M.'s highlights");
+    await reopen('&back=favorites');
+    expect(backLink().getAttribute('href')).toBe(`/person/favorites?id=${ana.id}`);
+    for (const bad of ['https://evil.example', '//evil.example', '/people', 'timeline', '']) {
+      await reopen(`&back=${encodeURIComponent(bad)}`);
+      expect(backLink().getAttribute('href')).toBe(`/person?id=${ana.id}`);
+    }
   });
 
   test('a conversation that is not assigned says so and goes back to People', async () => {
@@ -273,6 +296,29 @@ describe('virtualization', () => {
     await open(synthetic(20_000), `id=${CONV}&date=2020-02-01`);
     expect(feed().scrollTop).toBe(6_200 * ROW);
     expect(positions()).toContain(6_201);
+  });
+
+  test('?message= scrolls to that message, marks and focuses it and says so; an invalid id is ignored', async () => {
+    await open(synthetic(20_000), `id=${CONV}&date=2020-02-01`);
+    const [target] = await getMessageWindow(view!.lib.deps, CONV, 12_000, 1);
+    view!.unmount();
+    search = `id=${CONV}&date=2020-02-01&message=${target.id}`;
+    view = await renderWithLibrary(<ConversationScreen />, { lib: view!.lib });
+    await settle();
+    expect(feed().scrollTop).toBe(12_000 * ROW);
+    const row = feed().querySelector<HTMLElement>('[data-index="12000"]')!;
+    expect(row.className).toContain('jump-flash');
+    expect(document.activeElement).toBe(row);
+    expect(view!.container.querySelector('[role="status"]')!.textContent).toMatch(/^Message from /);
+
+    for (const bad of ['abc', '0', '-1', `${target.id}x`, '99999999']) {
+      view!.unmount();
+      search = `id=${CONV}&date=2020-02-01&message=${bad}`;
+      view = await renderWithLibrary(<ConversationScreen />, { lib: view!.lib });
+      await settle();
+      expect(feed().scrollTop).toBe(6_200 * ROW);
+      expect(feed().querySelector('.jump-flash')).toBeNull();
+    }
   });
 
   test('where the person left off is restored when they come back', async () => {

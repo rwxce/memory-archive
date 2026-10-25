@@ -58,6 +58,11 @@ export function findMessageOffsetByDate(deps: LibraryDeps, conversationId: strin
   return deps.client.call('findMessageOffsetByDate', { conversationId, date });
 }
 
+/** Offset of one message in the conversation (0-based); `null` when it is not in that conversation. */
+export function findMessageOffsetById(deps: LibraryDeps, conversationId: string, messageId: number): Promise<number | null> {
+  return deps.client.call('findMessageOffsetById', { conversationId, messageId });
+}
+
 /** The import (file/label, date) that first added a message; `not-found` if it is not in that conversation. */
 export function getMessageSource(deps: LibraryDeps, conversationId: string, messageId: number): Promise<MessageSource> {
   return deps.client.call('getMessageSource', { conversationId, messageId });

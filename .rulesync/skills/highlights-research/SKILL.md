@@ -1,9 +1,9 @@
 ---
 name: highlights-research
 description: >-
-  Guide the user through researching a chat for key moments, patterns and messages of
-  interest with an external LLM CLI (Claude Code, Codex CLI), producing a findings.json
-  keyed by message fingerprint. Use when the user wants to find highlights, important
+  Research a chat for key moments, patterns, messages of interest and candidate profile
+  phrases, either in this session (only when the user explicitly asks) or with an external LLM
+  CLI, producing a findings.json keyed by message fingerprint for the app's Highlights section. Use when the user wants to find highlights, important
   moments, patterns or messages worth keeping in a conversation, or asks how to prepare
   or validate a findings file for import into the app.
 targets: ["*"]
@@ -18,30 +18,41 @@ fingerprints plus the user's summaries, never the chat itself. Full reference:
 
 ## Hard rules
 
-- **You never read the chat.** Real exports, `output/research/*.jsonl` and `*.meta.json`
-  are chat content: do not open, cat, grep or paste them (project privacy rule; `output/` is
-  read-denied). The LLM that analyses the chat is a separate session the user starts
-  themselves, outside this repo.
-- Tell the user, before step 1, that the analysing LLM sees their chat text and it leaves
-  their device. Proceed only once they have acknowledged it.
+- **You read the chat only on an explicit request.** `research/*.jsonl` and `*.meta.json` are
+  chat content. Read them only when the user asked for highlights research in this session
+  (the project privacy rule's one exception; every read asks). Never read the ZIP,
+  `_chat.txt`, `data/` or `output/`. Never copy chat text anywhere but `research/findings.json`:
+  not into commits, PRs, docs, tests, memory or chat replies beyond a short title per finding.
+- Tell the user, before step 1, that whoever analyses the chat (you, or their external LLM) sends
+  its text to the model provider and it leaves their device. Proceed only once they have
+  acknowledged it.
 - Tests, demos and examples use synthetic fixtures only (`scripts/generate-fixtures.mjs`).
-- Never commit research files; remind the user to delete `output/research/` when done.
+- Never commit research files. Delete `research/` once the user has imported the findings.
 - Fingerprints are copied verbatim, never invented or edited.
 
 ## Steps
 
 1. **Export** (local, offline): `pnpm cli export-for-research "<chat>.zip"` →
-   `output/research/<chat>.jsonl` + `<chat>.meta.json`. Running it is fine; just do not read
-   what it wrote. Report only the printed counts/paths.
-2. **Analyse** (user, external LLM CLI): hand over the sample prompt from
-   `docs/research-workflow.md`. Offer to tailor the prompt (focus on a period, a person, a
-   theme; language of the summaries) but keep the output contract: version 1, categories
-   `moment` | `pattern` | `interest`, 1-200 fingerprints per highlight, stable unique ids.
-3. **Validate**: `pnpm cli check-findings output/research/findings.json`. It prints
+   `research/<chat>.jsonl` + `<chat>.meta.json`. The user gives the ZIP path; never open the ZIP
+   yourself. Report only the printed counts/paths.
+2. **Analyse**, one of:
+   - **In this session** (the user asked you to): read the JSONL in chunks (it can be long) and
+     write `research/findings.json` per the contract below. Ask the user first what to focus on
+     (a period, a theme, the summaries' language) if they have not said.
+   - **External LLM CLI**: hand over the sample prompt from `docs/research-workflow.md`, run in
+     a folder outside the repo.
+
+   Contract either way: version 1, `conversation` copied from `<chat>.meta.json`, categories
+   `moment` | `pattern` | `interest`, 1-200 fingerprints per highlight copied verbatim, stable
+   unique ids. Also propose up to 3 **candidate phrases** for the person's profile: each an
+   `interest` highlight titled `Frase candidata: …` (in the chat's language) with exactly one
+   message, a short and characteristic message the person wrote. The user can then set it as the
+   person's phrase from that message in the app.
+3. **Validate**: `pnpm cli check-findings research/findings.json`. It prints
    `path: message` lines and no chat content, so you may read its output. Fix by telling the
-   user which paths to correct or re-run the LLM on those; do not open the file to edit it.
-4. **Import** into the app (user, in the PWA): open the person, then Highlights, then the import
-   card, and pick `findings.json`. The file is read locally; an invalid file lists only JSON
+   user which paths to correct or re-run the LLM on those (or fix them yourself if you wrote it).
+4. **Import** into the app (user, in the PWA): open the person, then the **Destacats /
+   Highlights** card on their page, then the import card, and pick `findings.json`. The file is read locally; an invalid file lists only JSON
    paths and fixed messages. The target conversation is preselected when it is named like the
    file, otherwise the user chooses. The result shows added, updated, unchanged and skipped
    counts plus warnings (message count differs, first message not found). Skipped

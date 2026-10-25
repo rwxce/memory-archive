@@ -58,11 +58,11 @@ export function CalendarDayGrid({
   };
 
   return (
-    <table role="grid" aria-label={label} onKeyDown={move} className="w-full table-fixed border-separate border-spacing-1">
+    <table role="grid" aria-label={label} onKeyDown={move} className="w-full table-fixed border-separate border-spacing-0.5">
       <thead>
         <tr>
           {weekdays(locale).map((day) => (
-            <th key={day.long} scope="col" abbr={day.long} className="text-mu pb-1 text-xs font-normal">
+            <th key={day.long} scope="col" abbr={day.long} className="text-mu pb-0.5 text-xs font-normal">
               <span aria-hidden>{day.short}</span>
               <span className="sr-only">{day.long}</span>
             </th>

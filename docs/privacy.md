@@ -58,3 +58,7 @@ The CLI writes only to the output folder the user chooses.
   `scripts/generate-fixtures.mjs`.
 - `fixtures/`, `output/`, `backup/`, `data/`, `*.zip` and `_chat.txt` are hidden from AI agents
   (`.rulesync/.aiignore`).
+- One exception: `research/`, the JSONL that `pnpm cli export-for-research` writes. An agent may
+  read it only when the user explicitly asks for highlights research in that session, each read
+  asks for permission, and chat text never goes anywhere but `research/findings.json`. The text
+  is sent to the model provider while the agent reads it. See `docs/research-workflow.md`.
