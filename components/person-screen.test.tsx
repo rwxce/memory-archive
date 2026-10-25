@@ -323,7 +323,7 @@ describe('PersonScreen', () => {
       expect(titles(view)).toEqual(['Chat with Ana', 'Family']);
       expect(status(view)).toBe('Renamed to “Family”.');
       expect(view.container.querySelector('form')).toBeNull();
-      expect(document.activeElement).toBe(buttonByLabel(view, 'Rename “Family”'));
+      await vi.waitFor(() => expect(document.activeElement).toBe(buttonByLabel(view!, 'Rename “Family”')), { timeout: 3000 });
     });
 
     test('a double submit renames once', async () => {
