@@ -212,7 +212,7 @@ When a task matches an agent's domain, you MUST use that agent.
 
 **Data-layer work is never implemented inline: delegate to `core-architect`.**
 
-Skills: `debugging`, `interview-me`, `pr-scope`, `pr-review`, `security-audit`, `rulesync`.
+Skills: `debugging`, `highlights-research`, `interview-me`, `pr-scope`, `pr-review`, `security-audit`, `rulesync`.
 
 ## Verification
 

@@ -275,7 +275,8 @@ test type or architecture rule means updating this file **in the same PR**.
     controls (WhatsApp wraps unsaved-number authors in them), reject control characters and
     lone surrogates, and required ones need a visible character; `FieldError`),
     `library.ts` (profile / conversation / message types, `isUuid`, `isSha256Hex`,
-    `isLocalTimestamp`, `MESSAGE_TYPES`), `fingerprint.ts` (message fingerprints, see below), `sha256.ts` (`createSha256`: incremental SHA-256 in
+    `isLocalTimestamp`, `MESSAGE_TYPES`), `fingerprint.ts` (message fingerprints, see below), `highlights.ts` (`findings.json` v1 types and
+    the untrusted-input validator `parseFindings`; not stored by the app yet), `sha256.ts` (`createSha256`: incremental SHA-256 in
     plain TS, pinned by NIST vectors; WebCrypto has no incremental digest, so this is how
     media is hashed while it streams, with no dependency).
   - `lib/db/` — the only code that issues SQL. `sql.ts` (`SqlDb`: the narrow sync surface
@@ -359,7 +360,10 @@ test type or architecture rule means updating this file **in the same PR**.
     `json.ts`, `md.ts`, `html.ts`, `media.ts` (media map, MIME), `colors.ts` + `sha256.ts`.
 - **Node CLI (`cli/`)** — `index.ts` (bin entry) → `main.ts` (`buildCli`, commander with
   positional options): the default import command, `import-legacy <file>` and
-  `render <dir>` (`cli/legacy.ts`). Plus the `fs.openAsBlob` adapter, CSV/media/output
+  `render <dir>` (`cli/legacy.ts`), and the dev-only research pair `export-for-research <zip>`
+  (JSONL of fingerprint / ts / author / text into gitignored `output/research/`) and
+  `check-findings <file>` (`cli/research.ts`; see [`research-workflow.md`](research-workflow.md)).
+  Plus the `fs.openAsBlob` adapter, CSV/media/output
   writing and link-title fetching. Pipeline (`cli/pipeline.ts`): `parseWhatsAppZip` →
   `mergeCsv` → `enrichTitles` → `reconcileMedia` → `renderOutputs`.
 - **Why the ZIP reader uses the central directory** — WhatsApp exports store members with
@@ -946,8 +950,8 @@ test type or architecture rule means updating this file **in the same PR**.
   - `responsive-ui-designer` — router for UI work (mobile-first PWA, `ca`/`es`/`en`).
 - **Commands — PR flow** (`.rulesync/commands/`): `pr-plan` → `pr-precheck` → `pr-make` →
   `pr-review` → `pr-triage`.
-- **Skills** (`.rulesync/skills/`): `debugging`, `interview-me`, `pr-scope`, `pr-review`,
-  `security-audit`, `rulesync`. Planned with the UI: a design skill and `local-test`
+- **Skills** (`.rulesync/skills/`): `debugging`, `highlights-research`, `interview-me`, `pr-scope`,
+  `pr-review`, `security-audit`, `rulesync`. Planned with the UI: a design skill and `local-test`
   (Playwright, mobile + desktop viewports).
 - **Hooks** (`.rulesync/hooks.jsonc`):
   - `PreToolUse` (fail-closed) — `scripts/block-agent-github-review-writes.mjs`: agents
