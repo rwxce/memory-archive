@@ -45,6 +45,16 @@ import {
   type FavoriteScope,
   type NoteScope,
 } from './queries';
+import {
+  countHighlights,
+  countHighlightsByCategory,
+  deleteHighlight,
+  importHighlights,
+  listHighlightMessages,
+  listHighlights,
+  type HighlightFilter,
+  type HighlightScope,
+} from './highlights';
 import { discardSearchIndex, getSearchStatus, searchMessages, stepSearchIndex } from './search';
 import { exportDatabase, isLibraryEmpty, listBlobs, loadSnapshot } from './snapshot';
 
@@ -152,6 +162,22 @@ const HANDLERS: Handlers = {
   listNotes: ({ db }, p) => {
     const params = requireParams(p);
     return listNotes(db, params.scope as NoteScope | undefined, params.offset as number, params.limit as number);
+  },
+  importHighlights: ({ db }, p) => importHighlights(db, p),
+  countHighlights: ({ db }, p) => countHighlights(db, p === undefined ? undefined : (requireParams(p).filter as HighlightFilter | undefined)),
+  countHighlightsByCategory: ({ db }, p) =>
+    countHighlightsByCategory(db, p === undefined ? undefined : (requireParams(p).scope as HighlightScope | undefined)),
+  listHighlights: ({ db }, p) => {
+    const params = requireParams(p);
+    return listHighlights(db, params.filter as HighlightFilter | undefined, params.offset as number, params.limit as number);
+  },
+  listHighlightMessages: ({ db }, p) => {
+    const params = requireParams(p);
+    return listHighlightMessages(db, params.conversationId as string, params.highlightId as string);
+  },
+  deleteHighlight: ({ db }, p) => {
+    const params = requireParams(p);
+    return deleteHighlight(db, params.conversationId as string, params.highlightId as string);
   },
 };
 

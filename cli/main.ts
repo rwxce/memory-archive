@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import pc from 'picocolors';
 import { importLegacy, renderDir } from './legacy';
 import { runParser } from './pipeline';
+import { checkFindings, exportForResearch, printResearchWarning } from './research';
 import { chatInfoFromZip } from './zip';
 
 function fail(err: unknown): void {
@@ -44,6 +45,8 @@ export function buildCli(): Command {
 Commands for existing outputs:
   memory-archive import-legacy <messages.json|messages.html|messages.csv> [--out <dir>]
   memory-archive render <dir>
+  memory-archive export-for-research <zip> [--out <dir>]
+  memory-archive check-findings <findings.json>
 
 Examples:
   memory-archive "WhatsApp Chat - X.zip" --out ./backup --verbose
@@ -129,6 +132,44 @@ Examples:
         });
         console.log(pc.green('✓ Re-rendered') + pc.dim(` ${dir}`));
         printOutputs(dir);
+      } catch (err) {
+        fail(err);
+      }
+    });
+
+  program
+    .command('export-for-research')
+    .description(
+      'write <out>/<chat>.jsonl (fingerprint, ts, author, text) for an LLM to read; see docs/research-workflow.md',
+    )
+    .argument('<zip>', 'path to a WhatsApp "Export chat" ZIP')
+    .option('--out <dir>', 'output folder (default: output/research, gitignored)')
+    .action(async (zip: string, opts: Record<string, unknown>) => {
+      try {
+        printResearchWarning();
+        const res = await exportForResearch(zip, opts.out as string | undefined);
+        console.log(
+          pc.green(`✓ Wrote ${res.messageCount} message(s)`) +
+            pc.dim(` to ${res.file} (conversation block: ${res.metaFile})`),
+        );
+      } catch (err) {
+        fail(err);
+      }
+    });
+
+  program
+    .command('check-findings')
+    .description('validate a findings.json (version 1) without printing its content')
+    .argument('<file>', 'path to findings.json')
+    .action(async (file: string) => {
+      try {
+        const res = await checkFindings(file);
+        if (res.ok) {
+          console.log(pc.green(`✓ Valid findings file: ${res.highlights} highlight(s)`));
+          return;
+        }
+        for (const e of res.errors) console.error(pc.red(`✗ ${e.path || '(file)'}: ${e.message}`));
+        process.exitCode = 1;
       } catch (err) {
         fail(err);
       }

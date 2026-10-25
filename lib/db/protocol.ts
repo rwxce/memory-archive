@@ -18,9 +18,11 @@ import type {
   SearchStatus,
   StoredMessage,
 } from '../domain/library';
+import type { HighlightImportCounts, HighlightCategory, HighlightItem, HighlightMessage } from '../domain/highlights';
 import type { BlobRow, DatabaseExport } from './snapshot';
 import type { DbErrorData } from './errors';
 import type { DbInfo } from './open';
+import type { HighlightFilter, HighlightScope, ImportHighlightsInput } from './highlights';
 import type { SearchInput } from './search';
 import type {
   ConversationProfileInput,
@@ -113,6 +115,12 @@ export interface DbOps {
   setNote: { params: SetNoteInput; result: Note | null };
   countNotes: { params: { scope?: NoteScope } | undefined; result: number };
   listNotes: { params: { scope?: NoteScope; offset: number; limit: number }; result: NoteItem[] };
+  importHighlights: { params: ImportHighlightsInput; result: HighlightImportCounts };
+  countHighlights: { params: { filter?: HighlightFilter } | undefined; result: number };
+  countHighlightsByCategory: { params: { scope?: HighlightScope } | undefined; result: Record<HighlightCategory, number> };
+  listHighlights: { params: { filter?: HighlightFilter; offset: number; limit: number }; result: HighlightItem[] };
+  listHighlightMessages: { params: { conversationId: string; highlightId: string }; result: HighlightMessage[] };
+  deleteHighlight: { params: { conversationId: string; highlightId: string }; result: boolean };
   getSearchStatus: { params: undefined; result: SearchStatus };
   stepSearchIndex: { params: { limit?: number } | undefined; result: SearchIndexStep };
   searchMessages: { params: SearchInput; result: SearchResult[] };

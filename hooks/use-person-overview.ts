@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { isUuid, type PersonMediaItem, type PersonTimelineMessage } from '@/lib/domain/library';
 import { countFavorites, listFavorites } from '@/lib/usecases/favorites';
+import { countHighlights } from '@/lib/usecases/highlights';
 import { countNotes } from '@/lib/usecases/notes';
 import { countPersonMedia, listPersonMedia } from '@/lib/usecases/person-media';
 import { getPersonTimelineBounds, listPersonTimelineDays } from '@/lib/usecases/person-timeline';
@@ -19,6 +20,7 @@ export interface PersonOverview {
   voice: number;
   favorites: number;
   notes: number;
+  highlights: number;
   /** Messages per year, oldest first. */
   years: { year: number; count: number }[];
   /** The first photos (not videos), for the gallery tile. */
@@ -45,12 +47,13 @@ export function usePersonOverview(profileId: string | null): PersonOverviewState
     (async () => {
       try {
         const scope = { profileId };
-        const [bounds, pictures, voice, favorites, notes, days, thumbs, excerpts] = await Promise.all([
+        const [bounds, pictures, voice, favorites, notes, highlights, days, thumbs, excerpts] = await Promise.all([
           getPersonTimelineBounds(deps, profileId),
           countPersonMedia(deps, profileId, ['photo', 'video']),
           countPersonMedia(deps, profileId, ['audio']),
           countFavorites(deps, scope),
           countNotes(deps, scope),
+          countHighlights(deps, { scope }),
           listPersonTimelineDays(deps, profileId),
           listPersonMedia(deps, profileId, ['photo'], 0, OVERVIEW_THUMBS),
           listFavorites(deps, scope, 0, OVERVIEW_FAVORITES),
@@ -61,7 +64,7 @@ export function usePersonOverview(profileId: string | null): PersonOverviewState
           perYear.set(year, (perYear.get(year) ?? 0) + day.count);
         }
         const years = [...perYear].sort((a, b) => a[0] - b[0]).map(([year, count]) => ({ year, count }));
-        if (alive) setResult({ id: profileId, state: { status: 'ready', overview: { messages: bounds.count, pictures, voice, favorites, notes, years, thumbs, excerpts } } });
+        if (alive) setResult({ id: profileId, state: { status: 'ready', overview: { messages: bounds.count, pictures, voice, favorites, notes, highlights, years, thumbs, excerpts } } });
       } catch {
         if (alive) setResult({ id: profileId, state: { status: 'error' } });
       }

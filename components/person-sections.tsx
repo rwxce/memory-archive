@@ -1,10 +1,10 @@
 'use client';
 
-import { History, Images, Mic, NotebookPen, Search, Star } from 'lucide-react';
+import { Highlighter, History, Images, Mic, NotebookPen, Search, Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 
-export type PersonSection = 'audio' | 'favorites' | 'gallery' | 'notes' | 'search' | 'timeline';
+export type PersonSection = 'audio' | 'favorites' | 'gallery' | 'highlights' | 'notes' | 'search' | 'timeline';
 
 /**
  * The person's page now leads to its sections with its own bento cards; this pill list is the
@@ -20,6 +20,7 @@ export function PersonSections({ personId, current }: { personId: string; curren
     { id: 'gallery' as const, href: `/person/gallery?id=${encodeURIComponent(personId)}`, label: t('sectionGallery'), Icon: Images },
     { id: 'audio' as const, href: `/person/audio?id=${encodeURIComponent(personId)}`, label: t('sectionAudio'), Icon: Mic },
     { id: 'favorites' as const, href: `/person/favorites?id=${encodeURIComponent(personId)}`, label: t('sectionFavorites'), Icon: Star },
+    { id: 'highlights' as const, href: `/person/highlights?id=${encodeURIComponent(personId)}`, label: t('sectionHighlights'), Icon: Highlighter },
     { id: 'notes' as const, href: `/person/notes?id=${encodeURIComponent(personId)}`, label: t('sectionNotes'), Icon: NotebookPen },
     { id: 'search' as const, href: `/search?person=${encodeURIComponent(personId)}`, label: t('sectionSearch'), Icon: Search },
   ];
