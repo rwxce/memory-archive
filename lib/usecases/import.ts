@@ -413,7 +413,7 @@ async function importNow(deps: ProfileDeps, input: ImportWhatsAppInput): Promise
         }),
       );
   const mediaDrafts = drafts.filter((d) => d.message.media !== '');
-  const { matches, unresolved } = matchMediaEntries(parsed.entries, [...new Set(mediaDrafts.map((d) => d.message.media))]);
+  const { matches, unresolved } = matchMediaEntries(parsed.entries, [...new Set(mediaDrafts.map((d) => d.message.media))], parsed.chatEntry);
   const matchByName = new Map(matches.map((m) => [normalizeMediaName(m.ref), m]));
   const needed = new Map<string, (typeof matches)[number]>();
   let videosSkipped = 0;

@@ -3,6 +3,9 @@ import { linesFromStream } from './lines';
 import { ZipLimitError, openZipEntry, readZipEntries } from './zip';
 import type { ReadZipOptions, ZipEntry } from './zip';
 
+/** Internal message (UI copy is separate): no single transcript could be identified. */
+const NO_TRANSCRIPT = 'No chat transcript (_chat.txt or a single .txt) found in ZIP';
+
 /** macOS resource-fork companions (`__MACOSX/`, `._name`): never real content. */
 export function isAppleDouble(name: string): boolean {
   const base = name.split('/').pop() ?? '';
@@ -14,14 +17,40 @@ export function entryBaseName(name: string): string {
   return name.split('/').pop() ?? '';
 }
 
-/** True for the chat transcript entry (`_chat.txt`, any folder). */
+/** True for an iOS-style transcript entry (`_chat.txt`, any folder, AppleDouble skipped). */
 export function isChatEntry(name: string): boolean {
   return !isAppleDouble(name) && entryBaseName(name).endsWith('_chat.txt');
 }
 
-/** First `_chat.txt` entry of the archive (AppleDouble companions skipped). */
-export function findChatEntry<T extends { name: string }>(entries: T[]): T | undefined {
-  return entries.find((e) => isChatEntry(e.name));
+/** Base name without directory or extension, lowercased, for the ZIP-name tiebreak. */
+function stemOf(name: string): string {
+  return entryBaseName(name.split('\\').pop() ?? name).replace(/\.[^.]*$/, '').toLowerCase();
+}
+
+/**
+ * The transcript entry, the one choice every caller shares (parse, stream, preview, media).
+ * 1. The first `*_chat.txt` entry (iOS), unchanged.
+ * 2. Otherwise Android: `.txt` files at the archive root, or inside the single top folder when
+ *    every entry lives in one (`WhatsApp Chat with X.txt`, `Chat de WhatsApp con X.txt`, ...).
+ *    Exactly one candidate wins; several are told apart by the ZIP name (`<name>.zip` ->
+ *    `<name>.txt`) when `zipFileName` is given; otherwise undefined (ambiguous or none).
+ * AppleDouble companions and directories are never candidates.
+ */
+export function findChatEntry<T extends { name: string }>(entries: T[], zipFileName?: string): T | undefined {
+  const ios = entries.find((e) => isChatEntry(e.name));
+  if (ios) return ios;
+  const real = entries.filter((e) => !isAppleDouble(e.name) && !e.name.endsWith('/'));
+  const singleFolder = real.length > 0 && real.every((e) => e.name.includes('/') && e.name.split('/')[0] === real[0]!.name.split('/')[0]);
+  const candidates = real.filter((e) => {
+    if (!e.name.toLowerCase().endsWith('.txt')) return false;
+    const depth = e.name.split('/').length;
+    return depth === 1 || (depth === 2 && singleFolder);
+  });
+  if (candidates.length <= 1) return candidates[0];
+  if (zipFileName === undefined) return undefined;
+  const zipStem = stemOf(zipFileName);
+  const matching = candidates.filter((e) => stemOf(e.name) === zipStem);
+  return matching.length === 1 ? matching[0] : undefined;
 }
 
 /**
@@ -49,13 +78,13 @@ export interface ChatInfo {
 
 /**
  * Resolve the chat's slug and display name from the archive's entry names.
- * Real WhatsApp exports keep `_chat.txt` at the archive ROOT — the name then
- * comes from the ZIP file name (G-01-16); otherwise from the top folder.
+ * Real WhatsApp exports keep the transcript (`_chat.txt` on iOS, `<name>.txt` on Android) at the
+ * archive ROOT — the name then comes from the ZIP file name (G-01-16); otherwise from the top folder.
  * `zipFileName` is a base name (`WhatsApp Chat - X.zip`), not a path.
  */
 export function chatInfoFromEntryNames(names: string[], zipFileName: string): ChatInfo {
-  const chatEntry = names.find(isChatEntry);
-  if (!chatEntry) throw new Error('No _chat.txt entry found in ZIP');
+  const chatEntry = findChatEntry(names.map((name) => ({ name })), zipFileName)?.name;
+  if (!chatEntry) throw new Error(NO_TRANSCRIPT);
   const parts = chatEntry.split('/');
   const base = (zipFileName.split(/[\\/]/).pop() ?? '').replace(/\.zip$/i, '');
   const raw = parts.length > 1 ? parts[0] : base;
@@ -103,8 +132,8 @@ export async function openChatZip(
   limits: ReadZipOptions & { maxChatBytes?: number } = {},
 ): Promise<OpenedChatZip> {
   const entries = await readZipEntries(zip, limits);
-  const chatEntry = findChatEntry(entries);
-  if (!chatEntry) throw new Error('No _chat.txt entry found in ZIP');
+  const chatEntry = findChatEntry(entries, zipFileName);
+  if (!chatEntry) throw new Error(NO_TRANSCRIPT);
   if (limits.maxChatBytes !== undefined && chatEntry.uncompressedSize > limits.maxChatBytes) {
     throw new ZipLimitError('the chat transcript is too large');
   }

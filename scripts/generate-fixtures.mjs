@@ -97,7 +97,7 @@ const ORG_TXT = [
 
 // ---------------------------------------------------------------------------
 // Format fixtures: one synthetic chat per export style/locale. Real exports
-// keep `_chat.txt` and the media at the ZIP ROOT (the chat name comes from the
+// keep the transcript and the media at the ZIP ROOT (iOS: `_chat.txt`; Android: `<localized> <name>.txt`, here ES/PT/CA) (the chat name comes from the
 // ZIP file name), so these are built that way. Names and content are made up.
 // ---------------------------------------------------------------------------
 
@@ -170,6 +170,7 @@ const IOS_US_WITHOUT_MEDIA = { zip: 'WhatsApp Chat - iOS US sin media.zip', medi
 /** Android, Spanish: D/M/YY, 12h `a. m.` / `p. m.` (one with a no-break space). */
 const ANDROID_ES = {
   zip: 'WhatsApp Chat - Android ES.zip',
+  transcript: 'Chat de WhatsApp con Android ES.txt', // Android names the transcript, never `_chat.txt`
   media: ['IMG-20260101-WA0010.jpg'],
   txt: [
     '31/12/25, 11:58 p. m. - Los mensajes y las llamadas están cifrados de extremo a extremo. Nadie fuera de este chat, ni siquiera WhatsApp, puede leerlos ni escucharlos.',
@@ -199,6 +200,7 @@ const IOS_ES = {
 /** Android, Brazilian Portuguese: DD/MM/YYYY 24h without a comma. */
 const ANDROID_PT = {
   zip: 'WhatsApp Chat - Android PT.zip',
+  transcript: 'Conversa do WhatsApp com Android PT.txt',
   media: ['IMG-20260101-WA0020.jpg'],
   txt: [
     '31/12/2025 23:58 - Ana: Feliz ano novo!',
@@ -213,6 +215,7 @@ const ANDROID_PT = {
 /** Android, Catalan: D/M/YY 24h. Best-effort strings (no ca export at hand). */
 const ANDROID_CA = {
   zip: 'WhatsApp Chat - Android CA.zip',
+  transcript: 'Xat de WhatsApp amb Android CA.txt',
   media: ['IMG-20260101-WA0030.jpg'],
   txt: [
     '31/12/25 23:58 - Ana: Bon any!',
@@ -234,8 +237,8 @@ export const FORMAT_FIXTURES = [
 ];
 
 /** Root-level ZIP, like a real phone export. */
-function buildRootZip({ zip, txt, media }) {
-  const files = { '_chat.txt': Buffer.from(txt, 'utf8') };
+function buildRootZip({ zip, txt, media, transcript }) {
+  const files = { [transcript ?? '_chat.txt']: Buffer.from(txt, 'utf8') };
   for (const name of media) files[name] = PLACEHOLDER;
   fs.writeFileSync(path.join(FIXTURES, zip), Buffer.from(zipSync(files)));
 }

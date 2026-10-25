@@ -232,7 +232,7 @@ export async function previewWhatsAppExport(
   let totalCount = 0;
   let totalBytes = 0;
   for (const entry of stream.entries) {
-    if (entry.name.endsWith('/') || isChatEntry(entry.name) || isAppleDouble(entry.name)) continue;
+    if (entry.name.endsWith('/') || entry === stream.chatEntry || isChatEntry(entry.name) || isAppleDouble(entry.name)) continue;
     const kind = classifyFromFilename(entryBaseName(entry.name));
     const slot = (kinds[kind] ??= { count: 0, bytes: 0 });
     slot.count++;
@@ -240,7 +240,7 @@ export async function previewWhatsAppExport(
     totalCount++;
     totalBytes += entry.uncompressedSize;
   }
-  const { unresolved } = matchMediaEntries(stream.entries, [...mediaRefs.values()]);
+  const { unresolved } = matchMediaEntries(stream.entries, [...mediaRefs.values()], stream.chatEntry);
   const missing = new Set(unresolved.map(normalizeMediaName)).size;
 
   const space = await estimateImport(input.zip, input.storage ?? { usage: null, quota: null }, input.limits);

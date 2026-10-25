@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
-import { matchMediaEntries, openZipEntry, readZipEntries } from '@/lib/importers/whatsapp';
+import { findChatEntry, matchMediaEntries, openZipEntry, readZipEntries } from '@/lib/importers/whatsapp';
 import { buildMediaMap as buildMediaMapFromFiles } from '@/lib/exporters/legacy';
 import type { MediaEntry, MediaFile } from '@/lib/exporters/legacy';
 import type { Message } from '@/lib/importers/whatsapp';
@@ -40,7 +40,7 @@ export async function reconcileMedia(
 
   const zip = await openZip(zipPath);
   const entries = await readZipEntries(zip, CLI_ZIP_LIMITS);
-  const { matches, unresolved } = matchMediaEntries(entries, refs);
+  const { matches, unresolved } = matchMediaEntries(entries, refs, findChatEntry(entries, path.basename(zipPath)));
 
   const resolved: string[] = [];
   for (const { ref, entry, fileName } of matches) {

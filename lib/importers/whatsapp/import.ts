@@ -10,6 +10,8 @@ export interface ParsedChat {
   info: ChatInfo;
   /** All archive entries (media are resolved against these). */
   entries: ZipEntry[];
+  /** The transcript entry (excluded from media matching). */
+  chatEntry: ZipEntry;
   messages: Message[];
   /** File-level format decision; undefined only for an empty transcript. */
   detection?: Detection;
@@ -20,6 +22,7 @@ export interface ParsedChat {
 export interface WhatsAppZipStream {
   info: ChatInfo;
   entries: ZipEntry[];
+  chatEntry: ZipEntry;
   detection?: Detection;
   /** Fills while `messages` is consumed. */
   warnings: string[];
@@ -62,7 +65,7 @@ export async function streamWhatsAppZip(zip: Blob, zipFileName: string, opts: St
       yield m;
     }
   }
-  return { info, entries, detection, warnings, messages: messages() };
+  return { info, entries, chatEntry, detection, warnings, messages: messages() };
 }
 
 /**
@@ -77,5 +80,5 @@ export async function parseWhatsAppZip(
   const stream = await streamWhatsAppZip(zip, zipFileName, opts);
   const messages: Message[] = [];
   for await (const m of stream.messages) messages.push(m);
-  return { info: stream.info, entries: stream.entries, messages, detection: stream.detection, warnings: stream.warnings };
+  return { info: stream.info, entries: stream.entries, chatEntry: stream.chatEntry, messages, detection: stream.detection, warnings: stream.warnings };
 }
