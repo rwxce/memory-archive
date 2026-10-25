@@ -96,7 +96,8 @@
       "**/_chat.txt": "deny",
       "fixtures/": "deny",
       "WhatsApp Chat*.txt": "deny",
-      "**/WhatsApp Chat*.txt": "deny"
+      "**/WhatsApp Chat*.txt": "deny",
+      "research/": "ask"
     }
   }
 }

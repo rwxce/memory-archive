@@ -87,6 +87,9 @@
       "Bash(pnpm rulesync:check *)",
       "Bash(pnpm test *)",
       "Bash(pnpm typecheck *)"
+    ],
+    "ask": [
+      "Read(research/)"
     ]
   },
   "hooks": {

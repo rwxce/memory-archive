@@ -17,21 +17,29 @@ so it can be imported into the app later without duplicating anything.
 
    ```bash
    pnpm cli export-for-research "WhatsApp Chat - X.zip"
-   # writes output/research/<chat>.jsonl and output/research/<chat>.meta.json
+   # writes research/<chat>.jsonl and research/<chat>.meta.json
    ```
 
-   `output/` is gitignored. Each JSONL line is `{ "fingerprint", "ts", "author", "text" }`;
+   `research/` is gitignored. Each JSONL line is `{ "fingerprint", "ts", "author", "text" }`;
    fingerprints are computed exactly as the app's import computes them, so they match the
    messages stored in the app. `<chat>.meta.json` is the `conversation` block of the findings
    file (`name`, `messageCount`, `firstFingerprint`).
 
-2. Run your LLM CLI **outside this repo's tracked files**, with the prompt below, pointing it at the
-   JSONL. Ask it to write `findings.json` next to it.
+2. Analyse the JSONL and write `research/findings.json`, one of two ways:
+   - Ask the coding agent in this repo to do the highlights research. The project privacy rule
+     makes one exception for this: on your explicit request the agent may read `research/` (each
+     read asks for permission) and must not copy chat text anywhere but the findings file. See
+     the `highlights-research` skill.
+   - Run your own LLM CLI in a folder outside this repo with the prompt below, pointing it at the
+     JSONL, and ask it to write `findings.json` next to it.
+
+   Either way, up to 3 `interest` highlights titled `Frase candidata: …` (one message each)
+   propose a phrase for the person's profile.
 
 3. Validate the result (prints no chat content):
 
    ```bash
-   pnpm cli check-findings output/research/findings.json
+   pnpm cli check-findings research/findings.json
    ```
 
    Exit code 1 and a list of `path: message` lines when something is wrong. Fix it or ask the LLM
@@ -78,11 +86,11 @@ so it can be imported into the app later without duplicating anything.
 ## Sample prompt
 
 ```text
-Read output/research/<chat>.jsonl (one JSON message per line: fingerprint, ts, author, text)
-and output/research/<chat>.meta.json.
+Read research/<chat>.jsonl (one JSON message per line: fingerprint, ts, author, text)
+and research/<chat>.meta.json.
 
 Find (a) key moments in the relationship or story told, (b) recurring patterns, (c) individual
-messages worth keeping. Write output/research/findings.json with this shape:
+messages worth keeping. Write research/findings.json with this shape:
 { "version": 1, "conversation": <contents of the meta file>, "highlights": [
   { "id", "category": "moment"|"pattern"|"interest", "title", "summary",
     "messages": [<fingerprints>], "createdBy": "<your tool name>", "createdAt": "<UTC ISO, Z>" } ] }
@@ -95,4 +103,4 @@ Rules:
 - Output only the JSON file, no commentary.
 ```
 
-Then run `pnpm cli check-findings output/research/findings.json`.
+Then run `pnpm cli check-findings research/findings.json`.

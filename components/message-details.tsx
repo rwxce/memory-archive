@@ -2,11 +2,14 @@
 
 import { Info } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/utils';
 import type { MessageSource } from '@/lib/domain/library';
 import type { MessageSourceState } from '@/hooks/use-message-source';
+import { usePhraseTarget } from '@/hooks/use-phrase';
 import { formatWhen } from './format';
+import { canBePhrase, PhraseAction } from './phrase-action';
 
 /** The small button beside a bubble that opens its details. Quiet until hovered or focused; always there on touch. */
 export function DetailsButton({ open, panelId, onToggle }: { open: boolean; panelId: string; onToggle: () => void }) {
@@ -48,8 +51,34 @@ function Ready({ source }: { source: MessageSource }) {
   );
 }
 
+/** The way to make the message the phrase of the person its conversation is kept under; nothing when it has no text or no person. */
+function PhraseRow({ conversationId, body }: { conversationId: string; body: string }) {
+  const from = useSearchParams()?.get('from') ?? null;
+  const found = usePhraseTarget(conversationId, true, from);
+  if (found.status !== 'ready') return null;
+  return (
+    <div className="mt-1.5 flex flex-col gap-1">
+      <PhraseAction body={body} target={found.target} />
+    </div>
+  );
+}
+
 /** What the details say: loading, the source and import date, or a calm note. Everything is text. */
-export function MessageDetails({ id, align, state, onRetry }: { id: string; align: 'start' | 'end'; state: MessageSourceState; onRetry: () => void }) {
+export function MessageDetails({
+  id,
+  align,
+  state,
+  onRetry,
+  conversationId,
+  body,
+}: {
+  id: string;
+  align: 'start' | 'end';
+  state: MessageSourceState;
+  onRetry: () => void;
+  conversationId?: string;
+  body?: string | null;
+}) {
   const t = useTranslations('conversation.details');
   const retry = useTranslations('conversation')('retry');
   return (
@@ -62,6 +91,7 @@ export function MessageDetails({ id, align, state, onRetry }: { id: string; alig
       >
         {state.status === 'loading' && <p role="status">{t('loading')}</p>}
         {state.status === 'ready' && <Ready source={state.source} />}
+        {state.status === 'ready' && conversationId && canBePhrase(body) && <PhraseRow conversationId={conversationId} body={body} />}
         {state.status === 'not-found' && <p>{t('notFound')}</p>}
         {state.status === 'error' && (
           <div role="alert" className="flex flex-wrap items-center gap-2">

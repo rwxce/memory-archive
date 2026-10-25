@@ -102,7 +102,7 @@ function PersonFavoritesContent({ onRetry }: { onRetry: () => void }) {
               <MonthHeading id={`month-${group.month}`} month={group.month} />
               <ul className="flex flex-col gap-2.5">
                 {group.items.map((item) => (
-                  <PersonFavoriteItem key={`${item.conversationId}:${item.id}`} item={item} personId={person.id} onRemove={onRemove} />
+                  <PersonFavoriteItem key={`${item.conversationId}:${item.id}`} item={item} personId={person.id} phraseTarget={{ id: person.id, name: person.displayName, phrase: person.description }} onRemove={onRemove} />
                 ))}
               </ul>
             </section>

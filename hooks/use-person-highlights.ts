@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HIGHLIGHT_CATEGORIES, type HighlightCategory, type HighlightItem } from '@/lib/domain/highlights';
 import { isUuid } from '@/lib/domain/library';
-import { countHighlights, countHighlightsByCategory, deleteHighlight, listHighlights } from '@/lib/usecases/highlights';
+import { countHighlights, countHighlightsByCategory, deleteHighlight, deleteHighlights, listHighlights } from '@/lib/usecases/highlights';
 import { useLibraryInternals } from './use-library';
 
 /** How many highlights one step reads and shows. */
@@ -130,3 +130,17 @@ export function usePersonHighlights(
 
 /** The list's own key for a highlight: ids are only unique within a conversation. */
 export const highlightKey = (item: HighlightItem): string => `${item.conversationId}:${item.id}`;
+
+/** Deletes every highlight of a person (dormant ones too): how many were deleted, or `null` when it failed and nothing changed. */
+export function useDeleteAllHighlights(profileId: string | null): () => Promise<number | null> {
+  const { state: library } = useLibraryInternals();
+  const deps = library.status === 'ready' ? library.deps : undefined;
+  return useCallback(async () => {
+    if (!deps || !isUuid(profileId)) return null;
+    try {
+      return await deleteHighlights(deps, { profileId });
+    } catch {
+      return null;
+    }
+  }, [deps, profileId]);
+}

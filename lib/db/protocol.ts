@@ -98,6 +98,7 @@ export interface DbOps {
   countMessages: { params: { conversationId: string }; result: number };
   getMessageWindow: { params: { conversationId: string; offset: number; limit: number }; result: ConversationMessage[] };
   findMessageOffsetByDate: { params: { conversationId: string; date: string }; result: number | null };
+  findMessageOffsetById: { params: { conversationId: string; messageId: number }; result: number | null };
   listConversationDays: { params: { conversationId: string }; result: ConversationDay[] };
   getMessageSource: { params: { conversationId: string; messageId: number }; result: MessageSource };
   countPersonMedia: { params: { profileId: string; kinds: MediaMessageType[] }; result: number };
@@ -108,6 +109,7 @@ export interface DbOps {
   getPersonTimelineBounds: { params: { profileId: string }; result: ConversationBounds };
   getPersonTimelineWindow: { params: { profileId: string; offset: number; limit: number }; result: PersonTimelineMessage[] };
   findPersonTimelineOffsetByDate: { params: { profileId: string; date: string }; result: number | null };
+  findPersonTimelineOffsetById: { params: { profileId: string; messageId: number }; result: number | null };
   listPersonTimelineDays: { params: { profileId: string }; result: ConversationDay[] };
   setFavorite: { params: SetFavoriteInput; result: { messageId: number; isFavorite: boolean } };
   countFavorites: { params: { scope?: FavoriteScope } | undefined; result: number };
@@ -121,6 +123,7 @@ export interface DbOps {
   listHighlights: { params: { filter?: HighlightFilter; offset: number; limit: number }; result: HighlightItem[] };
   listHighlightMessages: { params: { conversationId: string; highlightId: string }; result: HighlightMessage[] };
   deleteHighlight: { params: { conversationId: string; highlightId: string }; result: boolean };
+  deleteHighlights: { params: { scope: HighlightScope }; result: number };
   getSearchStatus: { params: undefined; result: SearchStatus };
   stepSearchIndex: { params: { limit?: number } | undefined; result: SearchIndexStep };
   searchMessages: { params: SearchInput; result: SearchResult[] };

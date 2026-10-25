@@ -12,8 +12,13 @@ import { CalendarDayGrid } from './calendar-day-grid';
 
 type Level = { kind: 'years' } | { kind: 'months'; year: number } | { kind: 'days'; year: number; month: number };
 
-const choiceClass =
-  'bg-sf2 text-foreground hover:bg-ac-soft hover:text-ac-tx focus-visible:ring-ring/50 flex min-h-14 flex-col items-center justify-center rounded-2xl px-2 py-1 outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 motion-safe:transition-colors';
+const choiceBase =
+  'focus-visible:ring-ring/50 flex min-h-11 flex-col items-center justify-center rounded-xl px-2 py-1 outline-none focus-visible:ring-[3px] motion-safe:transition-colors sm:flex-row sm:gap-1.5';
+/** A year or month with messages: a chip, in the accent when it holds the day being read. */
+const choiceClass = (current: boolean) =>
+  cn(choiceBase, 'hover:bg-ac-soft hover:text-ac-tx', current ? 'bg-ac-soft text-ac-tx font-semibold' : 'bg-sf2 text-foreground');
+/** A month without messages: plain muted text, not a button-looking box. */
+const emptyChoiceClass = cn(choiceBase, 'text-mu pointer-events-none opacity-60');
 
 const monthName = (locale: string, year: number, month: number, style: 'long' | 'short') =>
   new Intl.DateTimeFormat(locale, { month: style, timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1)));
@@ -28,6 +33,7 @@ export function ConversationCalendar({
   state,
   first,
   last,
+  current,
   onPick,
   onClose,
   onRetry,
@@ -37,6 +43,8 @@ export function ConversationCalendar({
   state: ConversationDaysState;
   first: string | null;
   last: string | null;
+  /** `YYYY-MM-DD` of the day being read, marked in the year and month lists. */
+  current?: string | null;
   onPick: (date: string) => void;
   onClose: () => void;
   onRetry: () => void;
@@ -57,10 +65,10 @@ export function ConversationCalendar({
       id="conversation-calendar"
       aria-label={label ?? t('calendar.panelLabel')}
       onKeyDown={onKeyDown}
-      className="bg-bg border-glass-line shadow-soft absolute inset-x-4 bottom-2 z-20 flex max-h-[calc(100%-1rem)] flex-col gap-3 overflow-y-auto rounded-3xl border p-4"
+      className="bg-bg border-glass-line shadow-soft absolute inset-x-4 bottom-2 z-20 mx-auto flex max-h-[calc(100%-1rem)] flex-col gap-2 overflow-y-auto rounded-3xl border p-3 sm:max-w-xl"
     >
       {state.status === 'ready' && state.days.length > 0 ? (
-        <Browser days={state.days} first={first} last={last} onPick={onPick} onClose={onClose} />
+        <Browser days={state.days} first={first} last={last} current={current ?? null} onPick={onPick} onClose={onClose} />
       ) : (
         <Frame level={state.status} title={t('calendar.title')} onClose={onClose}>
           {state.status === 'error' ? (
@@ -91,11 +99,11 @@ function Frame({ title, level, onClose, children, before, actions }: { title: st
   // Focus follows the step (years, months, days), not the month arrows, which keep their focus.
   useEffect(() => heading.current?.focus(), [level]);
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
           {before}
-          <h2 ref={heading} tabIndex={-1} aria-live="polite" className="font-display text-2xl leading-tight break-words outline-none">
+          <h2 ref={heading} tabIndex={-1} aria-live="polite" className="font-display text-xl leading-tight break-words outline-none">
             {title}
           </h2>
         </div>
@@ -113,12 +121,14 @@ function Browser({
   days,
   first,
   last,
+  current,
   onPick,
   onClose,
 }: {
   days: ConversationDay[];
   first: string | null;
   last: string | null;
+  current: string | null;
   onPick: (date: string) => void;
   onClose: () => void;
 }) {
@@ -128,6 +138,7 @@ function Browser({
   const count = new Intl.NumberFormat(locale);
   // One year only: the years step would be a single button, so start at its months.
   const [level, setLevel] = useState<Level>(() => (years.length === 1 ? { kind: 'months', year: years[0].year } : { kind: 'years' }));
+  const currentMonth = monthOf(current);
   const messages = (n: number) => t('messageCount', { count: n });
 
   const back = (label: string, to: Level) => (
@@ -140,12 +151,12 @@ function Browser({
   if (level.kind === 'years') {
     return (
       <Frame level="years" title={t('calendar.chooseYear')} onClose={onClose}>
-        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <ul className="grid grid-cols-4 gap-1.5">
           {years.map(({ year, count: n }) => (
             <li key={year} className="contents">
-              <button type="button" className={choiceClass} aria-label={t('calendar.yearLabel', { year, messages: messages(n) })} onClick={() => setLevel({ kind: 'months', year })}>
+              <button type="button" className={choiceClass(currentMonth?.year === year)} aria-current={currentMonth?.year === year || undefined} aria-label={t('calendar.yearLabel', { year, messages: messages(n) })} onClick={() => setLevel({ kind: 'months', year })}>
                 <span aria-hidden className="text-base font-medium">{year}</span>
-                <span aria-hidden className="text-mu text-xs">{count.format(n)}</span>
+                <span aria-hidden className="text-mu text-xs font-normal">{count.format(n)}</span>
               </button>
             </li>
           ))}
@@ -164,7 +175,7 @@ function Browser({
         onClose={onClose}
         before={years.length > 1 ? back(t('calendar.allYears'), { kind: 'years' }) : undefined}
       >
-        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        <ul className="grid grid-cols-4 gap-1.5">
           {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => {
             const n = withMessages.get(month);
             const long = monthName(locale, level.year, month, 'long');
@@ -172,13 +183,16 @@ function Browser({
               <li key={month} className="contents">
                 <button
                   type="button"
-                  className={choiceClass}
+                  className={n === undefined ? emptyChoiceClass : choiceClass(currentMonth?.year === level.year && currentMonth.month === month)}
+                  aria-current={(n !== undefined && currentMonth?.year === level.year && currentMonth.month === month) || undefined}
                   disabled={n === undefined}
                   aria-label={n === undefined ? t('calendar.monthEmpty', { month: long }) : t('calendar.monthLabel', { month: long, messages: messages(n) })}
                   onClick={() => setLevel({ kind: 'days', year: level.year, month })}
                 >
                   <span aria-hidden className="text-sm font-medium capitalize">{monthName(locale, level.year, month, 'short')}</span>
-                  <span aria-hidden className="text-mu min-h-4 text-xs">{n === undefined ? '' : count.format(n)}</span>
+                  {n !== undefined && (
+                    <span aria-hidden className="text-mu text-xs font-normal">{count.format(n)}</span>
+                  )}
                 </button>
               </li>
             );

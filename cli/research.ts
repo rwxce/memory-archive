@@ -37,7 +37,7 @@ export interface ResearchExport {
  * are computed exactly as the app's import does (`createMessageDrafter` in
  * `lib/usecases/import.ts`), so findings built from this file match messages in the PWA.
  */
-export async function exportForResearch(zipPath: string, out = path.join('output', 'research')): Promise<ResearchExport> {
+export async function exportForResearch(zipPath: string, out = 'research'): Promise<ResearchExport> {
   const zip = await openZip(zipPath);
   const { info, messages } = await parseWhatsAppZip(zip, path.basename(zipPath), { limits: CLI_CHAT_ZIP_LIMITS });
   const next = createFingerprinter();

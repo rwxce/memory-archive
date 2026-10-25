@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { isDateParam } from './use-conversation';
+import { isDateParam, parseMessageParam } from './use-conversation';
 
 describe('isDateParam', () => {
   test('accepts a real calendar day', () => {
@@ -19,5 +19,16 @@ describe('isDateParam', () => {
     expect(isDateParam('')).toBe(false);
     expect(isDateParam('2026-2-3')).toBe(false);
     expect(isDateParam('not-a-date')).toBe(false);
+  });
+});
+
+describe('parseMessageParam', () => {
+  test('accepts a positive integer id', () => {
+    expect(parseMessageParam('1')).toBe(1);
+    expect(parseMessageParam('48213')).toBe(48213);
+  });
+
+  test('ignores anything else', () => {
+    for (const bad of [null, '', '0', '-3', '01', '1.5', '1e3', ' 7', '7 ', 'abc', '12abc', '9'.repeat(16), '<img>']) expect(parseMessageParam(bad)).toBeNull();
   });
 });

@@ -106,3 +106,8 @@ export function listHighlightMessages(deps: LibraryDeps, conversationId: string,
 export function deleteHighlight(deps: LibraryDeps, conversationId: string, highlightId: string): Promise<boolean> {
   return deps.client.call('deleteHighlight', { conversationId, highlightId });
 }
+
+/** Deletes all the highlights of a person or of one conversation and returns how many; importing the file again brings them back. */
+export function deleteHighlights(deps: LibraryDeps, scope: { profileId: string } | { conversationId: string }): Promise<number> {
+  return deps.client.call('deleteHighlights', { scope });
+}

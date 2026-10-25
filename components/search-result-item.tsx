@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { SearchResult } from '@/lib/domain/library';
+import { conversationHref } from './conversation-link';
 import { formatDay } from './format';
 import { isMediaMessage } from './message-media';
 import { PersonAvatar } from './person-avatar';
@@ -19,8 +20,7 @@ export function SearchResultItem({ item, personId }: { item: SearchResult; perso
   const t = useTranslations('search');
   const locale = useLocale();
   const author = item.isMe ? t('you') : item.participantName || t('unknownAuthor');
-  const from = personId ? `&from=${encodeURIComponent(personId)}` : '';
-  const href = `/conversation?id=${encodeURIComponent(item.conversationId)}${from}&date=${item.sentAt.slice(0, 10)}`;
+  const href = conversationHref({ conversationId: item.conversationId, personId, sentAt: item.sentAt, messageId: item.id });
   return (
     <li>
       <Link

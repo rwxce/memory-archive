@@ -65,15 +65,15 @@
       "name": "Nombre",
       "relationship": "Relación (opcional)",
       "relationshipHint": "Por ejemplo: madre, amigo, pareja.",
-      "description": "Notas (opcional)",
-      "descriptionHint": "Cualquier cosa que quieras recordar de esta persona.",
+      "description": "Frase (opcional)",
+      "descriptionHint": "Una frase suya que quieras tener a la vista.",
       "create": "Añadir persona",
       "save": "Guardar cambios",
       "cancel": "Cancelar",
       "nameRequired": "Escribe un nombre para continuar.",
       "nameTooLong": "El nombre puede tener hasta {max} caracteres.",
       "relationshipTooLong": "La relación puede tener hasta {max} caracteres.",
-      "descriptionTooLong": "Las notas pueden tener hasta {max} caracteres.",
+      "descriptionTooLong": "La frase puede tener hasta {max} caracteres.",
       "invalidText": "Una parte del texto no se puede guardar. Quita los caracteres raros e inténtalo de nuevo.",
       "saveFailed": "No se ha podido guardar. No se ha cambiado nada. Inténtalo de nuevo."
     },
@@ -555,6 +555,8 @@
     "eyebrow": "Tu archivo"
   },
   "conversation": {
+    "backHighlights": "Volver a los destacados de {name}",
+    "backFavorites": "Volver a los favoritos de {name}",
     "back": "Volver a {name}",
     "notFoundTitle": "No encontramos esta conversación",
     "notFoundBody": "Puede que el enlace esté desactualizado. No se ha borrado nada.",
@@ -569,6 +571,7 @@
     "toEnd": "Más reciente",
     "date": "Ir a la fecha",
     "jumped": "Mostrando el primer mensaje a partir del {date}.",
+    "jumpedToMessage": "Mensaje del {date}.",
     "noneAfter": "No hay mensajes a partir del {date}.",
     "loadingMessages": "Cargando mensajes…",
     "pagesFailed": "Algunos mensajes no se han podido leer. No se ha borrado nada.",
@@ -737,7 +740,7 @@
     "all": "Todos",
     "category": {
       "moment": "Momentos",
-      "pattern": "Patrones",
+      "pattern": "Costumbres",
       "interest": "Intereses"
     },
     "groupTitle": "{category} ({count})",
@@ -757,7 +760,22 @@
     "shown": "Mostrando {shown} de {total}",
     "showMore": "Mostrar más",
     "loadingMore": "Cargando más…",
-    "moreFailed": "No se han podido leer algunos destacados. No se ha eliminado nada."
+    "moreFailed": "No se han podido leer algunos destacados. No se ha eliminado nada.",
+    "showMessages": "Mostrar los mensajes ({count})",
+    "hideMessages": "Ocultar los mensajes",
+    "messagesLoading": "Cargando los mensajes…",
+    "messagesFailed": "No se han podido leer los mensajes. No se ha borrado nada.",
+    "messagesLabel": "Mensajes de «{title}»",
+    "messageOpen": "Abrir el mensaje de {author}, {when}",
+    "showAllMessages": "Mostrar todos ({count})",
+    "you": "Tú",
+    "unknownAuthor": "Remitente desconocido",
+    "deleteAll": "Borrar todo",
+    "deleteAllTitle": "¿Borrar todos los destacados de {name}?",
+    "deleteAllBody": "Se borrarán de este dispositivo {count, plural, one {# destacado} other {todos los # destacados}} de {name}. Los mensajes se quedan en sus conversaciones. Si después vuelves a importar el archivo de hallazgos, los destacados vuelven.",
+    "deleteAllConfirm": "Borrar todo",
+    "deleteAllFailed": "No se han podido borrar los destacados. No se ha cambiado nada.",
+    "deletedAll": "{count, plural, =0 {No había ningún destacado que borrar.} one {Se ha borrado # destacado.} other {Se han borrado # destacados.}} Los mensajes se quedan en sus conversaciones. Puedes volver a importar el archivo."
   },
   "highlightsImport": {
     "title": "Importar destacados",
@@ -856,5 +874,16 @@
   },
   "subpage": {
     "backTo": "Volver a"
+  },
+  "phrase": {
+    "action": "Usarla como frase de {name}",
+    "title": "¿Cambiar la frase de {name}?",
+    "body": "{name} ya tiene una frase. Si continúas, se cambiará por este mensaje. El mensaje original no se toca.",
+    "current": "Frase actual",
+    "confirm": "Cambiar la frase",
+    "cancel": "Cancelar",
+    "saved": "Se ha guardado la frase de {name}.",
+    "failed": "No se ha podido guardar la frase de {name}. No se ha cambiado nada.",
+    "saving": "Guardando…"
   }
 }

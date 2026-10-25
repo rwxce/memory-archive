@@ -4,6 +4,7 @@ import type { NewMessage } from '../domain/library';
 import {
   countMessages,
   findMessageOffsetByDate,
+  findMessageOffsetById,
   getMessageWindow,
   listConversationDays,
   mediaTypeOf,
@@ -65,6 +66,9 @@ describe('conversation view use cases', () => {
     expect(await getMessageWindow(deps, CONV, 10)).toEqual([]);
     expect(await findMessageOffsetByDate(deps, CONV, '2026-01-02')).toBe(1);
     expect(await findMessageOffsetByDate(deps, CONV, '2026-02-01')).toBeNull();
+    const second = (await getMessageWindow(deps, CONV, 1, 1))[0];
+    expect(await findMessageOffsetById(deps, CONV, second.id)).toBe(1);
+    expect(await findMessageOffsetById(deps, CONV, 99_999)).toBeNull();
     expect((await listConversationDays(deps, CONV)).map((d) => d.firstOffset)).toEqual([0, 1, 2]);
   });
 
