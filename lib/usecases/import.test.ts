@@ -969,3 +969,23 @@ describe('importWhatsAppExport: compression-ratio guard', () => {
     expect((await run(lib, zip)).status).toBe('imported');
   });
 });
+
+describe('importWhatsAppExport: Android transcript name', () => {
+  test('imports a ZIP whose transcript is "<localized> <name>.txt", stores the media once, re-import adds nothing', async () => {
+    const lib = await setup();
+    const lines = ['17/03/2026, 13:17 - Ana: Bon dia', `17/03/2026, 13:20 - Bo: ${PHOTO} (file attached)`];
+    const zip = () => new Blob([zipSync({ 'Xat de WhatsApp amb Ana i Bo.txt': strToU8(lines.join('\n')), [PHOTO]: bytes(1, 100) }) as BlobPart]);
+    const first = await run(lib, zip(), { fileName: 'Xat de WhatsApp amb Ana i Bo.zip' });
+    expect(first.status).toBe('imported');
+    if (first.status === 'imported') expect(first.summary).toMatchObject({ added: 2, mediaAdded: 1 });
+    expect(await lib.deps.blobStore.list()).toHaveLength(1);
+    const again = await run(lib, zip(), { fileName: 'Xat de WhatsApp amb Ana i Bo.zip' });
+    if (again.status === 'imported') expect(again.summary).toMatchObject({ added: 0, alreadyThere: 2 });
+  });
+
+  test('a ZIP with no identifiable transcript is invalid-export', async () => {
+    const lib = await setup();
+    const zip = new Blob([zipSync({ 'a.txt': strToU8('x'), 'b.txt': strToU8('y') }) as BlobPart]);
+    await expect(run(lib, zip)).rejects.toMatchObject({ code: 'invalid-export' });
+  });
+});

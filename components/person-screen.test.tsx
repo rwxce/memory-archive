@@ -117,13 +117,13 @@ describe('PersonScreen', () => {
     expect(links[0].getAttribute('href')).toBe(`/conversation?id=${PRIVATE}&from=${personId}`);
   });
 
-  test('the bento leads to the sections (Timeline, Gallery, Audio, Favorites, Notes) with the person in the address', async () => {
+  test('the bento leads to the sections (Timeline, Gallery, Audio, Favorites, Notes, Highlights) with the person in the address', async () => {
     view = await open('ana');
     const nav = view.container.querySelector('nav[aria-label="Sections"]')!;
     const links = [...nav.querySelectorAll('a')];
     const id = new URLSearchParams(search).get('id');
-    expect(links.map((a) => a.getAttribute('href'))).toEqual([`/person/timeline?id=${id}`, `/person/gallery?id=${id}`, `/person/audio?id=${id}`, `/person/favorites?id=${id}`, `/person/notes?id=${id}`]);
-    for (const [link, name] of links.map((l, i) => [l, ['Timeline', 'Gallery', 'Audio', 'Favorites', 'Notes'][i]] as const)) expect(link.textContent).toContain(name);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([`/person/timeline?id=${id}`, `/person/gallery?id=${id}`, `/person/audio?id=${id}`, `/person/favorites?id=${id}`, `/person/notes?id=${id}`, `/person/highlights?id=${id}`]);
+    for (const [link, name] of links.map((l, i) => [l, ['Timeline', 'Gallery', 'Audio', 'Favorites', 'Notes', 'Highlights'][i]] as const)) expect(link.textContent).toContain(name);
   });
 
   test('the stats and the card hints come from the archive: messages, photos and videos, voice messages', async () => {

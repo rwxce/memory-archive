@@ -115,6 +115,17 @@ test type or architecture rule means updating this file **in the same PR**.
     message note, "Open in conversation" / person / conversation, and the same editor in place (a saved note
     updates the card, a deleted one leaves the list with a live-region note). Undoing an import that created a
     conversation now says that its notes and favorites are removed with it (wizard and import history).
+    **Highlights** (`/[locale]/person/highlights/?id=<uuid>`, `components/person-highlights-screen.tsx` /
+    `person-highlight-item.tsx` / `highlights-import.tsx`, `hooks/use-person-highlights.ts` /
+    `use-import-findings.ts`, sixth entry of `person-sections.tsx` and a card in the person's bento with the
+    count): per-category counts feed filter chips and group headings; each category group lists
+    `listHighlights({ scope: { profileId }, category })` 50 at a time with "Show more" (title, summary,
+    conversation, message count, first day, "Open in conversation" at that day, delete behind a native modal
+    dialog; focus returns to the page title and a live region says so). The import card on the same screen
+    reads a `.json` with `File.text()` (refused over `MAX_FINDINGS_TEXT` before reading), lists problems as
+    JSON path + fixed message only, preselects the conversation named like the file (a selector when the
+    person has several), confirms, and reports imported / updated / unchanged / skipped plus soft warnings.
+    Person-level entry only; no exact-message jump yet.
     **Search** (`/[locale]/search/[?person=<uuid>|?conversation=<uuid>][&q=]`, `components/search-screen.tsx` /
     `search-result-item.tsx` / `search-highlight.tsx` / `search-index-progress.tsx`, hooks `use-search.ts` (input
     debounce 250 ms, minimum 2 letters, only the latest request counts, 50 per page read from the number shown),
@@ -275,11 +286,12 @@ test type or architecture rule means updating this file **in the same PR**.
     controls (WhatsApp wraps unsaved-number authors in them), reject control characters and
     lone surrogates, and required ones need a visible character; `FieldError`),
     `library.ts` (profile / conversation / message types, `isUuid`, `isSha256Hex`,
-    `isLocalTimestamp`, `MESSAGE_TYPES`), `fingerprint.ts` (message fingerprints, see below), `sha256.ts` (`createSha256`: incremental SHA-256 in
+    `isLocalTimestamp`, `MESSAGE_TYPES`), `fingerprint.ts` (message fingerprints, see below), `highlights.ts` (`findings.json` v1 types and
+    the untrusted-input validators `parseFindings` / `parseFindingsText`, and the stored `HighlightItem` / `HighlightMessage` shapes), `sha256.ts` (`createSha256`: incremental SHA-256 in
     plain TS, pinned by NIST vectors; WebCrypto has no incremental digest, so this is how
     media is hashed while it streams, with no dependency).
   - `lib/db/` — the only code that issues SQL. `sql.ts` (`SqlDb`: the narrow sync surface
-    over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1 to v6,
+    over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1 to v7,
     `PRAGMA user_version`, forward-only, one transaction per migration, newer DB refused),
     `queries.ts` (profiles: create / update / archive / get / list; conversations: list / rename /
     move / link / unlink; `importMessages` (batch, optional new conversation and "me", all in one transaction), `findImportCandidates`, `findExistingFingerprints`, `undoImportBatch`, `listImportBatches` (read-only history: newest first, keyset `before` cursor, page <= 200, filter by conversation or profile), `listMessages`; the conversation view's reads, all by position on `messages_timeline` with no schema change: `getConversationBounds`, `countMessages`, `getMessageWindow` (limit clamped to 1..500, any offset, window ids from the covering index, then a join of only those rows; carries `isMe`, system flag, media hash/name/mime), `findMessageOffsetByDate` (`null` when every message is earlier), `listConversationDays` (count and first offset per local day), `getMessageSource(conversationId, messageId)` (the first import batch that added the message: source, label, date, batch id; `not-found` unless the pair matches, `invalid` for a malformed id; read-only, no schema change); an unknown conversation is `not-found`; a person's media, also with no schema change: `countPersonMedia` / `listPersonMedia(profileId, kinds, offset, limit)` (messages with a stored file of the asked media types over every conversation linked to the profile, archived or not; total order `(sent_at, ordinal, id)`, limit clamped to 1..500, ids picked first and only that page joined; `invalid` for empty / non-media `kinds`, `not-found` for an unknown profile; ~15 ms first page and count over 15k audio items in a 200k-message archive, guarded by `person-media.perf.test.ts`); a person's combined timeline (schema v4 index `messages_by_time`): `getPersonTimelineBounds`, `getPersonTimelineWindow(profileId, offset, limit)` (every message of every conversation linked to the profile, archived or not, merged in the total order `(sent_at, ordinal, conversation_id, id)`; limit clamped to 1..500; each item is a conversation-view message plus `conversationId` / `conversationTitle`; a conversation linked to two people is in both timelines), `findPersonTimelineOffsetByDate` (`null` when all are earlier), `listPersonTimelineDays`; `not-found` for an unknown profile, `invalid` for a malformed id, offset or date; use cases in `lib/usecases/person-timeline.ts`; guarded by `person-timeline.perf.test.ts`); favorites (schema v5): `setFavorite({ conversationId, messageId, favorite, now })` (the screen passes the local message id; the pair is checked, `not-found` otherwise; resolved to `(conversation, fingerprint)` inside; idempotent), `countFavorites(scope?)` / `listFavorites(scope, offset, limit)` (scope = `{ profileId }`, `{ conversationId }` or none = whole archive, both = `invalid`; timeline-shaped items, oldest first in the timeline order, limit clamped to 1..500; favorites whose message is not in the archive are not returned or counted), and `isFavorite` on every item of `getMessageWindow` / `getPersonTimelineWindow` through a LEFT JOIN on the favorites primary key (page rows only, so no N+1); use cases in `lib/usecases/favorites.ts`; guarded by `favorites.perf.test.ts`); notes (schema v6): `setNote({ target, body, now })` (target = `{ kind: 'profile', profileId }`, `{ kind: 'conversation', conversationId }` or `{ kind: 'message', conversationId, messageId }`, strictly validated; the message pair is checked, `not-found` otherwise, and resolved to `(conversation, fingerprint)` inside; the text is trimmed and bounded by `NOTE_MAX` = 10,000 in `domain/profile.ts` (`invalid` over it, never truncated); creates, edits (keeps `created_at`, moves `updated_at` only when the text changes) or, when empty, deletes and returns `null`), `getNote(target)`, `countNotes(scope?)` / `listNotes(scope, offset, limit)` (scope = `{ profileId }` (the person's own note plus those of their conversations and messages), `{ conversationId }` (its note plus its messages') or none, both = `invalid`; most recently edited first (`updated_at` desc, ties by `created_at` then rowid, so pages tile), limit clamped to 1..500; each item carries kind, text, dates, profile name / conversation title and, for a message note, the message (id, sent_at, type, author, text, file name); notes on a message that is not in the archive are not returned or counted), and `hasNote` on every item of `getMessageWindow` / `getPersonTimelineWindow` / `listFavorites` through a LEFT JOIN on the unique `(conversation_id, fingerprint)` index (page rows only, so no N+1); use cases in `lib/usecases/notes.ts`; guarded by `notes.perf.test.ts`); full-text search (a derived index, no change to the library schema): `getSearchStatus` (`not-built` / `stale` / `ready` plus the message total), `stepSearchIndex({ limit? })` (one chunk of a reconcile pass, default 5,000 messages, clamped to 100..20,000: adds what is missing, removes what is gone or different; `finished` / `verified` end the pass) and `searchMessages({ scope?, query, offset, limit })` (scope = `{ profileId }`, `{ conversationId }` or none, both = `invalid`, unknown = `not-found`; the query is reduced to quoted words with the last one as a prefix from 2 letters, so no FTS5 syntax typed by a person reaches the engine; newest first in the timeline order; limit clamped to 1..500; items are timeline-shaped plus `snippet: { text, ranges }`, plain text with UTF-16 offsets, never HTML; `unavailable` before the first complete pass); use cases in `lib/usecases/search.ts` (`getSearchStatus`, `buildSearchIndex({ onProgress, signal })`, `searchMessages(scope, query, offset, limit)`, which brings a missing or stale index up to date first); guarded by `search.perf.test.ts`),
@@ -359,7 +371,10 @@ test type or architecture rule means updating this file **in the same PR**.
     `json.ts`, `md.ts`, `html.ts`, `media.ts` (media map, MIME), `colors.ts` + `sha256.ts`.
 - **Node CLI (`cli/`)** — `index.ts` (bin entry) → `main.ts` (`buildCli`, commander with
   positional options): the default import command, `import-legacy <file>` and
-  `render <dir>` (`cli/legacy.ts`). Plus the `fs.openAsBlob` adapter, CSV/media/output
+  `render <dir>` (`cli/legacy.ts`), and the dev-only research pair `export-for-research <zip>`
+  (JSONL of fingerprint / ts / author / text into gitignored `output/research/`) and
+  `check-findings <file>` (`cli/research.ts`; see [`research-workflow.md`](research-workflow.md)).
+  Plus the `fs.openAsBlob` adapter, CSV/media/output
   writing and link-title fetching. Pipeline (`cli/pipeline.ts`): `parseWhatsAppZip` →
   `mergeCsv` → `enrichTitles` → `reconcileMedia` → `renderOutputs`.
 - **Why the ZIP reader uses the central directory** — WhatsApp exports store members with
@@ -465,6 +480,30 @@ test type or architecture rule means updating this file **in the same PR**.
   windows unchanged (conversation 1 / 2.6 / 2.5 ms at start / middle / end, person timeline 1 / 9 / 18
   ms), count 2 ms, notes page 4-5 ms. v1-v5 backups restore by migrating; new backups carry
   `schemaVersion` 6, so an older app refuses them (`newer-schema`).
+- **Schema v7 (implemented, expand-only)** — two tables, both empty after migrating:
+  `highlights(conversation_id, id, category, title, summary, created_by, created_at, imported_at)`
+  (primary key `(conversation_id, id)`, `id` = the author's id from `findings.json`, `category` CHECKed to
+  moment / pattern / interest, `created_at` = the instant in the file, `imported_at` = when it was imported)
+  and `highlight_messages(conversation_id, highlight_id, fingerprint, position)` (primary key
+  `(conversation_id, highlight_id, fingerprint)`, `position` = the author's order). Messages are anchored
+  like favorites and notes, by `(conversation_id, fingerprint)`, with NO foreign key to `messages`: undo
+  plus re-import keeps them, and a highlight none of whose messages is in the archive is dormant (reads
+  join `messages`; not listed or counted). Both tables cascade with their conversation and the links with
+  their highlight. Only fingerprints present in the conversation at import time are stored. Import is
+  idempotent by highlight id in one transaction (`lib/db/highlights.ts`, `importHighlights`): new id ->
+  created, changed content -> updated in place (messages replaced, `imported_at` moves), identical ->
+  untouched; a highlight with no known message is skipped and reported, unknown fingerprints are counted.
+  Deleting a highlight keeps no tombstone, so importing its file again brings it back. Reads:
+  `countHighlights` / `countHighlightsByCategory` / `listHighlights` (filter = scope `{ profileId }` /
+  `{ conversationId }` / none, plus optional category; ordered by earliest message, limit clamped to
+  1..500), `listHighlightMessages`, `deleteHighlight`. Use cases in `lib/usecases/highlights.ts`
+  (`importFindings` also returns soft `warnings` when the file's message count or first message do not
+  match the conversation; they never block). Highlights are personal text and live in the SQLite
+  snapshot, so they are in every backup and restore; text is never logged. The archive `formatVersion`
+  stays 1 (the manifest already carries `schemaVersion`); v1-v6 backups restore by migrating, and new
+  backups carry `schemaVersion` 7, so an older app refuses them (`newer-schema`). There is no merge of two
+  devices' archives in the code yet; when it exists it must treat `highlights` like favorites and notes
+  (union by key).
 - **Search: a derived index (decision, no schema change)** — full-text search runs on an FTS5 table that is
   a rebuildable CACHE, not data. FTS5 is compiled into the bundled sqlite-wasm. It could not live in the
   library: `snapshot.ts` refuses virtual tables, triggers and views in anything restored, and backups
@@ -779,6 +818,7 @@ test type or architecture rule means updating this file **in the same PR**.
   - UI — `components/person-timeline-screen.test.tsx` and `hooks/use-person-timeline.test.tsx` (merge order across two conversations, label only where the conversation changes with hrefs, hostile title as text, "me" alignment, date jump, saved position, empty / not-found / error + retry, start at date / saved position / end, Catalan); e2e `e2e/person-timeline.spec.ts` (two chats imported into one person, order, labels, date jump, calendar, Back, small DOM at 390 and 1440).
   - UI — `components/person-gallery-screen.test.tsx` (kinds, month groups, near-screen reads and URL revoke with a driven IntersectionObserver, video reads nothing, missing and undecodable, Show more, empty / not-found / error + retry, Catalan), `components/person-gallery-lightbox.test.tsx` (dialog stub for happy-dom: open, arrows, ends, missing, read-ahead and revoke, focus return, next page and its failure), `hooks/use-near-viewport.test.tsx`, `e2e/person-gallery.spec.ts` (real PNGs and a video, lazy loading on scroll, keyboard, lightbox open / arrows / Escape / next page / open in the conversation, at 390 and 1440 px);
   - UI — `components/message-notes.test.tsx`, `hooks/use-note.test.tsx` and `components/person-notes-screen.test.tsx` (note button on messages only, 44 px, Ctrl+Enter save with unchanged row positions, `hasNote` patched in place, delete and discard confirmations, failed write keeps the text, `invalid` shown, counter near the limit only, draft survives a remounted row, timeline rows save in their own conversation, conversation and person notes, Notes list kinds / quoted message / hrefs / edit / delete with live note / paging / empty / error + retry / not-found, Catalan), `e2e/notes.spec.ts` (message note in the conversation, listed and edited in Notes, person note, delete, reload keeps it, at 390 and 1440 px)
+  - Highlights UI — `components/person-highlights-screen.test.tsx` (grouping and counts, hostile title as text, hrefs, chips, delete with confirmation and focus, paging, empty, error + retry, Catalan, person page entry), `components/highlights-import.test.tsx` (valid import and idempotent repeat, conversation choice, invalid file lists paths never content, size limit before reading, warnings, no conversations) and `e2e/highlights.spec.ts` (real workers and OPFS at 390 and 1440 px: import, filter, delete, reload, re-import, open)
   - UI — `components/message-favorite.test.tsx` and `hooks/use-favorite-toggle.test.tsx` (star on messages only, aria-pressed, optimistic mark with unchanged row positions, persisted, rollback with live message, in-flight taps ignored, timeline rows save in their own conversation, page read later keeps the mark, Catalan), `components/person-favorites-screen.test.tsx` and `hooks/use-person-favorites.test.tsx` (month groups, text as text, media line, hrefs, remove with live note and failure alert, Show more without skips, empty / error + retry / not-found), `hooks/message-pages.test.ts` (`PageCache.update`, `messageKey`), `e2e/favorites.spec.ts` (star from the Timeline and the conversation, Favorites list, remove, reload keeps it, at 390 and 1440 px)
   - UI — `components/person-audio-screen.test.tsx` and `hooks/use-person-media.test.tsx` (month groups, Open-in-conversation hrefs, one player at a time, missing file, Show more, empty / not-found / error + retry, Catalan; paging, kinds, failed page, ids), `e2e/person-audio.spec.ts` (import, sections link, play one at a time, open in the conversation, at 390 and 1440 px); `components/person-screen.test.tsx` (details, not-found, archived person, edit, archive,
     rename validation / double submit / failure / Escape and IME, move, link, unlink incl. the last
@@ -946,8 +986,8 @@ test type or architecture rule means updating this file **in the same PR**.
   - `responsive-ui-designer` — router for UI work (mobile-first PWA, `ca`/`es`/`en`).
 - **Commands — PR flow** (`.rulesync/commands/`): `pr-plan` → `pr-precheck` → `pr-make` →
   `pr-review` → `pr-triage`.
-- **Skills** (`.rulesync/skills/`): `debugging`, `interview-me`, `pr-scope`, `pr-review`,
-  `security-audit`, `rulesync`. Planned with the UI: a design skill and `local-test`
+- **Skills** (`.rulesync/skills/`): `debugging`, `highlights-research`, `interview-me`, `pr-scope`,
+  `pr-review`, `security-audit`, `rulesync`. Planned with the UI: a design skill and `local-test`
   (Playwright, mobile + desktop viewports).
 - **Hooks** (`.rulesync/hooks.jsonc`):
   - `PreToolUse` (fail-closed) — `scripts/block-agent-github-review-writes.mjs`: agents

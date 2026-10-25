@@ -113,33 +113,34 @@ describe('loadSnapshot', () => {
     expect(target.all("SELECT name FROM sqlite_master WHERE name = 'messages_by_time'")).toHaveLength(1);
   });
 
-  test('a schema v4 snapshot restores by migrating to the current schema: messages kept, favorites and notes empty', async () => {
+  test('a schema v4 snapshot restores by migrating to the current schema: messages kept, favorites, notes and highlights empty', async () => {
     const v4 = await bareDb(MIGRATIONS.slice(0, 4));
     v4.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [ID2, 'Chat', 'whatsapp', NOW]);
     v4.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
     v4.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
     const target = (await openMemoryDb()).db;
     expect(await loadSnapshot(target, serializeDb(v4))).toEqual({ from: 4, to: SCHEMA_VERSION });
-    expect(SCHEMA_VERSION).toBe(6);
+    expect(SCHEMA_VERSION).toBe(7);
     expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
     expect(target.all('SELECT * FROM favorites')).toEqual([]);
     expect(target.all('SELECT * FROM notes')).toEqual([]);
+    expect(target.all('SELECT * FROM highlights')).toEqual([]);
   });
 
-  test('a schema v5 snapshot restores by migrating to v6: messages and favorites kept, notes empty', async () => {
+  test('a schema v5 snapshot restores by migrating to the current schema: messages and favorites kept, notes and highlights empty', async () => {
     const v5 = await bareDb(MIGRATIONS.slice(0, 5));
     v5.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [ID2, 'Chat', 'whatsapp', NOW]);
     v5.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
     v5.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
     v5.run('INSERT INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [ID2, 'ab'.repeat(32), NOW]);
     const target = (await openMemoryDb()).db;
-    expect(await loadSnapshot(target, serializeDb(v5))).toEqual({ from: 5, to: 6 });
+    expect(await loadSnapshot(target, serializeDb(v5))).toEqual({ from: 5, to: SCHEMA_VERSION });
     expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
     expect(target.all('SELECT fingerprint FROM favorites')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
     expect(target.all('SELECT * FROM notes')).toEqual([]);
   });
 
-  test('a current (v6) snapshot round-trips with its index, favorites and notes, anchored by fingerprint', async () => {
+  test('a current (v7) snapshot round-trips with its index, favorites, notes and highlights, anchored by fingerprint', async () => {
     const source = (await openMemoryDb()).db;
     createConversation(source, { id: ID2, title: 'Chat', source: 'whatsapp', isGroup: false, profileIds: [], participants: [], now: NOW });
     source.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
@@ -160,6 +161,32 @@ describe('loadSnapshot', () => {
     expect(target.all('SELECT * FROM favorites ORDER BY fingerprint')).toEqual(source.all('SELECT * FROM favorites ORDER BY fingerprint'));
     expect(target.all('SELECT * FROM notes ORDER BY body')).toEqual(source.all('SELECT * FROM notes ORDER BY body'));
     expect(target.all('SELECT * FROM notes')).toHaveLength(4);
+    source.run("INSERT INTO highlights (conversation_id, id, category, title, summary, created_by, created_at, imported_at) VALUES (?, 'h', 'moment', 'T', 'S', 'me', ?, ?)", [ID2, NOW, NOW]);
+    source.run("INSERT INTO highlight_messages (conversation_id, highlight_id, fingerprint, position) VALUES (?, 'h', ?, 0), (?, 'h', ?, 1)", [ID2, 'cd'.repeat(32), ID2, 'ab'.repeat(32)]);
+    const target2 = (await openMemoryDb()).db;
+    expect(await loadSnapshot(target2, serializeDb(source))).toEqual({ from: SCHEMA_VERSION, to: SCHEMA_VERSION });
+    expect(target2.all('SELECT * FROM highlights')).toEqual(source.all('SELECT * FROM highlights'));
+    expect(target2.all('SELECT * FROM highlight_messages ORDER BY position')).toEqual(source.all('SELECT * FROM highlight_messages ORDER BY position'));
+  });
+
+  test('a schema v6 snapshot restores by migrating to v7: messages and notes kept, highlights empty', async () => {
+    const v6 = await bareDb(MIGRATIONS.slice(0, 6));
+    v6.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [ID2, 'Chat', 'whatsapp', NOW]);
+    v6.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
+    v6.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
+    v6.run("INSERT INTO notes (kind, conversation_id, body, created_at, updated_at) VALUES ('conversation', ?, 'kept', ?, ?)", [ID2, NOW, NOW]);
+    const target = (await openMemoryDb()).db;
+    expect(await loadSnapshot(target, serializeDb(v6))).toEqual({ from: 6, to: 7 });
+    expect(target.all('SELECT body FROM notes')).toEqual([{ body: 'kept' }]);
+    expect(target.all('SELECT * FROM highlights')).toEqual([]);
+    expect(target.all('SELECT * FROM highlight_messages')).toEqual([]);
+  });
+
+  test('refuses a highlight of an unknown conversation', async () => {
+    const orphan = (await openMemoryDb()).db;
+    orphan.exec('PRAGMA foreign_keys = OFF');
+    orphan.run("INSERT INTO highlights (conversation_id, id, category, title, summary, created_by, created_at, imported_at) VALUES (?, 'h', 'moment', 'T', 'S', 'me', ?, ?)", [ID2, NOW, NOW]);
+    await expectInvalid(orphan, /foreign key/);
   });
 
   test('refuses a note of an unknown conversation or profile', async () => {

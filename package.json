@@ -1,7 +1,7 @@
 {
   "name": "memory-archive",
   "private": true,
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Privacy-first, fully offline memory archive for WhatsApp conversations, photos, videos and voice messages",
   "type": "module",
   "bin": {
@@ -55,7 +55,7 @@
     "date-fns": "4.4.0",
     "fflate": "0.8.3",
     "lucide-react": "1.56.0",
-    "next": "16.4.0",
+    "next": "16.4.2",
     "next-intl": "4.14.9",
     "picocolors": "1.1.1",
     "react": "19.3.0",

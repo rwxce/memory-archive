@@ -39,6 +39,8 @@ describe('migrate', () => {
       'conversation_profiles',
       'conversations',
       'favorites',
+      'highlight_messages',
+      'highlights',
       'import_batches',
       'messages',
       'notes',
@@ -597,7 +599,7 @@ describe('migration v5 to v6 (notes)', () => {
   test('adds only the notes table: existing tables and rows are untouched, and the schema is the same fresh or migrated', async () => {
     const db = await v5WithData();
     const before = db.all("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
-    expect(migrate(db)).toEqual({ from: 5, to: 6 });
+    expect(migrate(db, MIGRATIONS.slice(0, 6))).toEqual({ from: 5, to: 6 });
     expect(readUserVersion(db)).toBe(6);
     const after = db.all<{ name: string }>("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
     expect(after.filter((t) => t.name !== 'notes')).toEqual(before);
@@ -605,7 +607,7 @@ describe('migration v5 to v6 (notes)', () => {
     expect(db.all('SELECT fingerprint FROM favorites')).toEqual([{ fingerprint: HASH }]);
     expect(db.all('SELECT * FROM notes')).toEqual([]);
     const fresh = await emptyDb();
-    migrate(fresh);
+    migrate(fresh, MIGRATIONS.slice(0, 6));
     const dump = (d: SqlDb) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
     expect(dump(db)).toEqual(dump(fresh));
   });
@@ -686,6 +688,85 @@ describe('migration v5 to v6 (notes)', () => {
     expect(() => migrate(db, broken)).toThrow();
     expect(readUserVersion(db)).toBe(5);
     expect(db.all("SELECT name FROM sqlite_master WHERE name LIKE 'notes%'")).toHaveLength(0);
-    expect(migrate(db)).toEqual({ from: 5, to: 6 });
+    expect(migrate(db, MIGRATIONS.slice(0, 6))).toEqual({ from: 5, to: 6 });
+  });
+});
+
+describe('migration v6 to v7 (highlights)', () => {
+  const FP2 = 'cd'.repeat(32);
+  async function v6WithData() {
+    const db = await emptyDb();
+    db.exec('PRAGMA foreign_keys = ON');
+    migrate(db, MIGRATIONS.slice(0, 6));
+    db.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [CONVERSATION, 'Chat', 'whatsapp', 't']);
+    db.run('INSERT INTO import_batches (id, conversation_id, source, created_at, added_count) VALUES (?, ?, ?, ?, 1)', [BATCH, CONVERSATION, 'whatsapp', 't']);
+    db.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [CONVERSATION, BATCH, HASH, '2026-01-01T10:00:00', 'text']);
+    db.run("INSERT INTO notes (kind, conversation_id, fingerprint, body, created_at, updated_at) VALUES ('message', ?, ?, 'x', 't', 't')", [CONVERSATION, HASH]);
+    return db;
+  }
+  const addHighlight = (db: SqlDb, id = 'h1', conversation = CONVERSATION, category = 'moment') =>
+    db.run('INSERT INTO highlights (conversation_id, id, category, title, summary, created_by, created_at, imported_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [conversation, id, category, 'T', '', 'me', 't', 't']);
+  const addLink = (db: SqlDb, fp: string, position = 0, id = 'h1') =>
+    db.run('INSERT INTO highlight_messages (conversation_id, highlight_id, fingerprint, position) VALUES (?, ?, ?, ?)', [CONVERSATION, id, fp, position]);
+
+  test('adds only the two highlight tables: existing tables and rows are untouched, and the schema is the same fresh or migrated', async () => {
+    const db = await v6WithData();
+    const before = db.all("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
+    expect(migrate(db)).toEqual({ from: 6, to: 7 });
+    expect(readUserVersion(db)).toBe(7);
+    const after = db.all<{ name: string }>("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
+    expect(after.filter((t) => !t.name.startsWith('highlight'))).toEqual(before);
+    expect(db.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: HASH }]);
+    expect(db.all('SELECT fingerprint FROM notes')).toEqual([{ fingerprint: HASH }]);
+    expect(db.all('SELECT * FROM highlights')).toEqual([]);
+    expect(db.all('SELECT * FROM highlight_messages')).toEqual([]);
+    const fresh = await emptyDb();
+    migrate(fresh);
+    const dump = (d: SqlDb) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
+    expect(dump(db)).toEqual(dump(fresh));
+  });
+
+  test('rules: one highlight per (conversation, id), valid category and fingerprints, links need their highlight, no link to messages', async () => {
+    const db = await v6WithData();
+    migrate(db);
+    addHighlight(db);
+    expect(() => addHighlight(db)).toThrow(/UNIQUE/);
+    expect(() => addHighlight(db, 'h2', CONVERSATION, 'other')).toThrow(/CHECK/);
+    expect(() => addHighlight(db, '', CONVERSATION)).toThrow(/CHECK/);
+    expect(() => addHighlight(db, 'h3', BATCH)).toThrow(/FOREIGN/);
+    addLink(db, HASH);
+    addLink(db, FP2, 1); // its message does not exist: dormant, allowed
+    expect(() => addLink(db, HASH, 2)).toThrow(/UNIQUE/);
+    expect(() => addLink(db, 'AB'.repeat(32), 3)).toThrow(/CHECK/);
+    expect(() => addLink(db, 'ab', 3)).toThrow(/CHECK/);
+    expect(() => addLink(db, HASH, -1, 'h1')).toThrow(/UNIQUE|CHECK/);
+    expect(() => addLink(db, FP2, 3, 'missing')).toThrow(/FOREIGN/);
+  });
+
+  test('links outlive their messages, go with their highlight, and everything goes with the conversation', async () => {
+    const db = await v6WithData();
+    migrate(db);
+    addHighlight(db, 'h1');
+    addHighlight(db, 'h2');
+    addLink(db, HASH, 0, 'h1');
+    addLink(db, HASH, 0, 'h2');
+    db.run('DELETE FROM messages');
+    expect(db.all('SELECT * FROM highlight_messages')).toHaveLength(2);
+    db.run("DELETE FROM highlights WHERE id = 'h1'");
+    expect(db.all('SELECT highlight_id FROM highlight_messages')).toEqual([{ highlight_id: 'h2' }]);
+    db.run('DELETE FROM notes');
+    db.run('DELETE FROM import_batches');
+    db.run('DELETE FROM conversations');
+    expect(db.all('SELECT * FROM highlights')).toEqual([]);
+    expect(db.all('SELECT * FROM highlight_messages')).toEqual([]);
+  });
+
+  test('a failure in v7 leaves the v6 database as it was, and a retry succeeds', async () => {
+    const db = await v6WithData();
+    const broken: Migration[] = [...MIGRATIONS.slice(0, 6), { version: 7, sql: `${MIGRATIONS[6].sql} INSERT INTO missing_table VALUES (1);` }];
+    expect(() => migrate(db, broken)).toThrow();
+    expect(readUserVersion(db)).toBe(6);
+    expect(db.all("SELECT name FROM sqlite_master WHERE name LIKE 'highlight%'")).toHaveLength(0);
+    expect(migrate(db)).toEqual({ from: 6, to: 7 });
   });
 });

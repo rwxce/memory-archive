@@ -219,6 +219,48 @@ CREATE UNIQUE INDEX notes_one_per_message ON notes(conversation_id, fingerprint)
 CREATE UNIQUE INDEX notes_one_per_conversation ON notes(conversation_id) WHERE kind = 'conversation';
 `;
 
+/**
+ * v7 (expand only): highlights, the key moments / patterns / messages of interest a person imports
+ * from a `findings.json` (`domain/highlights.ts`). Two new tables only: no existing column, row or
+ * index changes, so a v1-v6 backup restores by migrating (the tables start empty). Highlights are
+ * personal text: they live in the snapshot, hence in every backup.
+ *
+ * A highlight belongs to one conversation and is keyed by the id its author gave it, so importing
+ * the same file again updates in place instead of duplicating. Its messages are anchored like
+ * favorites and notes, by `(conversation_id, fingerprint)`, never by the local message id, and have
+ * NO foreign key to `messages`: undoing an import and importing again must not lose them; a message
+ * that is gone is dormant (reads join `messages`) and comes back with it. Only fingerprints that
+ * were in the conversation when the file was imported are stored. Both tables go with their
+ * conversation (`ON DELETE CASCADE`); `highlight_messages` also goes with its highlight.
+ *
+ * `created_at` is the instant the author wrote in the file, `imported_at` the instant it was
+ * imported (UTC, supplied by the caller). `position` keeps the author's order of the messages.
+ * Text bounds live in the application (`FINDINGS_LIMITS`), not in CHECKs.
+ */
+const V7 = `
+CREATE TABLE highlights (
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  id              TEXT NOT NULL CHECK (length(id) > 0),
+  category        TEXT NOT NULL CHECK (category IN ('moment', 'pattern', 'interest')),
+  title           TEXT NOT NULL,
+  summary         TEXT NOT NULL,
+  created_by      TEXT NOT NULL,
+  created_at      TEXT NOT NULL,
+  imported_at     TEXT NOT NULL,
+  PRIMARY KEY (conversation_id, id)
+) STRICT;
+
+CREATE TABLE highlight_messages (
+  conversation_id TEXT NOT NULL,
+  highlight_id    TEXT NOT NULL,
+  fingerprint     TEXT NOT NULL CHECK (length(fingerprint) = 64 AND fingerprint NOT GLOB '*[^0-9a-f]*'),
+  position        INTEGER NOT NULL CHECK (position >= 0),
+  PRIMARY KEY (conversation_id, highlight_id, fingerprint),
+  FOREIGN KEY (conversation_id, highlight_id) REFERENCES highlights(conversation_id, id) ON DELETE CASCADE
+) STRICT;
+CREATE INDEX highlight_messages_by_message ON highlight_messages(conversation_id, fingerprint);
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, sql: V1 },
   { version: 2, sql: V2 },
@@ -226,6 +268,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 4, sql: V4 },
   { version: 5, sql: V5 },
   { version: 6, sql: V6 },
+  { version: 7, sql: V7 },
 ];
 
 /** Schema version this build produces and understands. */
