@@ -75,7 +75,7 @@ describe('chat entry helpers', () => {
   });
 
   test('missing transcript throws', () => {
-    expect(() => chatInfoFromEntryNames(['a.jpg'], 'x.zip')).toThrow('No _chat.txt entry found in ZIP');
+    expect(() => chatInfoFromEntryNames(['a.jpg'], 'x.zip')).toThrow('No chat transcript');
   });
 
   test('openChatZip + chatLines stream the transcript from a Blob', async () => {
@@ -96,7 +96,7 @@ describe('chat entry helpers', () => {
 
   test('openChatZip rejects archives without a transcript', async () => {
     const zip = new Blob([zipSync({ 'a.jpg': new Uint8Array([1]) })]);
-    await expect(openChatZip(zip, 'x.zip')).rejects.toThrow('No _chat.txt entry found in ZIP');
+    await expect(openChatZip(zip, 'x.zip')).rejects.toThrow('No chat transcript');
   });
 });
 
@@ -106,5 +106,55 @@ describe('openChatZip limits', () => {
     await expect(openChatZip(zip, 'x.zip', { maxChatBytes: 50 })).rejects.toMatchObject({ name: 'ZipLimitError' });
     await expect(openChatZip(zip, 'x.zip', { maxEntries: 1 })).rejects.toMatchObject({ name: 'ZipLimitError' });
     await expect(openChatZip(zip, 'x.zip', { maxChatBytes: 100, maxEntries: 2 })).resolves.toBeDefined();
+  });
+});
+
+describe('transcript selection (Android names it, never _chat.txt)', () => {
+  const n = (...names: string[]) => names.map((name) => ({ name }));
+
+  test('a single non-_chat .txt at the root is the transcript', () => {
+    expect(findChatEntry(n('Chat de WhatsApp con Ana.txt', 'IMG-1.jpg', 'PTT-1.opus'))?.name).toBe('Chat de WhatsApp con Ana.txt');
+  });
+
+  test('a single .txt inside the single top folder is the transcript', () => {
+    expect(findChatEntry(n('WhatsApp Chat with Ana/WhatsApp Chat with Ana.txt', 'WhatsApp Chat with Ana/IMG-1.jpg'))?.name).toBe(
+      'WhatsApp Chat with Ana/WhatsApp Chat with Ana.txt',
+    );
+  });
+
+  test('a nested .txt next to root files is not a candidate', () => {
+    expect(findChatEntry(n('IMG-1.jpg', 'docs/notes.txt'))).toBeUndefined();
+  });
+
+  test('_chat.txt wins over any other .txt', () => {
+    expect(findChatEntry(n('notes.txt', '_chat.txt'))?.name).toBe('_chat.txt');
+  });
+
+  test('AppleDouble companions are ignored', () => {
+    expect(findChatEntry(n('__MACOSX/._Xat de WhatsApp amb Ana.txt', '._Xat de WhatsApp amb Ana.txt', 'Xat de WhatsApp amb Ana.txt'))?.name).toBe(
+      'Xat de WhatsApp amb Ana.txt',
+    );
+  });
+
+  test('several .txt: the ZIP name breaks the tie, otherwise ambiguous', () => {
+    const entries = n('WhatsApp Chat with Ana.txt', 'readme.txt');
+    expect(findChatEntry(entries, 'WhatsApp Chat with Ana.zip')?.name).toBe('WhatsApp Chat with Ana.txt');
+    expect(findChatEntry(entries, 'other.zip')).toBeUndefined();
+    expect(findChatEntry(entries)).toBeUndefined();
+  });
+
+  test('chat name for <name>.txt comes from the ZIP name at the root, like iOS', () => {
+    expect(chatInfoFromEntryNames(['Chat de WhatsApp con Ana.txt', 'IMG-1.jpg'], 'Chat de WhatsApp con Ana.zip')).toEqual({
+      slug: 'chat-de-whatsapp-con-ana',
+      name: 'Chat de WhatsApp con Ana',
+    });
+  });
+
+  test('openChatZip opens an Android export and rejects an ambiguous one', async () => {
+    const ok = new Blob([zipSync({ 'WhatsApp Chat with Ana.txt': strToU8('1/1/26, 9:00 AM - Ana: hi\n'), 'IMG-1.jpg': new Uint8Array([1]) })]);
+    const opened = await openChatZip(ok, 'WhatsApp Chat with Ana.zip');
+    expect(opened.chatEntry.name).toBe('WhatsApp Chat with Ana.txt');
+    const ambiguous = new Blob([zipSync({ 'a.txt': strToU8('x'), 'b.txt': strToU8('y') })]);
+    await expect(openChatZip(ambiguous, 'chat.zip')).rejects.toThrow('No chat transcript');
   });
 });

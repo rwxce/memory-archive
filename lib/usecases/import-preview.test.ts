@@ -363,3 +363,13 @@ describe('previewWhatsAppExport: bad input and limits', () => {
     expect(new Set(calls)).toEqual(new Set(['findImportCandidates', 'findExistingFingerprints']));
   });
 });
+
+describe('Android exports: the transcript is named after the chat, never _chat.txt', () => {
+  test('preview counts the .txt as the transcript, not as media', async () => {
+    const lib = await setup();
+    const lines = ['17/03/2026, 13:17 - Ana: Bon dia', `18/03/2026, 09:00 - Bo: ${PHOTO} (file attached)`];
+    const zip = new Blob([zipSync({ 'Xat de WhatsApp amb Ana i Bo.txt': strToU8(lines.join('\n')), [PHOTO]: bytes(1, 100) }) as BlobPart]);
+    const p = await preview(lib, zip, { fileName: 'Xat de WhatsApp amb Ana i Bo.zip' });
+    expect(p).toMatchObject({ messageCount: 2, media: { totalCount: 1, totalBytes: 100, missing: 0 } });
+  });
+});

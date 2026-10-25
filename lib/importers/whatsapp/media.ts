@@ -1,4 +1,4 @@
-import { entryBaseName, isAppleDouble } from './chat';
+import { entryBaseName, findChatEntry, isAppleDouble, isChatEntry } from './chat';
 
 /**
  * Canonicalize a media filename for tolerant matching (D-M2 / MEDIA-01):
@@ -51,6 +51,7 @@ export interface MediaMatchResult<T> {
 export function matchMediaEntries<T extends { name: string }>(
   entries: T[],
   refs: string[],
+  chatEntry: T | undefined = findChatEntry(entries),
 ): MediaMatchResult<T> {
   const refsNormalized = new Map<string, string>(); // normalized -> original ref
   for (const r of refs) {
@@ -60,7 +61,7 @@ export function matchMediaEntries<T extends { name: string }>(
   const index = new Map<string, T>(); // normalized base -> entry
   for (const e of entries) {
     const base = entryBaseName(e.name);
-    if (isAppleDouble(e.name) || base.endsWith('_chat.txt') || !isSafeFileName(base)) continue;
+    if (e === chatEntry || isAppleDouble(e.name) || isChatEntry(e.name) || !isSafeFileName(base)) continue;
     index.set(normalizeMediaName(base), e);
   }
   const matches: MediaMatch<T>[] = [];

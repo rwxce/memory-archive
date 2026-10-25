@@ -28,6 +28,16 @@ describe('media matching', () => {
     expect(res.unresolved).toEqual(['VID-2.mp4', '..']);
   });
 
+  test('an Android <name>.txt transcript is never matched as media', () => {
+    const entries = [{ name: 'Chat de WhatsApp con Ana.txt' }, { name: 'IMG-1.jpg' }];
+    const res = matchMediaEntries(entries, ['Chat de WhatsApp con Ana.txt', 'IMG-1.jpg']);
+    expect(res.matches.map((m) => m.entry.name)).toEqual(['IMG-1.jpg']);
+    expect(res.unresolved).toEqual(['Chat de WhatsApp con Ana.txt']);
+    // An explicit transcript (chosen with the ZIP-name tiebreak) is excluded even among several .txt.
+    const several = [{ name: 'a.txt' }, { name: 'b.txt' }];
+    expect(matchMediaEntries(several, ['a.txt', 'b.txt'], several[0]).matches.map((m) => m.entry.name)).toEqual(['b.txt']);
+  });
+
   test('mimeFromFileName maps known extensions case-insensitively and is null otherwise', () => {
     expect(mimeFromFileName('IMG-1.JPG')).toBe('image/jpeg');
     expect(mimeFromFileName('a.b.mp4')).toBe('video/mp4');
