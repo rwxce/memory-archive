@@ -58,3 +58,39 @@ export function ConversationNote({ conversationId }: { conversationId: string })
     </>
   );
 }
+
+/**
+ * The note on one conversation, as a quiet action in that conversation's row on the person page: the
+ * same text button as Rename or Move (44 px high), named after the conversation, and the editor opens
+ * on its own full-width line under the actions. It reads the note when the row appears so the button
+ * can say "Edit" and fill the icon when there already is one.
+ */
+export function ConversationRowNote({ conversationId, title }: { conversationId: string; title: string }) {
+  const t = useTranslations('conversations');
+  const tn = useTranslations('notes');
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const note = useNote({ kind: 'conversation', conversationId }, true);
+  const hasNote = note.state.status === 'ready' && note.state.note !== null;
+  return (
+    <>
+      <button
+        type="button"
+        id={`${conversationId}-note`}
+        aria-label={t(hasNote ? 'noteEditLabel' : 'noteAddLabel', { title })}
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
+        onClick={() => setOpen((value) => !value)}
+        className="text-ac-tx hover:bg-sf2 focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium outline-none focus-visible:ring-[3px] [&_svg]:size-4"
+      >
+        <NotebookPen aria-hidden className={cn(hasNote && 'fill-current/20')} />
+        {t(hasNote ? 'noteEdit' : 'noteAdd')}
+      </button>
+      {open && (
+        <div id={panelId} className="bg-sf2 order-last mx-2 mt-1 mb-2 max-h-[45dvh] basis-full overflow-y-auto rounded-2xl p-4">
+          <NoteEditor note={note} label={tn('label.conversation')} autoFocus onClose={() => setOpen(false)} />
+        </div>
+      )}
+    </>
+  );
+}

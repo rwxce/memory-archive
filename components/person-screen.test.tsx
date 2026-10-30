@@ -4,6 +4,7 @@ import en from '@/messages/en.json';
 import ca from '@/messages/ca.json';
 import { DbError } from '@/lib/db/errors';
 import type { NewMessage } from '@/lib/domain/library';
+import { getNote, setNote } from '@/lib/usecases/notes';
 import { listPeople } from '@/lib/usecases/library';
 import { archiveProfile, createProfile } from '@/lib/usecases/profiles';
 import { createTestLibrary } from '@/lib/usecases/test-client';
@@ -436,7 +437,7 @@ describe('PersonScreen', () => {
     test('a private chat can be moved and renamed, but not linked or unlinked', async () => {
       view = await open('ana');
       const card = view.container.querySelector('ul[aria-label] > li')!;
-      expect([...card.querySelectorAll('button')].map((b) => b.textContent)).toEqual([c.rename, c.move]);
+      expect([...card.querySelectorAll('button')].map((b) => b.textContent)).toEqual([c.rename, c.move, c.noteAdd]);
     });
 
     test('also links a group chat to another person and says nothing is copied', async () => {
@@ -538,5 +539,28 @@ describe('PersonScreen', () => {
     const region = view.container.querySelector('[role="status"][aria-live="polite"]');
     await pick(view, 'Edit Ana');
     expect(view.container.querySelector('[role="status"][aria-live="polite"]')).toBe(region);
+  });
+  test('each conversation row has a note button that adds and then edits the conversation note', async () => {
+    let lib!: Lib;
+    view = await open('ana', async (l) => {
+      lib = l;
+      await setNote(l.deps, { kind: 'conversation', conversationId: GROUP }, 'already here');
+    });
+    const row = (id: string) => view!.container.querySelector<HTMLButtonElement>(`button[id="${id}-note"]`)!;
+    const n = en.notes;
+    expect(row(PRIVATE).getAttribute('aria-label')).toBe(c.noteAddLabel.replace('{title}', 'Chat with Ana'));
+    expect(row(GROUP).getAttribute('aria-label')).toBe(c.noteEditLabel.replace('{title}', 'Family group'));
+    expect(row(PRIVATE).getAttribute('aria-expanded')).toBe('false');
+    expect(row(PRIVATE).className).toContain('min-h-11');
+    await click(row(PRIVATE));
+    await settle();
+    expect(row(PRIVATE).getAttribute('aria-expanded')).toBe('true');
+    const field = view.container.querySelector<HTMLTextAreaElement>('textarea')!;
+    expect(view.container.querySelector(`label[for="${field.id}"]`)!.textContent).toBe(n.label.conversation);
+    await type(field, 'about this chat');
+    await click(buttonByText(view, n.save));
+    await settle();
+    expect(await getNote(lib.deps, { kind: 'conversation', conversationId: PRIVATE })).toMatchObject({ body: 'about this chat' });
+    expect(row(PRIVATE).getAttribute('aria-label')).toBe(c.noteEditLabel.replace('{title}', 'Chat with Ana'));
   });
 });
