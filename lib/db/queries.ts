@@ -1179,20 +1179,22 @@ export function listPersonMedia(
   requireProfileExists(db, id);
   const n = Math.min(Math.max(Math.trunc(limit), 1), MAX_WINDOW);
   return db
-    .all<Omit<PersonMediaItem, 'isMe'> & { isMe: number }>(
+    .all<Omit<PersonMediaItem, 'isMe' | 'isFavorite'> & { isMe: number; isFavorite: number }>(
       `SELECT m.id, m.conversation_id AS conversationId, c.title AS conversationTitle, m.sent_at AS sentAt,
               m.type, p.display_name AS participantName, COALESCE(p.is_me, 0) AS isMe, m.body,
-              m.media_sha256 AS mediaSha256, m.media_name AS mediaName, b.mime AS mediaMime
+              m.media_sha256 AS mediaSha256, m.media_name AS mediaName, b.mime AS mediaMime,
+              f.fingerprint IS NOT NULL AS isFavorite
          FROM (SELECT m.id FROM messages m WHERE ${PERSON_MEDIA_WHERE(types)}
                 ORDER BY m.sent_at, m.ordinal, m.id LIMIT ? OFFSET ?) w
          JOIN messages m ON m.id = w.id
          JOIN conversations c ON c.id = m.conversation_id
          LEFT JOIN participants p ON p.id = m.participant_id
          LEFT JOIN blobs b ON b.sha256 = m.media_sha256
+         LEFT JOIN favorites f ON f.conversation_id = m.conversation_id AND f.fingerprint = m.fingerprint
         ORDER BY m.sent_at, m.ordinal, m.id`,
       [id, ...types, n, offset],
     )
-    .map((m) => ({ ...m, isMe: m.isMe === 1 }));
+    .map((m) => ({ ...m, isMe: m.isMe === 1, isFavorite: m.isFavorite === 1 }));
 }
 
 // ----------------------------------------------------- a person's combined timeline

@@ -31,6 +31,7 @@ const itemOf = (sha256: string): PersonMediaItem => ({
   mediaSha256: sha256,
   mediaName: 'a.jpg',
   mediaMime: 'image/jpeg',
+  isFavorite: false,
 });
 
 /** The browser APIs a real thumbnail needs, as fakes that produce a small complete webp. */

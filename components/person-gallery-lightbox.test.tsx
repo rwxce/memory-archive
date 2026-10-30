@@ -248,4 +248,34 @@ describe('PersonGalleryLightbox', () => {
     expect(position()).toBe('50 of 50');
     expect(dialog()!.querySelector('[role="alert"]')?.textContent).toBe(t.moreFailed);
   });
+  test('the star in the lightbox is a toggle: it marks the item, shows on its tile, and persists', async () => {
+    const { lib } = await open();
+    expect(view!.container.querySelectorAll('[data-testid="tile-star"]')).toHaveLength(0);
+    await openTile(0);
+    const star = button(en.conversation.favorite.add);
+    expect(star.getAttribute('aria-pressed')).toBe('false');
+    await click(star);
+    await settle();
+    const on = button(en.conversation.favorite.remove);
+    expect(on.getAttribute('aria-pressed')).toBe('true');
+    expect(view!.container.querySelectorAll('[data-testid="tile-star"]')).toHaveLength(1);
+    expect(tiles()[0]!.getAttribute('aria-label')).toContain(t.favorite);
+    expect(await lib.client.call('countFavorites', { scope: undefined })).toBe(1);
+    await click(on);
+    await settle();
+    expect(button(en.conversation.favorite.add).getAttribute('aria-pressed')).toBe('false');
+    expect(await lib.client.call('countFavorites', { scope: undefined })).toBe(0);
+  });
+
+  test('when the star cannot be saved it goes back and says so', async () => {
+    const { lib } = await open();
+    const call = lib.deps.client.call.bind(lib.deps.client);
+    (lib.deps.client as { call: unknown }).call = (op: string, ...args: unknown[]) => (op === 'setFavorite' ? Promise.reject(new Error('boom')) : (call as (...a: unknown[]) => Promise<unknown>)(op, ...args));
+    await openTile(0);
+    await click(button(en.conversation.favorite.add));
+    await settle();
+    expect(button(en.conversation.favorite.add).getAttribute('aria-pressed')).toBe('false');
+    expect(view!.container.querySelectorAll('[data-testid="tile-star"]')).toHaveLength(0);
+    expect(dialog()!.querySelector('[role="alert"]')?.textContent).toBe(en.conversation.favorite.failed);
+  });
 });
