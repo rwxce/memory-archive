@@ -535,6 +535,28 @@ describe('media', () => {
     expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
   });
 
+  test('Save reads the document and starts one download per click, again on a second click', async () => {
+    const anchors: { href: string | null; name: string | null }[] = [];
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      anchors.push({ href: this.getAttribute('href'), name: this.getAttribute('download') });
+    });
+    await open(async (lib) => {
+      const hash = await withPhoto(lib);
+      await seed(lib, [text(1, { type: 'document', body: '', mediaSha256: hash, mediaName: 'report.pdf' })], [{ sha256: hash, size: 4, mime: 'application/pdf' }]);
+    });
+    const save = () => feed().querySelector<HTMLButtonElement>(`button[aria-label="${en.conversation.media.saveLabel.replace('{name}', 'report.pdf')}"]`)!;
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    await click(save());
+    await settle();
+    expect(anchors).toEqual([{ href: 'blob:mock-1', name: 'report.pdf' }]);
+    expect(feed().querySelector('a')).toBeNull();
+    await click(save());
+    await settle();
+    expect(anchors).toHaveLength(2);
+    expect(anchors[1]).toEqual({ href: 'blob:mock-2', name: 'report.pdf' });
+    anchorClick.mockRestore();
+  });
+
   test('a voice message shows its length only once the file says it, and the button follows the audio', async () => {
     await open(async (lib) => {
       const hash = await withPhoto(lib);
