@@ -10,6 +10,7 @@ import {
   importMessages,
   linkConversationProfile,
   listPersonMedia,
+  setFavorite,
   setProfileArchived,
 } from './queries';
 import type { SqlDb } from './sql';
@@ -85,6 +86,17 @@ describe('person media reads', () => {
     expect(items[0]).toMatchObject({ conversationId: C1, participantName: 'Bo', isMe: false, type: 'audio', mediaSha256: VOICE, mediaName: 'PTT.opus', mediaMime: 'audio/ogg', body: '' });
     expect(items[2]).toMatchObject({ participantName: 'Ana', isMe: true, body: 'late' });
     expect(countPersonMedia(db, ANA, ['audio'])).toBe(3);
+  });
+
+  test('isFavorite follows the message star, per conversation, and is false by default', () => {
+    load(C1, [msg('2026-01-01T10:00:00'), msg('2026-01-02T10:00:00')]);
+    load(C2, [msg('2026-01-03T10:00:00')]);
+    const ids = listPersonMedia(db, ANA, ['audio'], 0, 10).map((i) => i.id);
+    expect(listPersonMedia(db, ANA, ['audio'], 0, 10).map((i) => i.isFavorite)).toEqual([false, false, false]);
+    setFavorite(db, { conversationId: C1, messageId: ids[1], favorite: true, now: NOW });
+    expect(listPersonMedia(db, ANA, ['audio'], 0, 10).map((i) => i.isFavorite)).toEqual([false, true, false]);
+    setFavorite(db, { conversationId: C1, messageId: ids[1], favorite: false, now: NOW });
+    expect(listPersonMedia(db, ANA, ['audio'], 0, 10).map((i) => i.isFavorite)).toEqual([false, false, false]);
   });
 
   test('ties are a stable total order (sent_at, ordinal, id) and pages tile exactly', () => {

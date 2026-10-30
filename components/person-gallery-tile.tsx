@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { ImageIcon, ImageOff, Play } from 'lucide-react';
+import { ImageIcon, ImageOff, Play, Star } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useNearViewport } from '@/hooks/use-near-viewport';
 import { useTileImage } from '@/hooks/use-tile-image';
@@ -65,7 +65,8 @@ export function PersonGalleryTile({ item, onOpen, buttonRef, large = false }: { 
   const t = useTranslations('personGallery');
   const locale = useLocale();
   const isVideo = item.type === 'video';
-  const label = t('tileLabel', { title: item.conversationTitle, kind: t(isVideo ? 'video' : 'photo'), when: formatDayTime(item.sentAt, locale) });
+  const base = t('tileLabel', { title: item.conversationTitle, kind: t(isVideo ? 'video' : 'photo'), when: formatDayTime(item.sentAt, locale) });
+  const label = item.isFavorite ? `${base}, ${t('favorite')}` : base;
   return (
     <li className={large ? 'col-span-2 row-span-2' : undefined}>
       <button
@@ -76,6 +77,12 @@ export function PersonGalleryTile({ item, onOpen, buttonRef, large = false }: { 
         className={`bg-sf2 hover:bg-line focus-visible:ring-ring/50 relative block aspect-square w-full min-h-11 overflow-hidden outline-none focus-visible:ring-[3px] ${large ? 'rounded-[18px]' : 'rounded-xl'}`}
       >
         {isVideo ? <VideoFace item={item} /> : <Picture item={item} />}
+        {item.isFavorite && (
+          // Decoration: the favorite state is in the button's name. The dark disc keeps it readable on any photo.
+          <span data-testid="tile-star" className="absolute start-1.5 top-1.5 inline-flex items-center rounded-full bg-black/55 p-1">
+            <Star className="fill-star stroke-star size-3.5" aria-hidden />
+          </span>
+        )}
       </button>
     </li>
   );

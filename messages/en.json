@@ -447,6 +447,7 @@
     "photo": "Photo",
     "video": "Video",
     "tileLabel": "View {kind}, {when}, from “{title}”",
+    "favorite": "Favorite",
     "videoName": "Video",
     "shown": "Showing {shown} of {total}",
     "showMore": "Show more",

@@ -447,6 +447,7 @@
     "photo": "Foto",
     "video": "Vídeo",
     "tileLabel": "Mostra {kind}, {when}, de «{title}»",
+    "favorite": "Preferit",
     "videoName": "Vídeo",
     "shown": "Es mostren {shown} de {total}",
     "showMore": "Mostra'n més",
