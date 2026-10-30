@@ -41,6 +41,7 @@ import {
   setFavorite,
   setNote,
   setProfileArchived,
+  setProfilePhoto,
   undoImportBatch,
   unlinkConversationProfile,
   updateProfile,
@@ -75,6 +76,7 @@ const HANDLERS: Handlers = {
   createProfile: ({ db }, p) => createProfile(db, p),
   getProfile: ({ db }, p) => getProfile(db, requireParams(p).id as string),
   updateProfile: ({ db }, p) => updateProfile(db, p),
+  setProfilePhoto: ({ db }, p) => setProfilePhoto(db, p),
   setProfileArchived: ({ db }, p) => setProfileArchived(db, p),
   listProfiles: ({ db }, p) => listProfiles(db, p === undefined ? {} : requireParams(p)),
   createConversation: ({ db }, p) => {

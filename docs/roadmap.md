@@ -81,8 +81,8 @@ on-device checks below (iPhone, Android, airplane mode, a second browser).**
 
 ## Phase 3 — Profiles and conversations
 
-**Status: done, except profile photo upload (deferred) and the manual checks of the verify line
-(Safari/Firefox, a real touch device, screen reader).**
+**Status: done, except the manual checks of the verify line (Safari/Firefox, a real touch device,
+screen reader).**
 
 - Create / edit / archive profiles (photo, relationship, description); move conversations
   between profiles without duplicating data.

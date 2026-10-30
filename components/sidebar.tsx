@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Download, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { GitHubLink } from '@/components/github-link';
-import { PersonAvatar } from '@/components/person-avatar';
+import { ProfileAvatar } from '@/components/profile-avatar';
 import { cn } from '@/components/ui/utils';
 import { useLibraryInternals } from '@/hooks/use-library';
 import { useMediaQuery } from '@/hooks/use-media-query';
@@ -109,7 +109,7 @@ function ReadyPeople() {
             aria-current={here ? 'page' : undefined}
             className={cn(rowClass, here ? 'bg-ac-soft' : 'hover:bg-sf')}
           >
-            <PersonAvatar name={person.displayName} size="sm" />
+            <ProfileAvatar person={person} size="sm" />
             <span className="min-w-0 truncate font-medium">{person.displayName}</span>
           </Link>
         );

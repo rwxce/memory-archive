@@ -339,7 +339,7 @@ test type or architecture rule means updating this file **in the same PR**.
     `getSharedFiles`, `takeSharedFile`, `discardSharedFile` (called from `hooks/use-device-storage.ts`); `lib/usecases/archive.ts` —
     `exportArchive`, `restoreArchiveIntoEmptyLibrary` (no UI entry point yet);
     `lib/usecases/profiles.ts` (`createProfile`, `updateProfile`, `archiveProfile`,
-    `unarchiveProfile`, `listProfiles`, `getProfileDetails`) and `conversations.ts`
+    `unarchiveProfile`, `listProfiles`, `getProfileDetails`); `lib/usecases/profile-photo.ts` (`setProfilePhoto` downscales the chosen picture to 512 px and stores it as an ordinary content-addressed blob referenced by `profiles.photo_sha256` (no schema change since v2), releasing the replaced photo's row and bytes when no message or other profile uses it, via the db op `setProfilePhoto`; `removeProfilePhoto`; `getProfilePhoto` returns a typed `Blob` or `null`; the photo travels in the backup ZIP like any blob) and `conversations.ts`
     (`listConversations`, `renameConversation`, `moveConversation`,
     `linkConversationToProfile`, `unlinkConversationFromProfile`): they take a `DbClient`
     (worker protocol), an injectable UUID source and clock, and fail with `DbError` codes

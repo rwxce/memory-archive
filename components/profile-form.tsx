@@ -3,6 +3,9 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { PersonAvatar } from '@/components/person-avatar';
+import { useProfilePhotoUrl, type PhotoChange } from '@/hooks/use-people';
+import { PROFILE_PHOTO_MAX_INPUT_BYTES } from '@/lib/usecases/profile-photo';
 import { cn } from '@/components/ui/utils';
 import {
   FieldError,
@@ -26,6 +29,99 @@ type Errors = Partial<Record<Field, string>>;
 const inputClass =
   'bg-bg border-input placeholder:text-mu w-full rounded-2xl border px-4 text-base outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:border-destructive';
 
+/** Whether the browser handed over something that can be a picture. The use case still decodes it. */
+function photoProblem(file: File): 'invalid' | 'tooLarge' | undefined {
+  if (!file.type.startsWith('image/') || file.size === 0) return 'invalid';
+  return file.size > PROFILE_PHOTO_MAX_INPUT_BYTES ? 'tooLarge' : undefined;
+}
+
+/**
+ * Photo picker: a preview (the stored photo, the new one, or the initial), a button that opens the
+ * device's gallery or camera, and a way back to no photo. Nothing is stored until the form is saved.
+ */
+function PhotoField({
+  profile,
+  name,
+  change,
+  onChange,
+}: {
+  profile?: { id: string; photoSha256: string | null };
+  name: string;
+  change: PhotoChange;
+  onChange: (change: PhotoChange) => void;
+}) {
+  const t = useTranslations('people.form');
+  const id = useId();
+  const input = useRef<HTMLInputElement>(null);
+  const [problem, setProblem] = useState<'invalid' | 'tooLarge'>();
+  const stored = useProfilePhotoUrl(profile?.id ?? '', profile?.photoSha256 ?? null);
+  const [chosenUrl, setChosenUrl] = useState<string | null>(null);
+  const chosen = change.kind === 'set' ? change.file : null;
+  useEffect(() => {
+    if (!chosen) {
+      setChosenUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(chosen);
+    setChosenUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [chosen]);
+  const shown = change.kind === 'set' ? chosenUrl : change.kind === 'remove' ? null : stored;
+  const hasPhoto = change.kind === 'set' || (change.kind === 'keep' && Boolean(profile?.photoSha256));
+
+  return (
+    <div className="flex flex-col gap-1.5" role="group" aria-labelledby={`${id}-label`}>
+      <span id={`${id}-label`} className="text-[15px] font-semibold">
+        {t('photo')}
+      </span>
+      <div className="flex items-center gap-4">
+        <PersonAvatar name={name} size="lg" photoUrl={shown} />
+        <div className="flex min-w-0 flex-wrap gap-2">
+          <Button type="button" variant="outline" aria-describedby={`${id}-hint`} onClick={() => input.current?.click()}>
+            {hasPhoto ? t('photoChange') : t('photoChoose')}
+          </Button>
+          {hasPhoto && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setProblem(undefined);
+                onChange(profile?.photoSha256 ? { kind: 'remove' } : { kind: 'keep' });
+              }}
+            >
+              {t('photoRemove')}
+            </Button>
+          )}
+        </div>
+        {/* The button above is the control; this input only opens the picker (gallery or camera on a phone). */}
+        <input
+          ref={input}
+          type="file"
+          accept="image/*"
+          tabIndex={-1}
+          aria-hidden
+          data-testid="profile-photo-input"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (!file) return;
+            const found = photoProblem(file);
+            setProblem(found);
+            if (!found) onChange({ kind: 'set', file });
+          }}
+        />
+      </div>
+      <p id={`${id}-hint`} className="text-mu text-sm">
+        {t('photoHint')}
+      </p>
+      <p role="alert" className="text-destructive text-sm break-words empty:hidden">
+        {problem ? t(problem === 'invalid' ? 'photoInvalid' : 'photoTooLarge') : ''}
+      </p>
+    </div>
+  );
+}
+
 /**
  * Create / edit form for a person. Text is checked with the same rules the
  * library applies (trimmed, never cut short), so what is rejected is explained
@@ -33,12 +129,15 @@ const inputClass =
  */
 export function ProfileForm({
   initial,
+  photo,
   onSubmit,
   onCancel,
 }: {
   initial?: Partial<ProfileFormValues>;
-  /** Receives trimmed values; reject to show "could not be saved". */
-  onSubmit: (values: ProfileFormValues) => Promise<void>;
+  /** Shows the photo picker; `of` is the stored profile whose photo is being edited (none when creating). */
+  photo?: { of?: { id: string; photoSha256: string | null } };
+  /** Receives trimmed values and what to do with the photo; reject to show "could not be saved". */
+  onSubmit: (values: ProfileFormValues, photo: PhotoChange) => Promise<void>;
   onCancel: () => void;
 }) {
   const t = useTranslations('people.form');
@@ -49,6 +148,7 @@ export function ProfileForm({
     relationship: initial?.relationship ?? '',
     description: initial?.description ?? '',
   });
+  const [photoChange, setPhotoChange] = useState<PhotoChange>({ kind: 'keep' });
   const [errors, setErrors] = useState<Errors>({});
   const [failed, setFailed] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -96,7 +196,7 @@ export function ProfileForm({
     setSaving(true);
     setFailed(false);
     try {
-      await onSubmit(clean);
+      await onSubmit(clean, photoChange);
     } catch {
       setFailed(true);
       savingNow.current = false;
@@ -158,6 +258,7 @@ export function ProfileForm({
       {field('displayName', t('name'))}
       {field('relationship', t('relationship'), t('relationshipHint'))}
       {field('description', t('description'), t('descriptionHint'))}
+      {photo && <PhotoField profile={photo.of} name={values.displayName} change={photoChange} onChange={setPhotoChange} />}
       <p role="alert" className="text-destructive text-sm break-words empty:hidden">
         {failed ? t('saveFailed') : ''}
       </p>

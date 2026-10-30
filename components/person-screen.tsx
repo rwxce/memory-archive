@@ -11,7 +11,7 @@ import { PersonNote } from '@/components/note-panels';
 import { ArchiveConfirm } from '@/components/person-actions';
 import { OverflowMenu, type OverflowItem } from '@/components/overflow-menu';
 import { PageTitle } from '@/components/page-title';
-import { PersonAvatar } from '@/components/person-avatar';
+import { ProfileAvatar } from '@/components/profile-avatar';
 import { PersonBento, PersonStats } from '@/components/person-overview';
 import { yearSpan } from '@/components/person-meta';
 import { PillButton } from '@/components/pill-button';
@@ -22,7 +22,7 @@ import { useConversationActions } from '@/hooks/use-conversation-actions';
 import { useLibrary } from '@/hooks/use-library';
 import { usePersonDetails } from '@/hooks/use-person-details';
 import { usePersonOverview } from '@/hooks/use-person-overview';
-import { useProfileActions } from '@/hooks/use-people';
+import { useProfileActions, type PhotoChange } from '@/hooks/use-people';
 import { Link } from '@/i18n/navigation';
 import type { PersonDetails } from '@/lib/usecases/library';
 import { withEmojiPresentation } from './emoji';
@@ -157,10 +157,17 @@ function PersonContent({ onRetry }: { onRetry: () => void }) {
         </PageTitle>
         <ProfileForm
           initial={person}
+          photo={{ of: person }}
           onCancel={closeForm}
-          onSubmit={async (values: ProfileFormValues) => {
+          onSubmit={async (values: ProfileFormValues, photo: PhotoChange) => {
             const updated = await profiles.update(person.id, values);
-            setMessage(tp('updated', { name: updated.displayName }));
+            let photoSaved = true;
+            try {
+              await profiles.applyPhoto(person.id, photo);
+            } catch {
+              photoSaved = false;
+            }
+            setMessage(tp(photoSaved ? 'updated' : 'updatedNoPhoto', { name: updated.displayName }));
             closeForm();
           }}
         />
@@ -248,7 +255,7 @@ function PersonContent({ onRetry }: { onRetry: () => void }) {
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-x-8 lg:gap-y-6">
         <header className="flex min-w-0 items-end gap-4 lg:col-start-1 lg:row-start-1 lg:items-center lg:gap-[22px]">
-          <PersonAvatar name={person.displayName} size="xl" tone="accent" className="size-22 rounded-[28px] text-[3.25rem] lg:size-[104px] lg:rounded-[34px] lg:text-6xl" />
+          <ProfileAvatar person={person} size="xl" tone="accent" className="size-22 rounded-[28px] text-[3.25rem] lg:size-[104px] lg:rounded-[34px] lg:text-6xl" />
           <div className="flex min-w-0 flex-col gap-1">
             <PageTitle ref={headingRef} tabIndex={-1} className="text-[3.25rem] leading-[0.95] lg:text-7xl lg:leading-[0.92]">
               {person.displayName}
