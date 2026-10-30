@@ -251,15 +251,15 @@ cli/                      # same use cases from the terminal
 | 0 | ✅ | Tooling: pnpm, 7-day release age, CI, agent rules (rulesync), docs |
 | 1 | ✅ | Reusable core for Node and browser, bug fixes, re-import of old HTML/JSON/CSV outputs |
 | 2 | ✅ | PWA skeleton, local SQLite database, backup/restore proof of concept |
-| 3 | 🟡 | Profiles and conversations |
+| 3 | ✅ | Profiles and conversations |
 | 4 | 🟡 | Incremental WhatsApp import and import history |
-| 5 | 🟡 | Timeline, conversation view, gallery, audio, calendar, search |
+| 5 | ✅ | Timeline, conversation view, gallery, audio, calendar, search |
 | 6 | 🟡 | Full backup and restore |
 | 7 | ⬜ | Manual device-to-device sync with ZIP files |
 | 8 | ⬜ | Google Photos (download / Takeout) and loose files |
 | 9 | ⬜ | Portable viewer exports and hardening |
 
-✅ done · 🟡 mostly done, small follow-ups or on-device checks pending · ⬜ not started. Details in [`docs/roadmap.md`](docs/roadmap.md).
+✅ done in code and automated tests (manual on-device checks are listed in the roadmap) · 🟡 partly done · ⬜ not started. Details in [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 
