@@ -6,7 +6,7 @@
  * (Phase 4) takes them.
  *
  * Shared files are untrusted: names are kept only as metadata (never used as
- * a path), only ZIP and plain-text files are accepted, and the count is bounded.
+ * a path), only ZIP, plain-text and old backup output files (JSON, HTML, CSV) are accepted; the import decides by content, and the count is bounded.
  */
 
 export const SHARE_INBOX_CACHE = 'memory-archive-share-inbox-v1';
@@ -15,8 +15,8 @@ export const SHARE_INBOX_PATH = '__share-inbox__/';
 /** At most this many files per share (a chat export is one ZIP or one TXT). */
 export const MAX_SHARED_FILES = 20;
 
-const ACCEPTED_TYPES = new Set(['application/zip', 'application/x-zip-compressed', 'text/plain']);
-const ACCEPTED_EXTENSIONS = /\.(zip|txt)$/i;
+const ACCEPTED_TYPES = new Set(['application/zip', 'application/x-zip-compressed', 'text/plain', 'application/json', 'text/html', 'text/csv']);
+const ACCEPTED_EXTENSIONS = /\.(zip|txt|json|html?|csv)$/i;
 
 export interface SharedFileInfo {
   /** Cache key (URL) of the stored file. */
@@ -27,7 +27,7 @@ export interface SharedFileInfo {
   receivedAt: number;
 }
 
-/** ZIP or plain text, by MIME type or, when the sender gives none, by extension. */
+/** ZIP, plain text or an old backup output, by MIME type or, when the sender gives none, by extension. */
 export function isAcceptedSharedFile(file: Pick<File, 'name' | 'type'>): boolean {
   const type = file.type.split(';')[0].trim().toLowerCase();
   if (ACCEPTED_TYPES.has(type)) return true;

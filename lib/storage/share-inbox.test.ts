@@ -20,7 +20,11 @@ describe('share inbox', () => {
     expect(isAcceptedSharedFile({ name: 'chat.zip', type: '' })).toBe(true);
     expect(isAcceptedSharedFile({ name: 'chat.ZIP', type: 'application/octet-stream' })).toBe(true);
     expect(isAcceptedSharedFile({ name: 'photo.jpg', type: 'image/jpeg' })).toBe(false);
-    expect(isAcceptedSharedFile({ name: 'evil.zip', type: 'text/html' })).toBe(false);
+    expect(isAcceptedSharedFile({ name: 'evil.zip', type: 'image/svg+xml' })).toBe(false);
+    expect(isAcceptedSharedFile({ name: 'messages.json', type: 'application/json' })).toBe(true);
+    expect(isAcceptedSharedFile({ name: 'messages.html', type: 'text/html' })).toBe(true);
+    expect(isAcceptedSharedFile({ name: 'messages.CSV', type: '' })).toBe(true);
+    expect(isAcceptedSharedFile({ name: 'messages.md', type: 'text/markdown' })).toBe(false);
     expect(isAcceptedSharedFile({ name: 'noext', type: '' })).toBe(false);
   });
 

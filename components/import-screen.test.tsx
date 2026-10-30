@@ -139,7 +139,7 @@ describe('the import wizard', () => {
       expect(text(view)).toContain('WhatsApp Chat - Ana.zip');
       expect(text(view)).not.toContain('photo.jpg');
       expect(text(view)).toContain('Files to import (1)');
-      expect(text(view)).toContain('1 file was left out: for now only WhatsApp ZIP and text files can be imported.');
+      expect(text(view)).toContain('1 file was left out: for now only WhatsApp ZIP, text and old backup files can be imported.');
 
       await click(view.container.querySelector('button[aria-label="Remove WhatsApp Chat - Ana.zip from the list"]'));
       expect(text(view)).toContain(m.choose.empty);

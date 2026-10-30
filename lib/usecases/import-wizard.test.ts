@@ -60,6 +60,11 @@ describe('isImportableExport', () => {
     expect(isImportableExport({ name: '_chat.txt', type: 'text/plain' })).toBe(true);
     expect(isImportableExport({ name: 'WhatsApp Chat with Ana.TXT', type: '' })).toBe(true);
     expect(isImportableExport({ name: 'chat', type: 'text/plain; charset=utf-8' })).toBe(true);
+    expect(isImportableExport({ name: 'messages.json', type: '' })).toBe(true);
+    expect(isImportableExport({ name: 'messages.HTML', type: '' })).toBe(true);
+    expect(isImportableExport({ name: 'messages.csv', type: 'text/csv' })).toBe(true);
+    expect(isImportableExport({ name: 'export', type: 'application/json' })).toBe(true);
+    expect(isImportableExport({ name: 'messages.md', type: 'text/markdown' })).toBe(false);
     expect(isImportableExport({ name: 'notes.pdf', type: 'application/pdf' })).toBe(false);
     expect(isImportableExport({ name: 'photo.jpg', type: 'image/jpeg' })).toBe(false);
   });

@@ -173,7 +173,7 @@ test('a file that is neither ZIP nor text is left out with an explanation and no
   await startFresh(page);
   await page.getByRole('link', { name: /^Import( a chat)?$/ }).click();
   await page.getByTestId('import-file-input').setInputFiles({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(CHAT) });
-  await expect(page.getByText('1 file was left out: for now only WhatsApp ZIP and text files can be imported.')).toBeVisible();
+  await expect(page.getByText('1 file was left out: for now only WhatsApp ZIP, text and old backup files can be imported.')).toBeVisible();
   await expect(page.getByText('No files chosen yet.')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Continue with/ })).toHaveAttribute('aria-disabled', 'true');
 });

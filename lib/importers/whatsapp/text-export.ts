@@ -57,13 +57,14 @@ export async function isPlainTextExport(file: Blob): Promise<boolean> {
  * The archive the import reads: `file` itself when it is a ZIP (or anything that is not text, so
  * the ZIP reader reports it), otherwise a one-entry ZIP around the text. A text file larger than
  * `maxBytes` throws `ZipLimitError` (the same limit as a ZIP's `_chat.txt`: `maxChatBytes`).
+ * `entryName` is the transcript's path in the wrapper; a folder in it names the chat (as a ZIP's top folder).
  */
-export async function asImportArchive(file: Blob, maxBytes: number): Promise<Blob> {
+export async function asImportArchive(file: Blob, maxBytes: number, entryName: string = TEXT_EXPORT_ENTRY): Promise<Blob> {
   if (!(await isPlainTextExport(file))) return file;
   if (file.size > Math.min(maxBytes, MAX_CLASSIC_BYTES)) throw new ZipLimitError('the chat transcript is too large');
 
   const crc = await crc32Of(file);
-  const name = new TextEncoder().encode(TEXT_EXPORT_ENTRY);
+  const name = new TextEncoder().encode(entryName);
   const size = file.size;
 
   const local = new DataView(new ArrayBuffer(30));

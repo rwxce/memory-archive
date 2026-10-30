@@ -8,7 +8,7 @@ import { chatKeyOf, chatTitleOf } from '../importers/whatsapp/chat';
 import type { Message } from '../importers/whatsapp/types';
 import { parseWhatsAppZip } from '../importers/whatsapp/import';
 import { matchMediaEntries, mimeFromFileName, normalizeMediaName } from '../importers/whatsapp/media';
-import { asImportArchive } from '../importers/whatsapp/text-export';
+import { openImportSource } from './import-source';
 import { openZipEntry, ZipLimitError } from '../importers/whatsapp/zip';
 import { withArchiveGuard } from './archive-guard';
 import { newIdOf, nowOf, type ProfileDeps } from './profiles';
@@ -343,11 +343,13 @@ async function importNow(deps: ProfileDeps, input: ImportWhatsAppInput): Promise
   let parsed;
   let zip: Blob;
   try {
-    // A bare `.txt` export (no media) is read as a one-entry archive.
-    zip = await asImportArchive(input.zip, limits.maxChatBytes);
+    // A bare `.txt` export or an old wa-backup output is read as a one-entry archive.
+    const source = await openImportSource(input.zip, input.fileName, limits.maxChatBytes);
+    zip = source.zip;
+    const order = source.dateOrder ?? { dayFirst: input.dayFirst, monthFirst: input.monthFirst };
     parsed = await parseWhatsAppZip(zip, input.fileName, {
-      dayFirst: input.dayFirst,
-      monthFirst: input.monthFirst,
+      dayFirst: order.dayFirst,
+      monthFirst: order.monthFirst,
       limits: {
         maxEntries: limits.maxEntries,
         maxCentralDirectoryBytes: limits.maxCentralDirectoryBytes,
