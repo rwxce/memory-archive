@@ -11,7 +11,7 @@ import { Link } from '@/i18n/navigation';
 import { formatBytes } from './format';
 
 /**
- * The first screen of the import: choose ZIP files (a file picker, or drop them on the box on a
+ * The first screen of the import: choose ZIP or text files (a file picker, or drop them on the box on a
  * computer) and see the ones shared from WhatsApp, all in one list. File names are user data and
  * wrap when long. Nothing is read until Continue.
  */
@@ -24,7 +24,7 @@ export function ImportChoose({
   onContinue,
 }: {
   items: FileItem[];
-  /** Files that were offered but cannot be imported yet (not ZIPs). */
+  /** Files that were offered but cannot be imported yet (neither ZIP nor text). */
   skipped: number;
   headingRef: React.Ref<HTMLHeadingElement>;
   onAdd: (files: File[]) => void;
@@ -86,7 +86,7 @@ export function ImportChoose({
           ref={input}
           type="file"
           multiple
-          accept=".zip,application/zip,application/x-zip-compressed"
+          accept=".zip,.txt,application/zip,application/x-zip-compressed,text/plain"
           tabIndex={-1}
           aria-hidden="true"
           data-testid="import-file-input"

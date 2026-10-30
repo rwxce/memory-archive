@@ -135,14 +135,22 @@ describe('the import wizard', () => {
 
     test('lists the ZIPs it is given, leaves other files out and says so, and can remove one', async () => {
       ({ view } = await open());
-      await pick(view, [anaFile(), new File(['x'], '_chat.txt', { type: 'text/plain' })]);
+      await pick(view, [anaFile(), new File(['x'], 'photo.jpg', { type: 'image/jpeg' })]);
       expect(text(view)).toContain('WhatsApp Chat - Ana.zip');
-      expect(text(view)).not.toContain('_chat.txt');
+      expect(text(view)).not.toContain('photo.jpg');
       expect(text(view)).toContain('Files to import (1)');
-      expect(text(view)).toContain('1 file was left out: for now only WhatsApp ZIP files can be imported.');
+      expect(text(view)).toContain('1 file was left out: for now only WhatsApp ZIP and text files can be imported.');
 
       await click(view.container.querySelector('button[aria-label="Remove WhatsApp Chat - Ana.zip from the list"]'));
       expect(text(view)).toContain(m.choose.empty);
+    });
+
+    test('a plain-text chat export is listed next to ZIPs', async () => {
+      ({ view } = await open());
+      await pick(view, [new File([GUESS.join('\n')], 'WhatsApp Chat with Ana.txt', { type: 'text/plain' })]);
+      expect(text(view)).toContain('WhatsApp Chat with Ana.txt');
+      expect(text(view)).toContain('Files to import (1)');
+      expect(text(view)).not.toContain('left out');
     });
 
     test('the same file twice is listed once', async () => {
@@ -168,38 +176,23 @@ describe('the import wizard', () => {
       const caches = createMemoryCacheStorage();
       await storeSharedFiles(caches, 'https://x.example/', [
         new File([zipSync({ '_chat.txt': strToU8(GUESS.join('\n')) }) as BlobPart], 'Shared chat.zip', { type: 'application/zip' }),
-        new File(['t'], 'notes.txt', { type: 'text/plain' }),
+        new File([GUESS.join('\n')], 'WhatsApp Chat with Ana.txt', { type: 'text/plain' }),
       ]);
       vi.stubGlobal('caches', caches);
       ({ view } = await open());
       await until(() => text(view!).includes('Shared chat.zip'), 'the shared file');
       expect(text(view)).toContain(m.choose.shared);
       expect(text(view)).toContain(m.choose.sharedNote);
-      expect(text(view)).toContain('1 file was left out');
+      expect(text(view)).toContain('WhatsApp Chat with Ana.txt');
+      expect(text(view)).not.toContain('left out');
 
       await click(view.container.querySelector('button[aria-label="Remove Shared chat.zip from the list"]'));
+      await click(view.container.querySelector('button[aria-label="Remove WhatsApp Chat with Ana.txt from the list"]'));
       await settle();
       expect(await caches.has('memory-archive-share-inbox-v1')).toBe(true);
       const cache = await caches.open('memory-archive-share-inbox-v1');
-      // The ZIP was removed with its copy, and the text file, which can never be imported, was not kept either.
+      // Both shared files were removed from the list together with their copies.
       expect((await cache.keys()).length).toBe(0);
-    });
-
-    test('a shared text file is discarded, and is not offered again after a reload', async () => {
-      const caches = createMemoryCacheStorage();
-      await storeSharedFiles(caches, 'https://x.example/', [new File(['chat'], '_chat.txt', { type: 'text/plain' })]);
-      vi.stubGlobal('caches', caches);
-      ({ view } = await open());
-      await until(() => text(view!).includes('1 file was left out'), 'the notice');
-      await settle();
-      const cache = await caches.open('memory-archive-share-inbox-v1');
-      expect(await cache.keys()).toEqual([]);
-
-      view.unmount();
-      ({ view } = await open());
-      await settle();
-      expect(text(view)).not.toContain('left out');
-      expect(text(view)).toContain(m.choose.empty);
     });
 
     test('removing a file moves the focus to the next Remove button, then to the list heading', async () => {

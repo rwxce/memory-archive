@@ -92,8 +92,8 @@ screen reader).**
 
 ## Phase 4 — Incremental WhatsApp import
 
-**Status: done for WhatsApp ZIP exports (picked or shared). Not done: `.txt`-only exports, loose media files and
-old wa-backup outputs as import sources, and an on-device check of closing the tab mid-import (covered in
+**Status: done for WhatsApp ZIP exports and bare `.txt` exports made without media (picked or shared). Not done: loose
+media files and old wa-backup outputs as import sources, and an on-device check of closing the tab mid-import (covered in
 Chromium e2e and unit tests).**
 
 - Import wizard: several files (ZIP, TXT, loose media, old wa-backup outputs) or shared from

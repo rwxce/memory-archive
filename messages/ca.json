@@ -171,20 +171,20 @@
   },
   "import": {
     "title": "Importa una conversa",
-    "intro": "Porta una conversa de WhatsApp al teu arxiu. A WhatsApp, obre el xat, tria Exporta el xat i guarda el fitxer ZIP. Tot es queda en aquest dispositiu.",
+    "intro": "Porta una conversa de WhatsApp al teu arxiu. A WhatsApp, obre el xat, tria Exporta el xat i guarda el fitxer (el ZIP, o el fitxer de text si l’exportes sense multimèdia). Tot es queda en aquest dispositiu.",
     "backToPeople": "Torna a Persones",
     "loadFailed": "No s’han pogut llegir les teves persones. No s’ha canviat res.",
     "choose": {
-      "pick": "Tria fitxers ZIP",
+      "pick": "Tria fitxers de xat",
       "drop": "o deixa’ls anar aquí",
-      "hint": "Cada xat de WhatsApp és un fitxer ZIP. En pots triar diversos alhora.",
+      "hint": "Cada xat de WhatsApp és un fitxer ZIP, o un fitxer de text si l’has exportat sense multimèdia. En pots triar diversos alhora.",
       "listTitle": "Fitxers per importar ({count})",
       "empty": "Encara no has triat cap fitxer.",
       "remove": "Treu",
       "removeLabel": "Treu {name} de la llista",
       "shared": "Compartit amb Memory Archive",
       "sharedNote": "Els fitxers compartits des de WhatsApp es queden aquí fins que els importis o els treguis. Els fitxers compartits que no es poden importar se suprimeixen d’aquest dispositiu.",
-      "skipped": "{count, plural, one {S’ha deixat fora # fitxer: de moment només es poden importar fitxers ZIP de WhatsApp.} other {S’han deixat fora # fitxers: de moment només es poden importar fitxers ZIP de WhatsApp.}}",
+      "skipped": "{count, plural, one {S’ha deixat fora # fitxer: de moment només es poden importar fitxers ZIP i de text de WhatsApp.} other {S’han deixat fora # fitxers: de moment només es poden importar fitxers ZIP i de text de WhatsApp.}}",
       "start": "{count, plural, one {Continua amb # fitxer} other {Continua amb # fitxers}}"
     },
     "wizard": {
@@ -368,7 +368,7 @@
       "failed": "No s’ha pogut desfer la importació. No s’ha canviat res. Torna-ho a provar."
     },
     "problem": {
-      "invalidExport": "Aquest fitxer no sembla una exportació d’un xat de WhatsApp. Torna a exportar el xat des de WhatsApp i tria el fitxer ZIP. No s’ha canviat res.",
+      "invalidExport": "Aquest fitxer no sembla una exportació d’un xat de WhatsApp. Torna a exportar el xat des de WhatsApp i tria el fitxer ZIP o de text. No s’ha canviat res.",
       "tooBig": "Aquesta exportació és més gran del que Memory Archive pot llegir. Prova d’exportar el xat sense contingut multimèdia. No s’ha canviat res.",
       "busy": "Una altra tasca està fent servir el teu arxiu ara mateix, potser en una altra pestanya. Espera que acabi i torna-ho a provar. No s’ha canviat res.",
       "workerFailed": "La importació s’ha interromput. Pot ser que se n’hagi afegit una part; tornar-ho a provar no crearà duplicats.",

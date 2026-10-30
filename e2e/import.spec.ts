@@ -169,11 +169,11 @@ test('undo asks first, then removes the conversation the import created', async 
   await expect(page.getByRole('list', { name: 'People' }).getByText('No conversations yet')).toBeVisible();
 });
 
-test('a text file is left out with an explanation and nothing is read', async ({ page }) => {
+test('a file that is neither ZIP nor text is left out with an explanation and nothing is read', async ({ page }) => {
   await startFresh(page);
   await page.getByRole('link', { name: /^Import( a chat)?$/ }).click();
-  await page.getByTestId('import-file-input').setInputFiles({ name: '_chat.txt', mimeType: 'text/plain', buffer: Buffer.from(CHAT) });
-  await expect(page.getByText('1 file was left out: for now only WhatsApp ZIP files can be imported.')).toBeVisible();
+  await page.getByTestId('import-file-input').setInputFiles({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(CHAT) });
+  await expect(page.getByText('1 file was left out: for now only WhatsApp ZIP and text files can be imported.')).toBeVisible();
   await expect(page.getByText('No files chosen yet.')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Continue with/ })).toHaveAttribute('aria-disabled', 'true');
 });

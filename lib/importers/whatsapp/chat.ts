@@ -86,7 +86,7 @@ export function chatInfoFromEntryNames(names: string[], zipFileName: string): Ch
   const chatEntry = findChatEntry(names.map((name) => ({ name })), zipFileName)?.name;
   if (!chatEntry) throw new Error(NO_TRANSCRIPT);
   const parts = chatEntry.split('/');
-  const base = (zipFileName.split(/[\\/]/).pop() ?? '').replace(/\.zip$/i, '');
+  const base = (zipFileName.split(/[\\/]/).pop() ?? '').replace(/\.(?:zip|txt)$/i, '').replace(/^_chat$/i, '');
   const raw = parts.length > 1 ? parts[0] : base;
   const slug = slugifyChatName(raw) || 'chat';
   const name = raw.replace(/^whatsapp chat\s*-\s*/i, '').trim() || slug;
