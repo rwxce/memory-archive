@@ -187,6 +187,43 @@ export function updateProfile(db: SqlDb, input: UpdateProfileInput): Profile {
   });
 }
 
+export interface SetProfilePhotoInput {
+  id: string;
+  /** Photo already stored by hash; null removes it. */
+  photo: BlobRef | null;
+  now: string;
+}
+
+export interface SetProfilePhotoResult {
+  profile: Profile;
+  /** The replaced photo, when nothing else refers to it any more; its row is removed, the caller deletes the bytes. */
+  unreferencedBlobs: string[];
+}
+
+/**
+ * Replaces or removes a profile's photo in one transaction and releases the old photo's `blobs`
+ * row when no message and no other profile uses it. Setting the photo a profile already has
+ * changes nothing but `updatedAt`.
+ */
+export function setProfilePhoto(db: SqlDb, input: SetProfilePhotoInput): SetProfilePhotoResult {
+  requireRecord(input, 'params');
+  requireUuid(input.id, 'profile id');
+  requireString(input.now, 'now');
+  const photo = checkPhoto(input.photo);
+  return transaction(db, () => {
+    const before = readProfile(db, input.id);
+    const photoSha256 = registerPhoto(db, photo);
+    db.run('UPDATE profiles SET photo_sha256 = ?, updated_at = ? WHERE id = ?', [photoSha256, input.now, input.id]);
+    const unreferencedBlobs: string[] = [];
+    const old = before.photoSha256;
+    if (old !== null && old !== photoSha256 && !isReferenced(db, old)) {
+      db.run('DELETE FROM blobs WHERE sha256 = ?', [old]);
+      unreferencedBlobs.push(old);
+    }
+    return { profile: readProfile(db, input.id), unreferencedBlobs };
+  });
+}
+
 export interface SetProfileArchivedInput {
   id: string;
   archived: boolean;

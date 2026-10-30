@@ -7,7 +7,7 @@ import { ConversationList } from '@/components/conversation-list';
 import { Eyebrow } from '@/components/eyebrow';
 import { LibraryNotice } from '@/components/library-notice';
 import { PageTitle } from '@/components/page-title';
-import { PersonAvatar } from '@/components/person-avatar';
+import { ProfileAvatar } from '@/components/profile-avatar';
 import { ProfileForm, type ProfileFormValues } from '@/components/profile-form';
 import { PillButton } from '@/components/pill-button';
 import { SectionCard } from '@/components/section-card';
@@ -15,7 +15,7 @@ import { Shell } from '@/components/screen-shell';
 import { cn } from '@/components/ui/utils';
 import { useConversationActions } from '@/hooks/use-conversation-actions';
 import { useLibrary } from '@/hooks/use-library';
-import { usePeople, useProfileActions } from '@/hooks/use-people';
+import { usePeople, useProfileActions, type PhotoChange } from '@/hooks/use-people';
 import { Link } from '@/i18n/navigation';
 import type { Person } from '@/lib/usecases/library';
 import { featuredPerson, personMeta } from './person-meta';
@@ -117,10 +117,16 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
     restoreFocus();
   };
 
-  const submitForm = async (values: ProfileFormValues) => {
+  const submitForm = async (values: ProfileFormValues, photo: PhotoChange) => {
     // Resolves after the list has reloaded, so closing the form shows the new list at once.
     const created = await actions.create(values);
-    setMessage(t('created', { name: created.displayName }));
+    let photoSaved = true;
+    try {
+      await actions.applyPhoto(created.id, photo);
+    } catch {
+      photoSaved = false;
+    }
+    setMessage(t(photoSaved ? 'created' : 'createdNoPhoto', { name: created.displayName }));
     closeForm();
   };
 
@@ -130,7 +136,7 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
         <PageTitle ref={headingRef} tabIndex={-1}>
           {t('form.createTitle')}
         </PageTitle>
-        <ProfileForm onSubmit={submitForm} onCancel={closeForm} />
+        <ProfileForm photo={{}} onSubmit={submitForm} onCancel={closeForm} />
       </Shell>
     );
   }
@@ -229,7 +235,7 @@ function PersonCard({ person, archived, featured }: { person: Person; archived: 
   return (
     <SectionCard as="li" tone={featured ? 'soft' : 'sf'} className={featured ? 'gap-3.5 rounded-[26px] p-4' : 'gap-3 rounded-[22px] px-4 py-3.5'}>
       <div className="relative flex items-center gap-3.5">
-        <PersonAvatar name={person.displayName} size={featured ? 'lg' : 'md'} tone={featured ? 'accent' : 'auto'} />
+        <ProfileAvatar person={person} size={featured ? 'lg' : 'md'} tone={featured ? 'accent' : 'auto'} />
         <div className="min-w-0 flex-1">
           <Name className={featured ? 'font-display text-headline break-words' : 'font-display text-name break-words'}>
             {/* The link covers the whole card. Edit and archive live in the person's own menu. */}

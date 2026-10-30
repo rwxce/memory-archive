@@ -42,6 +42,8 @@ import type {
   SetFavoriteInput,
   SetNoteInput,
   SetProfileArchivedInput,
+  SetProfilePhotoInput,
+  SetProfilePhotoResult,
   StorageBreakdown,
   UndoImportBatchResult,
   UpdateProfileInput,
@@ -64,6 +66,7 @@ export interface DbOps {
   createProfile: { params: CreateProfileInput; result: Profile };
   getProfile: { params: { id: string }; result: Profile };
   updateProfile: { params: UpdateProfileInput; result: Profile };
+  setProfilePhoto: { params: SetProfilePhotoInput; result: SetProfilePhotoResult };
   setProfileArchived: { params: SetProfileArchivedInput; result: Profile };
   listProfiles: { params: { state?: ProfileState } | undefined; result: Profile[] };
   createConversation: { params: CreateConversationInput; result: null };
