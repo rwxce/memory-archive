@@ -562,8 +562,8 @@ describe('media', () => {
     await open(async (lib) => {
       const hashes: string[] = [];
       for (let i = 0; i < 8; i++) hashes.push((await lib.deps.blobStore.put(new Uint8Array([i, 9]))).sha256);
-      const original = lib.deps.blobStore.open.bind(lib.deps.blobStore);
-      lib.deps.blobStore.open = async (sha: string) => {
+      const original = lib.deps.blobStore.file!.bind(lib.deps.blobStore);
+      lib.deps.blobStore.file = async (sha: string) => {
         active++;
         peak = Math.max(peak, active);
         await new Promise((r) => setTimeout(r, 5));

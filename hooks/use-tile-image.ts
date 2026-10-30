@@ -5,7 +5,7 @@ import type { PersonMediaItem } from '@/lib/domain/library';
 import { readTileImage } from '@/lib/usecases/tile-image';
 import { Cancelled, mediaQueue } from './media-queue';
 import { useLibraryInternals } from './use-library';
-import type { MediaState } from './use-media-url';
+import { failedMedia, type MediaState } from './use-media-url';
 
 /**
  * The picture a gallery tile shows, read only while `near` (the tile is close to the screen): a
@@ -38,7 +38,7 @@ export function useTileImage(item: PersonMediaItem, near: boolean): MediaState {
       },
       (error: unknown) => {
         if (!alive || error instanceof Cancelled) return;
-        setState({ status: (error as { code?: string }).code === 'not-found' ? 'missing' : 'error' });
+        setState(failedMedia(error));
       },
     );
     return () => {

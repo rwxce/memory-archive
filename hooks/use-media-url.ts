@@ -18,7 +18,15 @@ export type MediaState =
   | { status: 'ready'; url: string; size: number }
   /** The message expects a file the archive does not have. */
   | { status: 'missing' }
+  /** Too big to load on this device's storage path; the message says so instead of failing. */
+  | { status: 'too-large' }
   | { status: 'error' };
+
+/** The state a failed read maps to. */
+export function failedMedia(error: unknown): MediaState {
+  const code = (error as { code?: string }).code;
+  return { status: code === 'not-found' ? 'missing' : code === 'too-large' ? 'too-large' : 'error' };
+}
 
 /**
  * The bytes of one message's file as an object URL, read when `enabled` and not before. The
@@ -51,7 +59,7 @@ export function useMediaUrl(source: MediaSource, enabled = true): MediaState {
       },
       (error: unknown) => {
         if (!alive || error instanceof Cancelled) return;
-        setState({ status: (error as { code?: string }).code === 'not-found' ? 'missing' : 'error' });
+        setState(failedMedia(error));
       },
     );
     return () => {

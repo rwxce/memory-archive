@@ -27,6 +27,12 @@ export interface BlobStore {
   has(sha256: string): Promise<boolean>;
   /** The blob as a stream, or `undefined` when absent. */
   open(sha256: string): Promise<ReadableStream<Uint8Array> | undefined>;
+  /**
+   * The blob as a lazy `File` handle, or `undefined` when absent. Stores that can (OPFS) provide it
+   * so a large file can back an object URL without being copied into JS memory; `open` is the
+   * fallback for stores that cannot.
+   */
+  file?(sha256: string): Promise<File | undefined>;
   /** Size in bytes, or `undefined` when absent. */
   size(sha256: string): Promise<number | undefined>;
   /** Returns whether a blob was removed. */

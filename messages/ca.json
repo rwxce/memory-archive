@@ -619,6 +619,7 @@
       "loading": "Carregant {name}…",
       "missing": "Aquest fitxer no s'ha desat.",
       "error": "No s'ha pogut obrir aquest fitxer.",
+      "tooLarge": "Aquest fitxer és massa gran per obrir-lo en aquest dispositiu.",
       "playLabel": "Reprodueix {name}",
       "saveLabel": "Desa {name}",
       "save": "Desa",

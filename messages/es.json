@@ -619,6 +619,7 @@
       "loading": "Cargando {name}…",
       "missing": "Este archivo no se guardó.",
       "error": "No se ha podido abrir este archivo.",
+      "tooLarge": "Este archivo es demasiado grande para abrirlo en este dispositivo.",
       "playLabel": "Reproducir {name}",
       "saveLabel": "Guardar {name}",
       "save": "Guardar",
