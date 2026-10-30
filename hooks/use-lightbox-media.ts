@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { PersonMediaItem } from '@/lib/domain/library';
 import { readBlob } from '@/lib/usecases/conversation-view';
 import { Cancelled, mediaQueue } from './media-queue';
-import type { MediaState } from './use-media-url';
+import { failedMedia, type MediaState } from './use-media-url';
 import { useLibraryInternals } from './use-library';
 
 type Entry = Exclude<MediaState, { status: 'idle' }>;
@@ -73,7 +73,7 @@ export function useLightboxMedia(current: PersonMediaItem, next: PersonMediaItem
         },
         (error: unknown) => {
           if (error instanceof Cancelled) return;
-          set({ status: (error as { code?: string }).code === 'not-found' ? 'missing' : 'error' });
+          set(failedMedia(error) as Entry);
         },
       );
     };

@@ -42,11 +42,11 @@ function Stage({ item, next }: { item: PersonMediaItem; next?: PersonMediaItem }
       <img key={item.id} src={media.url} alt={name} className="max-h-full max-w-full object-contain" />
     );
   }
-  if (media.status === 'missing' || media.status === 'error') {
+  if (media.status === 'missing' || media.status === 'error' || media.status === 'too-large') {
     return (
       <p className={note}>
         <ImageOff className="size-8" aria-hidden />
-        {tm(media.status)}
+        {tm(media.status === 'too-large' ? 'tooLarge' : media.status)}
       </p>
     );
   }

@@ -43,7 +43,7 @@ export function AudioHero({
   const tm = useTranslations('conversation.media');
   const locale = useLocale();
   const when = formatDayTime(item.sentAt, locale);
-  const unavailable = media.status === 'missing' || media.status === 'error';
+  const unavailable = media.status === 'missing' || media.status === 'error' || media.status === 'too-large';
   const ready = media.status === 'ready';
   const progress = duration && duration > 0 ? Math.min(1, elapsed / duration) : 0;
   return (
@@ -73,7 +73,7 @@ export function AudioHero({
       {unavailable ? (
         <p role="note" className="flex min-h-14 items-center gap-2 text-sm">
           <ImageOff className="size-5 shrink-0" aria-hidden />
-          {tm(media.status === 'missing' ? 'missing' : 'error')}
+          {tm(media.status === 'missing' ? 'missing' : media.status === 'too-large' ? 'tooLarge' : 'error')}
         </p>
       ) : (
         <div className="focus-within:ring-ac-ink/60 relative rounded-lg focus-within:ring-[3px]">

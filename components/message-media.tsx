@@ -41,13 +41,13 @@ function useLabel(message: ConversationMessage) {
   return { t, name: message.mediaName || t(kind) };
 }
 
-function Missing({ name, error = false }: { name: string; error?: boolean }) {
+function Missing({ name, error = false, tooLarge = false }: { name: string; error?: boolean; tooLarge?: boolean }) {
   const t = useTranslations('conversation.media');
   return (
     <div className={boxClass} role="note">
       <ImageOff className="size-5 shrink-0" aria-hidden />
       <span className="min-w-0">
-        <span className="block">{t(error ? 'error' : 'missing')}</span>
+        <span className="block">{t(tooLarge ? 'tooLarge' : error ? 'error' : 'missing')}</span>
         <span className="block text-xs opacity-80" dir="auto">
           {name}
         </span>
@@ -131,6 +131,7 @@ function InlineMedia({ kind, message, source }: { kind: Kind; message: Conversat
   const { name } = useLabel(message);
   const media = useMediaUrl(source);
   if (media.status === 'missing') return <Missing name={name} />;
+  if (media.status === 'too-large') return <Missing name={name} tooLarge />;
   if (media.status === 'error') return <Missing name={name} error />;
   if (media.status !== 'ready') return <Loading name={name} icon={kind === 'audio' ? 'audio' : 'image'} />;
   if (kind === 'audio') return <VoicePlayer url={media.url} name={name} own={message.isMe} seed={`${message.mediaSha256 ?? ''}${message.id}`} />;
@@ -142,6 +143,7 @@ function VideoMedia({ message, source }: { message: ConversationMessage; source:
   const [wanted, setWanted] = useState(false);
   const media = useMediaUrl(source, wanted || source.sha256 === null);
   if (media.status === 'missing') return <Missing name={name} />;
+  if (media.status === 'too-large') return <Missing name={name} tooLarge />;
   if (media.status === 'error') return <Missing name={name} error />;
   if (media.status === 'ready') return <video controls autoPlay preload="none" src={media.url} aria-label={name} className="block max-h-80 w-72 max-w-full rounded-[17px] bg-black" />;
   if (wanted) return <Loading name={name} icon="video" />;
@@ -177,6 +179,7 @@ function DocumentMedia({ message, source }: { message: ConversationMessage; sour
   }, [media.status]);
 
   if (source.sha256 === null || media.status === 'missing') return <Missing name={name} />;
+  if (media.status === 'too-large') return <Missing name={name} tooLarge />;
   if (media.status === 'error') return <Missing name={name} error />;
   return (
     <div className={`${boxClass} w-72 max-w-full`}>

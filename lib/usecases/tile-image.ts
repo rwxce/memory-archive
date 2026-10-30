@@ -11,6 +11,9 @@ export const TILE_THUMB_SIZE: ThumbSize = 320;
 /** A photo this small is cheaper to show as it is than to thumbnail and cache. */
 export const THUMB_MIN_SOURCE_BYTES = 32 * 1024;
 
+/** A photo larger than this is shown as it is: decoding it just for a thumbnail could exhaust memory. */
+export const THUMB_MAX_SOURCE_BYTES = 64 * 1024 * 1024;
+
 /**
  * The picture for one gallery tile: the cached thumbnail when there is one; else the photo is read,
  * thumbnailed and the thumbnail cached for next time. The full file is what comes back when no
@@ -32,7 +35,7 @@ export async function readTileImage(
   const cached = await deps.thumbStore?.get(source.sha256, TILE_THUMB_SIZE).catch(() => undefined);
   if (cached) return cached;
   const full = await readBlob(deps, source.sha256, source);
-  if (full.size < THUMB_MIN_SOURCE_BYTES) return full;
+  if (full.size < THUMB_MIN_SOURCE_BYTES || full.size > THUMB_MAX_SOURCE_BYTES) return full;
   const thumbnail = await make(full, TILE_THUMB_SIZE);
   if (!thumbnail) return full;
   if (!deps.thumbStore) return thumbnail;

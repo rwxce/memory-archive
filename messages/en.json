@@ -619,6 +619,7 @@
       "loading": "Loading {name}…",
       "missing": "This file was not saved.",
       "error": "This file could not be opened.",
+      "tooLarge": "This file is too large to open on this device.",
       "playLabel": "Play {name}",
       "saveLabel": "Save {name}",
       "save": "Save",

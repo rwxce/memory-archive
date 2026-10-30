@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { DbError } from '../db/errors';
 import type { NewMessage } from '../domain/library';
 import {
@@ -7,6 +7,7 @@ import {
   findMessageOffsetById,
   getMessageWindow,
   listConversationDays,
+  MAX_IN_MEMORY_MEDIA_BYTES,
   mediaTypeOf,
   openConversationView,
   readBlob,
@@ -104,6 +105,31 @@ describe('conversation view use cases', () => {
     expect(missing).toMatchObject({ code: 'not-found' });
     expect(await rejection(readBlob(deps, '../../etc/passwd'))).toMatchObject({ code: 'invalid' });
     expect(await rejection(readBlob(deps, 'AB'.repeat(32)))).toMatchObject({ code: 'invalid' });
+  });
+
+  test('readBlob hands out a lazy file when the store has one, whatever its size', async () => {
+    const { deps } = await setup();
+    const { sha256 } = await deps.blobStore.put(new Uint8Array([4, 5, 6]));
+    const huge = new File([new Uint8Array([4, 5, 6])], 'x');
+    Object.defineProperty(huge, 'size', { value: MAX_IN_MEMORY_MEDIA_BYTES * 4 });
+    const open = vi.fn();
+    const store = { ...deps.blobStore, file: async () => huge, open };
+    const blob = await readBlob({ blobStore: store }, sha256, { name: 'v.mp4' });
+    expect(blob.type).toBe('video/mp4');
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  test('readBlob refuses to copy an over-limit file into memory before reading it', async () => {
+    const { deps } = await setup();
+    const { sha256 } = await deps.blobStore.put(new Uint8Array([7]));
+    const open = vi.fn();
+    const store = { ...deps.blobStore, file: undefined, open, size: async () => MAX_IN_MEMORY_MEDIA_BYTES + 1 };
+    const error = await rejection(readBlob({ blobStore: store }, sha256));
+    expect(error).toBeInstanceOf(DbError);
+    expect(error).toMatchObject({ code: 'too-large' });
+    expect(open).not.toHaveBeenCalled();
+    const small = { ...store, size: async () => 1, open: async () => new Blob([new Uint8Array([7])]).stream() };
+    expect((await readBlob({ blobStore: small }, sha256)).size).toBe(1);
   });
 
   test('mediaTypeOf never trusts the extension beyond a fixed table', () => {
