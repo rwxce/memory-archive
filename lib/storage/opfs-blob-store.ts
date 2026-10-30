@@ -298,6 +298,10 @@ export async function openBlobStore(root: OpfsDirectoryHandle, options: OpenBlob
       const file = await find(sha256);
       return file ? (await file.getFile()).stream() : undefined;
     },
+    async file(sha256) {
+      const handle = await find(sha256);
+      return handle ? handle.getFile() : undefined;
+    },
     async size(sha256) {
       const file = await find(sha256);
       return file ? (await file.getFile()).size : undefined;

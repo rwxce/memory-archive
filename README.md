@@ -3,7 +3,7 @@
 **Memory Archive** is a **privacy-first, fully offline memory archive** that brings WhatsApp conversations, photos, videos and voice messages into a **unified, portable timeline** — one profile per person you want to remember.
 Everything runs **on your own device**. No server, no account, no cloud, no telemetry: your memories never leave your hands.
 
-> **Status:** early development. Today the repository ships a working **WhatsApp export → Markdown / HTML / JSON** command-line tool (the foundation inherited from [guionardo/wa-backup](https://github.com/guionardo/wa-backup)). The multi-profile, installable app described below is being built phase by phase — see [🗺️ Roadmap](#️-roadmap).
+> **Status:** in development (v0.6). The installable offline app already imports WhatsApp ZIPs into profiles, with timeline, conversation view, gallery, audio, calendar, search and favorites, and can export a full backup ZIP and restore it into an empty library. It also keeps the original **WhatsApp export → Markdown / HTML / JSON** command-line tool (inherited from [guionardo/wa-backup](https://github.com/guionardo/wa-backup)). Sync, Google Photos import and the portable viewer are still ahead — see [🗺️ Roadmap](#️-roadmap).
 
 ---
 
@@ -58,23 +58,23 @@ Regenerate them with `pnpm build && pnpm screenshots` (see [docs/blueprint.md](d
 
 * **XSS-safe output**: all chat content is escaped before rendering.
 
-### Coming next (the Memory Archive app)
+### In the Memory Archive app (✅ available, 🟡 partly, ⬜ coming next)
 
-* **One profile per person**: parents, partners, friends — each with their own conversations, photos, videos, voice messages and notes.
+* ✅ **One profile per person**: parents, partners, friends — each with their own conversations, photos, videos, voice messages and notes.
 
-* **Install on any device**: an installable web app (PWA) for iPhone, Android, Mac, Windows and Linux that works offline.
+* ✅ **Install on any device**: an installable web app (PWA) for iPhone, Android, Mac, Windows and Linux that works offline.
 
-* **Incremental, duplicate-free imports**: import the same chat again years later and only the new messages are added.
+* ✅ **Incremental, duplicate-free imports**: import the same chat again years later and only the new messages are added.
 
-* **Hand-picked photos**: import from your phone gallery, a Google Photos download or a Google Takeout album, and choose exactly which photos belong to whom.
+* ⬜ **Hand-picked photos**: import from your phone gallery, a Google Photos download or a Google Takeout album, and choose exactly which photos belong to whom.
 
-* **Timeline, gallery, audio archive and calendar** per person, with search and favorites.
+* ✅ **Timeline, gallery, audio archive and calendar** per person, with search and favorites.
 
-* **One-file backup and restore**: export your whole archive into a single ZIP and restore it on any other device.
+* 🟡 **One-file backup and restore**: export your whole archive into a single ZIP and restore it on any other device.
 
-* **Manual device-to-device sync**: export a small *changes* ZIP on one device and merge it on another.
+* ⬜ **Manual device-to-device sync**: export a small *changes* ZIP on one device and merge it on another.
 
-* **Portable viewer**: a single HTML file you can send to a relative — it opens with a double-click, no install needed.
+* ⬜ **Portable viewer**: a single HTML file you can send to a relative — it opens with a double-click, no install needed.
 
 ---
 
@@ -246,20 +246,20 @@ cli/                      # same use cases from the terminal
 
 ## 🗺️ Roadmap
 
-| Phase | Scope |
-| ----- | ----- |
-| 0 | Tooling: pnpm, 7-day release age, CI, agent rules (rulesync), docs |
-| 1 | Reusable core for Node and browser, bug fixes, re-import of old HTML/JSON/CSV outputs |
-| 2 | PWA skeleton, local SQLite database, backup/restore proof of concept |
-| 3 | Profiles and conversations |
-| 4 | Incremental WhatsApp import and import history |
-| 5 | Timeline, conversation view, gallery, audio, calendar, search |
-| 6 | Full backup and restore |
-| 7 | Manual device-to-device sync with ZIP files |
-| 8 | Google Photos (download / Takeout) and loose files |
-| 9 | Portable viewer exports and hardening |
+| Phase | Status | Scope |
+| ----- | ------ | ----- |
+| 0 | ✅ | Tooling: pnpm, 7-day release age, CI, agent rules (rulesync), docs |
+| 1 | ✅ | Reusable core for Node and browser, bug fixes, re-import of old HTML/JSON/CSV outputs |
+| 2 | ✅ | PWA skeleton, local SQLite database, backup/restore proof of concept |
+| 3 | ✅ | Profiles and conversations |
+| 4 | 🟡 | Incremental WhatsApp import and import history |
+| 5 | ✅ | Timeline, conversation view, gallery, audio, calendar, search |
+| 6 | 🟡 | Full backup and restore |
+| 7 | ⬜ | Manual device-to-device sync with ZIP files |
+| 8 | ⬜ | Google Photos (download / Takeout) and loose files |
+| 9 | ⬜ | Portable viewer exports and hardening |
 
-Details in [`docs/roadmap.md`](docs/roadmap.md).
+✅ done in code and automated tests (manual on-device checks are listed in the roadmap) · 🟡 partly done · ⬜ not started. Details in [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 

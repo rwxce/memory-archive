@@ -13,8 +13,10 @@ import { SegmentedControl } from '@/components/segmented-control';
 import { MonthHeading } from '@/components/month-heading';
 import { ShowMore } from '@/components/show-more';
 import { useLibrary } from '@/hooks/use-library';
+import { useMediaFavoriteToggle } from '@/hooks/use-media-favorite-toggle';
 import { usePersonDetails } from '@/hooks/use-person-details';
 import { usePersonMedia } from '@/hooks/use-person-media';
+import type { PersonMediaItem } from '@/lib/domain/library';
 import { groupByMonth } from './group-by-month';
 
 const ALL = ['photo', 'video'] as const;
@@ -48,7 +50,17 @@ function PersonGalleryContent({ onRetry }: { onRetry: () => void }) {
   const id = useSearchParams().get('id');
   const details = usePersonDetails(id);
   const [filter, setFilter] = useState<Filter>('all');
-  const { state: media, loadMore, retry } = usePersonMedia(id, KINDS[filter]);
+  const { state: media, loadMore, retry, mark } = usePersonMedia(id, KINDS[filter]);
+  const [favoriteFailed, setFavoriteFailed] = useState(false);
+  const onFailed = useCallback(() => setFavoriteFailed(true), []);
+  const toggleFavorite = useMediaFavoriteToggle(mark, onFailed);
+  const onToggleFavorite = useCallback(
+    (item: PersonMediaItem) => {
+      setFavoriteFailed(false);
+      toggleFavorite(item);
+    },
+    [toggleFavorite],
+  );
   const [openId, setOpenId] = useState<number | null>(null);
   const tileRefs = useRef(new Map<number, HTMLButtonElement>());
   const lastOpen = useRef<number | null>(null);
@@ -154,6 +166,8 @@ function PersonGalleryContent({ onRetry }: { onRetry: () => void }) {
           onIndexChange={(i) => setOpenId(items[i]?.id ?? null)}
           onClose={closeLightbox}
           loadMore={loadMore}
+          onToggleFavorite={onToggleFavorite}
+          favoriteFailed={favoriteFailed}
         />
       )}
     </Shell>

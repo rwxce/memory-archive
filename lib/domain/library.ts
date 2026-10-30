@@ -177,6 +177,8 @@ export interface PersonMediaItem {
   mediaName: string;
   /** Media type recorded for the blob at import time, or null when unknown. */
   mediaMime: string | null;
+  /** Whether the message carrying this media is a favorite (starred in its conversation). */
+  isFavorite: boolean;
 }
 
 /** First/last message and total of a conversation (`null` bounds when it has no messages). */

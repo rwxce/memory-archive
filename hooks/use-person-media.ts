@@ -24,7 +24,7 @@ export type PersonMediaState =
 export function usePersonMedia(
   profileId: string | null,
   kinds: readonly MediaMessageType[],
-): { state: PersonMediaState; loadMore(): void; retry(): void } {
+): { state: PersonMediaState; loadMore(): void; retry(): void; mark(item: PersonMediaItem, favorite: boolean): void } {
   const { state: library } = useLibraryInternals();
   const deps = library.status === 'ready' ? library.deps : undefined;
   const kindsKey = kinds.join(',');
@@ -81,5 +81,13 @@ export function usePersonMedia(
   }, [deps, profileId, kindsKey]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
-  return { state: deps && result.key === runKey ? result.state : { status: 'loading' }, loadMore, retry };
+  // Flips the star of one loaded item in place (the optimistic step of `useMediaFavoriteToggle`).
+  const mark = useCallback((target: PersonMediaItem, favorite: boolean) => {
+    setResult((now) => {
+      if (now.state.status !== 'ready') return now;
+      const items = now.state.items.map((item) => (item.id === target.id && item.conversationId === target.conversationId ? { ...item, isFavorite: favorite } : item));
+      return { key: now.key, state: { ...now.state, items } };
+    });
+  }, []);
+  return { state: deps && result.key === runKey ? result.state : { status: 'loading' }, loadMore, retry, mark };
 }

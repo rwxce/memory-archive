@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Download, FileText, Film, ImageOff, Loader, Mic, Pause, Play } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { useMediaDownload } from '@/hooks/use-media-download';
 import { useBlobSize, useMediaUrl } from '@/hooks/use-media-url';
 import type { ConversationMessage } from '@/lib/domain/library';
 import { formatBytes } from './format';
@@ -22,7 +23,7 @@ const boxClass = 'bg-sf2 text-t2 flex items-center gap-2 rounded-2xl px-3 py-2 t
  *
  * - photo, sticker, voice message: read when the row appears;
  * - video: a Play button, so a long video is not read into memory just because it scrolled by;
- * - document: a chip with name and size; Save reads it on demand;
+ * - document: a chip with name and size; Save reads it and starts the download in that click;
  * - the file is not in the archive: a calm "not saved" note with the name.
  */
 export function MessageMedia({ message }: { message: ConversationMessage }) {
@@ -41,13 +42,13 @@ function useLabel(message: ConversationMessage) {
   return { t, name: message.mediaName || t(kind) };
 }
 
-function Missing({ name, error = false }: { name: string; error?: boolean }) {
+function Missing({ name, error = false, tooLarge = false }: { name: string; error?: boolean; tooLarge?: boolean }) {
   const t = useTranslations('conversation.media');
   return (
     <div className={boxClass} role="note">
       <ImageOff className="size-5 shrink-0" aria-hidden />
       <span className="min-w-0">
-        <span className="block">{t(error ? 'error' : 'missing')}</span>
+        <span className="block">{t(tooLarge ? 'tooLarge' : error ? 'error' : 'missing')}</span>
         <span className="block text-xs opacity-80" dir="auto">
           {name}
         </span>
@@ -131,6 +132,7 @@ function InlineMedia({ kind, message, source }: { kind: Kind; message: Conversat
   const { name } = useLabel(message);
   const media = useMediaUrl(source);
   if (media.status === 'missing') return <Missing name={name} />;
+  if (media.status === 'too-large') return <Missing name={name} tooLarge />;
   if (media.status === 'error') return <Missing name={name} error />;
   if (media.status !== 'ready') return <Loading name={name} icon={kind === 'audio' ? 'audio' : 'image'} />;
   if (kind === 'audio') return <VoicePlayer url={media.url} name={name} own={message.isMe} seed={`${message.mediaSha256 ?? ''}${message.id}`} />;
@@ -142,6 +144,7 @@ function VideoMedia({ message, source }: { message: ConversationMessage; source:
   const [wanted, setWanted] = useState(false);
   const media = useMediaUrl(source, wanted || source.sha256 === null);
   if (media.status === 'missing') return <Missing name={name} />;
+  if (media.status === 'too-large') return <Missing name={name} tooLarge />;
   if (media.status === 'error') return <Missing name={name} error />;
   if (media.status === 'ready') return <video controls autoPlay preload="none" src={media.url} aria-label={name} className="block max-h-80 w-72 max-w-full rounded-[17px] bg-black" />;
   if (wanted) return <Loading name={name} icon="video" />;
@@ -163,21 +166,12 @@ function VideoMedia({ message, source }: { message: ConversationMessage; source:
 function DocumentMedia({ message, source }: { message: ConversationMessage; source: Source }) {
   const { t, name } = useLabel(message);
   const locale = useLocale();
-  const [wanted, setWanted] = useState(false);
   const size = useBlobSize(source.sha256);
-  const media = useMediaUrl(source, wanted);
-  const link = useRef<HTMLAnchorElement>(null);
-  const saved = useRef(false);
-  // Once the bytes are read for a Save, the browser's own download starts (once).
-  useEffect(() => {
-    if (media.status === 'ready' && !saved.current) {
-      saved.current = true;
-      link.current?.click();
-    }
-  }, [media.status]);
+  const { state, save } = useMediaDownload(source, name);
 
-  if (source.sha256 === null || media.status === 'missing') return <Missing name={name} />;
-  if (media.status === 'error') return <Missing name={name} error />;
+  if (source.sha256 === null || state === 'missing') return <Missing name={name} />;
+  if (state === 'too-large') return <Missing name={name} tooLarge />;
+  if (state === 'error') return <Missing name={name} error />;
   return (
     <div className={`${boxClass} w-72 max-w-full`}>
       <FileText className="size-6 shrink-0" aria-hidden />
@@ -187,19 +181,10 @@ function DocumentMedia({ message, source }: { message: ConversationMessage; sour
         </span>
         {size !== undefined && <span className="block text-xs">{formatBytes(size, locale)}</span>}
       </span>
-      {media.status === 'ready' ? (
-        <Button asChild variant="outline">
-          <a ref={link} href={media.url} download={name} aria-label={t('saveLabel', { name })}>
-            <Download aria-hidden />
-            {t('save')}
-          </a>
-        </Button>
-      ) : (
-        <Button variant="outline" aria-label={t('saveLabel', { name })} aria-disabled={media.status === 'loading' || undefined} onClick={() => media.status === 'idle' && setWanted(true)}>
-          {media.status === 'loading' ? <Loader className="motion-safe:animate-spin" aria-hidden /> : <Download aria-hidden />}
-          {t('save')}
-        </Button>
-      )}
+      <Button variant="outline" aria-label={t('saveLabel', { name })} aria-disabled={state === 'loading' || undefined} onClick={() => void save()}>
+        {state === 'loading' ? <Loader className="motion-safe:animate-spin" aria-hidden /> : <Download aria-hidden />}
+        {t('save')}
+      </Button>
     </div>
   );
 }

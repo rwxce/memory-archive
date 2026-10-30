@@ -187,6 +187,43 @@ export function updateProfile(db: SqlDb, input: UpdateProfileInput): Profile {
   });
 }
 
+export interface SetProfilePhotoInput {
+  id: string;
+  /** Photo already stored by hash; null removes it. */
+  photo: BlobRef | null;
+  now: string;
+}
+
+export interface SetProfilePhotoResult {
+  profile: Profile;
+  /** The replaced photo, when nothing else refers to it any more; its row is removed, the caller deletes the bytes. */
+  unreferencedBlobs: string[];
+}
+
+/**
+ * Replaces or removes a profile's photo in one transaction and releases the old photo's `blobs`
+ * row when no message and no other profile uses it. Setting the photo a profile already has
+ * changes nothing but `updatedAt`.
+ */
+export function setProfilePhoto(db: SqlDb, input: SetProfilePhotoInput): SetProfilePhotoResult {
+  requireRecord(input, 'params');
+  requireUuid(input.id, 'profile id');
+  requireString(input.now, 'now');
+  const photo = checkPhoto(input.photo);
+  return transaction(db, () => {
+    const before = readProfile(db, input.id);
+    const photoSha256 = registerPhoto(db, photo);
+    db.run('UPDATE profiles SET photo_sha256 = ?, updated_at = ? WHERE id = ?', [photoSha256, input.now, input.id]);
+    const unreferencedBlobs: string[] = [];
+    const old = before.photoSha256;
+    if (old !== null && old !== photoSha256 && !isReferenced(db, old)) {
+      db.run('DELETE FROM blobs WHERE sha256 = ?', [old]);
+      unreferencedBlobs.push(old);
+    }
+    return { profile: readProfile(db, input.id), unreferencedBlobs };
+  });
+}
+
 export interface SetProfileArchivedInput {
   id: string;
   archived: boolean;
@@ -1142,20 +1179,22 @@ export function listPersonMedia(
   requireProfileExists(db, id);
   const n = Math.min(Math.max(Math.trunc(limit), 1), MAX_WINDOW);
   return db
-    .all<Omit<PersonMediaItem, 'isMe'> & { isMe: number }>(
+    .all<Omit<PersonMediaItem, 'isMe' | 'isFavorite'> & { isMe: number; isFavorite: number }>(
       `SELECT m.id, m.conversation_id AS conversationId, c.title AS conversationTitle, m.sent_at AS sentAt,
               m.type, p.display_name AS participantName, COALESCE(p.is_me, 0) AS isMe, m.body,
-              m.media_sha256 AS mediaSha256, m.media_name AS mediaName, b.mime AS mediaMime
+              m.media_sha256 AS mediaSha256, m.media_name AS mediaName, b.mime AS mediaMime,
+              f.fingerprint IS NOT NULL AS isFavorite
          FROM (SELECT m.id FROM messages m WHERE ${PERSON_MEDIA_WHERE(types)}
                 ORDER BY m.sent_at, m.ordinal, m.id LIMIT ? OFFSET ?) w
          JOIN messages m ON m.id = w.id
          JOIN conversations c ON c.id = m.conversation_id
          LEFT JOIN participants p ON p.id = m.participant_id
          LEFT JOIN blobs b ON b.sha256 = m.media_sha256
+         LEFT JOIN favorites f ON f.conversation_id = m.conversation_id AND f.fingerprint = m.fingerprint
         ORDER BY m.sent_at, m.ordinal, m.id`,
       [id, ...types, n, offset],
     )
-    .map((m) => ({ ...m, isMe: m.isMe === 1 }));
+    .map((m) => ({ ...m, isMe: m.isMe === 1, isFavorite: m.isFavorite === 1 }));
 }
 
 // ----------------------------------------------------- a person's combined timeline

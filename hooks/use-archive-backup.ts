@@ -8,6 +8,7 @@ import {
   type ArchiveErrorCode,
   type ArchiveProgress,
 } from '@/lib/usecases/archive-backup';
+import { downloadBlob } from './download-blob';
 import { useLibraryInternals } from './use-library';
 
 export type ArchiveBackupState =
@@ -23,18 +24,6 @@ export interface ArchiveBackup {
   backup(): Promise<void>;
   /** Restores a ZIP the person picked into the (empty) library, then reloads the screens. */
   restore(file: Blob): Promise<void>;
-}
-
-/** Hands a Blob to the browser as a download (no network involved). */
-function download(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 /** "Fes una còpia de tot l'arxiu" and "Obre un arxiu": one operation at a time, with progress and a typed failure. */
@@ -60,7 +49,7 @@ export function useArchiveBackup(): ArchiveBackup {
     const deps = library.deps;
     await run('backup', async (onProgress) => {
       const { blob, fileName } = await exportArchiveFromLibrary(deps, { appVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0', onProgress });
-      download(blob, fileName);
+      downloadBlob(blob, fileName);
     });
   }, [library, run]);
 

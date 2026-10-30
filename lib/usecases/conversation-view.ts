@@ -101,9 +101,18 @@ export function mediaTypeOf(hint: { mime?: string | null; name?: string } = {}):
 }
 
 /**
- * One stored blob as a `Blob` typed for display (the UI turns it into an object URL). The bytes
- * are read into memory: ask for one item at a time, as it scrolls into view, never the lot.
- * `invalid` for a malformed hash, `not-found` when the store has no such blob.
+ * Largest file `readBlob` copies into memory when the store cannot hand out a lazy `File` (OPFS
+ * can: then there is no limit, the browser reads from disk as the player or viewer needs it).
+ */
+export const MAX_IN_MEMORY_MEDIA_BYTES = 256 * 1024 * 1024;
+
+/**
+ * One stored blob as a `Blob` typed for display (the UI turns it into an object URL). With a store
+ * that provides `file` the result is a lazy view of the stored file, so a long video costs no
+ * memory; otherwise the bytes are read into memory (ask for one item at a time, as it scrolls into
+ * view, never the lot) and a file over `MAX_IN_MEMORY_MEDIA_BYTES` is refused before reading.
+ * `invalid` for a malformed hash, `not-found` when the store has no such blob, `too-large` above
+ * the limit on the in-memory path.
  */
 export async function readBlob(
   deps: { blobStore: BlobStore },
@@ -111,8 +120,14 @@ export async function readBlob(
   hint: { mime?: string | null; name?: string } = {},
 ): Promise<Blob> {
   if (!isSha256Hex(sha256)) throw new DbError('invalid', 'sha256 must be 64 lowercase hex characters');
+  const type = mediaTypeOf(hint);
+  const file = await deps.blobStore.file?.(sha256);
+  if (file) return new Blob([file], { type });
+  const size = await deps.blobStore.size(sha256);
+  if (size === undefined) throw new DbError('not-found', 'media is not in the blob store');
+  if (size > MAX_IN_MEMORY_MEDIA_BYTES) throw new DbError('too-large', 'media is too large to open');
   const stream = await deps.blobStore.open(sha256);
   if (!stream) throw new DbError('not-found', 'media is not in the blob store');
   const bytes = await new Response(stream).arrayBuffer();
-  return new Blob([bytes], { type: mediaTypeOf(hint) });
+  return new Blob([bytes], { type });
 }

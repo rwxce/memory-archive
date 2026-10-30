@@ -81,8 +81,8 @@ on-device checks below (iPhone, Android, airplane mode, a second browser).**
 
 ## Phase 3 — Profiles and conversations
 
-**Status: done, except profile photo upload (deferred) and the manual checks of the verify line
-(Safari/Firefox, a real touch device, screen reader).**
+**Status: done, except the manual checks of the verify line (Safari/Firefox, a real touch device,
+screen reader).**
 
 - Create / edit / archive profiles (photo, relationship, description); move conversations
   between profiles without duplicating data.
@@ -110,11 +110,8 @@ Chromium e2e and unit tests).**
 
 **Status: done in code and Chromium e2e (PRs #26, #33-#48). Not done: a check on a real mid-range phone with 200k
 messages (only a 200k synthetic archive in Node and 30k in Chromium with a 4x CPU throttle), Safari/Firefox/iOS checks of
-the new screens, and a few follow-ups: favorite stars in the gallery and lightbox (`PersonMediaItem` has no `isFavorite`),
-size limits before reading a large video or document into memory, a downloaded file started from a click handler instead of
-an effect, the Settings button for "erase everything" (done: `eraseDevice` clears database, search index, media,
-thumbnails, share inbox, app keys), and a note button on the
-conversation rows of the person page. Schema is now v6 (v4 timeline index, v5 favorites, v6 notes): an older app refuses
+the new screens. The Settings button for "erase everything" (`eraseDevice` clears database, search index, media,
+thumbnails, share inbox, app keys) and the note button on the conversation rows of the person page are done. Schema is now v6 (v4 timeline index, v5 favorites, v6 notes): an older app refuses
 newer backups.**
 
 - Virtualized conversation view in the current HTML style; per-profile timeline, gallery with
@@ -124,6 +121,8 @@ newer backups.**
 
 ## Phase 6 — Full backup and restore
 
+**Status: partly done.** Export a full ZIP and restore into an empty library work (phase 2 proof of concept). Not done: the Backup and restore screen, integrity check, replace with safety backup, encrypted backups, the automated acceptance scenario.
+
 - Backup & restore screen: full export, restore, integrity check, storage usage; replace an
   existing library with confirmation and an automatic safety backup; optional encrypted
   backups.
@@ -131,6 +130,8 @@ newer backups.**
   browser → identical) across Safari, Chrome and Firefox.
 
 ## Phase 7 — Manual device-to-device sync
+
+**Status: not started.**
 
 - Device id; export a *changes* pack since the last export to that device, or the full
   archive; import = merge (messages by fingerprint, media by hash, profiles / favorites /
@@ -140,6 +141,8 @@ newer backups.**
 
 ## Phase 8 — Google Photos and loose files
 
+**Status: not started.**
+
 - Three ways to pick specific photos: Google Photos web download of a selection, Takeout of
   one album (keeps original dates and locations), or the device gallery picker.
 - In-app selection grid grouped by date: only the marked photos are copied, to the chosen
@@ -147,6 +150,8 @@ newer backups.**
 - **Verify:** synthetic Takeout fixtures; re-import does not duplicate.
 
 ## Phase 9 — Portable exports and hardening
+
+**Status: not started.**
 
 - Single-file read-only viewer (`viewer/`) that opens via `file://` with search and timeline;
   one, several or all profiles; date filters. Per-profile HTML / JSON / Markdown / ZIP.

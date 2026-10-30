@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, type KeyboardEvent } from 'react';
-import { ChevronLeft, ChevronRight, ImageOff, ImageIcon, Loader, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImageOff, ImageIcon, Loader, Star, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useLightboxMedia } from '@/hooks/use-lightbox-media';
 import { Link } from '@/i18n/navigation';
@@ -42,11 +42,11 @@ function Stage({ item, next }: { item: PersonMediaItem; next?: PersonMediaItem }
       <img key={item.id} src={media.url} alt={name} className="max-h-full max-w-full object-contain" />
     );
   }
-  if (media.status === 'missing' || media.status === 'error') {
+  if (media.status === 'missing' || media.status === 'error' || media.status === 'too-large') {
     return (
       <p className={note}>
         <ImageOff className="size-8" aria-hidden />
-        {tm(media.status)}
+        {tm(media.status === 'too-large' ? 'tooLarge' : media.status)}
       </p>
     );
   }
@@ -68,6 +68,8 @@ interface Props {
   onIndexChange(index: number): void;
   onClose(): void;
   loadMore(): void;
+  onToggleFavorite(item: PersonMediaItem): void;
+  favoriteFailed: boolean;
 }
 
 /**
@@ -76,8 +78,9 @@ interface Props {
  * one, Next asks for the next page and moves on when it arrives. Only the open item and, when idle,
  * the next photo hold a file (`useLightboxMedia`). Names, authors and captions are untrusted text.
  */
-export function PersonGalleryLightbox({ items, index, total, personId, loadingMore, moreFailed, onIndexChange, onClose, loadMore }: Props) {
+export function PersonGalleryLightbox({ items, index, total, personId, loadingMore, moreFailed, onIndexChange, onClose, loadMore, onToggleFavorite, favoriteFailed }: Props) {
   const t = useTranslations('personGallery');
+  const tf = useTranslations('conversation.favorite');
   const locale = useLocale();
   const dialog = useRef<HTMLDialogElement>(null);
   const waiting = useRef(false);
@@ -154,9 +157,21 @@ export function PersonGalleryLightbox({ items, index, total, personId, loadingMo
             ) : null}
           </p>
         </div>
-        <PillButton variant="outlined" size="md" onClick={onClose} aria-label={t('close')} className="size-11 shrink-0 px-0">
-          <X aria-hidden />
-        </PillButton>
+        <div className="flex shrink-0 items-center gap-2">
+          <PillButton
+            variant="outlined"
+            size="md"
+            onClick={() => onToggleFavorite(item)}
+            aria-label={item.isFavorite ? tf('remove') : tf('add')}
+            aria-pressed={item.isFavorite}
+            className={`size-11 px-0 ${item.isFavorite ? 'text-star' : 'text-mu'}`}
+          >
+            <Star aria-hidden className={item.isFavorite ? 'fill-star stroke-star' : undefined} />
+          </PillButton>
+          <PillButton variant="outlined" size="md" onClick={onClose} aria-label={t('close')} className="size-11 px-0">
+            <X aria-hidden />
+          </PillButton>
+        </div>
       </div>
 
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
@@ -170,6 +185,11 @@ export function PersonGalleryLightbox({ items, index, total, personId, loadingMo
       )}
 
       <div className="flex flex-col gap-2">
+        {favoriteFailed && (
+          <p role="alert" className="text-destructive text-sm">
+            {tf('failed')}
+          </p>
+        )}
         {moreFailed && (
           <p role="alert" className="text-destructive text-sm">
             {t('moreFailed')}

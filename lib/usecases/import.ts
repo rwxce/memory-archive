@@ -304,7 +304,8 @@ export function zipProblem(cause: unknown): ImportError {
   return new ImportError('invalid-export', 'this file is not a readable WhatsApp export', { cause });
 }
 
-async function deleteBlobs(stores: Pick<ProfileDeps, 'blobStore' | 'thumbStore'>, hashes: Iterable<string>): Promise<number> {
+/** Removes stored blobs (and their cached thumbnails); a blob that cannot be removed now is left for the orphan sweep. */
+export async function deleteBlobs(stores: Pick<ProfileDeps, 'blobStore' | 'thumbStore'>, hashes: Iterable<string>): Promise<number> {
   let removed = 0;
   for (const sha256 of hashes) {
     // The cache is derived: its failure never blocks removing the blob (and is capped anyway).

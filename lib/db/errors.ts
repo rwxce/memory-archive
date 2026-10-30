@@ -14,6 +14,8 @@ export type DbErrorCode =
   | 'invalid'
   /** The profile or conversation a request refers to does not exist (or is not linked). */
   | 'not-found'
+  /** A stored file is too big to load into memory on this path (and cannot be streamed). */
+  | 'too-large'
   /** The worker went away before answering. */
   | 'closed'
   | 'internal';
