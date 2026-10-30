@@ -110,10 +110,8 @@ Chromium e2e and unit tests).**
 
 **Status: done in code and Chromium e2e (PRs #26, #33-#48). Not done: a check on a real mid-range phone with 200k
 messages (only a 200k synthetic archive in Node and 30k in Chromium with a 4x CPU throttle), Safari/Firefox/iOS checks of
-the new screens, and a few follow-ups:
-the Settings button for "erase everything" (done: `eraseDevice` clears database, search index, media,
-thumbnails, share inbox, app keys), and a note button on the
-conversation rows of the person page. Schema is now v6 (v4 timeline index, v5 favorites, v6 notes): an older app refuses
+the new screens. The Settings button for "erase everything" (`eraseDevice` clears database, search index, media,
+thumbnails, share inbox, app keys) and the note button on the conversation rows of the person page are done. Schema is now v6 (v4 timeline index, v5 favorites, v6 notes): an older app refuses
 newer backups.**
 
 - Virtualized conversation view in the current HTML style; per-profile timeline, gallery with

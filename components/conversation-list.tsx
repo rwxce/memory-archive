@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/utils';
 import type { ConversationActions } from '@/hooks/use-conversation-actions';
+import { ConversationRowNote } from '@/components/note-panels';
 import { Link } from '@/i18n/navigation';
 import { CONVERSATION_TITLE_MAX, FieldError, normalizeConversationTitle } from '@/lib/domain/profile';
 import type { ConversationRow } from '@/lib/usecases/conversations';
@@ -254,6 +255,7 @@ export function ConversationList({
                       {t(personId === undefined ? 'assign' : 'link')}
                     </button>
                   )}
+                  {personId !== undefined && <ConversationRowNote conversationId={row.id} title={row.title} />}
                   {shared && personId !== undefined && (
                     <button
                       type="button"
