@@ -15,12 +15,12 @@ import { useImportActions } from '@/hooks/use-import';
 import { useLibrary } from '@/hooks/use-library';
 import { usePeople, useProfileActions } from '@/hooks/use-people';
 import type { ImportProgress } from '@/lib/usecases/import';
-import { guessedMe, importProblemOf, isImportableZip } from '@/lib/usecases/import-wizard';
+import { guessedMe, importProblemOf, isImportableExport } from '@/lib/usecases/import-wizard';
 
 type Phase = 'choose' | 'setup' | 'run' | 'done';
 
 /**
- * The import wizard for WhatsApp ZIP exports. Choose files (picked, dropped or shared from
+ * The import wizard for WhatsApp exports (ZIP, or the plain .txt made without media). Choose files (picked, dropped or shared from
  * WhatsApp), go through five steps for each (what is in it, who it is for, which one is you,
  * what is new, check and confirm), then the files are added one after the other with progress
  * and a way to cancel, and the result of each is told in plain words with a way to undo it.
@@ -85,7 +85,7 @@ function ImportContent({ onRetry }: { onRetry: () => void }) {
 
   // ── files ──────────────────────────────────────────────────────────────────────────────────
   const add = useCallback((files: File[], sharedKeys: (string | undefined)[] = []) => {
-    const accepted = files.map((file, i) => ({ file, key: sharedKeys[i] })).filter(({ file }) => isImportableZip(file));
+    const accepted = files.map((file, i) => ({ file, key: sharedKeys[i] })).filter(({ file }) => isImportableExport(file));
     setSkipped(files.length - accepted.length);
     setItems((list) => {
       const same = (a: File, b: File) => a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
@@ -101,9 +101,9 @@ function ImportContent({ onRetry }: { onRetry: () => void }) {
     const fresh = shared.filter((info) => !seenShared.current.has(info.key));
     if (fresh.length === 0) return;
     fresh.forEach((info) => seenShared.current.add(info.key));
-    const zips = fresh.filter(isImportableZip);
+    const zips = fresh.filter(isImportableExport);
     // A shared file that cannot be imported is not kept: it is a private chat file, and nothing here will ever use it.
-    for (const info of fresh) if (!isImportableZip(info)) void inbox.discard(info.key);
+    for (const info of fresh) if (!isImportableExport(info)) void inbox.discard(info.key);
     void Promise.all(zips.map((info) => inbox.take(info))).then((read) => {
       const present = zips.map((info, i) => ({ info, file: read[i] })).filter((entry): entry is { info: typeof entry.info; file: File } => !!entry.file);
       add(

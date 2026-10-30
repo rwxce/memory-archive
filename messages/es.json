@@ -171,20 +171,20 @@
   },
   "import": {
     "title": "Importar una conversación",
-    "intro": "Trae una conversación de WhatsApp a tu archivo. En WhatsApp, abre el chat, elige Exportar chat y guarda el fichero ZIP. Todo se queda en este dispositivo.",
+    "intro": "Trae una conversación de WhatsApp a tu archivo. En WhatsApp, abre el chat, elige Exportar chat y guarda el fichero (el ZIP, o el fichero de texto si lo exportas sin archivos). Todo se queda en este dispositivo.",
     "backToPeople": "Volver a Personas",
     "loadFailed": "No se han podido leer tus personas. No se ha cambiado nada.",
     "choose": {
-      "pick": "Elegir ficheros ZIP",
+      "pick": "Elegir ficheros de chat",
       "drop": "o suéltalos aquí",
-      "hint": "Cada chat de WhatsApp es un fichero ZIP. Puedes elegir varios a la vez.",
+      "hint": "Cada chat de WhatsApp es un fichero ZIP, o un fichero de texto si lo has exportado sin archivos. Puedes elegir varios a la vez.",
       "listTitle": "Ficheros para importar ({count})",
       "empty": "Aún no has elegido ningún fichero.",
       "remove": "Quitar",
       "removeLabel": "Quitar {name} de la lista",
       "shared": "Compartido con Memory Archive",
       "sharedNote": "Los ficheros compartidos desde WhatsApp se quedan aquí hasta que los importes o los quites. Los ficheros compartidos que no se pueden importar se eliminan de este dispositivo.",
-      "skipped": "{count, plural, one {Se ha dejado fuera # fichero: por ahora solo se pueden importar ficheros ZIP de WhatsApp.} other {Se han dejado fuera # ficheros: por ahora solo se pueden importar ficheros ZIP de WhatsApp.}}",
+      "skipped": "{count, plural, one {Se ha dejado fuera # fichero: por ahora solo se pueden importar ficheros ZIP y de texto de WhatsApp.} other {Se han dejado fuera # ficheros: por ahora solo se pueden importar ficheros ZIP y de texto de WhatsApp.}}",
       "start": "{count, plural, one {Continuar con # fichero} other {Continuar con # ficheros}}"
     },
     "wizard": {
@@ -368,7 +368,7 @@
       "failed": "No se ha podido deshacer la importación. No se ha cambiado nada. Inténtalo de nuevo."
     },
     "problem": {
-      "invalidExport": "Este fichero no parece una exportación de un chat de WhatsApp. Vuelve a exportar el chat desde WhatsApp y elige el fichero ZIP. No se ha cambiado nada.",
+      "invalidExport": "Este fichero no parece una exportación de un chat de WhatsApp. Vuelve a exportar el chat desde WhatsApp y elige el fichero ZIP o de texto. No se ha cambiado nada.",
       "tooBig": "Esta exportación es más grande de lo que Memory Archive puede leer. Prueba a exportar el chat sin archivos multimedia. No se ha cambiado nada.",
       "busy": "Otra tarea está usando tu archivo ahora mismo, quizá en otra pestaña. Espera a que termine e inténtalo de nuevo. No se ha cambiado nada.",
       "workerFailed": "La importación se ha interrumpido. Puede que se haya añadido una parte; volver a intentarlo no creará duplicados.",

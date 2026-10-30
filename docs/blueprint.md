@@ -198,8 +198,8 @@ test type or architecture rule means updating this file **in the same PR**.
     the wizard's pure rules (requests, problems, ZIP test) live in that use-case module; a preview
     refused as `busy` (the open-time cleanup holds the guard) is retried for ~3 s in `use-import`.
     `beforeunload` warns while a run is going. The share inbox copy of a file is deleted after its
-    successful import (`discardSharedFile`); a shared file that is not a ZIP (a TXT) is discarded
-    when the screen first sees it, since nothing can import it yet. "Add a new person" does not
+    successful import (`discardSharedFile`); a shared file that cannot be imported is discarded
+    when the screen first sees it (the inbox only stores ZIP and TXT, and both are importable). "Add a new person" does not
     clear the earlier choice (`FileItem.addingPerson`; Next is blocked while the form is open, Cancel and
     Back restore the radio); a created person's radio takes the focus. The chosen person's name is kept in
     the file's state, so the result screen never depends on the people list loading. Step 4's
@@ -618,6 +618,14 @@ test type or architecture rule means updating this file **in the same PR**.
   database unchanged and this run's blobs removed. Progress callback:
   `{phase: reading | media | saving, done, total}`, plus `bytes` / `totalBytes` in `media` (updated
   inside a big file, at most every 200 ms).
+  Plain-text exports: a bare `.txt` ("Export chat > Without media") is accepted next to ZIPs by the picker,
+  drop zone and share target. The content decides, not the name (`lib/importers/whatsapp/text-export.ts`:
+  a ZIP signature passes through, text with no NUL byte in its first 4 KiB is wrapped as a stored one-entry
+  `_chat.txt` ZIP built from `Blob` parts, so preview, space estimate and import run unchanged); the cap is
+  `maxChatBytes` (`limit-exceeded`), the chat name comes from the file name (`.txt` stripped, `_chat` falls back
+  to `chat`), and it has no media. Fingerprints are the same as a ZIP's, so text messages dedupe both ways; a
+  media line written as "omitted" there and as an attachment in a later ZIP are different messages, so the ZIP
+  adds the attachment next to the placeholder (the text export is not upgraded in place; undo it to avoid that).
   Known limits: re-import never fills media a message was stored without (`skipVideos`, files
   missing from the ZIP): undo and import again; undoing the batch that created a conversation
   removes the messages a later overlapping export re-contained, and undoing the first of several
@@ -909,7 +917,7 @@ test type or architecture rule means updating this file **in the same PR**.
     library made on /en/, the language picker, a Catalan run, offline reload, no horizontal overflow and a 60-character
     unbroken name, and the import wizard (`e2e/import.spec.ts`: a synthetic ZIP built with fflate and set
     on the file input; import into a new person, summary, person page count, offline reload; same ZIP again =
-    already in the archive, 0 added; undo asks first and removes the conversation; a TXT left out; Catalan) and the import history
+    already in the archive, 0 added; undo asks first and removes the conversation; a non-chat file (a JPG) left out; Catalan) and the import history
     (`e2e/history.spec.ts`: same ZIP twice = one entry and unchanged counts; a newer export adds only the difference; undo from
     the history; Catalan; and the Phase 4 check: a 2,300-message ZIP with 300 files of 64 kB built once per worker; after a real progress signal (files copied > 0) closing the tab / reloading leaves exactly 0 conversations and an empty history, and importing again ends with every message once; the all-or-nothing guarantee itself is held by the table-state tests in `lib/usecases/import.test.ts`). Screenshots on failure only; `test-results/` and `playwright-report/` are
     git-ignored. Firefox and WebKit projects come in Phase 6 with a browser install step.
