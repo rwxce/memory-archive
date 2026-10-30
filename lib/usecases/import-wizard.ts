@@ -42,15 +42,25 @@ export function importProblemOf(error: unknown): ImportProblem {
 }
 
 /**
- * A ZIP or a plain-text chat export (the "without media" `.txt`), by extension or type. This only
- * decides what the picker offers; the import itself looks at the content, never at the name.
- * Loose media are not importable yet.
+ * A ZIP, a plain-text chat export (the "without media" `.txt`) or an old wa-backup output
+ * (`messages.json` / `.html` / `.csv`), by extension or type. This only decides what the picker
+ * offers; the import itself looks at the content, never at the name. Loose media are not
+ * importable yet.
  */
 export function isImportableExport(file: Pick<File, 'name' | 'type'>): boolean {
-  if (/\.(zip|txt)$/i.test(file.name)) return true;
+  if (/\.(zip|txt|json|html?|csv)$/i.test(file.name)) return true;
   const type = file.type.split(';')[0].trim().toLowerCase();
-  return type === 'application/zip' || type === 'application/x-zip-compressed' || type === 'text/plain';
+  return IMPORTABLE_TYPES.has(type);
 }
+
+const IMPORTABLE_TYPES: ReadonlySet<string> = new Set([
+  'application/zip',
+  'application/x-zip-compressed',
+  'text/plain',
+  'application/json',
+  'text/html',
+  'text/csv',
+]);
 
 /** How the person read an ambiguous date such as 03/04/2026. */
 export type DateOrder = 'day-first' | 'month-first';

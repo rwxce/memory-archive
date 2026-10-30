@@ -37,7 +37,19 @@ export default function manifest(): MetadataRoute.Manifest {
         files: [
           {
             name: 'files',
-            accept: ['application/zip', 'application/x-zip-compressed', 'text/plain', '.zip', '.txt'],
+            accept: [
+              'application/zip',
+              'application/x-zip-compressed',
+              'text/plain',
+              'application/json',
+              'text/html',
+              'text/csv',
+              '.zip',
+              '.txt',
+              '.json',
+              '.html',
+              '.csv',
+            ],
           },
         ],
       },

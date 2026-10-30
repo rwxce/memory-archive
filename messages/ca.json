@@ -177,14 +177,14 @@
     "choose": {
       "pick": "Tria fitxers de xat",
       "drop": "o deixa’ls anar aquí",
-      "hint": "Cada xat de WhatsApp és un fitxer ZIP, o un fitxer de text si l’has exportat sense multimèdia. En pots triar diversos alhora.",
+      "hint": "Cada xat de WhatsApp és un fitxer ZIP, o un fitxer de text si l’has exportat sense multimèdia. Un messages.json, messages.html o messages.csv d’una còpia antiga també serveix, amb els missatges però sense fotos. En pots triar diversos alhora.",
       "listTitle": "Fitxers per importar ({count})",
       "empty": "Encara no has triat cap fitxer.",
       "remove": "Treu",
       "removeLabel": "Treu {name} de la llista",
       "shared": "Compartit amb Memory Archive",
       "sharedNote": "Els fitxers compartits des de WhatsApp es queden aquí fins que els importis o els treguis. Els fitxers compartits que no es poden importar se suprimeixen d’aquest dispositiu.",
-      "skipped": "{count, plural, one {S’ha deixat fora # fitxer: de moment només es poden importar fitxers ZIP i de text de WhatsApp.} other {S’han deixat fora # fitxers: de moment només es poden importar fitxers ZIP i de text de WhatsApp.}}",
+      "skipped": "{count, plural, one {S’ha deixat fora # fitxer: de moment només es poden importar fitxers ZIP, de text i de còpies antigues.} other {S’han deixat fora # fitxers: de moment només es poden importar fitxers ZIP, de text i de còpies antigues.}}",
       "start": "{count, plural, one {Continua amb # fitxer} other {Continua amb # fitxers}}"
     },
     "wizard": {
@@ -368,7 +368,7 @@
       "failed": "No s’ha pogut desfer la importació. No s’ha canviat res. Torna-ho a provar."
     },
     "problem": {
-      "invalidExport": "Aquest fitxer no sembla una exportació d’un xat de WhatsApp. Torna a exportar el xat des de WhatsApp i tria el fitxer ZIP o de text. No s’ha canviat res.",
+      "invalidExport": "Aquest fitxer no sembla una exportació d’un xat de WhatsApp. Torna a exportar el xat des de WhatsApp i tria el fitxer ZIP o de text, o un messages.json, messages.html o messages.csv d’una còpia antiga. No s’ha canviat res.",
       "tooBig": "Aquesta exportació és més gran del que Memory Archive pot llegir. Prova d’exportar el xat sense contingut multimèdia. No s’ha canviat res.",
       "busy": "Una altra tasca està fent servir el teu arxiu ara mateix, potser en una altra pestanya. Espera que acabi i torna-ho a provar. No s’ha canviat res.",
       "workerFailed": "La importació s’ha interromput. Pot ser que se n’hagi afegit una part; tornar-ho a provar no crearà duplicats.",
