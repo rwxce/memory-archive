@@ -1623,3 +1623,62 @@ export function getStorageBreakdown(db: SqlDb): StorageBreakdown {
   const [pages] = db.all<{ count: number }>('SELECT page_count * page_size AS count FROM pragma_page_count, pragma_page_size');
   return { photosVideosBytes: media.visual, otherMediaBytes: media.other, databaseBytes: pages.count };
 }
+
+/** Row counts and bytes the Backup screen shows (see `getLibraryStats`). */
+export interface LibraryStats {
+  profiles: number;
+  conversations: number;
+  messages: number;
+  /** Rows in `blobs`: stored files, each counted once. */
+  mediaFiles: number;
+  /** Sum of the recorded sizes of those files. */
+  mediaBytes: number;
+  /** `page_count * page_size` of the library file. */
+  databaseBytes: number;
+}
+
+export function getLibraryStats(db: SqlDb): LibraryStats {
+  const one = (sql: string) => db.all<{ n: number }>(sql)[0].n;
+  return {
+    profiles: one('SELECT count(*) AS n FROM profiles'),
+    conversations: one('SELECT count(*) AS n FROM conversations'),
+    messages: one('SELECT count(*) AS n FROM messages'),
+    mediaFiles: one('SELECT count(*) AS n FROM blobs'),
+    mediaBytes: one('SELECT COALESCE(SUM(size), 0) AS n FROM blobs'),
+    databaseBytes: one('SELECT page_count * page_size AS n FROM pragma_page_count, pragma_page_size'),
+  };
+}
+
+export const BLOB_PAGE_MAX = 5000;
+
+/** Media rows in hash order, `limit` (1..5000) after the hash `after`: lets a long check walk them without holding the list. */
+export function listBlobPage(db: SqlDb, after: string | undefined, limit: number): { sha256: string; size: number }[] {
+  if (after !== undefined && typeof after !== 'string') throw new DbError('invalid', 'after must be a hash');
+  if (!Number.isFinite(limit)) throw new DbError('invalid', 'limit must be a number');
+  const n = Math.min(Math.max(Math.trunc(limit), 1), BLOB_PAGE_MAX);
+  return db.all<{ sha256: string; size: number }>('SELECT sha256, size FROM blobs WHERE sha256 > ? ORDER BY sha256 LIMIT ?', [after ?? '', n]);
+}
+
+/** A message or profile photo whose media hash has no `blobs` row (foreign keys should prevent it; this is the proof). */
+export type DanglingReference =
+  | { source: 'message'; id: number; sha256: string }
+  | { source: 'profile-photo'; id: string; sha256: string };
+
+/** Read-only: how many references dangle, and the first `limit` of them (messages first, by id). */
+export function findDanglingBlobRefs(db: SqlDb, limit: number): { total: number; items: DanglingReference[] } {
+  if (!Number.isFinite(limit)) throw new DbError('invalid', 'limit must be a number');
+  const n = Math.min(Math.max(Math.trunc(limit), 0), BLOB_PAGE_MAX);
+  const count = (sql: string) => db.all<{ n: number }>(sql)[0].n;
+  const messages = `FROM messages m WHERE m.media_sha256 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM blobs b WHERE b.sha256 = m.media_sha256)`;
+  const photos = `FROM profiles p WHERE p.photo_sha256 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM blobs b WHERE b.sha256 = p.photo_sha256)`;
+  const total = count(`SELECT count(*) AS n ${messages}`) + count(`SELECT count(*) AS n ${photos}`);
+  const items: DanglingReference[] = db
+    .all<{ id: number; sha256: string }>(`SELECT m.id AS id, m.media_sha256 AS sha256 ${messages} ORDER BY m.id LIMIT ?`, [n])
+    .map((r) => ({ source: 'message', id: r.id, sha256: r.sha256 }));
+  if (items.length < n) {
+    for (const r of db.all<{ id: string; sha256: string }>(`SELECT p.id AS id, p.photo_sha256 AS sha256 ${photos} ORDER BY p.id LIMIT ?`, [n - items.length])) {
+      items.push({ source: 'profile-photo', id: r.id, sha256: r.sha256 });
+    }
+  }
+  return { total, items };
+}

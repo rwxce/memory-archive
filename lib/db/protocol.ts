@@ -45,6 +45,8 @@ import type {
   SetProfilePhotoInput,
   SetProfilePhotoResult,
   StorageBreakdown,
+  DanglingReference,
+  LibraryStats,
   UndoImportBatchResult,
   UpdateProfileInput,
 } from './queries';
@@ -83,6 +85,12 @@ export interface DbOps {
   undoImportBatch: { params: { batchId: string }; result: UndoImportBatchResult };
   listBlobHashes: { params: undefined; result: string[] };
   getStorageBreakdown: { params: undefined; result: StorageBreakdown };
+  /** Counts and bytes for the Backup screen; `searchIndexBytes` is 0 until an index exists. Read-only. */
+  getLibraryStats: { params: undefined; result: LibraryStats & { searchIndexBytes: number } };
+  /** Media rows in hash order after `after` (exclusive), up to `limit` (1..5000): a long check pages through them. */
+  listBlobPage: { params: { after?: string; limit: number }; result: BlobRow[] };
+  /** Messages and profile photos whose media hash has no row; `items` capped at `limit`. */
+  findDanglingBlobRefs: { params: { limit: number }; result: { total: number; items: DanglingReference[] } };
   /** The whole library as a backup needs it: schema version, SQLite bytes and media list, from one moment. */
   exportDatabase: { params: undefined; result: DatabaseExport };
   /** True when no table holds a row. */
@@ -91,8 +99,17 @@ export interface DbOps {
    * Loads a backup's database into an EMPTY library, all or nothing (`loadSnapshot`): `constraint`
    * when the library has data, `invalid` / `newer-schema` for a bad snapshot. `blobs` must equal the
    * snapshot's own media list. Replaces the search index (rebuilt on the next search).
+   * With `replace: true` a library that has data is accepted: its rows are deleted and the
+   * snapshot's inserted in one transaction (all or nothing; the old library survives a failure).
+   * `unchangedSince` (replace only) is the SHA-256 of the library bytes the caller backed up; if the
+   * library differs now it fails with `changed` and touches nothing.
    */
-  restoreDatabase: { params: { database: Uint8Array; blobs: BlobRow[] }; result: null };
+  restoreDatabase: {
+    params: { database: Uint8Array; blobs: BlobRow[]; replace?: boolean; unchangedSince?: string };
+    result: null;
+  };
+  /** Every check `restoreDatabase` runs on a snapshot, without writing anything: `invalid` / `newer-schema` when it would be refused. */
+  checkDatabase: { params: { database: Uint8Array; blobs: BlobRow[] }; result: null };
   listMessages: {
     params: { conversationId: string; after?: MessageCursor; limit?: number };
     result: StoredMessage[];

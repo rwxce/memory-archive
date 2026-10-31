@@ -161,8 +161,8 @@
       "description": "Mira què ha afegit cada importació i desfés-ne una si ho necessites."
     },
     "backup": {
-      "title": "Fes una còpia de tot l'arxiu",
-      "description": "Un sol fitxer ZIP que pots obrir en qualsevol dispositiu."
+      "title": "Còpia i restauració",
+      "description": "Fes una còpia de tot l’arxiu, comprova’l i mira quin espai ocupa."
     }
   },
   "notFound": {
@@ -870,11 +870,16 @@
     "progress": {
       "preparing": "Preparant…",
       "media": "Copiant fitxers: {done} de {total}",
-      "finishing": "Acabant…"
+      "finishing": "Acabant…",
+      "encrypting": "Protegint el fitxer amb la teva contrasenya…",
+      "decrypting": "Obrint la còpia protegida…"
     },
     "done": {
       "backup": "La còpia s'ha desat com a fitxer ZIP.",
-      "restore": "L'arxiu s'ha obert. Tot és en aquest dispositiu."
+      "restore": "L'arxiu s'ha obert. Tot és en aquest dispositiu.",
+      "replace": "L’arxiu s’ha substituït per la còpia. Tot és en aquest dispositiu.",
+      "backupEncrypted": "La còpia s’ha desat com a fitxer protegit. Necessitaràs la contrasenya per obrir-la.",
+      "backupPrivate": "No té contrasenya, així que qualsevol persona que tingui el fitxer el pot llegir. Guarda’l en un lloc on només tu hi puguis accedir."
     },
     "error": {
       "busy": "Ja hi ha una còpia o una obertura en marxa. Espera que acabi i torna-ho a provar.",
@@ -884,7 +889,140 @@
       "limit": "L'arxiu és massa gran per fer-ne una còpia en un sol fitxer.",
       "missingMedia": "Falta algun fitxer de l'arxiu, així que no s'ha pogut fer la còpia. No s'ha canviat res.",
       "storage": "No hi ha prou espai en aquest dispositiu o no s'hi ha pogut escriure. No s'ha canviat res.",
-      "generic": "Alguna cosa ha anat malament. No s'ha esborrat res. Torna-ho a provar."
+      "generic": "Alguna cosa ha anat malament. No s'ha esborrat res. Torna-ho a provar.",
+      "safetyBackupFailed": "No s’ha pogut lliurar al navegador la còpia de seguretat de l’arxiu per baixar-la, així que no s’ha substituït res. El teu arxiu no s’ha canviat.",
+      "changedDuringReplace": "El teu arxiu ha canviat mentre es preparava la còpia, així que no s’ha substituït res. El teu arxiu està com estava. Torna-ho a provar.",
+      "cancelled": "S’ha aturat la substitució. El teu arxiu no s’ha canviat.",
+      "wrongPassword": "Aquesta contrasenya no obre la còpia. Comprova la contrasenya; si n’estàs segur, el fitxer podria estar malmès. No s’ha canviat res.",
+      "passwordRequired": "Aquesta còpia està protegida. Escriu-ne la contrasenya per obrir-la.",
+      "encryptionUnavailable": "Aquest navegador no pot protegir ni obrir fitxers amb contrasenya aquí. Torna-ho a provar des de l’aplicació instal·lada o amb una connexió segura."
+    },
+    "replace": {
+      "stage": {
+        "safety-backup": "Còpia de seguretat, pas 1 de 2.",
+        "restoring": "Substituint l’arxiu, pas 2 de 2."
+      },
+      "safetyKept": "S’ha ofert al navegador una còpia de seguretat del teu arxiu amb el nom {fileName}. Comprova la carpeta Baixades per assegurar-te que hi és i guarda-la. Aquesta còpia no està protegida amb contrasenya, així que qui la tingui la pot llegir."
+    }
+  },
+  "backup": {
+    "title": "Còpia i restauració",
+    "intro": "Guarda una còpia de tot, comprova que no hi ha res malmès i mira quin espai ocupa l’arxiu. Tot passa en aquest dispositiu.",
+    "usage": {
+      "title": "Què conté l’arxiu",
+      "loading": "Comptant…",
+      "failed": "No s’ha pogut llegir la mida de l’arxiu. No s’ha canviat res.",
+      "counts": "Recompte",
+      "people": "{count, plural, one {# persona} other {# persones}}",
+      "conversations": "{count, plural, one {# conversa} other {# converses}}",
+      "messages": "{count, plural, one {# missatge} other {# missatges}}",
+      "files": "{count, plural, one {# fitxer de foto, vídeo o àudio} other {# fitxers de fotos, vídeos i àudios}}",
+      "sizes": "Espai utilitzat",
+      "media": "Fotos, vídeos i àudio",
+      "thumbnails": "Previsualitzacions",
+      "database": "Missatges i notes",
+      "searchIndex": "Cerca",
+      "device": "Aquest dispositiu deixa que l’aplicació faci servir {used} d’uns {total}.",
+      "deviceUnknown": "Aquest navegador no indica quant espai pot fer servir l’aplicació."
+    },
+    "copy": {
+      "title": "Fes una còpia",
+      "description": "Un sol fitxer amb tots els teus missatges i fitxers. El pots obrir en qualsevol dispositiu.",
+      "backup": "Fes una còpia de tot l’arxiu",
+      "progressLabel": "Progrés",
+      "restoreTitle": "Obre una còpia",
+      "restoreDescription": "Obre una còpia ZIP en un dispositiu que encara no tingui cap arxiu.",
+      "restore": "Tria un fitxer de còpia",
+      "replace": "Substitueix el meu arxiu per una còpia",
+      "replaceDescription": "Substitueix l’arxiu d’aquest dispositiu per un fitxer de còpia. Et demanarem que ho confirmis i abans s’oferirà al navegador una còpia de seguretat de l’arxiu actual per baixar-la.",
+      "cancel": "Atura",
+      "protect": "Protegeix amb una contrasenya",
+      "protectNote": "Opcional. Si oblides aquesta contrasenya, la còpia no es pot obrir i nosaltres no la podem recuperar. Fes servir una frase llarga que recordaràs i guarda-la en un lloc segur.",
+      "privateNote": "Sense contrasenya la còpia és privada: qualsevol persona que tingui el fitxer la pot llegir. Guarda-la en un lloc on només tu hi puguis accedir.",
+      "restorePrompt": "Obre la còpia"
+    },
+    "check": {
+      "title": "Comprova el teu arxiu",
+      "description": "Mira cada fitxer de foto, vídeo i àudio guardat en aquest dispositiu i comprova que és complet. No es canvia res.",
+      "run": "Comprova el meu arxiu",
+      "again": "Torna a comprovar",
+      "cancel": "Atura",
+      "starting": "Preparant…",
+      "progress": "{done} de {total} fitxers comprovats",
+      "progressLabel": "Comprovant el teu arxiu",
+      "cancelled": "S’ha aturat la comprovació. No s’ha canviat res.",
+      "okTitle": "Tots els teus fitxers són al seu lloc",
+      "ok": "{count, plural, one {S’ha comprovat # fitxer i és complet.} other {S’han comprovat # fitxers i tots són complets.}}",
+      "problemTitle": "Alguns fitxers necessiten atenció",
+      "problems": "{count, plural, one {S’ha trobat # problema.} other {S’han trobat # problemes.}} No s’ha canviat res. Una còpia recent pot recuperar aquests fitxers.",
+      "kinds": {
+        "missing-file": "{count, plural, one {Falta # fitxer} other {Falten # fitxers}}",
+        "wrong-size": "{count, plural, one {# fitxer és incomplet} other {# fitxers són incomplets}}",
+        "hash-mismatch": "{count, plural, one {# fitxer ha canviat o està malmès} other {# fitxers han canviat o estan malmesos}}",
+        "dangling-reference": "{count, plural, one {# missatge o foto apunta a un fitxer que no hi és} other {# missatges o fotos apunten a un fitxer que no hi és}}"
+      },
+      "announce": "{percent}% comprovat"
+    },
+    "file": {
+      "title": "Comprova un fitxer de còpia",
+      "description": "Tria una còpia ZIP i mira si és completa, sense obrir-la. El teu arxiu no es toca.",
+      "pick": "Tria un fitxer de còpia",
+      "another": "Comprova un altre fitxer",
+      "cancel": "Atura",
+      "starting": "Preparant…",
+      "progress": "{done} de {total} parts comprovades",
+      "progressLabel": "Comprovant la còpia",
+      "cancelled": "S’ha aturat la comprovació. No s’ha canviat res.",
+      "okTitle": "Els fitxers d’aquesta còpia són complets",
+      "ok": "{count, plural, one {S’ha comprovat # part i és completa.} other {S’han comprovat # parts i totes són completes.}}",
+      "meta": "Feta el {date} amb Memory Archive {version}.",
+      "problemTitle": "Aquesta còpia té parts malmeses",
+      "problems": "{count, plural, one {S’ha trobat # problema.} other {S’han trobat # problemes.}} No s’ha canviat res. Si tens una altra còpia, fes servir aquella.",
+      "databaseDamaged": "La part que conté els teus missatges està malmesa, així que aquesta còpia no es pot obrir.",
+      "capped": "Es mostren els tipus dels primers {shown} de {total}.",
+      "kinds": {
+        "size-mismatch": "{count, plural, one {# part té una mida incorrecta} other {# parts tenen una mida incorrecta}}",
+        "hash-mismatch": "{count, plural, one {# part ha canviat o està malmesa} other {# parts han canviat o estan malmeses}}",
+        "unreadable": "{count, plural, one {# part no s’ha pogut llegir} other {# parts no s’han pogut llegir}}"
+      },
+      "refusalTitle": "Aquest fitxer no es pot fer servir",
+      "refusal": {
+        "notArchive": "Això no és una còpia de Memory Archive. No s’ha canviat res.",
+        "damaged": "Aquesta còpia és incompleta o està malmesa. No s’ha canviat res. Si tens una altra còpia, fes servir aquella.",
+        "newer": "Aquesta còpia l’ha desat una versió més nova de Memory Archive. Actualitza l’aplicació per comprovar-la. No s’ha canviat res.",
+        "limit": "Aquesta còpia és més gran del que l’aplicació pot llegir amb seguretat. No s’ha canviat res.",
+        "generic": "Alguna cosa ha anat malament en comprovar el fitxer. No s’ha canviat res. Torna-ho a provar.",
+        "wrongPassword": "Aquesta contrasenya no obre la còpia. Comprova la contrasenya; si n’estàs segur, el fitxer podria estar malmès.",
+        "unavailable": "Aquest navegador no pot obrir una còpia protegida aquí."
+      },
+      "announce": "{percent}% comprovat",
+      "checkPrompt": "Comprova la còpia",
+      "decrypting": "Obrint la còpia protegida…",
+      "encryptedOk": "Està protegida amb una contrasenya i la contrasenya l’ha obert."
+    },
+    "replace": {
+      "title": "Vols substituir l’arxiu per aquesta còpia?",
+      "body": "Això substitueix tot el que hi ha en aquest dispositiu pel contingut del fitxer de còpia. Es substitueixen les persones, les converses, els missatges, les notes, els preferits, les fotos i els vídeos.",
+      "countsIntro": "Ara el teu arxiu té:",
+      "safety": "Abans de canviar res, s’ofereix al navegador una còpia de seguretat de l’arxiu actual per baixar-la. Comprova que el fitxer és a la carpeta Baixades abans de refiar-te’n i guarda’l: és la manera de recuperar l’arxiu actual.",
+      "file": "Fitxer de còpia: {fileName}",
+      "cancel": "Conserva el meu arxiu",
+      "confirm": "Substitueix el meu arxiu",
+      "safetyPlain": "La còpia de seguretat no té contrasenya, així que qualsevol persona que tingui aquest fitxer el pot llegir.",
+      "encrypted": "Aquesta còpia està protegida amb una contrasenya. Escriu-la per continuar."
+    },
+    "password": {
+      "label": "Contrasenya",
+      "confirmLabel": "Repeteix la contrasenya",
+      "showOne": "Mostra la contrasenya",
+      "showMany": "Mostra les contrasenyes",
+      "empty": "Escriu una contrasenya.",
+      "mismatch": "Les dues contrasenyes no coincideixen."
+    },
+    "prompt": {
+      "title": "Aquesta còpia està protegida",
+      "body": "Escriu la contrasenya que vas triar en fer {fileName}.",
+      "cancel": "Cancel·la"
     }
   },
   "subpage": {

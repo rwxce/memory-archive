@@ -166,6 +166,27 @@ test type or architecture rule means updating this file **in the same PR**.
     and is lost when the row scrolls out of the window. Tests: `conversation-screen.test.tsx`
     (toggle, states, ca), `hooks/use-message-source.test.tsx`, and an e2e flow in
     `e2e/conversation.spec.ts` (keyboard, no jump).
+  - **Backup and restore** (`/[locale]/backup/`, PRD screen 9; `components/backup-screen.tsx` plus `backup-usage-card`,
+    `backup-copy-card`, `backup-check-cards`, `task-progress`; hooks `use-archive-usage`, `use-archive-checks`,
+    `use-archive-backup`). Sub-screen with a back pill to Settings (the Settings row is now a link, not an inline backup).
+    Cards: what the archive holds (counts, bytes per kind, device quota and persistence); full backup (progress bar);
+    open a backup (an empty archive opens the chosen ZIP directly; an archive with data offers "Replace my archive with a
+    backup": the picked file waits behind `replace-backup-dialog.tsx`, a native modal `<dialog>` with Cancel focused, Escape
+    cancels, the counts of what is replaced, the safety-copy notice and a destructive confirm button; confirming calls
+    `replaceLibraryFromBackup` through `useArchiveBackup().replace`, which hands the safety copy to `downloadBlob`, shows two
+    stages ("Safety copy, step 1 of 2" / "Replacing your archive, step 2 of 2"), offers Stop until the swap begins
+    (`cancellable`), and reports the safety copy's file name on success and on any failure after it was saved; new error
+    copy for `safety-backup-failed` and `cancelled`); "Check my archive" (`verifyLibraryIntegrity`: progress, Stop, result by kind, never file names or hashes);
+    "Check a backup file" (`verifyBackupFile`: complete / damaged parts / refusal copy per `ArchiveErrorCode`). Results take
+    focus when they appear; one archive task at a time. Tested in `components/backup-screen.test.tsx` (confirm required, cancel/Escape inert, safety copy before the swap, refusal, safety-copy failure, Stop). Copy under `backup.*` and `archive.*`.
+    **Encrypted backups** (UI over `docs/formats/encrypted-backup.md`): `backup-password.tsx` holds `BackupMaker` (the
+    "Protect with a password" switch, password + repeat, show/hide, inline empty/mismatch errors, plain backups marked
+    private, a forgotten password cannot be recovered) and `PasswordPrompt` / `ExistingPasswordField`. After a file is
+    picked, `hooks/is-encrypted-backup.ts` (`isEncryptedBackup`, by magic bytes, never the name) decides: a protected file
+    asks for its password inline (open, check) or inside the replace dialog; a wrong password keeps the file and asks again;
+    a plain file goes on unchanged. The password is an argument of `backup` / `restore` / `replace` / `useBackupFileCheck().run`
+    only: never in state, storage or logs, and cleared from the fields when handed over. The replace dialog states that its
+    safety copy is not encrypted. Progress adds `encrypting` / `decrypting`. Tested in `components/backup-encrypted.test.tsx` and `hooks/use-archive-backup.test.tsx`.
   - **Import history** (`/[locale]/import/history/`, optional `?person=<id>`,
     `components/import-history-screen.tsx`, `hooks/use-import-history.ts`): newest-first list of imports
     (file name, relative + absolute date, messages added / already there, conversation title, the
@@ -225,7 +246,7 @@ test type or architecture rule means updating this file **in the same PR**.
     missing id is a calm not-found with the way back. Focus returns to the opener, or to the
     section heading when the chat left the list; results are announced in the status region;
     wrapped in `Suspense` because of `useSearchParams`), `/[locale]/welcome/` (always reachable; *Start* asks for persistent storage and
-    goes to People), `/[locale]/settings/` (language, appearance, app version + archive format version),
+    goes to People), `/[locale]/settings/` (language, appearance, app version + archive format version), `/[locale]/backup/` (backup and restore),
     `not-found` → `out/404.html`.
   - Next.js telemetry disabled (`NEXT_TELEMETRY_DISABLED` in scripts, CI and
     `next.config.ts`; `.npmrc` `shell-emulator=true` makes the env prefix work on Windows).
@@ -337,7 +358,36 @@ test type or architecture rule means updating this file **in the same PR**.
     `hooks/use-tile-image.ts`; the lightbox and the conversation always use the full file.
   - `lib/usecases/device-storage.ts` — `prepareDeviceStorage`, `getDeviceStorageStatus`,
     `getSharedFiles`, `takeSharedFile`, `discardSharedFile` (called from `hooks/use-device-storage.ts`); `lib/usecases/archive.ts` —
-    `exportArchive`, `restoreArchiveIntoEmptyLibrary` (no UI entry point yet);
+    `exportArchive`, `restoreArchiveIntoEmptyLibrary` (the Backup and restore screen drives the PWA forms in `archive-backup.ts`);
+    `replaceLibraryFromBackup(deps, file, { appVersion, deliverSafetyBackup, onProgress, signal })` (`archive-backup.ts`,
+    one archive guard end to end): verifies the backup fully (refuses with the verification's code, nothing touched);
+    then checks its database in a scratch copy (`checkDatabase` op / `checkSnapshot`: triggers, columns, integrity, media
+    list; an older schema is migrated, a newer one is `newer-schema`) BEFORE the safety copy or any media, so a bad
+    database with valid hashes is `invalid-database` with nothing touched or downloaded; if the library has data builds
+    its safety backup and awaits `deliverSafetyBackup(blob, fileName)` (failure = `safety-backup-failed`, nothing
+    changed), remembering the SHA-256 of the exported database bytes; stores the backup's media beside the current ones,
+    then swaps the database in ONE transaction (`restoreDatabase` with `replace: true, unchangedSince` first checks the
+    library bytes still hash to that digest, in the same synchronous step as the swap: a note, favorite or profile edit
+    made meanwhile -- those do not take the archive guard -- is `changed-during-replace`, nothing replaced, try again;
+    then deletes every row and inserts the snapshot's); only after the commit are unreferenced old media and thumbnails
+    deleted. The library is never erased first, so there is no "erased but not restored" window: a failure or abort
+    before the commit leaves it exactly as it was (only the files this replace added are removed; an abort rejects with
+    the signal's reason); if the worker dies before answering the swap (outcome unknown) the new media are kept and
+    counted in the error's `leftoverBlobs`; a failure after the commit leaves harmless orphans (`leftoverBlobs` in the
+    result), removed by the next library open (`sweepLeftovers`, needs Web Locks) or the next replace. Cost: old and new
+    media coexist on disk for a moment, so a nearly full device fails with `storage` and changes nothing. Not touched:
+    app settings (localStorage), the share inbox, the service worker (unlike `eraseDevice`).
+    `lib/usecases/archive-health.ts` — read-only checks for the Backup and restore screen, returning typed
+    results with no archive content in them (kinds, counts, hashes, ids): `verifyLibraryIntegrity(deps, { onProgress, signal })`
+    (under the archive busy guard; walks `blobs` rows in hash pages, checks store presence, size and streamed SHA-256
+    via `BlobStore.verify`, plus message / profile-photo references without a row; `{ ok, checkedFiles, checkedBytes,
+    problemCount, problems }`, `problems` capped at 100 of kinds `missing-file` / `wrong-size` / `hash-mismatch` /
+    `dangling-reference`; an abort rejects with the signal's reason), `verifyBackupFile(file, { onProgress, signal })`
+    (`verifyArchive` in `lib/exporters/archive/verify.ts` on the shared `openArchive` checks of restore; each entry
+    streamed through size and SHA-256, never held whole; a file that cannot be examined is `refusal: ArchiveErrorCode`,
+    per-file damage is `problems` of kind `size-mismatch` / `hash-mismatch` / `unreadable`; restores nothing),
+    `getArchiveUsage(deps, storage?)` (counts, bytes of media / thumbnails / database / search index, and
+    `StorageStatus`). New db ops, no schema change: `getLibraryStats`, `listBlobPage`, `findDanglingBlobRefs`;
     `lib/usecases/profiles.ts` (`createProfile`, `updateProfile`, `archiveProfile`,
     `unarchiveProfile`, `listProfiles`, `getProfileDetails`); `lib/usecases/profile-photo.ts` (`setProfilePhoto` downscales the chosen picture to 512 px and stores it as an ordinary content-addressed blob referenced by `profiles.photo_sha256` (no schema change since v2), releasing the replaced photo's row and bytes when no message or other profile uses it, via the db op `setProfilePhoto`; `removeProfilePhoto`; `getProfilePhoto` returns a typed `Blob` or `null`; the photo travels in the backup ZIP like any blob) and `conversations.ts`
     (`listConversations`, `renameConversation`, `moveConversation`,
@@ -358,7 +408,7 @@ test type or architecture rule means updating this file **in the same PR**.
     "Workers topology" and "Import preview" below.
   - `lib/db/snapshot.ts` — `serializeDb`, `loadSnapshot`, `listBlobs`, `isLibraryEmpty`.
   - `lib/exporters/archive/` — `format.ts` (manifest, limits, `ArchiveError`, path validation),
-    `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`restoreArchive`).
+    `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`openArchive`, `restoreArchive`), `verify.ts` (`verifyArchive`).
   - `lib/importers/whatsapp/` — `zip.ts` (single ZIP reader: central directory + ZIP64 over
     `Blob.slice`, fflate streaming inflate per entry), `lines.ts` (UTF-8 decoding + line
     splitting), `timestamp.ts`, `message.ts` (state machine), `chat.ts` (transcript entry,
@@ -945,8 +995,14 @@ test type or architecture rule means updating this file **in the same PR**.
     (`e2e/history.spec.ts`: same ZIP twice = one entry and unchanged counts; a newer export adds only the difference; undo from
     the history; Catalan; and the Phase 4 check: a 2,300-message ZIP with 300 files of 64 kB built once per worker; after a real progress signal (files copied > 0) closing the tab / reloading leaves exactly 0 conversations and an empty history, and importing again ends with every message once; the all-or-nothing guarantee itself is held by the table-state tests in `lib/usecases/import.test.ts`). Screenshots on failure only; `test-results/` and `playwright-report/` are
     git-ignored. Firefox and WebKit projects come in Phase 6 with a browser install step.
-- **Planned:** an automated run of the PRD acceptance scenario (backup → restore on a clean
-  browser) in e2e.
+- **Backup acceptance scenario** (`e2e/backup-restore.spec.ts`, Chromium at 390 and 1440 px): ten
+  synthetic people, four imports (a newer export for Mama adds only the difference), photos, a
+  message note, a person note and a favorite; the screens' state is captured (counts, media
+  bytes, People, conversations, favorites, notes), a plain and a password-protected backup are
+  downloaded, and each is opened in a fresh browser context (clean OPFS; a wrong password
+  changes nothing) and compared with the capture; "Check my archive" must be all good; the
+  protected backup also replaces a non-empty library (safety copy downloaded first); no request
+  leaves the origin. Safari and Firefox remain a manual check.
 
 ## 5. CI/CD and branches
 
@@ -1073,6 +1129,8 @@ test type or architecture rule means updating this file **in the same PR**.
 - `ai-tooling.md` — rulesync layout and how to add rules, skills and commands.
 - `formats/legacy-json.md` — the versioned `messages.json` envelope and what each legacy output
   can be re-imported from.
+- `formats/encrypted-backup.md` — the optional password-encrypted backup envelope (`.mabackup`)
+  that wraps the backup ZIP unchanged.
 - `archive/planning/` — the original GSD planning of the wa-backup CLI (phases 1–3, codebase
   map, concerns). Historical, read-only.
 - `archive/specs/` — design specs and plans of the CLI features (linkification, link titles,

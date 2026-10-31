@@ -1,4 +1,4 @@
-import { exportDatabase, isLibraryEmpty, loadSnapshot } from '../db/snapshot';
+import { checkSnapshot, exportDatabase, isLibraryEmpty, loadSnapshot } from '../db/snapshot';
 import type { SqlDb } from '../db/sql';
 import type { RestoreResult } from '../exporters/archive/read';
 import type { BlobStore } from '../storage/blob-store';
@@ -26,13 +26,16 @@ export type {
   ExportArchiveResult,
   RestoreArchiveOptions,
 } from './archive-core';
-export { exportArchiveFromLibrary, restoreArchiveFromZip } from './archive-backup';
+export { exportArchiveFromLibrary, replaceLibraryFromBackup, restoreArchiveFromZip } from './archive-backup';
 
 const directDatabase = (db: SqlDb): ArchiveDatabase => ({
   snapshot: async () => exportDatabase(db),
   isEmpty: async () => isLibraryEmpty(db),
-  load: async (database, blobs) => {
-    await loadSnapshot(db, database, { expectBlobs: blobs });
+  check: async (database, blobs) => {
+    await checkSnapshot(db, database, { expectBlobs: blobs });
+  },
+  load: async (database, blobs, options) => {
+    await loadSnapshot(db, database, { expectBlobs: blobs, replace: options?.replace, unchangedSince: options?.unchangedSince });
   },
 });
 

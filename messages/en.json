@@ -161,8 +161,8 @@
       "description": "See what each import added, and undo one if you need to."
     },
     "backup": {
-      "title": "Back up the whole archive",
-      "description": "One ZIP file you can open on any device."
+      "title": "Backup and restore",
+      "description": "Back up the whole archive, check it, and see the space it uses."
     }
   },
   "notFound": {
@@ -870,11 +870,16 @@
     "progress": {
       "preparing": "Getting ready…",
       "media": "Copying files: {done} of {total}",
-      "finishing": "Finishing…"
+      "finishing": "Finishing…",
+      "encrypting": "Protecting the file with your password…",
+      "decrypting": "Opening the protected backup…"
     },
     "done": {
       "backup": "The backup was saved as a ZIP file.",
-      "restore": "The archive is open. Everything is on this device."
+      "restore": "The archive is open. Everything is on this device.",
+      "replace": "Your archive was replaced with the backup. Everything is on this device.",
+      "backupEncrypted": "The backup was saved as a protected file. You need its password to open it.",
+      "backupPrivate": "It is not protected by a password, so anyone who has the file can read it. Keep it somewhere only you can reach."
     },
     "error": {
       "busy": "Another backup or restore is already running. Wait for it to finish and try again.",
@@ -884,7 +889,140 @@
       "limit": "The archive is too large to back up in a single file.",
       "missingMedia": "Some of the archive files are missing, so the backup could not be made. Nothing was changed.",
       "storage": "There is not enough space on this device, or it could not be written to. Nothing was changed.",
-      "generic": "Something went wrong. Nothing was deleted. Try again."
+      "generic": "Something went wrong. Nothing was deleted. Try again.",
+      "safetyBackupFailed": "The safety copy of your archive could not be handed to your browser to download, so nothing was replaced. Your archive was not changed.",
+      "changedDuringReplace": "Your archive changed while the backup was being prepared, so nothing was replaced. Your archive is as it was. Try again.",
+      "cancelled": "Replacing was stopped. Your archive was not changed.",
+      "wrongPassword": "That password does not open this backup. Check the password; if you are sure it is right, the file may be damaged. Nothing was changed.",
+      "passwordRequired": "This backup is protected. Enter its password to open it.",
+      "encryptionUnavailable": "This browser cannot protect or open files with a password here. Try again from the installed app or over a secure connection."
+    },
+    "replace": {
+      "stage": {
+        "safety-backup": "Safety copy, step 1 of 2.",
+        "restoring": "Replacing your archive, step 2 of 2."
+      },
+      "safetyKept": "Your browser was offered a safety copy of your archive named {fileName}. Check your Downloads folder to make sure it is there, and keep it. That copy is not password-protected, so anyone who has it can read it."
+    }
+  },
+  "backup": {
+    "title": "Backup and restore",
+    "intro": "Keep a copy of everything, check that nothing is damaged and see how much space the archive uses. All of it happens on this device.",
+    "usage": {
+      "title": "What the archive holds",
+      "loading": "Counting…",
+      "failed": "The size of the archive could not be read. Nothing was changed.",
+      "counts": "Counts",
+      "people": "{count, plural, one {# person} other {# people}}",
+      "conversations": "{count, plural, one {# conversation} other {# conversations}}",
+      "messages": "{count, plural, one {# message} other {# messages}}",
+      "files": "{count, plural, one {# photo, video or audio file} other {# photos, videos and audio files}}",
+      "sizes": "Space used",
+      "media": "Photos, videos and audio",
+      "thumbnails": "Previews",
+      "database": "Messages and notes",
+      "searchIndex": "Search",
+      "device": "This device lets the app use {used} of about {total}.",
+      "deviceUnknown": "This browser does not say how much space the app can use."
+    },
+    "copy": {
+      "title": "Make a backup",
+      "description": "One file with all your messages and files. You can open it on any device.",
+      "backup": "Back up the whole archive",
+      "progressLabel": "Progress",
+      "restoreTitle": "Open a backup",
+      "restoreDescription": "Open a backup ZIP on a device that has no archive yet.",
+      "restore": "Choose a backup file",
+      "replace": "Replace my archive with a backup",
+      "replaceDescription": "Replace the archive on this device with a backup file. You will be asked to confirm, and a safety copy of your current archive is offered to your browser to download first.",
+      "cancel": "Stop",
+      "protect": "Protect with a password",
+      "protectNote": "Optional. If you forget this password, the backup cannot be opened and we cannot recover it. Use a long phrase you will remember, and keep it somewhere safe.",
+      "privateNote": "Without a password the backup is private: anyone who has the file can read it. Keep it somewhere only you can reach.",
+      "restorePrompt": "Open backup"
+    },
+    "check": {
+      "title": "Check your archive",
+      "description": "Looks at every photo, video and audio file kept on this device and makes sure it is complete. Nothing is changed.",
+      "run": "Check my archive",
+      "again": "Check again",
+      "cancel": "Stop",
+      "starting": "Getting ready…",
+      "progress": "{done} of {total} files checked",
+      "progressLabel": "Checking your archive",
+      "cancelled": "The check was stopped. Nothing was changed.",
+      "okTitle": "Your files are all in place",
+      "ok": "{count, plural, one {# file was checked and it is complete.} other {# files were checked and all are complete.}}",
+      "problemTitle": "Some files need attention",
+      "problems": "{count, plural, one {# problem found.} other {# problems found.}} Nothing was changed. A recent backup can bring these files back.",
+      "kinds": {
+        "missing-file": "{count, plural, one {# file is missing} other {# files are missing}}",
+        "wrong-size": "{count, plural, one {# file is incomplete} other {# files are incomplete}}",
+        "hash-mismatch": "{count, plural, one {# file has changed or is damaged} other {# files have changed or are damaged}}",
+        "dangling-reference": "{count, plural, one {# message or photo points to a file that is not here} other {# messages or photos point to a file that is not here}}"
+      },
+      "announce": "{percent}% checked"
+    },
+    "file": {
+      "title": "Check a backup file",
+      "description": "Pick a backup ZIP and see whether it is complete, without opening it. Your archive is not touched.",
+      "pick": "Choose a backup file",
+      "another": "Check another file",
+      "cancel": "Stop",
+      "starting": "Getting ready…",
+      "progress": "{done} of {total} parts checked",
+      "progressLabel": "Checking the backup",
+      "cancelled": "The check was stopped. Nothing was changed.",
+      "okTitle": "This backup’s files are complete",
+      "ok": "{count, plural, one {# part was checked and it is complete.} other {# parts were checked and all are complete.}}",
+      "meta": "Made on {date} with Memory Archive {version}.",
+      "problemTitle": "This backup has damaged parts",
+      "problems": "{count, plural, one {# problem found.} other {# problems found.}} Nothing was changed. If you have another backup, use that one.",
+      "databaseDamaged": "The part that holds your messages is damaged, so this backup cannot be opened.",
+      "capped": "Showing the kinds of the first {shown} of {total}.",
+      "kinds": {
+        "size-mismatch": "{count, plural, one {# part has the wrong size} other {# parts have the wrong size}}",
+        "hash-mismatch": "{count, plural, one {# part has changed or is damaged} other {# parts have changed or are damaged}}",
+        "unreadable": "{count, plural, one {# part could not be read} other {# parts could not be read}}"
+      },
+      "refusalTitle": "This file cannot be used",
+      "refusal": {
+        "notArchive": "This is not a Memory Archive backup. Nothing was changed.",
+        "damaged": "This backup is incomplete or damaged. Nothing was changed. If you have another backup, use that one.",
+        "newer": "This backup was saved by a newer version of Memory Archive. Update the app to check it. Nothing was changed.",
+        "limit": "This backup is larger than this app can safely read. Nothing was changed.",
+        "generic": "Something went wrong while checking the file. Nothing was changed. Try again.",
+        "wrongPassword": "That password does not open this backup. Check the password; if you are sure it is right, the file may be damaged.",
+        "unavailable": "This browser cannot open a protected backup here."
+      },
+      "announce": "{percent}% checked",
+      "checkPrompt": "Check backup",
+      "decrypting": "Opening the protected backup…",
+      "encryptedOk": "It is protected with a password, and the password opened it."
+    },
+    "replace": {
+      "title": "Replace your archive with this backup?",
+      "body": "This replaces everything on this device with what is in the backup file. People, conversations, messages, notes, favorites, photos and videos are all replaced.",
+      "countsIntro": "Your archive now has:",
+      "safety": "Before anything changes, your browser is offered a safety copy of your current archive to download. Check that the file is in your Downloads folder before you rely on it, and keep it: it is how you get your current archive back.",
+      "file": "Backup file: {fileName}",
+      "cancel": "Keep my archive",
+      "confirm": "Replace my archive",
+      "safetyPlain": "The safety copy is not password-protected, so anyone who has that file can read it.",
+      "encrypted": "This backup is protected with a password. Enter it to continue."
+    },
+    "password": {
+      "label": "Password",
+      "confirmLabel": "Repeat the password",
+      "showOne": "Show password",
+      "showMany": "Show passwords",
+      "empty": "Enter a password.",
+      "mismatch": "The two passwords do not match."
+    },
+    "prompt": {
+      "title": "This backup is protected",
+      "body": "Enter the password you chose when you made {fileName}.",
+      "cancel": "Cancel"
     }
   },
   "subpage": {

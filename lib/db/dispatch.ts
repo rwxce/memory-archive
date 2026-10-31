@@ -24,6 +24,9 @@ import {
   getPersonTimelineWindow,
   getProfile,
   getStorageBreakdown,
+  getLibraryStats,
+  listBlobPage,
+  findDanglingBlobRefs,
   importMessages,
   linkConversationProfile,
   listConversationDays,
@@ -59,8 +62,8 @@ import {
   type HighlightFilter,
   type HighlightScope,
 } from './highlights';
-import { discardSearchIndex, getSearchStatus, searchMessages, stepSearchIndex } from './search';
-import { exportDatabase, isLibraryEmpty, listBlobs, loadSnapshot } from './snapshot';
+import { discardSearchIndex, getSearchIndexBytes, getSearchStatus, searchMessages, stepSearchIndex } from './search';
+import { checkSnapshot, exportDatabase, isLibraryEmpty, listBlobs, loadSnapshot } from './snapshot';
 
 /** Most handlers are synchronous; `restoreDatabase` awaits the scratch database. `serve.ts` runs requests one at a time. */
 type Handlers = { [K in DbOpName]: (opened: OpenedDb, params: DbOps[K]['params']) => DbOps[K]['result'] | Promise<DbOps[K]['result']> };
@@ -101,6 +104,12 @@ const HANDLERS: Handlers = {
   },
   listBlobHashes: ({ db }) => listBlobs(db).map((b) => b.sha256),
   getStorageBreakdown: ({ db }) => getStorageBreakdown(db),
+  getLibraryStats: ({ db }) => ({ ...getLibraryStats(db), searchIndexBytes: getSearchIndexBytes(db) }),
+  listBlobPage: ({ db }, p) => {
+    const params = requireParams(p);
+    return listBlobPage(db, params.after as string | undefined, params.limit as number);
+  },
+  findDanglingBlobRefs: ({ db }, p) => findDanglingBlobRefs(db, requireParams(p).limit as number),
   exportDatabase: ({ db }) => exportDatabase(db),
   isLibraryEmpty: ({ db }) => isLibraryEmpty(db),
   restoreDatabase: async ({ db }, p) => {
@@ -108,8 +117,18 @@ const HANDLERS: Handlers = {
     if (!(params.database instanceof Uint8Array) || !Array.isArray(params.blobs)) {
       throw new DbError('invalid', 'database must be bytes and blobs a list');
     }
-    if (!isLibraryEmpty(db)) throw new DbError('constraint', 'the library already has data');
-    await loadSnapshot(db, params.database, { expectBlobs: params.blobs as BlobRow[] });
+    const replace = params.replace === true;
+    if (!replace && !isLibraryEmpty(db)) throw new DbError('constraint', 'the library already has data');
+    const unchangedSince = typeof params.unchangedSince === 'string' ? params.unchangedSince : undefined;
+    await loadSnapshot(db, params.database, { expectBlobs: params.blobs as BlobRow[], replace, unchangedSince });
+    return null;
+  },
+  checkDatabase: async ({ db }, p) => {
+    const params = requireParams(p);
+    if (!(params.database instanceof Uint8Array) || !Array.isArray(params.blobs)) {
+      throw new DbError('invalid', 'database must be bytes and blobs a list');
+    }
+    await checkSnapshot(db, params.database, { expectBlobs: params.blobs as BlobRow[] });
     return null;
   },
   listMessages: ({ db }, p) => {

@@ -10,6 +10,7 @@ import {
   validateEntryPath,
   type ArchiveLimits,
   type ArchiveManifest,
+  type ManifestEntry,
 } from './format';
 import type { ArchiveBlobRef } from './write';
 
@@ -29,6 +30,18 @@ export interface RestoreHooks {
    * is the exact list of media the archive carries, for cross-checking.
    */
   applyDatabase(database: Uint8Array, blobs: ArchiveBlobRef[]): Promise<void>;
+  /**
+   * Called once the database bytes are read and hash-verified, BEFORE any media is stored: the place
+   * to validate the database and do irreversible-looking preparation (replace: the safety backup).
+   * What it throws propagates unchanged and nothing has been written yet.
+   */
+  beforeMedia?(database: Uint8Array, blobs: ArchiveBlobRef[]): Promise<void>;
+  /**
+   * Asked when the restore fails: false keeps the media this restore stored (they may be referenced
+   * by a database swap whose outcome is unknown), counting them in `leftoverBlobs` instead.
+   * Default: true (delete them).
+   */
+  cleanupOnFailure?(): boolean;
   /** Called before the first media file (done 0) and after each one, with the total to store. */
   onProgress?(done: number, total: number): void;
 }
@@ -125,22 +138,26 @@ async function collect(stream: ReadableStream<Uint8Array>, failure: { error?: Ar
   return out;
 }
 
-/**
- * Restores an archive ZIP into an EMPTY library (the caller checks emptiness).
- * The archive is untrusted: nothing is written until the central directory,
- * the manifest and the entry list have passed validation, every byte is
- * counted and hashed as it streams, and the database goes in last. On any
- * failure the blobs this restore stored are deleted and the database is
- * untouched, so the library is exactly as it was.
- *
- * One deliberate deviation from "database last": the database entry (small,
- * bounded by `maxEntryBytes`) is read and hash-verified before the blobs so a
- * tampered snapshot fails before any media is written; it is still applied last.
- */
-export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: RestoreOptions = {}): Promise<RestoreResult> {
-  const limits: ArchiveLimits = { ...DEFAULT_LIMITS, ...options.limits };
-  const failure: { error?: ArchiveError } = {};
+export interface OpenedArchive {
+  manifest: ArchiveManifest;
+  /** Every ZIP entry by name (the manifest included). */
+  byName: Map<string, ZipEntry>;
+  /** The manifest's entries by path. */
+  listed: Map<string, ManifestEntry>;
+}
 
+/**
+ * Everything restore checks before it reads an entry's content: central directory and structural
+ * limits, safe and unique paths, per-entry caps and the zip-bomb ratio, the strictly validated
+ * manifest, and that ZIP entries and manifest describe exactly the same set with the same sizes.
+ * Shared with `verifyArchive`. Throws `ArchiveError`; writes nothing.
+ */
+export async function openArchive(
+  zip: Blob,
+  supportedSchemaVersion: number,
+  limits: ArchiveLimits,
+  failure: { error?: ArchiveError } = {},
+): Promise<OpenedArchive> {
   // 1. Central directory and structural limits, before any entry is read.
   let entries: ZipEntry[];
   try {
@@ -182,7 +199,7 @@ export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: Re
     guardedStream(zip, manifestEntry, { size: manifestEntry.uncompressedSize, maxBytes: limits.maxManifestBytes }, failure),
     failure,
   );
-  const manifest = parseManifest(manifestBytes, hooks.supportedSchemaVersion, limits);
+  const manifest = parseManifest(manifestBytes, supportedSchemaVersion, limits);
 
   // 3. Entry list and manifest must describe exactly the same set.
   const listed = new Map(manifest.entries.map((e) => [e.path, e]));
@@ -194,6 +211,25 @@ export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: Re
     if (!entry) throw new ArchiveError('entry-mismatch', 'the manifest lists an entry the archive does not contain');
     if (entry.uncompressedSize !== item.size) throw new ArchiveError('integrity', 'an archive entry does not have the size the manifest records');
   }
+  return { manifest, byName, listed };
+}
+
+/**
+ * Restores an archive ZIP into an EMPTY library (the caller checks emptiness).
+ * The archive is untrusted: nothing is written until the central directory,
+ * the manifest and the entry list have passed validation, every byte is
+ * counted and hashed as it streams, and the database goes in last. On any
+ * failure the blobs this restore stored are deleted and the database is
+ * untouched, so the library is exactly as it was.
+ *
+ * One deliberate deviation from "database last": the database entry (small,
+ * bounded by `maxEntryBytes`) is read and hash-verified before the blobs so a
+ * tampered snapshot fails before any media is written; it is still applied last.
+ */
+export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: RestoreOptions = {}): Promise<RestoreResult> {
+  const limits: ArchiveLimits = { ...DEFAULT_LIMITS, ...options.limits };
+  const failure: { error?: ArchiveError } = {};
+  const { manifest, byName, listed } = await openArchive(zip, hooks.supportedSchemaVersion, limits, failure);
 
   const written: string[] = [];
   try {
@@ -207,6 +243,10 @@ export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: Re
     // 5. Blobs: streamed through the store, hash-verified on the way.
     const blobs: ArchiveBlobRef[] = [];
     const total = manifest.entries.length - 1;
+    if (hooks.beforeMedia) {
+      const listedBlobs = manifest.entries.filter((e) => e.path !== DB_PATH).map((e) => ({ sha256: e.sha256, size: e.size }));
+      await hooks.beforeMedia(database, listedBlobs);
+    }
     hooks.onProgress?.(0, total);
     for (const item of manifest.entries) {
       if (item.path === DB_PATH) continue;
@@ -239,8 +279,11 @@ export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: Re
     // A blob that cannot be deleted now is an orphan (no database row points at
     // it): the next restore into the empty library sweeps it. Say so.
     let leftover = 0;
-    for (const sha256 of written) {
-      if (!(await hooks.blobs.delete(sha256).then(() => true, () => false))) leftover++;
+    if (hooks.cleanupOnFailure?.() === false) leftover = written.length;
+    else {
+      for (const sha256 of written) {
+        if (!(await hooks.blobs.delete(sha256).then(() => true, () => false))) leftover++;
+      }
     }
     if (leftover > 0 && error instanceof ArchiveError) error.leftoverBlobs = leftover;
     throw error;
