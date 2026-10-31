@@ -70,7 +70,7 @@ Regenerate them with `pnpm build && pnpm screenshots` (see [docs/blueprint.md](d
 
 * ✅ **Timeline, gallery, audio archive and calendar** per person, with search and favorites.
 
-* 🟡 **One-file backup and restore**: export your whole archive into a single ZIP and restore it on any other device.
+* ✅ **One-file backup and restore**: export your whole archive into a single file (optionally password-protected), check it, and restore or replace on any other device.
 
 * ⬜ **Manual device-to-device sync**: export a small *changes* ZIP on one device and merge it on another.
 
@@ -254,7 +254,7 @@ cli/                      # same use cases from the terminal
 | 3 | ✅ | Profiles and conversations |
 | 4 | ✅ | Incremental WhatsApp import and import history |
 | 5 | ✅ | Timeline, conversation view, gallery, audio, calendar, search |
-| 6 | 🟡 | Full backup and restore |
+| 6 | ✅ | Full backup and restore |
 | 7 | ⬜ | Manual device-to-device sync with ZIP files |
 | 8 | ⬜ | Google Photos (download / Takeout) and loose files |
 | 9 | ⬜ | Portable viewer exports and hardening |
