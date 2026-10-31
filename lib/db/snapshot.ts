@@ -175,6 +175,10 @@ async function openChecked(target: SqlDb, bytes: Uint8Array, options: LoadSnapsh
     }
     if (readUserVersion(target) !== versions.to) throw invalid('target schema version differs from the snapshot after migration');
     if (scratch.all('PRAGMA foreign_key_check').length > 0) throw invalid('foreign key violations');
+    // A photo's date source is `none` exactly when it has no date (not expressible as a CHECK, see migration v12).
+    if (scratch.all("SELECT 1 FROM photo_items WHERE (date_source = 'none') <> (taken_at IS NULL) LIMIT 1").length > 0) {
+      throw invalid('a photo has a date source that does not match its date');
+    }
 
     const tables = userTables(target);
     if (JSON.stringify(userTables(scratch)) !== JSON.stringify(tables)) throw invalid('tables differ from the current schema');

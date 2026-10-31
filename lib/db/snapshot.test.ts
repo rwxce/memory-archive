@@ -156,7 +156,7 @@ describe('loadSnapshot', () => {
     v4.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
     const target = (await openMemoryDb()).db;
     expect(await loadSnapshot(target, serializeDb(v4))).toEqual({ from: 4, to: SCHEMA_VERSION });
-    expect(SCHEMA_VERSION).toBe(11);
+    expect(SCHEMA_VERSION).toBe(12);
     expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
     expect(target.all('SELECT * FROM favorites')).toEqual([]);
     expect(target.all('SELECT * FROM notes')).toEqual([]);
@@ -236,6 +236,41 @@ describe('loadSnapshot', () => {
     expect(restored.all('SELECT album, file_name FROM photo_items')).toEqual([{ album: 'A', file_name: 'a.jpg' }]);
     expect(isLibraryEmpty(restored)).toBe(false);
     expect(isLibraryEmpty(source)).toBe(false);
+  });
+
+  test('a schema v11 snapshot restores by migrating: photo dates get their source; a v12 snapshot keeps it', async () => {
+    const v11 = await bareDb(MIGRATIONS.slice(0, 11));
+    v11.run('INSERT INTO blobs (sha256, size, mime) VALUES (?, 1, NULL)', ['ab'.repeat(32)]);
+    v11.run("INSERT INTO photo_batches (id, source, created_at, added_count) VALUES (?, 'takeout', ?, 2)", [ID1, NOW]);
+    const add = (album: string, takenAt: string | null) =>
+      v11.run("INSERT INTO photo_items (batch_id, sha256, kind, taken_at, source, album, file_name) VALUES (?, ?, 'photo', ?, 'takeout', ?, 'a.jpg')", [ID1, 'ab'.repeat(32), takenAt, album]);
+    add('Dated', '2019-07-01T10:00:00Z');
+    add('Undated', null);
+    const target = (await openMemoryDb()).db;
+    expect(await loadSnapshot(target, serializeDb(v11), { expectBlobs: [{ sha256: 'ab'.repeat(32), size: 1 }] })).toEqual({ from: 11, to: SCHEMA_VERSION });
+    expect(target.all('SELECT album, date_source FROM photo_items ORDER BY id')).toEqual([
+      { album: 'Dated', date_source: 'sidecar' },
+      { album: 'Undated', date_source: 'none' },
+    ]);
+
+    const source = (await openMemoryDb()).db;
+    source.run('INSERT INTO blobs (sha256, size, mime) VALUES (?, 1, NULL)', ['cd'.repeat(32)]);
+    source.run("INSERT INTO photo_batches (id, source, created_at, added_count) VALUES (?, 'loose', ?, 1)", [ID1, NOW]);
+    source.run("INSERT INTO photo_items (batch_id, sha256, kind, taken_at, date_source, source, album, file_name) VALUES (?, ?, 'photo', ?, 'file-modified', 'loose', '', 'b.jpg')", [ID1, 'cd'.repeat(32), '2020-01-01T00:00:00Z']);
+    const restored = (await openMemoryDb()).db;
+    await loadSnapshot(restored, serializeDb(source), { expectBlobs: [{ sha256: 'cd'.repeat(32), size: 1 }] });
+    expect(restored.all('SELECT source, date_source FROM photo_items')).toEqual([{ source: 'loose', date_source: 'file-modified' }]);
+  });
+
+  test('refuses a snapshot whose photo date source contradicts its date', async () => {
+    for (const [takenAt, source] of [['2020-01-01T00:00:00Z', 'none'], [null, 'exif']] as const) {
+      const bad = (await openMemoryDb()).db;
+      bad.run('INSERT INTO blobs (sha256, size, mime) VALUES (?, 1, NULL)', ['ab'.repeat(32)]);
+      bad.run("INSERT INTO photo_batches (id, source, created_at, added_count) VALUES (?, 'loose', ?, 1)", [ID1, NOW]);
+      bad.run("INSERT INTO photo_items (batch_id, sha256, kind, taken_at, date_source, source, album, file_name) VALUES (?, ?, 'photo', ?, ?, 'loose', '', 'b.jpg')", [ID1, 'ab'.repeat(32), takenAt, source]);
+      const target = (await openMemoryDb()).db;
+      await expect(loadSnapshot(target, serializeDb(bad))).rejects.toThrow(/date source/);
+    }
   });
 
   test('refuses a highlight of an unknown conversation', async () => {

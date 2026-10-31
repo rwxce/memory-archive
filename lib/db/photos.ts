@@ -5,6 +5,8 @@ import {
   PHOTO_DESCRIPTION_MAX,
   PHOTO_FILE_NAME_MAX,
   codePointLength,
+  isPhotoDateSource,
+  isPhotoOffset,
   isPhotoKind,
   isTakenAt,
   type NewPhotoItem,
@@ -45,6 +47,10 @@ function checkItem(raw: unknown): NewPhotoItem {
   if (!isPhotoKind(r.kind)) invalid('item kind must be photo or video');
   if (r.mime !== null && !isMimeType(r.mime)) invalid('item mime must be a type/subtype media type or null');
   if (r.takenAt !== null && !isTakenAt(r.takenAt)) invalid('item takenAt must be a UTC instant or null');
+  if (!isPhotoDateSource(r.dateSource)) invalid('item dateSource is not a known date source');
+  if ((r.takenAt === null) !== (r.dateSource === 'none')) invalid('item dateSource is none exactly when takenAt is null');
+  if (r.takenOffsetMinutes !== null && !isPhotoOffset(r.takenOffsetMinutes)) invalid('item takenOffsetMinutes must be a real UTC offset or null');
+  if (r.takenOffsetMinutes !== null && r.dateSource !== 'exif') invalid('item takenOffsetMinutes goes with an exif date');
   const place = (v: unknown, limit: number, what: string): number | null => {
     if (v === null) return null;
     if (typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v) > limit) return invalid(`item ${what} is out of range`);
@@ -58,6 +64,8 @@ function checkItem(raw: unknown): NewPhotoItem {
     kind: r.kind as NewPhotoItem['kind'],
     mime: r.mime as string | null,
     takenAt: r.takenAt as string | null,
+    takenOffsetMinutes: r.takenOffsetMinutes as number | null,
+    dateSource: r.dateSource as NewPhotoItem['dateSource'],
     latitude,
     longitude,
     description: text(r.description, 'item description', PHOTO_DESCRIPTION_MAX),
@@ -118,9 +126,9 @@ export function importPhotoItems(db: SqlDb, input: ImportPhotoItemsInput): Impor
     for (const it of items) {
       added += db.run(
         `INSERT OR IGNORE INTO photo_items
-           (batch_id, sha256, kind, mime, taken_at, latitude, longitude, description, source, album, file_name)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [batchId, it.sha256, it.kind, it.mime, it.takenAt, it.latitude, it.longitude, it.description, source, it.album, it.fileName],
+           (batch_id, sha256, kind, mime, taken_at, taken_offset_minutes, date_source, latitude, longitude, description, source, album, file_name)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [batchId, it.sha256, it.kind, it.mime, it.takenAt, it.takenOffsetMinutes, it.dateSource, it.latitude, it.longitude, it.description, source, it.album, it.fileName],
       );
     }
     const skipped = items.length - added;
@@ -184,6 +192,8 @@ interface ItemRow {
   kind: PhotoItem['kind'];
   mime: string | null;
   takenAt: string | null;
+  takenOffsetMinutes: number | null;
+  dateSource: PhotoItem['dateSource'];
   latitude: number | null;
   longitude: number | null;
   description: string;
@@ -199,7 +209,7 @@ export function listPhotoItems(db: SqlDb, input: ListPhotoItemsInput): PhotoItem
   if (params.afterId !== undefined && (typeof params.afterId !== 'number' || !Number.isSafeInteger(params.afterId))) invalid('afterId must be an integer');
   const limit = Math.min(Math.max(Math.trunc(params.limit as number), 1), PHOTO_PAGE_MAX);
   return db.all<ItemRow>(
-    `SELECT id, batch_id AS batchId, sha256, kind, mime, taken_at AS takenAt, latitude, longitude,
+    `SELECT id, batch_id AS batchId, sha256, kind, mime, taken_at AS takenAt, taken_offset_minutes AS takenOffsetMinutes, date_source AS dateSource, latitude, longitude,
             description, source, album, file_name AS fileName
        FROM photo_items WHERE id > ? ORDER BY id LIMIT ?`,
     [(params.afterId as number | undefined) ?? 0, limit],

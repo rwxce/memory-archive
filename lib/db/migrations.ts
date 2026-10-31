@@ -421,6 +421,24 @@ CREATE INDEX photo_items_by_batch ON photo_items(batch_id);
 CREATE INDEX photo_items_by_taken_at ON photo_items(taken_at, id);
 `;
 
+/**
+ * v12 (expand only): where a photo's date came from and the camera's UTC offset
+ * (`docs/formats/photo-library.md`). Two columns on `photo_items`: `date_source`, so a screen can tell
+ * an original date (sidecar, EXIF) from a guess (the file's last-modified time), and
+ * `taken_offset_minutes`, the camera's UTC offset of an `exif` date, so the wall-clock day at the
+ * place of the photo is not lost to the UTC conversion. Existing rows are Takeout items: `sidecar`
+ * when they have a date, `none` otherwise, with no offset, which is exactly what they meant. The
+ * rule "`none` exactly when `taken_at` is NULL" cannot be a CHECK here (ADD COLUMN validates the
+ * old rows against the default before the backfill, and a snapshot may not carry triggers): the
+ * writer (`lib/db/photos.ts`) keeps it and `loadSnapshot` refuses a snapshot that breaks it. A
+ * v1-v11 backup restores by migrating.
+ */
+const V12 = `
+ALTER TABLE photo_items ADD COLUMN date_source TEXT NOT NULL DEFAULT 'none' CHECK (date_source IN ('sidecar', 'exif', 'exif-local', 'file-modified', 'none'));
+ALTER TABLE photo_items ADD COLUMN taken_offset_minutes INTEGER CHECK (taken_offset_minutes IS NULL OR (date_source = 'exif' AND taken_offset_minutes BETWEEN -840 AND 840 AND taken_offset_minutes % 15 = 0));
+UPDATE photo_items SET date_source = 'sidecar' WHERE taken_at IS NOT NULL;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, sql: V1 },
   { version: 2, sql: V2 },
@@ -433,6 +451,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 9, sql: V9 },
   { version: 10, sql: V10 },
   { version: 11, sql: V11 },
+  { version: 12, sql: V12 },
 ];
 
 /** Schema version this build produces and understands. */

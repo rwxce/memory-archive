@@ -147,10 +147,12 @@ result summary, pointers from Backup and the import wizard) is built, and so is 
 
 ## Phase 8 — Google Photos and loose files
 
-**Status: in progress. Done: the Google Photos Takeout album import as a data layer and use case (schema v11
-photo collection, `importTakeoutAlbum`, undo, backup and restore of the collection; format in
-`docs/formats/photo-library.md`), with no screen. Not built: the selection grid and assigning photos to
-profiles, the loose-files / gallery picker and Google Photos web-download paths, syncing photos in a changes pack.**
+**Status: in progress. Done: the data layer and use cases for all three ways in: Google Photos Takeout album
+(schema v11, `importTakeoutAlbum`), loose files from the device and a Google Photos web-download ZIP (schema v12 date
+source, `importLoosePhotos`, `importGooglePhotosZip`, `detectPhotoSource`; items 18 and 19a), with undo and backup /
+restore of the collection; format in `docs/formats/photo-library.md`. No screen yet. Not built: the Photos screen
+(file picker, import progress; item 19b), the selection grid and assigning photos to profiles, syncing photos in a
+changes pack (known limit, unchanged).**
 
 - Three ways to pick specific photos: Google Photos web download of a selection, Takeout of
   one album (keeps original dates and locations), or the device gallery picker.
