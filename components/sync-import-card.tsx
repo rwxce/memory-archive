@@ -55,9 +55,9 @@ export function importErrorKey(code: PackImportFailure): string {
 /**
  * "Receive changes from another device": choose a file; a protected one asks for its password inline (the file stays with
  * the hook, so a wrong password only needs the password again); a backup picked here is pointed to Backup and restore. The
- * result says what was added and how many crossed edits were kept for later; it does not offer to resolve them.
+ * result says what this file added and how many crossed edits and offers it left; the Review link shows while anything is open.
  */
-export function SyncImportCard({ pack, busy }: { pack: ChangesPackImport; busy: boolean }) {
+export function SyncImportCard({ pack, busy, openItems }: { pack: ChangesPackImport; busy: boolean; openItems?: number }) {
   const t = useTranslations('sync.import');
   const picker = useRef<HTMLInputElement>(null);
   const { state } = pack;
@@ -119,13 +119,13 @@ export function SyncImportCard({ pack, busy }: { pack: ChangesPackImport; busy: 
           )}
         </Outcome>
       )}
-      {state.status === 'done' && <MergeResult result={state.result} onAnother={() => picker.current?.click()} />}
+      {state.status === 'done' && <MergeResult result={state.result} openItems={openItems} onAnother={() => picker.current?.click()} />}
     </SectionCard>
   );
 }
 
 /** What a merge added, in plain words, and the crossed edits kept for later. Lines with nothing to say are left out. */
-function MergeResult({ result, onAnother }: { result: ImportChangesPackResult; onAnother: () => void }) {
+function MergeResult({ result, openItems, onAnother }: { result: ImportChangesPackResult; openItems?: number; onAnother: () => void }) {
   const t = useTranslations('sync.import');
   const c = result.counts;
   const lines: [string, number][] = [
@@ -150,12 +150,14 @@ function MergeResult({ result, onAnother }: { result: ImportChangesPackResult; o
         </ul>
       )}
       {result.conflicts > 0 && (
-        <div className="flex flex-col gap-1" data-testid="sync-conflicts">
-          <p>{t('conflicts', { count: result.conflicts })}</p>
-          <p className="text-t2 text-sm">{t('conflictsLater')}</p>
-        </div>
+        <p data-testid="sync-conflicts">{t('conflicts', { count: result.conflicts })}</p>
       )}
       {result.batchOffers > 0 && <p>{t('offers', { count: result.batchOffers })}</p>}
+      {(openItems ?? result.conflicts + result.batchOffers) > 0 && (
+        <a href="#sync-conflicts" className={linkClass} onClick={() => document.getElementById('sync-conflicts-title')?.focus()}>
+          {t('conflictsReview')}
+        </a>
+      )}
       <div>
         <PillButton variant="outlined" onClick={onAnother}>
           {t('another')}

@@ -109,6 +109,8 @@ export interface ResolveConflictResult {
    * the conflict is closed and nothing was applied. `mine` on a missing record just closes it.
    */
   recordGone: boolean;
+  /** The local record was already missing when this was settled (a note deleted here meanwhile): nothing there to keep or replace. */
+  localMissing: boolean;
 }
 
 /**
@@ -127,23 +129,29 @@ export function resolveConflict(db: SqlDb, input: ResolveConflictInput): Resolve
   if (!Number.isSafeInteger(input.id)) throw invalid('id must be an integer');
   if (input.choice !== 'mine' && input.choice !== 'theirs' && input.choice !== 'both') throw invalid('choice must be mine, theirs or both');
   if (typeof input.now !== 'string' || input.now === '') throw invalid('now must be a string');
+  const expected = input.expected;
+  if (expected !== undefined && (typeof expected !== 'object' || expected === null || typeof expected.key !== 'string' || typeof expected.detectedAt !== 'string')) {
+    throw invalid('expected must have a key and a detectedAt');
+  }
   return transaction(db, () => {
     const row = db.all<Row>(`${SELECT} WHERE id = ?`, [input.id])[0];
-    if (!row) throw new DbError('not-found', 'conflict not found');
+    if (!row || (expected && (row.key !== expected.key || row.detectedAt !== expected.detectedAt))) throw new DbError('not-found', 'conflict not found');
     // Media rows this resolution may leave unreferenced; freed below unless something still needs them.
     const candidates = new Set<string>();
     let recordGone = false;
+    let localMissing = false;
     const choice: ConflictChoice = input.choice;
     if (row.kind === 'batch') {
       if (choice !== 'mine') throw invalid('an undone import is accepted by undoing it, or dismissed with mine');
     } else if (row.kind === 'note') {
-      resolveNote(db, row, choice, input.now);
+      localMissing = resolveNote(db, row, choice, input.now);
     } else {
       if (choice === 'both') throw invalid('both applies to notes only');
       const incoming = parseIncoming(row);
       if (row.kind === 'profile') {
         const profile = incoming as PackProfile;
         const before = readLocalProfile(db, profile.id);
+        localMissing = !before;
         // The incoming photo was stored for the choice; it only stays if the profile takes it.
         if (profile.photoSha256 !== null) candidates.add(profile.photoSha256);
         if (!before) {
@@ -158,7 +166,8 @@ export function resolveConflict(db: SqlDb, input: ResolveConflictInput): Resolve
         }
       } else {
         const conversation = incoming as PackConversation;
-        if (!readLocalConversation(db, conversation.id)) {
+        localMissing = !readLocalConversation(db, conversation.id);
+        if (localMissing) {
           if (choice === 'theirs') recordGone = !recreate(() => writeConversation(db, conversation, true));
           if (choice === 'theirs' && !recordGone) stampRows(db, 'conversations', 'id = ?', [conversation.id]);
         } else {
@@ -175,7 +184,7 @@ export function resolveConflict(db: SqlDb, input: ResolveConflictInput): Resolve
       db.run('DELETE FROM blobs WHERE sha256 = ?', [sha256]);
       unreferencedBlobs.push(sha256);
     }
-    return { unreferencedBlobs, recordGone };
+    return { unreferencedBlobs, recordGone, localMissing };
   });
 }
 
@@ -190,18 +199,19 @@ function recreate(write: () => void): boolean {
   }
 }
 
-function resolveNote(db: SqlDb, row: Row, choice: ConflictChoice, now: string): void {
+/** `true` when the note was already missing here. */
+function resolveNote(db: SqlDb, row: Row, choice: ConflictChoice, now: string): boolean {
   const target = noteTargetOf(row.scope, row.key);
   const w = noteWhere(target);
   const local = readLocalNote(db, target);
   if (row.incomingDeleted === 1) {
     // Deleted there, edited here (or already gone here: nothing to decide).
-    if (!local) return;
+    if (!local) return true;
     if (choice === 'theirs') {
       db.run(`DELETE FROM notes WHERE ${w.where}`, w.params);
       recordTombstone(db, 'note', row.scope, row.key, now);
     } else stampRows(db, 'notes', w.where, w.params);
-    return;
+    return false;
   }
   const incoming = parsePackNote(JSON.parse(row.incoming));
   if (!local) {
@@ -212,11 +222,11 @@ function resolveNote(db: SqlDb, row: Row, choice: ConflictChoice, now: string): 
       clearTombstone(db, 'note', row.scope, row.key);
       stampRows(db, 'notes', w.where, w.params);
     }
-    return;
+    return true;
   }
   if (choice === 'mine') {
     stampRows(db, 'notes', w.where, w.params);
-    return;
+    return false;
   }
   let body = incoming.body;
   if (choice === 'both') {
@@ -229,4 +239,5 @@ function resolveNote(db: SqlDb, row: Row, choice: ConflictChoice, now: string): 
   }
   db.run(`UPDATE notes SET body = ?, updated_at = ? WHERE ${w.where}`, [body, now, ...w.params]);
   stampRows(db, 'notes', w.where, w.params);
+  return false;
 }

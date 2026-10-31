@@ -144,8 +144,16 @@ export interface SyncConflict {
 
 export type ConflictChoice = 'mine' | 'theirs' | 'both';
 
+/** Which version of a conflict a person looked at: an `id` can be reused, and a newer incoming version replaces the row in place. */
+export interface ExpectedConflict {
+  key: string;
+  detectedAt: string;
+}
+
 export interface ResolveConflictInput {
   id: number;
   choice: ConflictChoice;
   now: string;
+  /** When given and the open row is not this one (another record took the id, or a newer version replaced it), nothing changes: `not-found`. */
+  expected?: ExpectedConflict;
 }

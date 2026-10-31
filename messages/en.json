@@ -1131,7 +1131,6 @@
       "removed": "{count, plural, one {# favorite or note removed, because it was deleted on the other device.} other {# favorites or notes removed, because they were deleted on the other device.}}",
       "nothingNew": "Everything in this file was already in the archive. Nothing changed.",
       "conflicts": "{count, plural, one {# item was changed on both devices. Both versions are kept and nothing was overwritten.} other {# items were changed on both devices. Both versions are kept and nothing was overwritten.}}",
-      "conflictsLater": "Choosing which to keep is not available yet.",
       "offers": "{count, plural, one {# import was undone on the other device. Nothing was removed here.} other {# imports were undone on the other device. Nothing was removed here.}}",
       "another": "Choose another file",
       "errorTitle": "The changes were not added",
@@ -1148,8 +1147,84 @@
         "passwordRequired": "This file is protected. Enter its password to open it.",
         "encryptionUnavailable": "This browser cannot open files with a password here. Try again from the installed app or over a secure connection. Nothing was changed.",
         "generic": "Something went wrong. Nothing was changed. Try again."
-      }
+      },
+      "conflictsReview": "Review them"
     },
-    "progressAnnounce": "{percent}% done"
+    "progressAnnounce": "{percent}% done",
+    "conflicts": {
+      "title": "Items to review",
+      "description": "These were changed on both devices, or another device undid an import. Nothing has been overwritten or removed. Choose what to keep.",
+      "empty": "No conflicts. Nothing is waiting for you.",
+      "loading": "Looking for items to review…",
+      "failed": "The list could not be read. Nothing was changed.",
+      "count": "{count, plural, one {# item to review} other {# items to review}}",
+      "thisDevice": "This device",
+      "otherDevice": "Device {code}",
+      "heading": {
+        "profile": "Person: {name}",
+        "conversation": "Conversation: {name}",
+        "note": "Note",
+        "noteOn": "Note: {name}",
+        "batch": "An import was undone on device {code}"
+      },
+      "untitled": "(no name)",
+      "field": {
+        "name": "Name",
+        "relationship": "Relationship",
+        "description": "Description",
+        "title": "Title",
+        "body": "Text",
+        "archived": "Archived"
+      },
+      "archivedValue": "Yes",
+      "nothingWritten": "Nothing written",
+      "deletedThere": "Deleted on that device",
+      "missingHere": "Not on this device any more",
+      "legend": "What do you want to keep?",
+      "choose": "Choose one to continue.",
+      "choice": {
+        "mine": "Keep this device’s version",
+        "theirs": "Take the other device’s version",
+        "both": "Keep both",
+        "bothHint": "The other text is added below this one.",
+        "keepHere": "Keep it here",
+        "deleteHere": "Delete it here too",
+        "stayDeleted": "Keep it deleted",
+        "bringBack": "Bring back the other device’s version"
+      },
+      "apply": "Apply",
+      "applying": "Applying…",
+      "batch": {
+        "offer": "Device {code} undid an import into “{title}”.",
+        "offerCount": "{count, plural, one {# message from it is still here.} other {# messages from it are still here.}} Nothing has been removed.",
+        "offerUnknown": "Device {code} undid an import that this device has too. Nothing has been removed.",
+        "thisConversation": "this conversation",
+        "undo": "Undo that import here",
+        "keep": "Keep it",
+        "confirmTitle": "Undo this import here?",
+        "confirmBody": "{count, plural, one {The # message} other {The # messages}} added by that import will be removed from “{title}”. Photos and files that no other conversation uses are removed too. Messages that were already in your archive stay.",
+        "confirmBodyCreated": "{count, plural, one {The # message} other {The # messages}} added by that import will be removed, and so will the conversation “{title}”, which that import created. Photos and files that no other conversation uses are removed too. Notes and favorites on that conversation go with it. Anything that was in your archive before stays.",
+        "confirmBodyMaybeCreated": "{count, plural, one {The # message} other {The # messages}} added by that import will be removed from “{title}”. If nothing else is left in that conversation, the conversation is removed too, with its notes and favorites. Photos and files that no other conversation uses are removed too. Anything that was in your archive before stays.",
+        "confirmBodyUnknown": "The messages added by that import will be removed. Photos and files that no other conversation uses are removed too. Messages that were already in your archive stay.",
+        "confirm": "Undo import",
+        "cancel": "Go back",
+        "unmatched": "This device doesn’t have that import, so there’s nothing to remove.",
+        "close": "Close this note"
+      },
+      "outcome": {
+        "mine": "Kept this device’s version.",
+        "theirs": "Took the other device’s version.",
+        "both": "Kept both texts.",
+        "undone": "The import was undone here.",
+        "dismissed": "Done. Nothing was removed.",
+        "recordGone": "That item is no longer on this device, so nothing was applied.",
+        "settled": "That one was already settled.",
+        "alreadyGone": "That was already gone from this device, so nothing was removed or changed.",
+        "bothRestored": "The note here was already gone, so only the other device’s text was added.",
+        "busy": "Another task is running. Try again in a moment.",
+        "tooLong": "Both texts together are too long for one note. Nothing was changed. Choose one of the others.",
+        "failed": "This could not be saved. Nothing was changed. Try again."
+      }
+    }
   }
 }

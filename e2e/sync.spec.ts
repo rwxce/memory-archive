@@ -2,7 +2,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { strToU8, zipSync } from 'fflate';
-import { addPerson, expect, importFromPeople, overflowsHorizontally, startFresh, test } from './fixtures';
+import type { Page } from '@playwright/test';
+import { addPerson, expect, importFromPeople, overflowsHorizontally, personMenu, startFresh, test } from './fixtures';
 
 /**
  * Two devices, by hand: a changes file made in one browser context is opened in another (a fresh context is a clean OPFS,
@@ -90,6 +91,79 @@ test('a changes file made on one device is merged on another, and its own file i
     await expect(page.getByTestId('sync-import-result')).toContainText('This file was made by this device', { timeout: 60_000 });
 
     expect(foreign, 'requests to non-local origins from the second device').toEqual([]);
+  } finally {
+    await context.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/** Renames the only person to `name` through the edit form. */
+async function rename(page: Page, from: string, name: string) {
+  await page.goto('/en/people/');
+  await page.getByRole('list', { name: 'People' }).getByRole('link', { name: from }).click();
+  await personMenu(page, from, `Edit ${from}`);
+  await page.getByLabel('Name', { exact: true }).fill(name);
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+}
+
+test('a person renamed on two devices is kept side by side and settled by choice', async ({ page, browser }, testInfo) => {
+  test.setTimeout(150_000);
+  const dir = mkdtempSync(join(tmpdir(), 'ma-sync-conflict-e2e-'));
+  const use = testInfo.project.use;
+  const context = await browser.newContext({
+    baseURL: use.baseURL!,
+    locale: 'en-US',
+    viewport: use.viewport,
+    isMobile: use.isMobile,
+    hasTouch: use.hasTouch,
+    deviceScaleFactor: use.deviceScaleFactor,
+    acceptDownloads: true,
+  });
+  const makeFile = async (device: Page, name: string) => {
+    await device.goto('/en/sync/');
+    const downloading = device.waitForEvent('download');
+    await device.getByRole('button', { name: 'Make the file' }).click();
+    const download = await downloading;
+    await expect(device.getByTestId('sync-export-result')).toContainText('The file was made', { timeout: 60_000 });
+    const path = join(dir, name);
+    await download.saveAs(path);
+    return path;
+  };
+  try {
+    await startFresh(page);
+    await addPerson(page, 'Mama');
+    const first = await makeFile(page, 'first.zip');
+
+    const second = await context.newPage();
+    await startFresh(second);
+    await second.goto('/en/sync/');
+    await second.getByTestId('sync-input').setInputFiles(first);
+    await expect(second.getByTestId('sync-import-result')).toContainText('The changes were added', { timeout: 60_000 });
+    await expect(second.locator('#sync-conflicts')).toContainText('No conflicts');
+
+    // The same person is renamed on both, then device A sends everything again.
+    await rename(second, 'Mama', 'Mama B');
+    await rename(page, 'Mama', 'Mama A');
+    const again = await makeFile(page, 'again.zip');
+    await second.goto('/en/sync/');
+    await second.getByTestId('sync-input').setInputFiles(again);
+    await expect(second.getByTestId('sync-import-result')).toContainText('1 item was changed on both devices', { timeout: 60_000 });
+    await second.getByRole('link', { name: 'Review them' }).click();
+    const card = second.locator('#sync-conflicts');
+    await expect(card).toContainText('Mama A');
+    await expect(card).toContainText('Mama B');
+    expect(await overflowsHorizontally(second)).toBe(false);
+
+    // Nothing is chosen for the person: Apply waits.
+    await expect(card.getByRole('button', { name: 'Apply' })).toHaveAttribute('aria-disabled', 'true');
+    await card.getByRole('radio', { name: /Take the other device/ }).check();
+    await card.getByRole('button', { name: 'Apply' }).click();
+    await expect(card).toContainText('No conflicts');
+    await expect(card.getByRole('status')).toHaveText('Took the other device\u2019s version.');
+
+    await second.goto('/en/people/');
+    await expect(second.getByRole('list', { name: 'People' }).getByRole('link', { name: 'Mama A', exact: true })).toBeVisible();
   } finally {
     await context.close();
     rmSync(dir, { recursive: true, force: true });
