@@ -156,7 +156,7 @@ describe('loadSnapshot', () => {
     v4.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
     const target = (await openMemoryDb()).db;
     expect(await loadSnapshot(target, serializeDb(v4))).toEqual({ from: 4, to: SCHEMA_VERSION });
-    expect(SCHEMA_VERSION).toBe(10);
+    expect(SCHEMA_VERSION).toBe(11);
     expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
     expect(target.all('SELECT * FROM favorites')).toEqual([]);
     expect(target.all('SELECT * FROM notes')).toEqual([]);
@@ -216,6 +216,26 @@ describe('loadSnapshot', () => {
     expect(target.all('SELECT body FROM notes')).toEqual([{ body: 'kept' }]);
     expect(target.all('SELECT * FROM highlights')).toEqual([]);
     expect(target.all('SELECT * FROM highlight_messages')).toEqual([]);
+  });
+
+  test('a schema v10 snapshot restores by migrating: rows kept, the photo collection empty; a v11 snapshot keeps its photos', async () => {
+    const v10 = await bareDb(MIGRATIONS.slice(0, 10));
+    v10.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [ID2, 'Chat', 'whatsapp', NOW]);
+    v10.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
+    const target = (await openMemoryDb()).db;
+    expect(await loadSnapshot(target, serializeDb(v10))).toEqual({ from: 10, to: SCHEMA_VERSION });
+    expect(target.all('SELECT id FROM import_batches')).toEqual([{ id: ID1 }]);
+    expect(target.all('SELECT * FROM photo_items')).toEqual([]);
+
+    const source = (await openMemoryDb()).db;
+    source.run('INSERT INTO blobs (sha256, size, mime) VALUES (?, 1, NULL)', ['ab'.repeat(32)]);
+    source.run("INSERT INTO photo_batches (id, source, created_at, added_count) VALUES (?, 'takeout', ?, 1)", [ID1, NOW]);
+    source.run("INSERT INTO photo_items (batch_id, sha256, kind, source, album, file_name) VALUES (?, ?, 'photo', 'takeout', 'A', 'a.jpg')", [ID1, 'ab'.repeat(32)]);
+    const restored = (await openMemoryDb()).db;
+    await loadSnapshot(restored, serializeDb(source), { expectBlobs: [{ sha256: 'ab'.repeat(32), size: 1 }] });
+    expect(restored.all('SELECT album, file_name FROM photo_items')).toEqual([{ album: 'A', file_name: 'a.jpg' }]);
+    expect(isLibraryEmpty(restored)).toBe(false);
+    expect(isLibraryEmpty(source)).toBe(false);
   });
 
   test('refuses a highlight of an unknown conversation', async () => {

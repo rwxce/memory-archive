@@ -18,6 +18,8 @@ import type {
   SearchStatus,
   StoredMessage,
 } from '../domain/library';
+import type { PhotoBatch, PhotoItem } from '../domain/photo';
+import type { ImportPhotoItemsInput, ImportPhotoItemsResult, ListPhotoItemsInput, UndoPhotoBatchResult } from './photos';
 import type { HighlightImportCounts, HighlightCategory, HighlightItem, HighlightMessage } from '../domain/highlights';
 import type { BatchMessagesPage, ChangeSet, ReadBatchMessagesInput, ReadChangeSetInput } from '../domain/changes-pack';
 import type {
@@ -98,6 +100,12 @@ export interface DbOps {
   findExistingFingerprints: { params: FindExistingFingerprintsInput; result: string[] };
   listImportBatches: { params: ListImportBatchesInput | undefined; result: ImportBatchRow[] };
   undoImportBatch: { params: { batchId: string }; result: UndoImportBatchResult };
+  /** Photo collection (`docs/formats/photo-library.md`): one transaction per import; idempotent. */
+  importPhotoItems: { params: ImportPhotoItemsInput; result: ImportPhotoItemsResult };
+  undoPhotoBatch: { params: { batchId: string }; result: UndoPhotoBatchResult };
+  listPhotoItems: { params: ListPhotoItemsInput; result: PhotoItem[] };
+  countPhotoItems: { params: undefined; result: number };
+  listPhotoBatches: { params: undefined; result: PhotoBatch[] };
   listBlobHashes: { params: undefined; result: string[] };
   getStorageBreakdown: { params: undefined; result: StorageBreakdown };
   /** Counts and bytes for the Backup screen; `searchIndexBytes` is 0 until an index exists. Read-only. */

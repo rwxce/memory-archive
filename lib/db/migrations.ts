@@ -375,6 +375,52 @@ const V10 = `
 ALTER TABLE import_batches ADD COLUMN changed_by TEXT CHECK (changed_by IS NULL OR (length(changed_by) = 36 AND changed_by = lower(changed_by)));
 `;
 
+/**
+ * v11 (expand only): the photo collection (`docs/formats/photo-library.md`). Two new tables, both
+ * empty after migrating; no existing column or row changes, so a v1-v10 backup restores by
+ * migrating. Added with its first entry point, the Google Photos Takeout album import.
+ *
+ * - `photo_batches`: one row per import that added photos (history and undo), like `import_batches`
+ *   but not tied to a conversation.
+ * - `photo_items`: one photo or video of the collection. NOT assigned to any profile (a later
+ *   release adds the link table with its first entry point). The bytes are a content-addressed
+ *   `blobs` row; the same bytes in two albums are two items over one blob. `UNIQUE (sha256,
+ *   source, album)` is the idempotency key: importing the same album again inserts nothing.
+ *   `taken_at` is the UTC instant the source recorded for when the picture was taken
+ *   (`YYYY-MM-DDTHH:MM:SSZ`), NULL when unknown; it is never replaced by an import date.
+ *   `latitude` / `longitude` are both set or both NULL.
+ */
+const V11 = `
+CREATE TABLE photo_batches (
+  id            TEXT PRIMARY KEY CHECK (length(id) = 36 AND id = lower(id)),
+  source        TEXT NOT NULL CHECK (length(source) > 0),
+  -- The name of the file imported (untrusted text, may hold a person's name).
+  source_label  TEXT NOT NULL DEFAULT '',
+  created_at    TEXT NOT NULL,
+  added_count   INTEGER NOT NULL DEFAULT 0 CHECK (added_count >= 0),
+  skipped_count INTEGER NOT NULL DEFAULT 0 CHECK (skipped_count >= 0)
+) STRICT;
+
+CREATE TABLE photo_items (
+  id          INTEGER PRIMARY KEY,
+  batch_id    TEXT NOT NULL REFERENCES photo_batches(id) ON DELETE CASCADE,
+  sha256      TEXT NOT NULL REFERENCES blobs(sha256),
+  kind        TEXT NOT NULL CHECK (kind IN ('photo', 'video')),
+  mime        TEXT,
+  taken_at    TEXT CHECK (taken_at IS NULL OR taken_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+  latitude    REAL CHECK (latitude IS NULL OR (latitude BETWEEN -90 AND 90)),
+  longitude   REAL CHECK (longitude IS NULL OR (longitude BETWEEN -180 AND 180)),
+  description TEXT NOT NULL DEFAULT '',
+  source      TEXT NOT NULL CHECK (length(source) > 0),
+  album       TEXT NOT NULL DEFAULT '',
+  file_name   TEXT NOT NULL,
+  CHECK ((latitude IS NULL) = (longitude IS NULL)),
+  UNIQUE (sha256, source, album)
+) STRICT;
+CREATE INDEX photo_items_by_batch ON photo_items(batch_id);
+CREATE INDEX photo_items_by_taken_at ON photo_items(taken_at, id);
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, sql: V1 },
   { version: 2, sql: V2 },
@@ -386,6 +432,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 8, sql: V8 },
   { version: 9, sql: V9 },
   { version: 10, sql: V10 },
+  { version: 11, sql: V11 },
 ];
 
 /** Schema version this build produces and understands. */
