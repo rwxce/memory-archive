@@ -72,7 +72,7 @@ interface Expectation {
  * and verifies size and SHA-256 at the end. Errors are `ArchiveError`s, also
  * recorded in `failure` because a consumer may wrap them.
  */
-function guardedStream(
+export function guardedStream(
   zip: Blob,
   entry: ZipEntry,
   expect: Expectation,
@@ -115,7 +115,7 @@ function guardedStream(
   });
 }
 
-async function collect(stream: ReadableStream<Uint8Array>, failure: { error?: ArchiveError }): Promise<Uint8Array> {
+export async function collect(stream: ReadableStream<Uint8Array>, failure: { error?: ArchiveError }): Promise<Uint8Array> {
   const parts: Uint8Array[] = [];
   let total = 0;
   const reader = stream.getReader();
@@ -138,13 +138,15 @@ async function collect(stream: ReadableStream<Uint8Array>, failure: { error?: Ar
   return out;
 }
 
-export interface OpenedArchive {
-  manifest: ArchiveManifest;
+export interface OpenedZip<M extends { entries: ManifestEntry[] }> {
+  manifest: M;
   /** Every ZIP entry by name (the manifest included). */
   byName: Map<string, ZipEntry>;
   /** The manifest's entries by path. */
   listed: Map<string, ManifestEntry>;
 }
+
+export type OpenedArchive = OpenedZip<ArchiveManifest>;
 
 /**
  * Everything restore checks before it reads an entry's content: central directory and structural
@@ -152,12 +154,25 @@ export interface OpenedArchive {
  * manifest, and that ZIP entries and manifest describe exactly the same set with the same sizes.
  * Shared with `verifyArchive`. Throws `ArchiveError`; writes nothing.
  */
-export async function openArchive(
+export function openArchive(
   zip: Blob,
   supportedSchemaVersion: number,
   limits: ArchiveLimits,
   failure: { error?: ArchiveError } = {},
 ): Promise<OpenedArchive> {
+  return openZipPackage(zip, limits, (bytes) => parseManifest(bytes, supportedSchemaVersion, limits), failure);
+}
+
+/**
+ * The container checks of `openArchive` for any package that is a ZIP with a `manifest.json` listing
+ * its other entries (the backup, the changes pack): only the manifest's parser differs.
+ */
+export async function openZipPackage<M extends { entries: ManifestEntry[] }>(
+  zip: Blob,
+  limits: ArchiveLimits,
+  parse: (manifestBytes: Uint8Array) => M,
+  failure: { error?: ArchiveError } = {},
+): Promise<OpenedZip<M>> {
   // 1. Central directory and structural limits, before any entry is read.
   let entries: ZipEntry[];
   try {
@@ -199,7 +214,7 @@ export async function openArchive(
     guardedStream(zip, manifestEntry, { size: manifestEntry.uncompressedSize, maxBytes: limits.maxManifestBytes }, failure),
     failure,
   );
-  const manifest = parseManifest(manifestBytes, supportedSchemaVersion, limits);
+  const manifest = parse(manifestBytes);
 
   // 3. Entry list and manifest must describe exactly the same set.
   const listed = new Map(manifest.entries.map((e) => [e.path, e]));

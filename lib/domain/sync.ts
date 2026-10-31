@@ -17,8 +17,20 @@ export interface RecordSentInput {
   peerId: string;
   /** The pack's `upTo`: at most this device's current change counter. */
   upToSeq: number;
+  /**
+   * The pack's `since`, for a pack that carried only changes: the watermark is moved only if it
+   * still equals this, so a pack confirmed late cannot undo what a newer ack or pack decided.
+   * `null`/absent (a full pack) moves it forward unconditionally.
+   */
+  sinceSeq?: number | null;
   /** UTC instant (ISO 8601). */
   now: string;
+}
+
+export interface RecordSentResult {
+  /** `false` when the watermark was no longer at the pack's `since` and was left alone. */
+  recorded: boolean;
+  peer: SyncPeer;
 }
 
 export interface RecordReceivedInput {

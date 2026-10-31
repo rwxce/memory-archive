@@ -63,6 +63,7 @@ import {
   type HighlightScope,
 } from './highlights';
 import { discardSearchIndex, getSearchIndexBytes, getSearchStatus, searchMessages, stepSearchIndex } from './search';
+import { readBatchMessages, readChangeSet } from './changes';
 import { getDeviceId, getPeer, listPeers, recordReceived, recordSent } from './sync';
 import { transaction } from './sql';
 import { checkSnapshot, exportDatabase, isLibraryEmpty, listBlobs, loadSnapshot } from './snapshot';
@@ -186,6 +187,8 @@ const HANDLERS: Handlers = {
   getSyncPeer: ({ db }, p) => getPeer(db, requireParams(p).peerId as string),
   recordSyncSent: ({ db }, p) => transaction(db, () => recordSent(db, p)),
   recordSyncReceived: ({ db }, p) => transaction(db, () => recordReceived(db, p)),
+  readChangeSet: ({ db }, p) => readChangeSet(db, requireParams(p) as unknown as DbOps['readChangeSet']['params']),
+  readBatchMessages: ({ db }, p) => readBatchMessages(db, requireParams(p) as unknown as DbOps['readBatchMessages']['params']),
   getSearchStatus: ({ db }) => getSearchStatus(db),
   stepSearchIndex: ({ db }, p) => stepSearchIndex(db, p === undefined ? undefined : (requireParams(p).limit as number | undefined)),
   searchMessages: ({ db }, p) => searchMessages(db, requireParams(p) as unknown as DbOps['searchMessages']['params']),

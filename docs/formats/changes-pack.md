@@ -7,11 +7,13 @@ messages or media on its own. A favorite or note the user deleted on another dev
 too (when this device did not change it since), and an undone import is only offered, never applied
 silently (see "Deletions").
 
-Status: **design; the only code is the data layer it stands on (schema v8: `device`,
-`sync_peers`, `tombstones`, `seq` / `changed_by`; `lib/db/sync.ts`, `lib/usecases/sync-state.ts`).
-Writing and reading packs are the next queue items. Where this document and later code disagree,
-fix the document in the same PR. Rationale is written next to each decision because the product
-owner delegated them.
+Status: **export is implemented; merge is not.** Built: the data layer (schema v8: `device`,
+`sync_peers`, `tombstones`, `seq` / `changed_by`; `lib/db/sync.ts`, `lib/usecases/sync-state.ts`),
+the pack writer and a structural reader / verifier (`lib/exporters/changes-pack/`), the change-set
+queries (`lib/db/changes.ts`) and the export use case (`lib/usecases/changes-pack-export.ts`).
+Not built: merging a pack (the "Merge" section is still design), the conflicts list, any UI. Where
+this document and later code disagree, fix the document in the same PR. Rationale is written next
+to each decision because the product owner delegated them.
 
 ## Goals and non-goals
 
@@ -66,7 +68,7 @@ The only limit that does not apply is `maxDatabaseBytes`: a pack has no database
 
 ```
 manifest.json                        first entry, deflated
-records/profiles.jsonl
+records/profiles.jsonl               (record and batch files are deflated; blobs are stored)
 records/conversations.jsonl
 records/blobs.jsonl                  one line per media file the records need (hash, size, mime)
 records/favorites.jsonl
@@ -76,8 +78,11 @@ batches/<batch id>.jsonl             one entry per import batch: header line, th
 blobs/<aa>/<sha256>                  media bytes, named and stored exactly as in the backup
 ```
 
-Record files are UTF-8, one JSON object per line, always present (possibly empty). Entry paths are
-validated against these exact shapes (`<batch id>` is a lowercase UUID).
+Record files are UTF-8, one JSON object per line, every line ended by `\n` (no blank lines, none
+longer than 4 MiB **in UTF-8 bytes**, enforced by writer and reader alike), always present (possibly empty). Entry paths are validated against these exact
+shapes (`<batch id>` is a lowercase UUID). The writer is deterministic: records sorted by their
+identity, batches by id, blobs by hash, a batch's messages in the order they were stored here, and
+fixed key order, so the same library and clock give the same bytes.
 
 ### Manifest
 
@@ -103,10 +108,10 @@ validated against these exact shapes (`<batch id>` is a lowercase UUID).
 |-------|------|
 | `kind` | `changes`: records with `seq > since`, for one named device. `full`: every record, for any device. |
 | `source.deviceId` | The device that built the pack. |
-| `target.deviceId` | Required for `changes`, `null` for `full`. A `changes` pack is only meaningful to the device whose watermark it was cut against, so a different device refuses it. |
+| `target.deviceId` | Required for `changes`, `null` for `full` (written as `"target": { "deviceId": null }`). A `changes` pack is only meaningful to the device whose watermark it was cut against, so a different device refuses it. |
 | `since` | Exclusive lower bound of the source's `seq` in this pack. `0` for `full`. |
 | `upTo` | Inclusive upper bound: the source's counter when it read the records. `since <= upTo`. |
-| `ack` | The highest **target** `seq` the source has merged from the target (the source's received watermark for the target); `null` if it never received from it. Tells the target what the source really has (see "Watermarks"). |
+| `ack` | The highest **target** `seq` the source has merged from the target (the source's received watermark for the target); `null` if it never received from it, and always `null` in a `full` pack (it has no named target, so any device could receive it, and a wrong ack would move that device's sent watermark past changes it never delivered). Tells the target what the source really has (see "Watermarks"). |
 | `schemaVersion` | The source's database schema. A reader whose own schema is older refuses (`newer-schema`): records may carry meaning it cannot keep. |
 | `counts`, `entries` | As in the backup manifest: sizes and hashes for every entry except the manifest; counts must equal the lines in the files. |
 
@@ -255,9 +260,20 @@ either resolves it.
 `sync_peers(peer_id, last_sent_seq, last_sent_at, last_received_seq, last_received_at)`; absent
 row = never exchanged = watermarks 0.
 
-- **Building** a `changes` pack for P: `since = lastSent(P)`; read the counter and the records in
-  one synchronous step (`upTo`); set `ack = lastReceived(P)` (or null); after the file has been
-  handed to the user, `recordSent(P, upTo)`. An export the user cancels records nothing.
+- **Building** a `changes` pack for P: `since = lastSent(P)` (0 if P is unknown: still a `changes`
+  pack, pinned to P); read the counter and the records in one synchronous step (`upTo`); set
+  `ack = lastReceived(P)` (or null). **Building never moves a watermark.** Only after the file has
+  been handed to the user (saved or shared) does the caller confirm it, which runs
+  `recordSent(P, upTo, since)` (`confirmChangesPackDelivered`; it refuses if the library was restored in
+  between). For a `changes` pack the move is a compare-and-set: the watermark becomes `upTo` only
+  if it is still exactly the pack's `since`. If an `ack` lowered it meanwhile, or another pack was
+  confirmed first, nothing is recorded and the result says `recorded: false`: a late confirmation
+  can never undo the ack or move the watermark backwards. A `full` pack (since 0 by construction)
+  only moves it forward. An export that is cancelled, fails or is never confirmed records nothing, so the next
+  pack covers the same changes again. A device not known yet (no id to name) gets a `full` pack:
+  there is no peer to record against, and its answer carries the `ack` that sets our sent
+  watermark. A `full` pack can also be forced for a known peer (the remedy for a `gap`); confirming
+  it records the watermark for that peer.
 - **Merging** a pack from S, before anything else: refuse if `target` is not this device
   (`wrong-device`); if the source is this device (`own-pack`); if `kind = changes` and
   `since > lastReceived(S)` (`gap`: a pack between was never merged; the sender must send a
@@ -272,7 +288,7 @@ row = never exchanged = watermarks 0.
   into a clear error instead of a quiet hole.
 - Records merged from S take a fresh local `seq`, so they reach a third device C through us
   (phone -> desktop -> tablet). They are also offered back to S, where they are equal and a
-  no-op; an exporter may skip records whose `changed_by` is the target to save space.
+  no-op. The exporter does not skip them (an optimization, not needed for correctness).
 
 ### Device identity across restore and replace
 
@@ -334,6 +350,17 @@ encryption are the backup's, unchanged.
 No triggers (a snapshot containing one is refused); stamping is done by the write paths in
 `lib/db/queries.ts` through `lib/db/sync.ts`, and every path has a test that the stamp moves and
 that a no-op does not stamp. Messages, participants, blobs and highlights have no `seq`.
+
+**Stamping requirement for participants.** Participants have no `seq` of their own: their
+`profile_id` / `is_me` travel inside the conversation record, so every write that changes them
+must `stampRows(db, 'conversations', ...)` (setting "me" on import already does, and is tested).
+Today nothing writes `participants.profile_id` after creation; the merge (queue item 15) will, and
+it must stamp the conversation or the change never reaches a third device.
+
+**Limits are checked before anything is handed over.** The writer bounds each record line, each
+staged file (`maxEntryBytes`), the sum of all entries (`maxTotalBytes`), the entry count and the
+central directory (including every entry name) with the same `ArchiveLimits` the reader applies,
+and fails with `limit-exceeded` instead of producing a pack its own reader would refuse.
 
 ## Known limits (lossy or open, on purpose)
 

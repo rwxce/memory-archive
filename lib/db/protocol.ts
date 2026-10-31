@@ -19,7 +19,8 @@ import type {
   StoredMessage,
 } from '../domain/library';
 import type { HighlightImportCounts, HighlightCategory, HighlightItem, HighlightMessage } from '../domain/highlights';
-import type { RecordReceivedInput, RecordSentInput, SyncPeer } from '../domain/sync';
+import type { BatchMessagesPage, ChangeSet, ReadBatchMessagesInput, ReadChangeSetInput } from '../domain/changes-pack';
+import type { RecordReceivedInput, RecordSentInput, RecordSentResult, SyncPeer } from '../domain/sync';
 import type { BlobRow, DatabaseExport } from './snapshot';
 import type { DbErrorData } from './errors';
 import type { DbInfo } from './open';
@@ -150,9 +151,13 @@ export interface DbOps {
   listSyncPeers: { params: undefined; result: SyncPeer[] };
   getSyncPeer: { params: { peerId: string }; result: SyncPeer | null };
   /** A changes pack for the peer was produced up to `upToSeq`. */
-  recordSyncSent: { params: RecordSentInput; result: SyncPeer };
+  recordSyncSent: { params: RecordSentInput; result: RecordSentResult };
   /** A pack from the peer was merged completely. */
   recordSyncReceived: { params: RecordReceivedInput; result: SyncPeer };
+  /** The records of a changes pack and the counter they were cut at, from one moment. Writes nothing. */
+  readChangeSet: { params: ReadChangeSetInput; result: ChangeSet };
+  /** One page of an import batch's messages for a changes pack. */
+  readBatchMessages: { params: ReadBatchMessagesInput; result: BatchMessagesPage };
   getSearchStatus: { params: undefined; result: SearchStatus };
   stepSearchIndex: { params: { limit?: number } | undefined; result: SearchIndexStep };
   searchMessages: { params: SearchInput; result: SearchResult[] };
