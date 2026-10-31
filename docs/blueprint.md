@@ -187,6 +187,29 @@ test type or architecture rule means updating this file **in the same PR**.
     a plain file goes on unchanged. The password is an argument of `backup` / `restore` / `replace` / `useBackupFileCheck().run`
     only: never in state, storage or logs, and cleared from the fields when handed over. The replace dialog states that its
     safety copy is not encrypted. Progress adds `encrypting` / `decrypting`. Tested in `components/backup-encrypted.test.tsx` and `hooks/use-archive-backup.test.tsx`.
+  - **Sync devices** (`/[locale]/sync/`, `components/sync-screen.tsx` plus `sync-device-card`, `sync-export-card`,
+    `sync-import-card`, `sync-inbox`, `sync-progress`; hooks `use-sync-device`, `use-changes-pack-export`, `use-changes-pack-import`,
+    `peek-archive-file`, `throttle-progress`; copy under `sync.*`). Sub-screen with a back pill to Settings (a Settings row
+    links to it like `/backup`). Cards: this device (8-character device code, known devices with last file handed over /
+    received); "Send changes to another device" (pick a known device or "A new device" = full file, optional "send everything
+    again" for a known one, optional password through `BackupMaker` with its own labels, plain file marked private, download from
+    the click via `downloadBlob`; nothing new = no file; for a known device a "Did you hand the file to the other device?" step
+    calls `confirmChangesPackDelivered` ONLY on "Yes", "Not yet" records nothing; a new device has no such step because there is
+    nothing to record; copy says "downloaded / check Downloads", never "sent"); "Receive changes from another device" (file
+    picker; `peekArchiveFile` = `detectArchiveFile` without a password tells a backup from a pack by its manifest, never its name:
+    a backup gets a pointer to `/backup`, a protected file asks for its password inline with `PasswordPrompt` and keeps the file on
+    a wrong one; result summary of what was added; crossed edits and offered import undos shown as counts only, resolving them
+    is a later screen; calm copy per error code: gap suggests asking for a full file, wrong target, own file, damaged, newer,
+    too large, busy). The reverse pointers: `/backup` (open or replace) and the import wizard leave a changes file out and link to
+    `/sync` (`backup.syncPointer`, `import.choose.syncPointer`); a protected pack picked in `/backup` or the wizard cannot be
+    recognised without its password and is handled by that screen's own error (a protected pack picked on `/backup` or in the
+    wizard is NOT told apart from a protected backup or a bad file: it must be opened from Sync devices). A changes file shared
+    to the app (Web Share Target) is left in the share inbox by the wizard and listed under "Received files" on `/sync`
+    (`sync-inbox.tsx`: add the changes or remove it; it leaves the inbox only after a successful merge or on removal).
+    While the hand-over question is open, making another file and changing the device are disabled. Export and import share one task at a time;
+    progress goes through `throttleProgress` (new phase always, then every 100 ms or a whole percent). Tested in
+    `components/sync-screen.test.tsx`, `components/sync-import-card.test.tsx`, `hooks/throttle-progress.test.ts`, the pointer cases
+    in `components/backup-screen.test.tsx` and `components/import-screen.test.tsx`, and `e2e/sync.spec.ts` (two browser contexts).
   - **Import history** (`/[locale]/import/history/`, optional `?person=<id>`,
     `components/import-history-screen.tsx`, `hooks/use-import-history.ts`): newest-first list of imports
     (file name, relative + absolute date, messages added / already there, conversation title, the
@@ -246,7 +269,7 @@ test type or architecture rule means updating this file **in the same PR**.
     missing id is a calm not-found with the way back. Focus returns to the opener, or to the
     section heading when the chat left the list; results are announced in the status region;
     wrapped in `Suspense` because of `useSearchParams`), `/[locale]/welcome/` (always reachable; *Start* asks for persistent storage and
-    goes to People), `/[locale]/settings/` (language, appearance, app version + archive format version), `/[locale]/backup/` (backup and restore),
+    goes to People), `/[locale]/settings/` (language, appearance, app version + archive format version), `/[locale]/backup/` (backup and restore), `/[locale]/sync/` (sync devices),
     `not-found` → `out/404.html`.
   - Next.js telemetry disabled (`NEXT_TELEMETRY_DISABLED` in scripts, CI and
     `next.config.ts`; `.npmrc` `shell-emulator=true` makes the env prefix work on Windows).

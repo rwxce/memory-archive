@@ -85,7 +85,16 @@ function ShowToggle({ show, onToggle, controls }: { show: boolean; onToggle: () 
  * that a forgotten password cannot be recovered. The password lives only in this component and is cleared the
  * moment the backup starts. Mismatch or empty blocks the backup with the error beside the field.
  */
-export function BackupMaker({ disabled, onBackup }: { disabled: boolean; onBackup: (password: string | undefined) => void }) {
+export function BackupMaker({
+  disabled,
+  onBackup,
+  labels,
+}: {
+  disabled: boolean;
+  onBackup: (password: string | undefined) => void;
+  /** Other words for the same form (a changes pack): the button and the two notes. They default to the backup's. */
+  labels?: { submit: string; privateNote: string; protectNote: string };
+}) {
   const t = useTranslations('backup.copy');
   const tp = useTranslations('backup.password');
   const toggleId = useId();
@@ -137,7 +146,7 @@ export function BackupMaker({ disabled, onBackup }: { disabled: boolean; onBacku
         {t('protect')}
       </label>
       <p id={`${toggleId}-note`} className="text-t2 text-sm leading-relaxed" data-testid="backup-protect-note">
-        {protect ? t('protectNote') : t('privateNote')}
+        {protect ? (labels?.protectNote ?? t('protectNote')) : (labels?.privateNote ?? t('privateNote'))}
       </p>
       {protect && (
         <div className="flex flex-col gap-3">
@@ -168,7 +177,7 @@ export function BackupMaker({ disabled, onBackup }: { disabled: boolean; onBacku
       )}
       <div>
         <PillButton type="submit" aria-disabled={disabled || undefined} className={busyClass}>
-          {t('backup')}
+          {labels?.submit ?? t('backup')}
         </PillButton>
       </div>
     </form>
@@ -183,11 +192,14 @@ export function ExistingPasswordField({
   value,
   onChange,
   wrong,
+  wrongMessage,
   inputRef,
 }: {
   value: string;
   onChange: (value: string) => void;
   wrong: boolean;
+  /** Words for a wrong password that fit the file (a changes pack, not a backup). */
+  wrongMessage?: string;
   inputRef?: Ref<HTMLInputElement>;
 }) {
   const tp = useTranslations('backup.password');
@@ -196,7 +208,7 @@ export function ExistingPasswordField({
   const id = useId();
   return (
     <div className="flex flex-col gap-1">
-      <PasswordField id={id} label={tp('label')} value={value} onChange={onChange} show={show} autoComplete="current-password" error={wrong ? ta('wrongPassword') : undefined} inputRef={inputRef} />
+      <PasswordField id={id} label={tp('label')} value={value} onChange={onChange} show={show} autoComplete="current-password" error={wrong ? (wrongMessage ?? ta('wrongPassword')) : undefined} inputRef={inputRef} />
       <ShowToggle show={show} onToggle={() => setShow((current) => !current)} controls={[id]} />
     </div>
   );
@@ -213,10 +225,13 @@ export function PasswordPrompt({
   submitLabel,
   onSubmit,
   onCancel,
+  labels,
 }: {
   fileName: string;
   wrong: boolean;
   submitLabel: string;
+  /** Other words for a file that is not a backup (a changes pack). They default to the backup's. */
+  labels?: { title: string; body: string; cancel: string; wrong?: string };
   onSubmit: (password: string) => void;
   onCancel: () => void;
 }) {
@@ -242,13 +257,13 @@ export function PasswordPrompt({
   return (
     <form onSubmit={submit} noValidate aria-labelledby={headingId} data-testid="password-prompt" className="bg-bg flex flex-col gap-3 rounded-[14px] p-3.5">
       <h3 id={headingId} className="text-[15px] font-semibold">
-        {t('title')}
+        {labels?.title ?? t('title')}
       </h3>
-      <p className="text-t2 text-sm leading-relaxed break-words">{t('body', { fileName })}</p>
-      <ExistingPasswordField value={password} onChange={setPassword} wrong={wrong} inputRef={input} />
+      <p className="text-t2 text-sm leading-relaxed break-words">{labels?.body ?? t('body', { fileName })}</p>
+      <ExistingPasswordField value={password} onChange={setPassword} wrong={wrong} wrongMessage={labels?.wrong} inputRef={input} />
       <div className="flex flex-col-reverse gap-2 sm:flex-row">
         <PillButton type="button" variant="outlined" onClick={onCancel}>
-          {t('cancel')}
+          {labels?.cancel ?? t('cancel')}
         </PillButton>
         <PillButton type="submit">{submitLabel}</PillButton>
       </div>

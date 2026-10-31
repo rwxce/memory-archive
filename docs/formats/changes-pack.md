@@ -7,14 +7,14 @@ messages or media on its own. A favorite or note the user deleted on another dev
 too (when this device did not change it since), and an undone import is only offered, never applied
 silently (see "Deletions").
 
-Status: **export and merge are implemented; the screens are not.** Built: the data layer (schema v8: `device`,
+Status: **export, merge and the Sync devices screen are implemented; the conflicts screen is not.** Built: the data layer (schema v8: `device`,
 `sync_peers`, `tombstones`, `seq` / `changed_by`; `lib/db/sync.ts`, `lib/usecases/sync-state.ts`), the pack writer and
 a structural reader / verifier (`lib/exporters/changes-pack/`), the change-set queries (`lib/db/changes.ts`), the
 export use case (`lib/usecases/changes-pack-export.ts`), and the merge: strict record validation
 (`lib/domain/changes-pack-parse.ts`), the transaction (`lib/db/merge.ts`), the conflicts list, its table (schema v9
 `sync_conflicts`) and its resolution (`lib/db/conflicts.ts`) and the use cases `importChangesPack`,
-`detectArchiveFile`, `listSyncConflicts`, `resolveSyncConflict`. Not built: any UI (import and conflict screens,
-reminders). Where this document and the code disagree, fix the document in the same PR. Rationale is written next
+`detectArchiveFile`, `listSyncConflicts`, `resolveSyncConflict`. The screen `/sync` (device code and peers, export, import) exists; not built: the conflicts screen and
+reminders. Where this document and the code disagree, fix the document in the same PR. Rationale is written next
 to each decision because the product owner delegated them.
 
 ## Goals and non-goals

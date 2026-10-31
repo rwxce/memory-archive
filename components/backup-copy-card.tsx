@@ -11,6 +11,8 @@ import { SectionCard } from '@/components/section-card';
 import { TaskProgress } from '@/components/task-progress';
 import type { ArchiveBackup } from '@/hooks/use-archive-backup';
 import { detectEncryptedBackup } from '@/hooks/is-encrypted-backup';
+import { peekArchiveFile } from '@/hooks/peek-archive-file';
+import { Link } from '@/i18n/navigation';
 import type { ArchiveUsageState } from '@/hooks/use-archive-usage';
 
 /**
@@ -37,9 +39,12 @@ export function BackupCopyCard({
 }) {
   const t = useTranslations('backup.copy');
   const ta = useTranslations('archive');
+  const ts = useTranslations('backup.syncPointer');
   const picker = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<File | null>(null);
   const [pendingEncrypted, setPendingEncrypted] = useState(false);
+  /** The name of a changes file (from another device) that was picked here by mistake: it is pointed to Sync devices, not opened. */
+  const [syncFile, setSyncFile] = useState<string | null>(null);
   /** A protected backup chosen to open, waiting for its password. */
   const [asking, setAsking] = useState<File | null>(null);
   /** The password was wrong: the prompt or dialog says so, and the status line stays quiet about it. */
@@ -98,6 +103,11 @@ export function BackupCopyCard({
             if (!file || disabled) return;
             setWrong(false);
             setAsking(null);
+            setSyncFile(null);
+            if ((await peekArchiveFile(file)) === 'changes-pack') {
+              setSyncFile(file.name);
+              return;
+            }
             const encrypted = await detectEncryptedBackup(file);
             if (replacing) {
               setPendingEncrypted(encrypted);
@@ -110,6 +120,17 @@ export function BackupCopyCard({
           {replacing ? t('replace') : t('restore')}
         </PillButton>
       </div>
+      {syncFile && (
+        <div role="status" data-testid="sync-pointer" className="bg-bg flex flex-col gap-1 rounded-[14px] p-3.5 text-sm">
+          <p className="break-words">{ts('text', { fileName: syncFile })}</p>
+          <Link
+            href="/sync"
+            className="text-ac-tx focus-visible:ring-ring/50 flex min-h-11 w-fit items-center rounded-full px-2 font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px]"
+          >
+            {ts('link')}
+          </Link>
+        </div>
+      )}
       <ReplaceBackupDialog
         file={pending}
         counts={usage?.status === 'ready' ? usage.usage.counts : undefined}

@@ -163,6 +163,10 @@
     "backup": {
       "title": "Backup and restore",
       "description": "Back up the whole archive, check it, and see the space it uses."
+    },
+    "sync": {
+      "title": "Sync devices",
+      "description": "Carry changes to another device with a file, and receive theirs."
     }
   },
   "notFound": {
@@ -183,9 +187,13 @@
       "remove": "Remove",
       "removeLabel": "Remove {name} from the list",
       "shared": "Shared with Memory Archive",
-      "sharedNote": "Files shared from WhatsApp stay here until you import or remove them. Shared files that cannot be imported are removed from this device.",
+      "sharedNote": "Files shared from WhatsApp stay here until you import or remove them. Shared files that cannot be imported are removed from this device, except files of changes from another device, which wait in Sync devices.",
       "skipped": "{count, plural, one {# file was left out: for now only WhatsApp ZIP, text and old backup files can be imported.} other {# files were left out: for now only WhatsApp ZIP, text and old backup files can be imported.}}",
-      "start": "{count, plural, one {Continue with # file} other {Continue with # files}}"
+      "start": "{count, plural, one {Continue with # file} other {Continue with # files}}",
+      "syncPointer": {
+        "text": "{count, plural, one {# file you chose is a file of changes from another device and was left out.} other {# files you chose are files of changes from another device and were left out.}} They are opened in Sync devices.",
+        "link": "Go to Sync devices"
+      }
     },
     "wizard": {
       "step": "Step {step} of {total}",
@@ -1023,6 +1031,10 @@
       "title": "This backup is protected",
       "body": "Enter the password you chose when you made {fileName}.",
       "cancel": "Cancel"
+    },
+    "syncPointer": {
+      "text": "{fileName} is a file of changes from another device, not a backup. Open it in Sync devices.",
+      "link": "Go to Sync devices"
     }
   },
   "subpage": {
@@ -1038,5 +1050,106 @@
     "saved": "{name}'s phrase was saved.",
     "failed": "{name}'s phrase could not be saved. Nothing was changed.",
     "saving": "Saving…"
+  },
+  "sync": {
+    "title": "Sync devices",
+    "intro": "Bring two devices closer together by carrying a file from one to the other. Nothing is sent over the internet: you move the file yourself.",
+    "device": {
+      "title": "This device",
+      "loading": "Reading this device…",
+      "failed": "This device’s details could not be read. Nothing was changed.",
+      "codeLabel": "Device code",
+      "codeHelp": "A short code that tells your devices apart. The other device shows it for this one.",
+      "peersTitle": "Other devices",
+      "noPeers": "No other device yet. Once you have exchanged a file with one, it appears here.",
+      "peerName": "Device {code}",
+      "sent": "Last file handed over: {date}",
+      "sentNever": "No file handed over yet",
+      "received": "Last file received: {date}",
+      "receivedNever": "No file received yet"
+    },
+    "export": {
+      "title": "Send changes to another device",
+      "description": "Makes a file with what changed on this device. Open it on the other device, in Sync devices.",
+      "peerLegend": "Which device is the file for?",
+      "newDevice": "A new device",
+      "newDeviceHint": "Makes a full file: everything in this archive. Use it for a device that has none of your archive yet, or that is not listed here.",
+      "peerHint": "Only what changed since the last file you handed to this device.",
+      "full": "Send everything again, not only what changed",
+      "fullNote": "Use this if the other device said it is missing a file. The file is larger.",
+      "privateNote": "Without a password the file is private: anyone who has it can read your messages and photos. Keep it somewhere only you can reach, and delete it once the other device has it.",
+      "protectNote": "Optional. If you forget this password, the file cannot be opened and we cannot recover it. You will need it on the other device.",
+      "submit": "Make the file",
+      "progressLabel": "Making the file",
+      "nothing": "There is nothing new to send to this device, so no file was made.",
+      "savedTitle": "The file was made",
+      "saved": "Your browser was given {fileName}. Check your Downloads folder to make sure it is there.",
+      "savedProtected": "It is protected with a password.",
+      "savedPrivate": "It is not protected by a password, so anyone who has it can read it. Keep it private.",
+      "savedFull": "It holds everything in this archive.",
+      "savedChanges": "It holds only what changed.",
+      "savedNewDevice": "Open it on the other device. After that device sends a file back, this one will know about it.",
+      "confirmTitle": "Did you hand {fileName} to device {code}?",
+      "confirmHelp": "Answer yes only when the file is on the other device. Until then this device keeps these changes ready for the next file.",
+      "confirmYes": "Yes, I handed it over",
+      "confirmNo": "Not yet",
+      "recording": "Saving your answer…",
+      "handed": "Noted. The next file for this device will hold only what changes from now on.",
+      "handedStale": "Nothing new was noted: the other device’s last file changed what this device knows. Nothing is lost, and the next file starts from what this device knows.",
+      "notHanded": "Nothing was noted. The next file for this device will hold these same changes.",
+      "errorReplaced": "This archive was replaced after the file was made, so nothing was noted. Make a new file.",
+      "errorRecord": "Your answer could not be saved. Nothing was lost. Try again.",
+      "another": "Make another file"
+    },
+    "inbox": {
+      "title": "Received files",
+      "description": "Files of changes shared with Memory Archive wait here until you add them or remove them.",
+      "add": "Add the changes",
+      "addLabel": "Add the changes from {fileName}",
+      "remove": "Remove",
+      "removeLabel": "Remove {fileName} from this device"
+    },
+    "import": {
+      "title": "Receive changes from another device",
+      "description": "Open a file made by another device. When it is added, this screen tells you what changed; nothing here is replaced or deleted without telling you.",
+      "pick": "Choose a file",
+      "progressLabel": "Adding the changes",
+      "promptTitle": "This file is protected",
+      "promptBody": "Enter the password you chose when you made {fileName}.",
+      "promptCancel": "Cancel",
+      "promptSubmit": "Open file",
+      "wrongPassword": "That password does not open this file. Check the password; if you are sure it is right, the file may be damaged. Nothing was changed.",
+      "isBackup": "{fileName} is a full backup, not a file of changes. Open it from Backup and restore.",
+      "isBackupLink": "Go to Backup and restore",
+      "resultTitle": "The changes were added",
+      "messagesAdded": "{count, plural, one {# new message added.} other {# new messages added.}}",
+      "messagesSkipped": "{count, plural, one {# message was already in the archive and was not copied again.} other {# messages were already in the archive and were not copied again.}}",
+      "people": "{count, plural, one {# person added or updated.} other {# people added or updated.}}",
+      "conversations": "{count, plural, one {# conversation added or updated.} other {# conversations added or updated.}}",
+      "notes": "{count, plural, one {# note added or updated.} other {# notes added or updated.}}",
+      "favorites": "{count, plural, one {# favorite added.} other {# favorites added.}}",
+      "removed": "{count, plural, one {# favorite or note removed, because it was deleted on the other device.} other {# favorites or notes removed, because they were deleted on the other device.}}",
+      "nothingNew": "Everything in this file was already in the archive. Nothing changed.",
+      "conflicts": "{count, plural, one {# item was changed on both devices. Both versions are kept and nothing was overwritten.} other {# items were changed on both devices. Both versions are kept and nothing was overwritten.}}",
+      "conflictsLater": "Choosing which to keep is not available yet.",
+      "offers": "{count, plural, one {# import was undone on the other device. Nothing was removed here.} other {# imports were undone on the other device. Nothing was removed here.}}",
+      "another": "Choose another file",
+      "errorTitle": "The changes were not added",
+      "error": {
+        "gap": "This file leaves out an earlier one from the other device, so nothing was added. On the other device, choose “Send everything again” and bring that file.",
+        "wrongDevice": "This file was made for a different device, so nothing was added. Ask the other device to make one for this device.",
+        "ownPack": "This file was made by this device. Open it on the other device instead. Nothing was changed.",
+        "notPack": "This is not a file of changes from Memory Archive, so nothing was added. If it is a backup, open it from Backup and restore.",
+        "damaged": "This file is damaged or incomplete, so nothing was added. Ask the other device to make it again.",
+        "newer": "This file comes from a newer version of Memory Archive. Update the app to open it. Nothing was changed.",
+        "limit": "This file is larger than this app can safely open. Nothing was changed. Ask the other device for smaller files.",
+        "storage": "There is not enough space on this device, or it could not be written to. Nothing was changed.",
+        "busy": "Another task is already running. Wait for it to finish and try again.",
+        "passwordRequired": "This file is protected. Enter its password to open it.",
+        "encryptionUnavailable": "This browser cannot open files with a password here. Try again from the installed app or over a secure connection. Nothing was changed.",
+        "generic": "Something went wrong. Nothing was changed. Try again."
+      }
+    },
+    "progressAnnounce": "{percent}% done"
   }
 }
