@@ -149,6 +149,8 @@ export interface UndoPhotoBatchResult {
   /** False when the batch does not exist (already undone): nothing changed. */
   found: boolean;
   removedItems: number;
+  /** Profile assignments dropped because their picture has no item left (see below). */
+  removedAssignments: number;
   /** Blobs nothing refers to any more; rows removed, the caller deletes the bytes. */
   unreferencedBlobs: string[];
 }
@@ -156,23 +158,32 @@ export interface UndoPhotoBatchResult {
 /**
  * Takes a photo import back: the items it added and the media nothing else uses. A picture the
  * import found already present belongs to the batch that added it and stays. Idempotent.
+ * A picture that loses its LAST item leaves the collection, and so do its profile assignments
+ * (they were choices about a picture that is gone); a picture still held by an item of another
+ * import keeps them.
  */
 export function undoPhotoBatch(db: SqlDb, batchId: string): UndoPhotoBatchResult {
   if (!isUuid(batchId)) invalid('batch id must be a UUID');
   return transaction(db, () => {
     if (db.all('SELECT 1 FROM photo_batches WHERE id = ?', [batchId]).length === 0) {
-      return { found: false, removedItems: 0, unreferencedBlobs: [] };
+      return { found: false, removedItems: 0, removedAssignments: 0, unreferencedBlobs: [] };
     }
     const candidates = db.all<{ sha256: string }>('SELECT DISTINCT sha256 FROM photo_items WHERE batch_id = ?', [batchId]).map((r) => r.sha256);
     const removedItems = db.run('DELETE FROM photo_items WHERE batch_id = ?', [batchId]);
     db.run('DELETE FROM photo_batches WHERE id = ?', [batchId]);
+    let removedAssignments = 0;
+    for (const sha256 of candidates) {
+      if (db.all('SELECT 1 FROM photo_items WHERE sha256 = ? LIMIT 1', [sha256]).length === 0) {
+        removedAssignments += db.run('DELETE FROM photo_profiles WHERE sha256 = ?', [sha256]);
+      }
+    }
     const unreferencedBlobs: string[] = [];
     for (const sha256 of candidates) {
       if (isReferenced(db, sha256)) continue;
       db.run('DELETE FROM blobs WHERE sha256 = ?', [sha256]);
       unreferencedBlobs.push(sha256);
     }
-    return { found: true, removedItems, unreferencedBlobs };
+    return { found: true, removedItems, removedAssignments, unreferencedBlobs };
   });
 }
 

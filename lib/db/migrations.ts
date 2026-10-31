@@ -439,6 +439,30 @@ ALTER TABLE photo_items ADD COLUMN taken_offset_minutes INTEGER CHECK (taken_off
 UPDATE photo_items SET date_source = 'sidecar' WHERE taken_at IS NOT NULL;
 `;
 
+/**
+ * v13 (expand only): which profiles a picture is assigned to (`docs/formats/photo-library.md`).
+ * One new table, empty after migrating; no existing column or row changes, so a v1-v12 backup
+ * restores by migrating. Added with its first entry point, `assignPhotos`.
+ *
+ * - The key is the PICTURE (`sha256`), not a `photo_items` row: the same bytes from two albums or
+ *   sources are one tile and one assignment. Deleting a profile removes its links (cascade).
+ * - `sha256` references `blobs`, so the bytes of an assigned picture cannot be dropped while a link
+ *   exists. The rule "a link only exists for a sha256 that has a `photo_items` row" is not
+ *   expressible as a constraint (items are not unique per sha256): the writers keep it (`assignPhotos`
+ *   checks, `undoPhotoBatch` removes the links of a picture that loses its last item) and
+ *   `loadSnapshot` refuses a backup that breaks it.
+ * - Nothing here assigns by date or by anything else: a row exists only because the person chose it.
+ */
+const V13 = `
+CREATE TABLE photo_profiles (
+  sha256     TEXT NOT NULL REFERENCES blobs(sha256),
+  profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (sha256, profile_id)
+) STRICT;
+CREATE INDEX photo_profiles_by_profile ON photo_profiles(profile_id, sha256);
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, sql: V1 },
   { version: 2, sql: V2 },
@@ -452,6 +476,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 10, sql: V10 },
   { version: 11, sql: V11 },
   { version: 12, sql: V12 },
+  { version: 13, sql: V13 },
 ];
 
 /** Schema version this build produces and understands. */

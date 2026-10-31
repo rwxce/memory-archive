@@ -128,9 +128,9 @@ describe('undoPhotoBatch and reads', () => {
     const d = await db();
     importPhotoItems(d, input());
     importPhotoItems(d, input({ batchId: B2, blobs: [{ sha256: A, size: 3, mime: null }, { sha256: B, size: 1, mime: null }], items: [item({ album: 'Other' }), item({ sha256: B, album: 'Other', fileName: 'b.jpg' })] }));
-    expect(undoPhotoBatch(d, B2)).toEqual({ found: true, removedItems: 2, unreferencedBlobs: [B] });
+    expect(undoPhotoBatch(d, B2)).toEqual({ found: true, removedItems: 2, removedAssignments: 0, unreferencedBlobs: [B] });
     expect(d.all('SELECT sha256 FROM blobs')).toEqual([{ sha256: A }]);
-    expect(undoPhotoBatch(d, B2)).toEqual({ found: false, removedItems: 0, unreferencedBlobs: [] });
+    expect(undoPhotoBatch(d, B2)).toEqual({ found: false, removedItems: 0, removedAssignments: 0, unreferencedBlobs: [] });
     expect(listPhotoItems(d, { limit: 10 }).map((i) => i.album)).toEqual(['Trip']);
   });
 

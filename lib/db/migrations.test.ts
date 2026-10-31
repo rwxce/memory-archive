@@ -48,6 +48,7 @@ describe('migrate', () => {
       'participants',
       'photo_batches',
       'photo_items',
+      'photo_profiles',
       'profiles',
       'sync_conflicts',
       'sync_peers',
@@ -903,6 +904,7 @@ describe('migration v7 to v8 (device sync tracking)', () => {
 const UPTO_9 = MIGRATIONS.slice(0, 9);
 const UPTO_10 = MIGRATIONS.slice(0, 10);
 const UPTO_11 = MIGRATIONS.slice(0, 11);
+const UPTO_12 = MIGRATIONS.slice(0, 12);
 
 describe('migration v8 to v9 (changes-pack conflicts)', () => {
   const PEER = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
@@ -1098,7 +1100,7 @@ describe('migration v11 to v12 (photo date source)', () => {
 
   test('existing Takeout items become sidecar when they have a date and none otherwise; nothing else changes', async () => {
     const db = await v11WithPhotos();
-    expect(migrate(db)).toEqual({ from: 11, to: 12 });
+    expect(migrate(db, UPTO_12)).toEqual({ from: 11, to: 12 });
     expect(readUserVersion(db)).toBe(12);
     expect(db.all('SELECT album, taken_at, date_source FROM photo_items ORDER BY id')).toEqual([
       { album: 'Dated', taken_at: '2019-07-01T10:00:00Z', date_source: 'sidecar' },
@@ -1106,7 +1108,7 @@ describe('migration v11 to v12 (photo date source)', () => {
     ]);
     expect(db.all('SELECT sha256 FROM blobs')).toEqual([{ sha256: HASH }]);
     const fresh = await emptyDb();
-    migrate(fresh);
+    migrate(fresh, UPTO_12);
     const sql = (d: typeof db) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
     expect(sql(db).map((r) => (r as { name: string }).name)).toEqual(sql(fresh).map((r) => (r as { name: string }).name));
   });
@@ -1141,16 +1143,73 @@ describe('migration v11 to v12 (photo date source)', () => {
 
   test('a failure in v12 leaves the v11 database as it was, and a retry succeeds', async () => {
     const db = await v11WithPhotos();
-    const broken: Migration[] = [...MIGRATIONS.slice(0, 11), { version: 12, sql: `${MIGRATIONS[11].sql} INSERT INTO missing_table VALUES (1);` }];
+    const broken: Migration[] = [...UPTO_11, { version: 12, sql: `${MIGRATIONS[11].sql} INSERT INTO missing_table VALUES (1);` }];
     expect(() => migrate(db, broken)).toThrow();
     expect(readUserVersion(db)).toBe(11);
     expect(db.all("SELECT name FROM pragma_table_info('photo_items') WHERE name = 'date_source'")).toEqual([]);
-    expect(migrate(db)).toEqual({ from: 11, to: 12 });
+    expect(migrate(db, UPTO_12)).toEqual({ from: 11, to: 12 });
   });
 
   test('an older app refuses a v12 database', async () => {
     const db = await v11WithPhotos();
-    migrate(db);
+    migrate(db, UPTO_12);
     expect(() => migrate(db, UPTO_11)).toThrow(/newer than this app understands/);
+  });
+});
+
+describe('migration v12 to v13 (photo assignments)', () => {
+  const BATCH = '00000000-0000-4000-8000-0000000000b3';
+  const PROFILE = '00000000-0000-4000-8000-0000000000c3';
+
+  async function v12WithPhotos() {
+    const db = await emptyDb();
+    db.exec('PRAGMA foreign_keys = ON');
+    migrate(db, UPTO_12);
+    db.run('INSERT INTO blobs (sha256, size, mime) VALUES (?, 1, NULL)', [HASH]);
+    db.run("INSERT INTO photo_batches (id, source, created_at) VALUES (?, 'takeout', 't')", [BATCH]);
+    db.run("INSERT INTO photo_items (batch_id, sha256, kind, source, album, file_name) VALUES (?, ?, 'photo', 'takeout', '', 'a.jpg')", [BATCH, HASH]);
+    db.run("INSERT INTO profiles (id, display_name, created_at, updated_at) VALUES (?, 'Ana', 't', 't')", [PROFILE]);
+    return db;
+  }
+
+  test('adds one empty table and changes no row; the schema matches a fresh database', async () => {
+    const db = await v12WithPhotos();
+    expect(migrate(db)).toEqual({ from: 12, to: 13 });
+    expect(readUserVersion(db)).toBe(13);
+    expect(db.all('SELECT * FROM photo_profiles')).toEqual([]);
+    expect(db.all('SELECT sha256, album FROM photo_items')).toEqual([{ sha256: HASH, album: '' }]);
+    expect(db.all('SELECT id FROM profiles')).toEqual([{ id: PROFILE }]);
+    const fresh = await emptyDb();
+    migrate(fresh);
+    const sql = (d: typeof db) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
+    expect(sql(db)).toEqual(sql(fresh));
+  });
+
+  test('a link needs a stored picture and a profile; deleting the profile removes its links; a pair is unique', async () => {
+    const db = await v12WithPhotos();
+    migrate(db);
+    const link = (sha: string, profile: string) => db.run("INSERT INTO photo_profiles (sha256, profile_id, created_at) VALUES (?, ?, 't')", [sha, profile]);
+    expect(link(HASH, PROFILE)).toBe(1);
+    expect(() => link(HASH, PROFILE)).toThrow(/UNIQUE|PRIMARY/);
+    expect(() => link('cd'.repeat(32), PROFILE)).toThrow(/FOREIGN/);
+    expect(() => link(HASH, '00000000-0000-4000-8000-0000000000ff')).toThrow(/FOREIGN/);
+    expect(() => db.run('DELETE FROM blobs WHERE sha256 = ?', [HASH])).toThrow(/FOREIGN/);
+    db.run('DELETE FROM profiles WHERE id = ?', [PROFILE]);
+    expect(db.all('SELECT * FROM photo_profiles')).toEqual([]);
+  });
+
+  test('a failure in v13 leaves the v12 database as it was, and a retry succeeds', async () => {
+    const db = await v12WithPhotos();
+    const broken: Migration[] = [...UPTO_12, { version: 13, sql: `${MIGRATIONS[12].sql} INSERT INTO missing_table VALUES (1);` }];
+    expect(() => migrate(db, broken)).toThrow();
+    expect(readUserVersion(db)).toBe(12);
+    expect(db.all("SELECT name FROM sqlite_master WHERE name = 'photo_profiles'")).toEqual([]);
+    expect(migrate(db)).toEqual({ from: 12, to: 13 });
+  });
+
+  test('an older app refuses a v13 database', async () => {
+    const db = await v12WithPhotos();
+    migrate(db);
+    expect(() => migrate(db, UPTO_12)).toThrow(/newer than this app understands/);
   });
 });

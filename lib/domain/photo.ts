@@ -196,3 +196,63 @@ export interface PhotoBatch {
   addedCount: number;
   skippedCount: number;
 }
+
+/** At most this many pictures in one `assignPhotos` / `unassignPhotos` call (one transaction). */
+export const PHOTO_ASSIGN_MAX = 2000;
+/** At most this many profiles in one `assignPhotos` call. */
+export const PHOTO_ASSIGN_PROFILES_MAX = 50;
+/** The most album names a `PhotoPicture` lists; `albumCount` has the real number. */
+export const PHOTO_PICTURE_ALBUMS_MAX = 5;
+
+/**
+ * Which pictures a listing shows. `unassigned`: in no profile; `assigned`: in at least one (with
+ * `profileId`: in that profile); `all`: every picture. `profileId` only goes with `assigned`.
+ */
+export type PhotoScope = { show: 'all' | 'unassigned' } | { show: 'assigned'; profileId?: string };
+
+/** Where the next page of pictures starts (opaque to callers: pass back `nextCursor`). */
+export interface PhotoCursor {
+  /** The sort key of the last picture shown (see `lib/db/photo-assign.ts`), null for the undated tail. */
+  sortKey: string | null;
+  sha256: string;
+}
+
+/**
+ * One tile of the picture grid: the bytes (`sha256`) seen through every item that holds them. The
+ * date, kind, mime and file name are those of the item with the most trustworthy date
+ * (`betterDate`); show the date only through `photoDisplayDate(picture)`.
+ */
+export interface PhotoPicture {
+  sha256: string;
+  kind: PhotoKind;
+  mime: string | null;
+  takenAt: string | null;
+  takenOffsetMinutes: number | null;
+  dateSource: PhotoDateSource;
+  fileName: string;
+  /** Distinct non-empty album names, sorted, at most `PHOTO_PICTURE_ALBUMS_MAX`. */
+  albums: string[];
+  /** How many distinct non-empty album names the picture is in. */
+  albumCount: number;
+  /** Distinct sources (`takeout`, `loose`, ...), sorted. */
+  sources: string[];
+  /** Items (source, album) holding these bytes. */
+  itemCount: number;
+  /** Profiles the person assigned it to, sorted by id. */
+  assignedProfileIds: string[];
+}
+
+export interface PhotoPicturePage {
+  pictures: PhotoPicture[];
+  /** Null on the last page. */
+  nextCursor: PhotoCursor | null;
+}
+
+export interface PhotoCounts {
+  /** Distinct pictures (by bytes). */
+  pictures: number;
+  /** Pictures assigned to no profile. */
+  unassigned: number;
+  /** Rows in the collection (one picture in two albums is two items). */
+  items: number;
+}
