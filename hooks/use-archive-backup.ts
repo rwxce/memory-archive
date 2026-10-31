@@ -12,6 +12,7 @@ import {
   type ReplaceProgress,
 } from '@/lib/usecases/archive-backup';
 import { downloadBlob } from './download-blob';
+import { retryWhileBusy } from './retry-busy';
 import { useLibraryInternals } from './use-library';
 
 export type ArchiveKind = 'backup' | 'restore' | 'replace';
@@ -71,8 +72,13 @@ export function useArchiveBackup(): ArchiveBackup {
       busy.current = true;
       setState({ status: 'working', kind, progress: { phase: 'preparing' } });
       try {
-        const outcome = await work((progress, stage) =>
-          setState({ status: 'working', kind, progress, stage, cancellable: stage === undefined ? undefined : !(stage === 'restoring' && progress.phase === 'finishing') }),
+        // The library's clean-up at open holds the archive for a moment: wait for it instead of failing.
+        const outcome = await retryWhileBusy(
+          () =>
+            work((progress, stage) =>
+              setState({ status: 'working', kind, progress, stage, cancellable: stage === undefined ? undefined : !(stage === 'restoring' && progress.phase === 'finishing') }),
+            ),
+          kind === 'replace' ? controller.current?.signal : undefined,
         );
         setState({ status: 'done', kind, safetyBackupFileName: outcome?.safetyBackupFileName, encrypted: outcome?.encrypted });
       } catch (error) {

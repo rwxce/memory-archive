@@ -995,8 +995,14 @@ test type or architecture rule means updating this file **in the same PR**.
     (`e2e/history.spec.ts`: same ZIP twice = one entry and unchanged counts; a newer export adds only the difference; undo from
     the history; Catalan; and the Phase 4 check: a 2,300-message ZIP with 300 files of 64 kB built once per worker; after a real progress signal (files copied > 0) closing the tab / reloading leaves exactly 0 conversations and an empty history, and importing again ends with every message once; the all-or-nothing guarantee itself is held by the table-state tests in `lib/usecases/import.test.ts`). Screenshots on failure only; `test-results/` and `playwright-report/` are
     git-ignored. Firefox and WebKit projects come in Phase 6 with a browser install step.
-- **Planned:** an automated run of the PRD acceptance scenario (backup → restore on a clean
-  browser) in e2e.
+- **Backup acceptance scenario** (`e2e/backup-restore.spec.ts`, Chromium at 390 and 1440 px): ten
+  synthetic people, four imports (a newer export for Mama adds only the difference), photos, a
+  message note, a person note and a favorite; the screens' state is captured (counts, media
+  bytes, People, conversations, favorites, notes), a plain and a password-protected backup are
+  downloaded, and each is opened in a fresh browser context (clean OPFS; a wrong password
+  changes nothing) and compared with the capture; "Check my archive" must be all good; the
+  protected backup also replaces a non-empty library (safety copy downloaded first); no request
+  leaves the origin. Safari and Firefox remain a manual check.
 
 ## 5. CI/CD and branches
 
