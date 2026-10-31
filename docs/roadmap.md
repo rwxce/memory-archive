@@ -150,9 +150,10 @@ result summary, pointers from Backup and the import wizard) is built, and so is 
 **Status: in progress. Done: the data layer and use cases for all three ways in: Google Photos Takeout album
 (schema v11, `importTakeoutAlbum`), loose files from the device and a Google Photos web-download ZIP (schema v12 date
 source, `importLoosePhotos`, `importGooglePhotosZip`, `detectPhotoSource`; items 18 and 19a), with undo and backup /
-restore of the collection; format in `docs/formats/photo-library.md`. No screen yet. Not built: the Photos screen
-(file picker, import progress; item 19b), the selection grid and assigning photos to profiles, syncing photos in a
-changes pack (known limit, unchanged).**
+restore of the collection; format in `docs/formats/photo-library.md`. Item 19 is done: the Photos screen (`/photos`,
+linked from Settings) picks a ZIP (told apart by content) or loose files, shows progress with Stop, the result and past
+imports with Undo. Not built: the selection grid and assigning photos to profiles (item 20), syncing photos in a
+changes pack (known limit, unchanged). Not yet checked on a real phone gallery picker.**
 
 - Three ways to pick specific photos: Google Photos web download of a selection, Takeout of
   one album (keeps original dates and locations), or the device gallery picker.

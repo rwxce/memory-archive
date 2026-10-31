@@ -187,6 +187,22 @@ test type or architecture rule means updating this file **in the same PR**.
     a plain file goes on unchanged. The password is an argument of `backup` / `restore` / `replace` / `useBackupFileCheck().run`
     only: never in state, storage or logs, and cleared from the fields when handed over. The replace dialog states that its
     safety copy is not encrypted. Progress adds `encrypting` / `decrypting`. Tested in `components/backup-encrypted.test.tsx` and `hooks/use-archive-backup.test.tsx`.
+  - **Photos** (`/[locale]/photos/`, queue item 19b; `components/photos-screen.tsx` plus `photos-notes`, `photos-add-cards`,
+    `photos-run-status`, `photos-batches-card`; hooks `use-photo-import`, `use-photo-batches`, reusing `throttle-progress` and
+    `retry-busy`; copy under `photos.*`, Settings row `settings.photos`). Sub-screen with a back pill to Settings. A ZIP is told
+    apart by content with `detectPhotoSource` and sent to `importTakeoutAlbum` / `importGooglePhotosZip`; a WhatsApp chat, a
+    backup or a changes file only gets a pointer to Import / Backup / Sync (nothing is imported); a lone picture handed to the
+    ZIP picker joins the loose choice; anything else is a calm message. Loose files (`accept="image/*,video/*" multiple`) wait in
+    a visible count that can be removed before `importLoosePhotos`, with an optional album name cut by code points (200). One
+    import or undo at a time (busy ref, and the screen disables the other buttons); `retryWhileBusy` covers the open-time cleanup;
+    Stop aborts until the save begins (then it is offered disabled: the save commits whole). The result lists added, already
+    there, skipped, unreadable, too large and estimated dates. `photoFailureOf` maps `TakeoutError` / `ArchiveError` / `DbError`
+    (matched by name and `code`, hooks may not import `lib/importers` or `lib/db`) to eight calm messages; raw error text is never
+    shown. Two notes are always visible: pictures are not assigned to anyone yet, and an estimated date comes from the file.
+    "Added so far" lists `listPhotoBatches` (label or source, source, when, count; names are text, clamped) with Undo behind an
+    inline confirmation that names the import, the number of items and says that pictures also used in a chat, a profile photo
+    or elsewhere stay. No grid and no assignment yet (queue item 20). Tested in `components/photos-screen.test.tsx` (every
+    detect route, loose import, cancel, errors, undo, double click, escaping) and `e2e/photos.spec.ts` (390 and 1440 px).
   - **Sync devices** (`/[locale]/sync/`, `components/sync-screen.tsx` plus `sync-device-card`, `sync-export-card`,
     `sync-import-card`, `sync-inbox`, `sync-progress`, `sync-conflicts-card`, `sync-conflict-item`, `sync-batch-offer`; hooks `use-sync-device`, `use-sync-conflicts`, `use-changes-pack-export`, `use-changes-pack-import`,
     `peek-archive-file`, `throttle-progress`; copy under `sync.*`). Sub-screen with a back pill to Settings (a Settings row
@@ -618,7 +634,7 @@ test type or architecture rule means updating this file **in the same PR**.
   delete a file an item uses) and `isLibraryEmpty` treats them as content. The changes pack does not carry them yet
   (known limit in `docs/formats/changes-pack.md`). Use cases in `lib/usecases/photo-library.ts` (`importTakeoutAlbum`,
   `undoPhotoImport`, `listPhotoItems`, `countPhotoItems`, `listPhotoBatches`), db ops `importPhotoItems`,
-  `undoPhotoBatch`, `listPhotoItems`, `countPhotoItems`, `listPhotoBatches` in `lib/db/photos.ts`; no screen yet.
+  `undoPhotoBatch`, `listPhotoItems`, `countPhotoItems`, `listPhotoBatches` in `lib/db/photos.ts`; the Photos screen (`/photos`) imports and undoes.
   Format: `docs/formats/photo-library.md`.
 - **Schema v12 (implemented, expand-only; photo date source, queue item 19a)** — `photo_items.date_source`
   (`sidecar`, `exif`, `exif-local`, `file-modified`, `none`; `NOT NULL DEFAULT 'none'` with a CHECK), so a screen can tell an
@@ -1116,7 +1132,8 @@ test type or architecture rule means updating this file **in the same PR**.
     `serve-out.test.ts` (base path, 404, no path traversal), `eslint-architecture.test.ts`. The vendored `security-audit` validators have
     their own `node --test` suite.
   - End to end — `e2e/*.spec.ts` (Playwright `@playwright/test`, not part of `pnpm check`):
-    `pnpm build` then `pnpm e2e` drives the built `out/` served by `pnpm preview`, in the
+    `pnpm build` then `pnpm e2e` (which first regenerates the synthetic `fixtures/`, as `pnpm test`
+    does) drives the built `out/` served by `pnpm preview`, in the
     system Google Chrome (`channel: 'chrome'`, no browser download), projects `mobile-390`
     (390x844, touch) and `desktop-1440`. Each test has a fresh context (fresh OPFS); the shared
     fixture in `e2e/fixtures.ts` listens on the browser context (pages, workers, service worker) and fails a test on any request Chrome makes to a non-local origin; `e2e/guard.spec.ts` proves it can fail. It says nothing about traffic outside the browser. Covers

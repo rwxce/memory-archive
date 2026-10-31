@@ -83,6 +83,9 @@ export function SettingsScreen() {
         <Link href="/sync" className={settingsRowClass}>
           <SettingsRowContent title={t('sync.title')} hint={t('sync.description')} />
         </Link>
+        <Link href="/photos" className={settingsRowClass}>
+          <SettingsRowContent title={t('photos.title')} hint={t('photos.description')} />
+        </Link>
       </SettingsRows>
 
       <ReminderSettingsCard />

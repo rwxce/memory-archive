@@ -174,6 +174,10 @@
       "hint": "A quiet card inside the app. Nothing is sent and no notifications are shown.",
       "interval": "Remind me after",
       "days": "{count} days"
+    },
+    "photos": {
+      "title": "Photos",
+      "description": "Add photos and videos from your phone or Google Photos."
     }
   },
   "notFound": {
@@ -1247,5 +1251,91 @@
     },
     "later": "Remind me later",
     "never": "Don’t remind me"
+  },
+  "photos": {
+    "title": "Photos",
+    "intro": "Bring in photos and videos from your phone or from Google Photos. Everything stays on this device.",
+    "notes": {
+      "title": "Good to know",
+      "unassigned": "Pictures added here are not assigned to anyone yet.",
+      "estimate": "A date marked as an estimate comes from the file, not from the camera."
+    },
+    "zip": {
+      "title": "From Google Photos",
+      "description": "Choose a ZIP file downloaded from Google Photos, or a Google Takeout of an album. The app looks at what is inside before it adds anything.",
+      "pick": "Choose a ZIP file"
+    },
+    "loose": {
+      "title": "From this device",
+      "description": "Choose photos and videos from your gallery or your files.",
+      "pick": "Choose photos and videos",
+      "pickMore": "Choose more",
+      "chosen": "{count, plural, one {# file chosen} other {# files chosen}}",
+      "remove": "Remove choice",
+      "labelLabel": "Album name (optional)",
+      "labelHint": "Keeps these photos together under one name.",
+      "add": "Add to the collection"
+    },
+    "progressLabel": "Adding photos and videos",
+    "checking": "Looking at <name></name>…",
+    "stop": "Stop",
+    "stopped": "Stopped. Nothing was added.",
+    "result": {
+      "title": "Photos added",
+      "titleNone": "Nothing new was added",
+      "another": "Add more",
+      "added": "{count, plural, one {# photo or video added to the collection.} other {# photos and videos added to the collection.}}",
+      "alreadyThere": "{count, plural, one {# was already in the collection and was not added again.} other {# were already in the collection and were not added again.}}",
+      "ignored": "{count, plural, one {# file was not a photo or a video and was skipped.} other {# files were not photos or videos and were skipped.}}",
+      "unreadable": "{count, plural, one {# file could not be read and was skipped.} other {# files could not be read and were skipped.}}",
+      "tooLarge": "{count, plural, one {# file was too large and was skipped.} other {# files were too large and were skipped.}}",
+      "estimates": "{count, plural, one {# date is an estimate, taken from the file.} other {# dates are estimates, taken from the file.}}",
+      "delegated": "This file was laid out as a Google Takeout and was read as one."
+    },
+    "elsewhere": {
+      "chat": "<name></name> is a WhatsApp chat, not a set of photos. Add it from Import.",
+      "chatLink": "Go to Import",
+      "backup": "<name></name> is a backup of this app. Open it from Backup and restore.",
+      "backupLink": "Go to Backup and restore",
+      "sync": "<name></name> is a file of changes from another device. Open it from Sync devices.",
+      "syncLink": "Go to Sync devices"
+    },
+    "error": {
+      "title": "Nothing was added",
+      "invalid": "This file does not look like photos or videos from Google Photos. Nothing was changed.",
+      "unreadable": "None of the chosen files could be read. They may be stored only in the cloud, or have been moved. Nothing was changed.",
+      "limit": "That is more than can be added in one go. Try a smaller selection. Nothing was changed.",
+      "busy": "Something else is using the archive right now. Wait a moment and try again. Nothing was changed.",
+      "closed": "The archive stopped responding. Reload the page and look at the list below to see what is there. Photos are added all together or not at all.",
+      "newer": "This archive was made by a newer version of the app. Update the app to add photos.",
+      "storage": "There is not enough space on this device, or it could not be written to. Try a smaller selection. Photos are added all together or not at all. Look at the list below to check what is there.",
+      "generic": "Something went wrong and the photos may not have been added. Photos are added all together or not at all. Look at the list below to check what is there, then try again if you need to.",
+      "titleUnsure": "Could not confirm the result",
+      "titleWrong": "Something went wrong"
+    },
+    "batches": {
+      "title": "Added so far",
+      "loading": "Loading…",
+      "empty": "Nothing has been added yet.",
+      "failed": "The list could not be read. Nothing was lost.",
+      "source": {
+        "takeout": "Google Takeout",
+        "google-photos-zip": "Google Photos download",
+        "loose": "From this device",
+        "other": "Other source"
+      },
+      "added": "{count, plural, one {# photo or video added} other {# photos and videos added}}",
+      "undo": "Undo import",
+      "undoLabel": "Undo import: {name}",
+      "confirmTitle": "Take back <name></name>?",
+      "confirmBody": "{count, plural, one {The # photo or video it added will be removed from the collection. If it is also used somewhere else, such as in a chat or a profile photo, it stays there.} other {The # photos and videos it added will be removed from the collection. Any that are also used somewhere else, such as in a chat or a profile photo, stay there.}}",
+      "confirmYes": "Undo import",
+      "confirmKeep": "Keep",
+      "working": "Taking the import back…",
+      "undone": "{count, plural, one {# photo or video was removed from the collection.} other {# photos and videos were removed from the collection.}}",
+      "undoneNone": "This import had already been taken back.",
+      "undoFailed": "The import could not be taken back. Try again in a moment; the list shows what is there."
+    },
+    "busyNow": "Another import is still running. Wait for it to finish, then choose again."
   }
 }

@@ -174,6 +174,10 @@
       "hint": "Una targeta discreta dins l’app. No s’envia res ni es mostren notificacions.",
       "interval": "Recorda-m’ho després de",
       "days": "{count} dies"
+    },
+    "photos": {
+      "title": "Fotos",
+      "description": "Afegeix fotos i vídeos del telèfon o de Google Fotos."
     }
   },
   "notFound": {
@@ -1247,5 +1251,91 @@
     },
     "later": "Recorda-m’ho més tard",
     "never": "No m’ho recordis"
+  },
+  "photos": {
+    "title": "Fotos",
+    "intro": "Porta fotos i vídeos del telèfon o de Google Fotos. Tot es queda en aquest dispositiu.",
+    "notes": {
+      "title": "Cal saber",
+      "unassigned": "Les imatges que afegeixes aquí encara no estan assignades a ningú.",
+      "estimate": "Una data marcada com a estimada ve del fitxer, no de la càmera."
+    },
+    "zip": {
+      "title": "De Google Fotos",
+      "description": "Tria un fitxer ZIP baixat de Google Fotos, o un Google Takeout d’un àlbum. L’app mira què hi ha dins abans d’afegir res.",
+      "pick": "Tria un fitxer ZIP"
+    },
+    "loose": {
+      "title": "D’aquest dispositiu",
+      "description": "Tria fotos i vídeos de la galeria o dels fitxers.",
+      "pick": "Tria fotos i vídeos",
+      "pickMore": "Tria’n més",
+      "chosen": "{count, plural, one {# fitxer triat} other {# fitxers triats}}",
+      "remove": "Treu la tria",
+      "labelLabel": "Nom de l’àlbum (opcional)",
+      "labelHint": "Manté aquestes fotos juntes sota un mateix nom.",
+      "add": "Afegeix a la col·lecció"
+    },
+    "progressLabel": "Afegint fotos i vídeos",
+    "checking": "Mirant <name></name>…",
+    "stop": "Atura",
+    "stopped": "Aturat. No s’ha afegit res.",
+    "result": {
+      "title": "Fotos afegides",
+      "titleNone": "No s’ha afegit res de nou",
+      "another": "Afegeix-ne més",
+      "added": "{count, plural, one {S’ha afegit # foto o vídeo a la col·lecció.} other {S’han afegit # fotos i vídeos a la col·lecció.}}",
+      "alreadyThere": "{count, plural, one {# ja era a la col·lecció i no s’ha tornat a afegir.} other {# ja eren a la col·lecció i no s’han tornat a afegir.}}",
+      "ignored": "{count, plural, one {# fitxer no era una foto ni un vídeo i s’ha saltat.} other {# fitxers no eren fotos ni vídeos i s’han saltat.}}",
+      "unreadable": "{count, plural, one {# fitxer no s’ha pogut llegir i s’ha saltat.} other {# fitxers no s’han pogut llegir i s’han saltat.}}",
+      "tooLarge": "{count, plural, one {# fitxer era massa gran i s’ha saltat.} other {# fitxers eren massa grans i s’han saltat.}}",
+      "estimates": "{count, plural, one {# data és estimada, presa del fitxer.} other {# dates són estimades, preses del fitxer.}}",
+      "delegated": "Aquest fitxer tenia l’estructura d’un Google Takeout i s’ha llegit com a tal."
+    },
+    "elsewhere": {
+      "chat": "<name></name> és un xat de WhatsApp, no un conjunt de fotos. Afegeix-lo des d’Importa.",
+      "chatLink": "Ves a Importa",
+      "backup": "<name></name> és una còpia d’aquesta app. Obre’l des de Còpia i restauració.",
+      "backupLink": "Ves a Còpia i restauració",
+      "sync": "<name></name> és un fitxer de canvis d’un altre dispositiu. Obre’l des de Sincronitza dispositius.",
+      "syncLink": "Ves a Sincronitza dispositius"
+    },
+    "error": {
+      "title": "No s’ha afegit res",
+      "invalid": "Aquest fitxer no sembla fotos ni vídeos de Google Fotos. No s’ha canviat res.",
+      "unreadable": "Cap dels fitxers triats s’ha pogut llegir. Potser només són al núvol o s’han mogut. No s’ha canviat res.",
+      "limit": "Són més coses de les que es poden afegir d’un cop. Prova una tria més petita. No s’ha canviat res.",
+      "busy": "Hi ha una altra cosa fent servir l’arxiu ara mateix. Espera un moment i torna-ho a provar. No s’ha canviat res.",
+      "closed": "L’arxiu ha deixat de respondre. Recarrega la pàgina i mira la llista de sota per veure què hi ha. Les fotos s’afegeixen totes alhora o cap.",
+      "newer": "Aquest arxiu l’ha fet una versió més nova de l’app. Actualitza l’app per afegir fotos.",
+      "storage": "No hi ha prou espai en aquest dispositiu, o no s’hi ha pogut escriure. Prova una tria més petita. Les fotos s’afegeixen totes alhora o cap. Mira la llista de sota per comprovar què hi ha.",
+      "generic": "Ha anat malament i potser les fotos no s’han afegit. Les fotos s’afegeixen totes alhora o cap. Mira la llista de sota per comprovar què hi ha i, si cal, torna-ho a provar.",
+      "titleUnsure": "No s’ha pogut confirmar el resultat",
+      "titleWrong": "Ha anat malament"
+    },
+    "batches": {
+      "title": "Afegit fins ara",
+      "loading": "Carregant…",
+      "empty": "Encara no s’ha afegit res.",
+      "failed": "No s’ha pogut llegir la llista. No s’ha perdut res.",
+      "source": {
+        "takeout": "Google Takeout",
+        "google-photos-zip": "Baixada de Google Fotos",
+        "loose": "D’aquest dispositiu",
+        "other": "Una altra font"
+      },
+      "added": "{count, plural, one {# foto o vídeo afegit} other {# fotos i vídeos afegits}}",
+      "undo": "Desfés la importació",
+      "undoLabel": "Desfés la importació: {name}",
+      "confirmTitle": "Vols desfer <name></name>?",
+      "confirmBody": "{count, plural, one {La # foto o vídeo que va afegir se separarà de la col·lecció. Si també es fa servir en un altre lloc, com un xat o una foto de perfil, s’hi queda.} other {Les # fotos i vídeos que va afegir se separaran de la col·lecció. Les que també es fan servir en un altre lloc, com un xat o una foto de perfil, s’hi queden.}}",
+      "confirmYes": "Desfés la importació",
+      "confirmKeep": "Conserva-la",
+      "working": "Desfent la importació…",
+      "undone": "{count, plural, one {S’ha tret # foto o vídeo de la col·lecció.} other {S’han tret # fotos i vídeos de la col·lecció.}}",
+      "undoneNone": "Aquesta importació ja s’havia desfet.",
+      "undoFailed": "No s’ha pogut desfer la importació. Torna-ho a provar d’aquí a un moment; la llista mostra què hi ha."
+    },
+    "busyNow": "Hi ha una altra importació en marxa. Espera que acabi i torna a triar."
   }
 }
