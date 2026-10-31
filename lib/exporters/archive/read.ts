@@ -10,6 +10,7 @@ import {
   validateEntryPath,
   type ArchiveLimits,
   type ArchiveManifest,
+  type ManifestEntry,
 } from './format';
 import type { ArchiveBlobRef } from './write';
 
@@ -125,22 +126,26 @@ async function collect(stream: ReadableStream<Uint8Array>, failure: { error?: Ar
   return out;
 }
 
-/**
- * Restores an archive ZIP into an EMPTY library (the caller checks emptiness).
- * The archive is untrusted: nothing is written until the central directory,
- * the manifest and the entry list have passed validation, every byte is
- * counted and hashed as it streams, and the database goes in last. On any
- * failure the blobs this restore stored are deleted and the database is
- * untouched, so the library is exactly as it was.
- *
- * One deliberate deviation from "database last": the database entry (small,
- * bounded by `maxEntryBytes`) is read and hash-verified before the blobs so a
- * tampered snapshot fails before any media is written; it is still applied last.
- */
-export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: RestoreOptions = {}): Promise<RestoreResult> {
-  const limits: ArchiveLimits = { ...DEFAULT_LIMITS, ...options.limits };
-  const failure: { error?: ArchiveError } = {};
+export interface OpenedArchive {
+  manifest: ArchiveManifest;
+  /** Every ZIP entry by name (the manifest included). */
+  byName: Map<string, ZipEntry>;
+  /** The manifest's entries by path. */
+  listed: Map<string, ManifestEntry>;
+}
 
+/**
+ * Everything restore checks before it reads an entry's content: central directory and structural
+ * limits, safe and unique paths, per-entry caps and the zip-bomb ratio, the strictly validated
+ * manifest, and that ZIP entries and manifest describe exactly the same set with the same sizes.
+ * Shared with `verifyArchive`. Throws `ArchiveError`; writes nothing.
+ */
+export async function openArchive(
+  zip: Blob,
+  supportedSchemaVersion: number,
+  limits: ArchiveLimits,
+  failure: { error?: ArchiveError } = {},
+): Promise<OpenedArchive> {
   // 1. Central directory and structural limits, before any entry is read.
   let entries: ZipEntry[];
   try {
@@ -182,7 +187,7 @@ export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: Re
     guardedStream(zip, manifestEntry, { size: manifestEntry.uncompressedSize, maxBytes: limits.maxManifestBytes }, failure),
     failure,
   );
-  const manifest = parseManifest(manifestBytes, hooks.supportedSchemaVersion, limits);
+  const manifest = parseManifest(manifestBytes, supportedSchemaVersion, limits);
 
   // 3. Entry list and manifest must describe exactly the same set.
   const listed = new Map(manifest.entries.map((e) => [e.path, e]));
@@ -194,6 +199,25 @@ export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: Re
     if (!entry) throw new ArchiveError('entry-mismatch', 'the manifest lists an entry the archive does not contain');
     if (entry.uncompressedSize !== item.size) throw new ArchiveError('integrity', 'an archive entry does not have the size the manifest records');
   }
+  return { manifest, byName, listed };
+}
+
+/**
+ * Restores an archive ZIP into an EMPTY library (the caller checks emptiness).
+ * The archive is untrusted: nothing is written until the central directory,
+ * the manifest and the entry list have passed validation, every byte is
+ * counted and hashed as it streams, and the database goes in last. On any
+ * failure the blobs this restore stored are deleted and the database is
+ * untouched, so the library is exactly as it was.
+ *
+ * One deliberate deviation from "database last": the database entry (small,
+ * bounded by `maxEntryBytes`) is read and hash-verified before the blobs so a
+ * tampered snapshot fails before any media is written; it is still applied last.
+ */
+export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: RestoreOptions = {}): Promise<RestoreResult> {
+  const limits: ArchiveLimits = { ...DEFAULT_LIMITS, ...options.limits };
+  const failure: { error?: ArchiveError } = {};
+  const { manifest, byName, listed } = await openArchive(zip, hooks.supportedSchemaVersion, limits, failure);
 
   const written: string[] = [];
   try {

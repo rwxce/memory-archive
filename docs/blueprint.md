@@ -166,6 +166,14 @@ test type or architecture rule means updating this file **in the same PR**.
     and is lost when the row scrolls out of the window. Tests: `conversation-screen.test.tsx`
     (toggle, states, ca), `hooks/use-message-source.test.tsx`, and an e2e flow in
     `e2e/conversation.spec.ts` (keyboard, no jump).
+  - **Backup and restore** (`/[locale]/backup/`, PRD screen 9; `components/backup-screen.tsx` plus `backup-usage-card`,
+    `backup-copy-card`, `backup-check-cards`, `task-progress`; hooks `use-archive-usage`, `use-archive-checks`,
+    `use-archive-backup`). Sub-screen with a back pill to Settings (the Settings row is now a link, not an inline backup).
+    Cards: what the archive holds (counts, bytes per kind, device quota and persistence); full backup (progress bar);
+    open a backup, offered only on an empty archive (otherwise a calm note says replacing comes later and nothing was
+    touched); "Check my archive" (`verifyLibraryIntegrity`: progress, Stop, result by kind, never file names or hashes);
+    "Check a backup file" (`verifyBackupFile`: complete / damaged parts / refusal copy per `ArchiveErrorCode`). Results take
+    focus when they appear; one archive task at a time. Tested in `components/backup-screen.test.tsx`. Copy under `backup.*`.
   - **Import history** (`/[locale]/import/history/`, optional `?person=<id>`,
     `components/import-history-screen.tsx`, `hooks/use-import-history.ts`): newest-first list of imports
     (file name, relative + absolute date, messages added / already there, conversation title, the
@@ -225,7 +233,7 @@ test type or architecture rule means updating this file **in the same PR**.
     missing id is a calm not-found with the way back. Focus returns to the opener, or to the
     section heading when the chat left the list; results are announced in the status region;
     wrapped in `Suspense` because of `useSearchParams`), `/[locale]/welcome/` (always reachable; *Start* asks for persistent storage and
-    goes to People), `/[locale]/settings/` (language, appearance, app version + archive format version),
+    goes to People), `/[locale]/settings/` (language, appearance, app version + archive format version), `/[locale]/backup/` (backup and restore),
     `not-found` → `out/404.html`.
   - Next.js telemetry disabled (`NEXT_TELEMETRY_DISABLED` in scripts, CI and
     `next.config.ts`; `.npmrc` `shell-emulator=true` makes the env prefix work on Windows).
@@ -337,7 +345,18 @@ test type or architecture rule means updating this file **in the same PR**.
     `hooks/use-tile-image.ts`; the lightbox and the conversation always use the full file.
   - `lib/usecases/device-storage.ts` — `prepareDeviceStorage`, `getDeviceStorageStatus`,
     `getSharedFiles`, `takeSharedFile`, `discardSharedFile` (called from `hooks/use-device-storage.ts`); `lib/usecases/archive.ts` —
-    `exportArchive`, `restoreArchiveIntoEmptyLibrary` (no UI entry point yet);
+    `exportArchive`, `restoreArchiveIntoEmptyLibrary` (the Backup and restore screen drives the PWA forms in `archive-backup.ts`);
+    `lib/usecases/archive-health.ts` — read-only checks for the Backup and restore screen, returning typed
+    results with no archive content in them (kinds, counts, hashes, ids): `verifyLibraryIntegrity(deps, { onProgress, signal })`
+    (under the archive busy guard; walks `blobs` rows in hash pages, checks store presence, size and streamed SHA-256
+    via `BlobStore.verify`, plus message / profile-photo references without a row; `{ ok, checkedFiles, checkedBytes,
+    problemCount, problems }`, `problems` capped at 100 of kinds `missing-file` / `wrong-size` / `hash-mismatch` /
+    `dangling-reference`; an abort rejects with the signal's reason), `verifyBackupFile(file, { onProgress, signal })`
+    (`verifyArchive` in `lib/exporters/archive/verify.ts` on the shared `openArchive` checks of restore; each entry
+    streamed through size and SHA-256, never held whole; a file that cannot be examined is `refusal: ArchiveErrorCode`,
+    per-file damage is `problems` of kind `size-mismatch` / `hash-mismatch` / `unreadable`; restores nothing),
+    `getArchiveUsage(deps, storage?)` (counts, bytes of media / thumbnails / database / search index, and
+    `StorageStatus`). New db ops, no schema change: `getLibraryStats`, `listBlobPage`, `findDanglingBlobRefs`;
     `lib/usecases/profiles.ts` (`createProfile`, `updateProfile`, `archiveProfile`,
     `unarchiveProfile`, `listProfiles`, `getProfileDetails`); `lib/usecases/profile-photo.ts` (`setProfilePhoto` downscales the chosen picture to 512 px and stores it as an ordinary content-addressed blob referenced by `profiles.photo_sha256` (no schema change since v2), releasing the replaced photo's row and bytes when no message or other profile uses it, via the db op `setProfilePhoto`; `removeProfilePhoto`; `getProfilePhoto` returns a typed `Blob` or `null`; the photo travels in the backup ZIP like any blob) and `conversations.ts`
     (`listConversations`, `renameConversation`, `moveConversation`,
@@ -358,7 +377,7 @@ test type or architecture rule means updating this file **in the same PR**.
     "Workers topology" and "Import preview" below.
   - `lib/db/snapshot.ts` — `serializeDb`, `loadSnapshot`, `listBlobs`, `isLibraryEmpty`.
   - `lib/exporters/archive/` — `format.ts` (manifest, limits, `ArchiveError`, path validation),
-    `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`restoreArchive`).
+    `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`openArchive`, `restoreArchive`), `verify.ts` (`verifyArchive`).
   - `lib/importers/whatsapp/` — `zip.ts` (single ZIP reader: central directory + ZIP64 over
     `Blob.slice`, fflate streaming inflate per entry), `lines.ts` (UTF-8 decoding + line
     splitting), `timestamp.ts`, `message.ts` (state machine), `chat.ts` (transcript entry,

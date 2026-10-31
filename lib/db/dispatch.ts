@@ -24,6 +24,9 @@ import {
   getPersonTimelineWindow,
   getProfile,
   getStorageBreakdown,
+  getLibraryStats,
+  listBlobPage,
+  findDanglingBlobRefs,
   importMessages,
   linkConversationProfile,
   listConversationDays,
@@ -59,7 +62,7 @@ import {
   type HighlightFilter,
   type HighlightScope,
 } from './highlights';
-import { discardSearchIndex, getSearchStatus, searchMessages, stepSearchIndex } from './search';
+import { discardSearchIndex, getSearchIndexBytes, getSearchStatus, searchMessages, stepSearchIndex } from './search';
 import { exportDatabase, isLibraryEmpty, listBlobs, loadSnapshot } from './snapshot';
 
 /** Most handlers are synchronous; `restoreDatabase` awaits the scratch database. `serve.ts` runs requests one at a time. */
@@ -101,6 +104,12 @@ const HANDLERS: Handlers = {
   },
   listBlobHashes: ({ db }) => listBlobs(db).map((b) => b.sha256),
   getStorageBreakdown: ({ db }) => getStorageBreakdown(db),
+  getLibraryStats: ({ db }) => ({ ...getLibraryStats(db), searchIndexBytes: getSearchIndexBytes(db) }),
+  listBlobPage: ({ db }, p) => {
+    const params = requireParams(p);
+    return listBlobPage(db, params.after as string | undefined, params.limit as number);
+  },
+  findDanglingBlobRefs: ({ db }, p) => findDanglingBlobRefs(db, requireParams(p).limit as number),
   exportDatabase: ({ db }) => exportDatabase(db),
   isLibraryEmpty: ({ db }) => isLibraryEmpty(db),
   restoreDatabase: async ({ db }, p) => {

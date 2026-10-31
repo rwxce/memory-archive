@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ArchiveStatus } from '@/components/archive-status';
 import { BackPill } from '@/components/back-pill';
 import { EraseCard } from '@/components/erase-card';
 import { Eyebrow } from '@/components/eyebrow';
@@ -14,7 +13,6 @@ import { settingsRowClass, SettingsRowContent, SettingsRows } from '@/components
 import { Shell } from '@/components/screen-shell';
 import { StorageCard } from '@/components/storage-card';
 import { ThemePicker } from '@/components/theme-picker';
-import { useArchiveBackup } from '@/hooks/use-archive-backup';
 import { useLibrary } from '@/hooks/use-library';
 import { Link } from '@/i18n/navigation';
 import { localeNames, type Locale } from '@/i18n/routing';
@@ -24,20 +22,16 @@ const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0';
 
 /**
  * Settings: space, appearance, then rows for language (drills into a small language view in the
- * same screen), import history and a backup of the whole archive; the erase card; the footer with
- * the privacy note and versions. The library opens here because the space split and the backup need it.
+ * same screen), import history and Backup and restore (its own screen); the erase card; the footer
+ * with the privacy note and versions. The library opens here because the space split needs it.
  */
 export function SettingsScreen() {
   const t = useTranslations('settings');
-  const ta = useTranslations('archive');
   const locale = useLocale() as Locale;
-  const { state: library } = useLibrary();
-  const { state: backupState, backup } = useArchiveBackup();
+  useLibrary();
   const [view, setView] = useState<'main' | 'language'>('main');
   const heading = useRef<HTMLHeadingElement>(null);
   const first = useRef(true);
-  const [notice, setNotice] = useState('');
-  const working = backupState.status === 'working';
 
   // Moving between the two views moves focus to the new view's title (not on first render).
   useEffect(() => {
@@ -61,7 +55,7 @@ export function SettingsScreen() {
   }
 
   return (
-    <Shell message={notice}>
+    <Shell>
       <PageTitle ref={heading} tabIndex={-1}>
         {t('title')}
       </PageTitle>
@@ -82,23 +76,10 @@ export function SettingsScreen() {
         <Link href="/import/history" className={settingsRowClass}>
           <SettingsRowContent title={t('history.title')} hint={t('history.description')} />
         </Link>
-        <button
-          type="button"
-          aria-disabled={working || undefined}
-          onClick={() => {
-            if (working) return;
-            if (library.status !== 'ready') setNotice(ta('notReady'));
-            else {
-              setNotice('');
-              void backup();
-            }
-          }}
-          className={settingsRowClass}
-        >
+        <Link href="/backup" className={settingsRowClass}>
           <SettingsRowContent title={t('backup.title')} hint={t('backup.description')} />
-        </button>
+        </Link>
       </SettingsRows>
-      <ArchiveStatus state={backupState} className="px-1 text-sm break-words empty:hidden" />
 
       <EraseCard />
 

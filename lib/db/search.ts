@@ -205,6 +205,20 @@ export function discardSearchIndex(db: SqlDb): void {
   }
 }
 
+/**
+ * Size of the index file in bytes, 0 when there is none. Read-only: it never creates, repairs or
+ * resets the index (a file that cannot be read counts as 0).
+ */
+export function getSearchIndexBytes(db: SqlDb): number {
+  const state = states.get(db);
+  if (!state || (!state.attached && !state.target.exists)) return 0;
+  try {
+    return attempt(db, state, false, () => db.all<{ n: number }>("SELECT page_count * page_size AS n FROM pragma_page_count('search'), pragma_page_size('search')")[0].n);
+  } catch {
+    return 0;
+  }
+}
+
 const isBuilt = (db: SqlDb) => db.all("SELECT 1 FROM search.meta WHERE key = 'built'").length > 0;
 
 /** `not-built` until one full pass completed; `ready` while nothing changed since a clean pass. */

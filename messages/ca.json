@@ -161,8 +161,8 @@
       "description": "Mira què ha afegit cada importació i desfés-ne una si ho necessites."
     },
     "backup": {
-      "title": "Fes una còpia de tot l'arxiu",
-      "description": "Un sol fitxer ZIP que pots obrir en qualsevol dispositiu."
+      "title": "Còpia i restauració",
+      "description": "Fes una còpia de tot l’arxiu, comprova’l i mira quin espai ocupa."
     }
   },
   "notFound": {
@@ -885,6 +885,91 @@
       "missingMedia": "Falta algun fitxer de l'arxiu, així que no s'ha pogut fer la còpia. No s'ha canviat res.",
       "storage": "No hi ha prou espai en aquest dispositiu o no s'hi ha pogut escriure. No s'ha canviat res.",
       "generic": "Alguna cosa ha anat malament. No s'ha esborrat res. Torna-ho a provar."
+    }
+  },
+  "backup": {
+    "title": "Còpia i restauració",
+    "intro": "Guarda una còpia de tot, comprova que no hi ha res malmès i mira quin espai ocupa l’arxiu. Tot passa en aquest dispositiu.",
+    "usage": {
+      "title": "Què conté l’arxiu",
+      "loading": "Comptant…",
+      "failed": "No s’ha pogut llegir la mida de l’arxiu. No s’ha canviat res.",
+      "counts": "Recompte",
+      "people": "{count, plural, one {# persona} other {# persones}}",
+      "conversations": "{count, plural, one {# conversa} other {# converses}}",
+      "messages": "{count, plural, one {# missatge} other {# missatges}}",
+      "files": "{count, plural, one {# fitxer de foto, vídeo o àudio} other {# fitxers de fotos, vídeos i àudios}}",
+      "sizes": "Espai utilitzat",
+      "media": "Fotos, vídeos i àudio",
+      "thumbnails": "Previsualitzacions",
+      "database": "Missatges i notes",
+      "searchIndex": "Cerca",
+      "device": "Aquest dispositiu deixa que l’aplicació faci servir {used} d’uns {total}.",
+      "deviceUnknown": "Aquest navegador no indica quant espai pot fer servir l’aplicació."
+    },
+    "copy": {
+      "title": "Fes una còpia",
+      "description": "Un sol fitxer ZIP amb tots els teus missatges i fitxers. El pots obrir en qualsevol dispositiu.",
+      "backup": "Fes una còpia de tot l’arxiu",
+      "progressLabel": "Progrés",
+      "restoreTitle": "Obre una còpia",
+      "restoreDescription": "Obre una còpia ZIP en un dispositiu que encara no tingui cap arxiu.",
+      "restore": "Tria un fitxer de còpia",
+      "restoreNotEmpty": "Aquest dispositiu ja té un arxiu, així que ara per ara no s’hi pot obrir una còpia. El teu arxiu està bé i no s’ha canviat. Substituir-lo per una còpia arribarà més endavant, amb una còpia de seguretat prèvia. Mentrestant pots obrir una còpia en un dispositiu buit."
+    },
+    "check": {
+      "title": "Comprova el teu arxiu",
+      "description": "Mira cada fitxer de foto, vídeo i àudio guardat en aquest dispositiu i comprova que és complet. No es canvia res.",
+      "run": "Comprova el meu arxiu",
+      "again": "Torna a comprovar",
+      "cancel": "Atura",
+      "starting": "Preparant…",
+      "progress": "{done} de {total} fitxers comprovats",
+      "progressLabel": "Comprovant el teu arxiu",
+      "cancelled": "S’ha aturat la comprovació. No s’ha canviat res.",
+      "okTitle": "Tots els teus fitxers són al seu lloc",
+      "ok": "{count, plural, one {S’ha comprovat # fitxer i és complet.} other {S’han comprovat # fitxers i tots són complets.}}",
+      "problemTitle": "Alguns fitxers necessiten atenció",
+      "problems": "{count, plural, one {S’ha trobat # problema.} other {S’han trobat # problemes.}} No s’ha canviat res. Una còpia recent pot recuperar aquests fitxers.",
+      "kinds": {
+        "missing-file": "{count, plural, one {Falta # fitxer} other {Falten # fitxers}}",
+        "wrong-size": "{count, plural, one {# fitxer és incomplet} other {# fitxers són incomplets}}",
+        "hash-mismatch": "{count, plural, one {# fitxer ha canviat o està malmès} other {# fitxers han canviat o estan malmesos}}",
+        "dangling-reference": "{count, plural, one {# missatge o foto apunta a un fitxer que no hi és} other {# missatges o fotos apunten a un fitxer que no hi és}}"
+      },
+      "announce": "{percent}% comprovat"
+    },
+    "file": {
+      "title": "Comprova un fitxer de còpia",
+      "description": "Tria una còpia ZIP i mira si és completa, sense obrir-la. El teu arxiu no es toca.",
+      "pick": "Tria un fitxer de còpia",
+      "another": "Comprova un altre fitxer",
+      "cancel": "Atura",
+      "starting": "Preparant…",
+      "progress": "{done} de {total} parts comprovades",
+      "progressLabel": "Comprovant la còpia",
+      "cancelled": "S’ha aturat la comprovació. No s’ha canviat res.",
+      "okTitle": "Els fitxers d’aquesta còpia són complets",
+      "ok": "{count, plural, one {S’ha comprovat # part i és completa.} other {S’han comprovat # parts i totes són completes.}}",
+      "meta": "Feta el {date} amb Memory Archive {version}.",
+      "problemTitle": "Aquesta còpia té parts malmeses",
+      "problems": "{count, plural, one {S’ha trobat # problema.} other {S’han trobat # problemes.}} No s’ha canviat res. Si tens una altra còpia, fes servir aquella.",
+      "databaseDamaged": "La part que conté els teus missatges està malmesa, així que aquesta còpia no es pot obrir.",
+      "capped": "Es mostren els tipus dels primers {shown} de {total}.",
+      "kinds": {
+        "size-mismatch": "{count, plural, one {# part té una mida incorrecta} other {# parts tenen una mida incorrecta}}",
+        "hash-mismatch": "{count, plural, one {# part ha canviat o està malmesa} other {# parts han canviat o estan malmeses}}",
+        "unreadable": "{count, plural, one {# part no s’ha pogut llegir} other {# parts no s’han pogut llegir}}"
+      },
+      "refusalTitle": "Aquest fitxer no es pot fer servir",
+      "refusal": {
+        "notArchive": "Això no és una còpia de Memory Archive. No s’ha canviat res.",
+        "damaged": "Aquesta còpia és incompleta o està malmesa. No s’ha canviat res. Si tens una altra còpia, fes servir aquella.",
+        "newer": "Aquesta còpia l’ha desat una versió més nova de Memory Archive. Actualitza l’aplicació per comprovar-la. No s’ha canviat res.",
+        "limit": "Aquesta còpia és més gran del que l’aplicació pot llegir amb seguretat. No s’ha canviat res.",
+        "generic": "Alguna cosa ha anat malament en comprovar el fitxer. No s’ha canviat res. Torna-ho a provar."
+      },
+      "announce": "{percent}% comprovat"
     }
   },
   "subpage": {
