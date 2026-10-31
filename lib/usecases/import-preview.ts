@@ -4,6 +4,7 @@ import type { ImportCandidate } from '../db/queries';
 import { isUuid } from '../domain/library';
 import { chatKeyOf, chatTitleOf, entryBaseName, isAppleDouble, isChatEntry } from '../importers/whatsapp/chat';
 import { streamWhatsAppZip } from '../importers/whatsapp/import';
+import { openImportSource } from './import-source';
 import { matchMediaEntries, normalizeMediaName } from '../importers/whatsapp/media';
 import { classifyFromFilename } from '../importers/whatsapp/message';
 import type { MessageType } from '../importers/whatsapp/types';
@@ -177,11 +178,16 @@ export async function previewWhatsAppExport(
   let firstAt = '';
   let lastAt = '';
   let stream;
+  let zip: Blob;
   try {
     onProgress?.({ phase: 'reading', done: 0 });
-    stream = await streamWhatsAppZip(input.zip, input.fileName, {
-      dayFirst: input.dayFirst,
-      monthFirst: input.monthFirst,
+    // A bare `.txt` export or an old wa-backup output is read as a one-entry archive, as in the import.
+    const source = await openImportSource(input.zip, input.fileName, limits.maxChatBytes);
+    zip = source.zip;
+    const order = source.dateOrder ?? { dayFirst: input.dayFirst, monthFirst: input.monthFirst };
+    stream = await streamWhatsAppZip(zip, input.fileName, {
+      dayFirst: order.dayFirst,
+      monthFirst: order.monthFirst,
       signal,
       limits: {
         maxEntries: limits.maxEntries,
@@ -243,7 +249,7 @@ export async function previewWhatsAppExport(
   const { unresolved } = matchMediaEntries(stream.entries, [...mediaRefs.values()], stream.chatEntry);
   const missing = new Set(unresolved.map(normalizeMediaName)).size;
 
-  const space = await estimateImport(input.zip, input.storage ?? { usage: null, quota: null }, input.limits);
+  const space = await estimateImport(zip, input.storage ?? { usage: null, quota: null }, input.limits);
   signal?.throwIfAborted();
 
   const sourceKey = chatKeyOf(stream.info.name);

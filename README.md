@@ -252,7 +252,7 @@ cli/                      # same use cases from the terminal
 | 1 | ✅ | Reusable core for Node and browser, bug fixes, re-import of old HTML/JSON/CSV outputs |
 | 2 | ✅ | PWA skeleton, local SQLite database, backup/restore proof of concept |
 | 3 | ✅ | Profiles and conversations |
-| 4 | 🟡 | Incremental WhatsApp import and import history |
+| 4 | ✅ | Incremental WhatsApp import and import history |
 | 5 | ✅ | Timeline, conversation view, gallery, audio, calendar, search |
 | 6 | 🟡 | Full backup and restore |
 | 7 | ⬜ | Manual device-to-device sync with ZIP files |

@@ -11,5 +11,6 @@ export * from './lines';
 export * from './zip';
 export * from './chat';
 export * from './media';
+export * from './text-export';
 export { parseWhatsAppZip } from './import';
 export type { ParsedChat } from './import';

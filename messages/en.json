@@ -171,20 +171,20 @@
   },
   "import": {
     "title": "Import a chat",
-    "intro": "Bring a WhatsApp chat into your archive. In WhatsApp, open the chat, choose Export chat and keep the ZIP file. Everything stays on this device.",
+    "intro": "Bring a WhatsApp chat into your archive. In WhatsApp, open the chat, choose Export chat and keep the file (the ZIP, or the text file if you export without media). Everything stays on this device.",
     "backToPeople": "Back to People",
     "loadFailed": "Your people could not be read. Nothing was changed.",
     "choose": {
-      "pick": "Choose ZIP files",
+      "pick": "Choose chat files",
       "drop": "or drop them here",
-      "hint": "Each WhatsApp chat is one ZIP file. You can choose several at once.",
+      "hint": "Each WhatsApp chat is one ZIP file, or one text file if it was exported without media. A messages.json, messages.html or messages.csv from an old backup also works, with its messages but without photos. You can choose several at once.",
       "listTitle": "Files to import ({count})",
       "empty": "No files chosen yet.",
       "remove": "Remove",
       "removeLabel": "Remove {name} from the list",
       "shared": "Shared with Memory Archive",
       "sharedNote": "Files shared from WhatsApp stay here until you import or remove them. Shared files that cannot be imported are removed from this device.",
-      "skipped": "{count, plural, one {# file was left out: for now only WhatsApp ZIP files can be imported.} other {# files were left out: for now only WhatsApp ZIP files can be imported.}}",
+      "skipped": "{count, plural, one {# file was left out: for now only WhatsApp ZIP, text and old backup files can be imported.} other {# files were left out: for now only WhatsApp ZIP, text and old backup files can be imported.}}",
       "start": "{count, plural, one {Continue with # file} other {Continue with # files}}"
     },
     "wizard": {
@@ -368,7 +368,7 @@
       "failed": "The import could not be undone. Nothing was changed. Try again."
     },
     "problem": {
-      "invalidExport": "This file does not look like a WhatsApp chat export. Export the chat again from WhatsApp and choose the ZIP file. Nothing was changed.",
+      "invalidExport": "This file does not look like a WhatsApp chat export. Export the chat again from WhatsApp and choose the ZIP or text file, or pick a messages.json, messages.html or messages.csv from an old backup. Nothing was changed.",
       "tooBig": "This export is larger than Memory Archive can read. Try exporting the chat without media. Nothing was changed.",
       "busy": "Another task is using your archive right now, maybe in another tab. Wait for it to finish and try again. Nothing was changed.",
       "workerFailed": "The import was interrupted. Some of it may have been added; trying again will not create duplicates.",

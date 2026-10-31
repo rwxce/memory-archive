@@ -8,7 +8,7 @@ import {
   guessedMe,
   importProblemOf,
   importRequest,
-  isImportableZip,
+  isImportableExport,
   messagesToAdd,
   previewRequest,
   spaceFits,
@@ -52,13 +52,21 @@ describe('importProblemOf', () => {
   });
 });
 
-describe('isImportableZip', () => {
-  test('accepts ZIPs by extension or type, not text or media', () => {
-    expect(isImportableZip({ name: 'Chat.ZIP', type: '' })).toBe(true);
-    expect(isImportableZip({ name: 'chat', type: 'application/zip' })).toBe(true);
-    expect(isImportableZip({ name: 'chat', type: 'application/x-zip-compressed; x=y' })).toBe(true);
-    expect(isImportableZip({ name: '_chat.txt', type: 'text/plain' })).toBe(false);
-    expect(isImportableZip({ name: 'photo.jpg', type: 'image/jpeg' })).toBe(false);
+describe('isImportableExport', () => {
+  test('accepts ZIPs and plain-text exports by extension or type, not media', () => {
+    expect(isImportableExport({ name: 'Chat.ZIP', type: '' })).toBe(true);
+    expect(isImportableExport({ name: 'chat', type: 'application/zip' })).toBe(true);
+    expect(isImportableExport({ name: 'chat', type: 'application/x-zip-compressed; x=y' })).toBe(true);
+    expect(isImportableExport({ name: '_chat.txt', type: 'text/plain' })).toBe(true);
+    expect(isImportableExport({ name: 'WhatsApp Chat with Ana.TXT', type: '' })).toBe(true);
+    expect(isImportableExport({ name: 'chat', type: 'text/plain; charset=utf-8' })).toBe(true);
+    expect(isImportableExport({ name: 'messages.json', type: '' })).toBe(true);
+    expect(isImportableExport({ name: 'messages.HTML', type: '' })).toBe(true);
+    expect(isImportableExport({ name: 'messages.csv', type: 'text/csv' })).toBe(true);
+    expect(isImportableExport({ name: 'export', type: 'application/json' })).toBe(true);
+    expect(isImportableExport({ name: 'messages.md', type: 'text/markdown' })).toBe(false);
+    expect(isImportableExport({ name: 'notes.pdf', type: 'application/pdf' })).toBe(false);
+    expect(isImportableExport({ name: 'photo.jpg', type: 'image/jpeg' })).toBe(false);
   });
 });
 

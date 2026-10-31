@@ -10,7 +10,7 @@ import type { ImportWorkerInput, PreviewWorkerInput } from './import-protocol';
  * What the import wizard decides, as plain data, and how it becomes the requests the import
  * use cases take. Pure: no I/O, no React. The wizard's screens keep these choices per file and
  * call these functions, so the rules (which author is passed as "me", what the date choice
- * means, what counts as a ZIP) are tested here and not in a component.
+ * means, what counts as an importable file) are tested here and not in a component.
  */
 
 /** Why a preview or an import failed, in terms the UI has copy for. The raw error message is never shown. */
@@ -41,12 +41,26 @@ export function importProblemOf(error: unknown): ImportProblem {
   return 'other';
 }
 
-/** A ZIP by extension or type. Plain TXT and loose media are not importable yet. */
-export function isImportableZip(file: Pick<File, 'name' | 'type'>): boolean {
-  if (/\.zip$/i.test(file.name)) return true;
+/**
+ * A ZIP, a plain-text chat export (the "without media" `.txt`) or an old wa-backup output
+ * (`messages.json` / `.html` / `.csv`), by extension or type. This only decides what the picker
+ * offers; the import itself looks at the content, never at the name. Loose media are not
+ * importable yet.
+ */
+export function isImportableExport(file: Pick<File, 'name' | 'type'>): boolean {
+  if (/\.(zip|txt|json|html?|csv)$/i.test(file.name)) return true;
   const type = file.type.split(';')[0].trim().toLowerCase();
-  return type === 'application/zip' || type === 'application/x-zip-compressed';
+  return IMPORTABLE_TYPES.has(type);
 }
+
+const IMPORTABLE_TYPES: ReadonlySet<string> = new Set([
+  'application/zip',
+  'application/x-zip-compressed',
+  'text/plain',
+  'application/json',
+  'text/html',
+  'text/csv',
+]);
 
 /** How the person read an ambiguous date such as 03/04/2026. */
 export type DateOrder = 'day-first' | 'month-first';

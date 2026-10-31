@@ -19,7 +19,7 @@ describe('share target', () => {
     const res = await handleShareTarget(
       sharePost([
         new File([new Uint8Array([0x50, 0x4b])], 'WhatsApp Chat - Synthetic.zip', { type: 'application/zip' }),
-        new File(['<script>'], 'x.html', { type: 'text/html' }),
+        new File(['x'], 'p.jpg', { type: 'image/jpeg' }),
       ], { title: 'WhatsApp Chat' }),
       caches,
       SCOPE,

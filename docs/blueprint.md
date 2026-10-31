@@ -198,8 +198,8 @@ test type or architecture rule means updating this file **in the same PR**.
     the wizard's pure rules (requests, problems, ZIP test) live in that use-case module; a preview
     refused as `busy` (the open-time cleanup holds the guard) is retried for ~3 s in `use-import`.
     `beforeunload` warns while a run is going. The share inbox copy of a file is deleted after its
-    successful import (`discardSharedFile`); a shared file that is not a ZIP (a TXT) is discarded
-    when the screen first sees it, since nothing can import it yet. "Add a new person" does not
+    successful import (`discardSharedFile`); a shared file that cannot be imported is discarded
+    when the screen first sees it (the inbox only stores ZIP, TXT, JSON, HTML and CSV, and all are importable). "Add a new person" does not
     clear the earlier choice (`FileItem.addingPerson`; Next is blocked while the form is open, Cancel and
     Back restore the radio); a created person's radio takes the focus. The chosen person's name is kept in
     the file's state, so the result screen never depends on the people list loading. Step 4's
@@ -253,8 +253,8 @@ test type or architecture rule means updating this file **in the same PR**.
     `@serwist/next` (webpack-only, while Next 16 builds with Turbopack) and
     `@serwist/turbopack` (needs a route handler, i.e. a server). Registered by
     `components/service-worker-registration.tsx` in production builds only.
-  - **Share target** (`sw/share-target.ts`): the worker stores accepted files (ZIP / TXT,
-    max 20) in the share inbox and answers `303` to `/?to=import&received=N`; the root
+  - **Share target** (`sw/share-target.ts`): the worker stores accepted files (ZIP / TXT /
+    old backup JSON, HTML, CSV; max 20) in the share inbox and answers `303` to `/?to=import&received=N`; the root
     redirect (`redirectPath`, allow-listed targets only) lands on `/<locale>/import/`,
     which offers them in the import wizard.
   - **Storage**: *Start* calls `navigator.storage.persist()`; Settings → *Space on this
@@ -363,7 +363,8 @@ test type or architecture rule means updating this file **in the same PR**.
     `Blob.slice`, fflate streaming inflate per entry), `lines.ts` (UTF-8 decoding + line
     splitting), `timestamp.ts`, `message.ts` (state machine), `chat.ts` (transcript entry,
     chat name/slug), `media.ts` (media matching), `import.ts` (`parseWhatsAppZip`).
-  - `lib/importers/legacy/` — readers for old outputs back into `Message[]`:
+  - `lib/importers/legacy/` — readers for old outputs back into `Message[]` (`transcript.ts` writes them back as a
+    `_chat.txt` for the import wizard):
     `readLegacyJson` (schema 0 and 1, refuses newer), `readLegacyHtml` (the `chat-data`
     island), `readLegacyCsv` (5 and 6 columns), `readLegacyOutput` (dispatch; Markdown is
     refused as lossy).
@@ -618,6 +619,37 @@ test type or architecture rule means updating this file **in the same PR**.
   database unchanged and this run's blobs removed. Progress callback:
   `{phase: reading | media | saving, done, total}`, plus `bytes` / `totalBytes` in `media` (updated
   inside a big file, at most every 200 ms).
+  Plain-text exports: a bare `.txt` ("Export chat > Without media") is accepted next to ZIPs by the picker,
+  drop zone and share target. The content decides, not the name (`lib/importers/whatsapp/text-export.ts`:
+  a ZIP signature passes through, text with no NUL byte in its first 4 KiB is wrapped as a stored one-entry
+  `_chat.txt` ZIP built from `Blob` parts, so preview, space estimate and import run unchanged); the cap is
+  `maxChatBytes` (`limit-exceeded`), the chat name comes from the file name (`.txt` stripped, `_chat` falls back
+  to `chat`), and it has no media. Fingerprints are the same as a ZIP's, so text messages dedupe both ways; a
+  media line written as "omitted" there and as an attachment in a later ZIP are different messages, so the ZIP
+  adds the attachment next to the placeholder (the text export is not upgraded in place; undo it to avoid that).
+  Old wa-backup outputs: `messages.json`, `messages.html` and `messages.csv` are accepted by the same picker,
+  drop zone and share target (manifest `accept`, share inbox and `isImportableExport` list them; the content
+  decides). `openImportSource` (`lib/usecases/import-source.ts`, used by import and preview) asks
+  `lib/importers/legacy/transcript.ts` first: the first 4 KiB must look like a JSON envelope, an HTML page or the
+  CSV header (Markdown is never recognised), the file is read with the existing legacy readers (HTML only for its
+  `chat-data` JSON island, never rendered; unknown schema or bad timestamps = `invalid-export`), capped at
+  `min(maxChatBytes, 64 MiB)` (`limit-exceeded`), and the messages are written back as an iOS-style
+  `[dd/mm/yyyy, HH:MM:SS] Author: text` transcript (`<attached: name>` for media, U+200E for system events
+  under a chat name) that the normal parser reads, so fingerprints come from the same code as a ZIP's and the
+  rest is unchanged. The transcript is parsed back with the real parser and compared with the messages (count,
+  timestamp, author, type, text, file name); any difference is `invalid-export` and nothing is imported, text is
+  never altered (only line endings are normalized to `\n`; a continuation line that looks like a timestamped
+  message, an author with ": " or edge spaces, or a text the parser would re-type are refused). The dates are written day-first and the date order is forced (the person's choice is
+  ignored), so an old output never asks the date question. The wrapper's folder carries the chat name the
+  output records (JSON / HTML); a CSV records none, so the file name stands in (`messages`) and it is not
+  matched to an existing conversation by name (`ambiguous`: the person chooses). Dedupe: text, system, deleted
+  and omitted messages and attachment lines get the same fingerprints as a ZIP of the same chat (tested in both
+  orders, for all three formats); the minute is what counts, the seconds of an Android chat were never in it.
+  Media: the outputs only reference files by relative path, so every attachment arrives as a message whose file
+  is missing (counted in the preview as missing); only the file name (last segment) is kept, as in a ZIP. A ZIP
+  imported afterwards finds those messages already there and does not read their files again (undo the legacy
+  import first to get the photos). Not kept: link titles (not part of a message here) and the media files. Loose
+  media files remain phase 8.
   Known limits: re-import never fills media a message was stored without (`skipVideos`, files
   missing from the ZIP): undo and import again; undoing the batch that created a conversation
   removes the messages a later overlapping export re-contained, and undoing the first of several
@@ -909,7 +941,7 @@ test type or architecture rule means updating this file **in the same PR**.
     library made on /en/, the language picker, a Catalan run, offline reload, no horizontal overflow and a 60-character
     unbroken name, and the import wizard (`e2e/import.spec.ts`: a synthetic ZIP built with fflate and set
     on the file input; import into a new person, summary, person page count, offline reload; same ZIP again =
-    already in the archive, 0 added; undo asks first and removes the conversation; a TXT left out; Catalan) and the import history
+    already in the archive, 0 added; undo asks first and removes the conversation; a non-chat file (a JPG) left out; Catalan) and the import history
     (`e2e/history.spec.ts`: same ZIP twice = one entry and unchanged counts; a newer export adds only the difference; undo from
     the history; Catalan; and the Phase 4 check: a 2,300-message ZIP with 300 files of 64 kB built once per worker; after a real progress signal (files copied > 0) closing the tab / reloading leaves exactly 0 conversations and an empty history, and importing again ends with every message once; the all-or-nothing guarantee itself is held by the table-state tests in `lib/usecases/import.test.ts`). Screenshots on failure only; `test-results/` and `playwright-report/` are
     git-ignored. Firefox and WebKit projects come in Phase 6 with a browser install step.

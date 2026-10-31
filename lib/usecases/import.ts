@@ -8,6 +8,7 @@ import { chatKeyOf, chatTitleOf } from '../importers/whatsapp/chat';
 import type { Message } from '../importers/whatsapp/types';
 import { parseWhatsAppZip } from '../importers/whatsapp/import';
 import { matchMediaEntries, mimeFromFileName, normalizeMediaName } from '../importers/whatsapp/media';
+import { openImportSource } from './import-source';
 import { openZipEntry, ZipLimitError } from '../importers/whatsapp/zip';
 import { withArchiveGuard } from './archive-guard';
 import { newIdOf, nowOf, type ProfileDeps } from './profiles';
@@ -119,8 +120,9 @@ export type ConversationTarget =
   | { mode: 'existing'; conversationId: string };
 
 export interface ImportWhatsAppInput {
+  /** A WhatsApp export ZIP, or a bare `.txt` export made without media (decided by content, not by name). */
   zip: Blob;
-  /** Base name of the ZIP, e.g. `WhatsApp Chat - Ana.zip` (untrusted; the chat name comes from it). */
+  /** Base name of the file, e.g. `WhatsApp Chat - Ana.zip` or `.txt` (untrusted; the chat name comes from it). */
   fileName: string;
   /** Profiles the conversation is filed under when it is created; ignored when merging. */
   profileIds: string[];
@@ -339,10 +341,15 @@ async function importNow(deps: ProfileDeps, input: ImportWhatsAppInput): Promise
   // 1. read
   onProgress?.({ phase: 'reading', done: 0, total: 1 });
   let parsed;
+  let zip: Blob;
   try {
-    parsed = await parseWhatsAppZip(input.zip, input.fileName, {
-      dayFirst: input.dayFirst,
-      monthFirst: input.monthFirst,
+    // A bare `.txt` export or an old wa-backup output is read as a one-entry archive.
+    const source = await openImportSource(input.zip, input.fileName, limits.maxChatBytes);
+    zip = source.zip;
+    const order = source.dateOrder ?? { dayFirst: input.dayFirst, monthFirst: input.monthFirst };
+    parsed = await parseWhatsAppZip(zip, input.fileName, {
+      dayFirst: order.dayFirst,
+      monthFirst: order.monthFirst,
       limits: {
         maxEntries: limits.maxEntries,
         maxCentralDirectoryBytes: limits.maxCentralDirectoryBytes,
@@ -454,7 +461,7 @@ async function importNow(deps: ProfileDeps, input: ImportWhatsAppInput): Promise
       if (match.entry.uncompressedSize > limits.maxMediaBytes) {
         throw new ImportError('limit-exceeded', 'a media file is too large; import without videos to skip the biggest ones');
       }
-      const info = await deps.blobStore.put(entryStream(openZipEntry(input.zip, match.entry), signal, entryFailure, onBytes));
+      const info = await deps.blobStore.put(entryStream(openZipEntry(zip, match.entry), signal, entryFailure, onBytes));
       blobByName.set(name, { sha256: info.sha256, size: info.size, mime: mimeFromFileName(match.fileName) });
       if (stored.has(info.sha256)) mediaSkipped++;
       else {
