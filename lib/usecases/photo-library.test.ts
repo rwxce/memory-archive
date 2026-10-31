@@ -72,6 +72,7 @@ describe('importTakeoutAlbum', () => {
       kind: 'photo',
       mime: 'image/jpeg',
       takenAt: TAKEN.lisbon1.iso,
+      dateSource: 'sidecar',
       latitude: 38.7139,
       longitude: -9.1334,
       description: 'Sunset at the viewpoint',
@@ -141,6 +142,17 @@ describe('importTakeoutAlbum', () => {
     const undone = await undoPhotoImport(lib.deps, result.batchId!);
     expect(undone).toEqual({ found: true, removedItems: 1, removedMedia: 0 });
     expect(await lib.deps.blobStore.list()).toEqual([hashOf(8)]);
+  });
+});
+
+describe('importTakeoutAlbum: date source', () => {
+  test('a date from a sidecar is sidecar, a picture without one is none, and the two always agree', async () => {
+    const lib = await createTestLibrary();
+    await run(lib);
+    const items = await listPhotoItems(lib.deps, { limit: 100 });
+    expect(items.filter((i) => i.takenAt !== null).every((i) => i.dateSource === 'sidecar')).toBe(true);
+    expect(items.filter((i) => i.takenAt === null).every((i) => i.dateSource === 'none')).toBe(true);
+    expect(items.filter((i) => i.dateSource === 'none')).toHaveLength(2);
   });
 });
 
@@ -222,7 +234,7 @@ describe('importTakeoutAlbum: awkward names and merged duplicates', () => {
       sourceLabel: 'x.zip',
       now: '2026-03-01T10:00:00.000Z',
       blobs: [{ sha256: shared.photoSha256!, size: 60, mime: 'image/webp' }],
-      items: [{ sha256: shared.photoSha256!, kind: 'photo', mime: 'image/webp', takenAt: null, latitude: null, longitude: null, description: '', album: '', fileName: 'p.webp' }],
+      items: [{ sha256: shared.photoSha256!, kind: 'photo', mime: 'image/webp', takenAt: null, takenOffsetMinutes: null, dateSource: 'none', latitude: null, longitude: null, description: '', album: '', fileName: 'p.webp' }],
     });
     await setProfilePhoto(lib.deps, profile.id, pic(2), down);
     expect(await lib.deps.blobStore.has(shared.photoSha256!)).toBe(true);

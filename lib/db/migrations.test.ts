@@ -902,6 +902,7 @@ describe('migration v7 to v8 (device sync tracking)', () => {
 
 const UPTO_9 = MIGRATIONS.slice(0, 9);
 const UPTO_10 = MIGRATIONS.slice(0, 10);
+const UPTO_11 = MIGRATIONS.slice(0, 11);
 
 describe('migration v8 to v9 (changes-pack conflicts)', () => {
   const PEER = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
@@ -1034,21 +1035,21 @@ describe('migration v10 to v11 (photo collection)', () => {
 
   test('adds two empty tables and changes no row; the schema matches a fresh database', async () => {
     const db = await v10WithData();
-    expect(migrate(db)).toEqual({ from: 10, to: 11 });
+    expect(migrate(db, UPTO_11)).toEqual({ from: 10, to: 11 });
     expect(readUserVersion(db)).toBe(11);
     expect(db.all('SELECT id, seq FROM import_batches')).toEqual([{ id: BATCH, seq: 3 }]);
     expect(db.all('SELECT sha256 FROM blobs')).toEqual([{ sha256: HASH }]);
     expect(db.all('SELECT * FROM photo_items')).toEqual([]);
     expect(db.all('SELECT * FROM photo_batches')).toEqual([]);
     const fresh = await emptyDb();
-    migrate(fresh);
+    migrate(fresh, UPTO_11);
     const sql = (d: typeof db) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
     expect(sql(db)).toEqual(sql(fresh));
   });
 
   test('rules: kind, date shape, location pair and range, one item per bytes + source + album, file must exist', async () => {
     const db = await v10WithData();
-    migrate(db);
+    migrate(db, UPTO_11);
     db.run("INSERT INTO photo_batches (id, source, created_at) VALUES (?, 'takeout', 't')", [PHOTO_BATCH]);
     expect(() => item(db, { kind: 'audio' })).toThrow(/CHECK/);
     expect(() => item(db, { taken_at: '2019-07-01 10:00:00' })).toThrow(/CHECK/);
@@ -1069,12 +1070,87 @@ describe('migration v10 to v11 (photo collection)', () => {
     expect(() => migrate(db, broken)).toThrow();
     expect(readUserVersion(db)).toBe(10);
     expect(tables(db)).not.toContain('photo_items');
-    expect(migrate(db)).toEqual({ from: 10, to: 11 });
+    expect(migrate(db, UPTO_11)).toEqual({ from: 10, to: 11 });
   });
 
   test('an older app refuses a v11 database', async () => {
     const db = await v10WithData();
-    migrate(db);
+    migrate(db, UPTO_11);
     expect(() => migrate(db, UPTO_10)).toThrow(/newer than this app understands/);
+  });
+});
+
+describe('migration v11 to v12 (photo date source)', () => {
+  const BATCH = '00000000-0000-4000-8000-0000000000b2';
+
+  async function v11WithPhotos() {
+    const db = await emptyDb();
+    db.exec('PRAGMA foreign_keys = ON');
+    migrate(db, UPTO_11);
+    db.run('INSERT INTO blobs (sha256, size, mime) VALUES (?, 1, NULL)', [HASH]);
+    db.run("INSERT INTO photo_batches (id, source, created_at) VALUES (?, 'takeout', 't')", [BATCH]);
+    const add = (album: string, takenAt: string | null) =>
+      db.run("INSERT INTO photo_items (batch_id, sha256, kind, taken_at, source, album, file_name) VALUES (?, ?, 'photo', ?, 'takeout', ?, 'a.jpg')", [BATCH, HASH, takenAt, album]);
+    add('Dated', '2019-07-01T10:00:00Z');
+    add('Undated', null);
+    return db;
+  }
+
+  test('existing Takeout items become sidecar when they have a date and none otherwise; nothing else changes', async () => {
+    const db = await v11WithPhotos();
+    expect(migrate(db)).toEqual({ from: 11, to: 12 });
+    expect(readUserVersion(db)).toBe(12);
+    expect(db.all('SELECT album, taken_at, date_source FROM photo_items ORDER BY id')).toEqual([
+      { album: 'Dated', taken_at: '2019-07-01T10:00:00Z', date_source: 'sidecar' },
+      { album: 'Undated', taken_at: null, date_source: 'none' },
+    ]);
+    expect(db.all('SELECT sha256 FROM blobs')).toEqual([{ sha256: HASH }]);
+    const fresh = await emptyDb();
+    migrate(fresh);
+    const sql = (d: typeof db) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
+    expect(sql(db).map((r) => (r as { name: string }).name)).toEqual(sql(fresh).map((r) => (r as { name: string }).name));
+  });
+
+  test('only the known date sources are accepted; a new row defaults to none', async () => {
+    const db = await v11WithPhotos();
+    migrate(db);
+    const insert = (source: string) =>
+      db.run("INSERT INTO photo_items (batch_id, sha256, kind, source, album, file_name, date_source) VALUES (?, ?, 'photo', 'loose', ?, 'a.jpg', ?)", [BATCH, HASH, `album-${source}`, source]);
+    for (const ok of ['sidecar', 'exif', 'exif-local', 'file-modified', 'none']) expect(insert(ok)).toBe(1);
+    expect(() => insert('guess')).toThrow(/CHECK/);
+    db.run("INSERT INTO photo_items (batch_id, sha256, kind, source, album, file_name) VALUES (?, ?, 'photo', 'loose', 'x', 'a.jpg')", [BATCH, HASH]);
+    expect(db.all("SELECT date_source FROM photo_items WHERE album = 'x'")).toEqual([{ date_source: 'none' }]);
+  });
+
+  test('the camera offset is optional, only for exif dates, and a real zone', async () => {
+    const db = await v11WithPhotos();
+    migrate(db);
+    expect(db.all('SELECT album, taken_offset_minutes AS o FROM photo_items ORDER BY id')).toEqual([
+      { album: 'Dated', o: null },
+      { album: 'Undated', o: null },
+    ]);
+    const insert = (source: string, offset: number | null, album: string) =>
+      db.run("INSERT INTO photo_items (batch_id, sha256, kind, taken_at, date_source, taken_offset_minutes, source, album, file_name) VALUES (?, ?, 'photo', '2019-07-01T10:00:00Z', ?, ?, 'loose', ?, 'a.jpg')", [BATCH, HASH, source, offset, album]);
+    expect(insert('exif', 840, 'a')).toBe(1);
+    expect(insert('exif', -570, 'b')).toBe(1);
+    expect(insert('exif', 345, 'c')).toBe(1);
+    expect(() => insert('exif', 841, 'd')).toThrow(/CHECK/);
+    expect(() => insert('exif', 7, 'e')).toThrow(/CHECK/);
+    expect(() => insert('sidecar', 60, 'f')).toThrow(/CHECK/);
+  });
+
+  test('a failure in v12 leaves the v11 database as it was, and a retry succeeds', async () => {
+    const db = await v11WithPhotos();
+    const broken: Migration[] = [...MIGRATIONS.slice(0, 11), { version: 12, sql: `${MIGRATIONS[11].sql} INSERT INTO missing_table VALUES (1);` }];
+    expect(() => migrate(db, broken)).toThrow();
+    expect(readUserVersion(db)).toBe(11);
+    expect(db.all("SELECT name FROM pragma_table_info('photo_items') WHERE name = 'date_source'")).toEqual([]);
+    expect(migrate(db)).toEqual({ from: 11, to: 12 });
+  });
+
+  test('an older app refuses a v12 database', async () => {
+    const db = await v11WithPhotos();
+    migrate(db);
+    expect(() => migrate(db, UPTO_11)).toThrow(/newer than this app understands/);
   });
 });

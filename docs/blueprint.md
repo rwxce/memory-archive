@@ -463,6 +463,11 @@ test type or architecture rule means updating this file **in the same PR**.
     variants: classic, supplemental, 46-character cuts, `(1)`, `-edited`, title and live-photo fallbacks), `read.ts`
     (`readTakeoutZip`: the plan of items with album and metadata). Uses the one ZIP reader from `whatsapp/zip.ts`.
     Format and supported variants: `docs/formats/photo-library.md`.
+  - `lib/importers/photos/` — loose files and Google Photos web-download ZIPs (queue item 19a): `sniff.ts` (type by
+    magic bytes; `acceptMedia` also checks the extension, never `File.type`), `exif.ts` (hardened in-repo EXIF reader
+    over the first 256 KiB: JPEG APP1 and HEIC/HEIF `Exif` item; DateTimeOriginal + OffsetTimeOriginal, GPS; every
+    offset checked, IFDs visited once, any failure is "no metadata"), `zip-layout.ts` (flat ZIP vs Takeout layout, path
+    checks, `looksLikeMediaDownload`: documents/e-books/APKs that embed pictures are refused). `photoDisplayDate` (`lib/domain/photo.ts`) is the one rule for showing a photo date; schema v12 also holds the camera offset. A loose file that cannot be read is skipped and counted (`unreadableFiles`). Fixtures: `scripts/photo-fixtures.mjs` (synthetic JPEG/HEIC with EXIF, hostile EXIF, a download ZIP).
   - `lib/importers/legacy/` — readers for old outputs back into `Message[]` (`transcript.ts` writes them back as a
     `_chat.txt` for the import wizard):
     `readLegacyJson` (schema 0 and 1, refuses newer), `readLegacyHtml` (the `chat-data`
@@ -615,6 +620,13 @@ test type or architecture rule means updating this file **in the same PR**.
   `undoPhotoImport`, `listPhotoItems`, `countPhotoItems`, `listPhotoBatches`), db ops `importPhotoItems`,
   `undoPhotoBatch`, `listPhotoItems`, `countPhotoItems`, `listPhotoBatches` in `lib/db/photos.ts`; no screen yet.
   Format: `docs/formats/photo-library.md`.
+- **Schema v12 (implemented, expand-only; photo date source, queue item 19a)** — `photo_items.date_source`
+  (`sidecar`, `exif`, `exif-local`, `file-modified`, `none`; `NOT NULL DEFAULT 'none'` with a CHECK), so a screen can tell an
+  original date from a guess (`file-modified`). Existing rows: `sidecar` when `taken_at` is set, else `none`. The writer
+  keeps "`none` exactly when `taken_at` is NULL". `formatVersion` stays 1, `schemaVersion` 12; v1-v11 backups restore by
+  migrating. New sources `loose` and `google-photos-zip` need no schema change (`source` is a free label). Use cases in
+  `lib/usecases/photo-import.ts` (`importLoosePhotos`, `importGooglePhotosZip`, a Takeout-shaped ZIP is delegated to
+  `importTakeoutAlbum`) and `lib/usecases/photo-source.ts` (`detectPhotoSource`); no screen yet.
 - **Schema v8 (implemented, expand-only; foundation of manual device-to-device sync)** — format and
   rationale in `docs/formats/changes-pack.md`. New: `device(singleton, id, created_at, change_seq)` (this
   library's identity and a monotonic change counter; the migration creates the row with a random id and

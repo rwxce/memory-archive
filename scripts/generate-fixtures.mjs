@@ -10,6 +10,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { zipSync } from 'fflate';
 import { writeShowcase } from './showcase-fixtures.mjs';
+import { writePhotoFixtures } from './photo-fixtures.mjs';
 import { writeTakeoutFixtures } from './takeout-fixtures.mjs';
 
 const ROOT = process.cwd();
@@ -274,6 +275,8 @@ function main() {
   writeShowcase(FIXTURES);
   // Synthetic Google Photos Takeout albums (lib/importers/takeout, lib/usecases/takeout-import).
   writeTakeoutFixtures(FIXTURES);
+  // Synthetic Google Photos download ZIP (lib/importers/photos, lib/usecases/photo-import).
+  writePhotoFixtures(FIXTURES);
   console.log('[generate-fixtures] wrote synthetic fixtures to', FIXTURES);
 }
 

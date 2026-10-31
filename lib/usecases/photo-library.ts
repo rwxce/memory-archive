@@ -132,7 +132,10 @@ async function importNow(deps: ProfileDeps, input: ImportTakeoutAlbumInput): Pro
       if (existing) {
         duplicatesInFile++;
         // The same picture twice in one album: keep the richer metadata, whichever copy has it.
-        existing.takenAt ??= planned.metadata?.takenAt ?? null;
+        if (existing.takenAt === null && planned.metadata?.takenAt) {
+          existing.takenAt = planned.metadata.takenAt;
+          existing.dateSource = 'sidecar';
+        }
         if (existing.latitude === null && planned.metadata?.latitude != null && planned.metadata.longitude != null) {
           existing.latitude = planned.metadata.latitude;
           existing.longitude = planned.metadata.longitude;
@@ -144,6 +147,8 @@ async function importNow(deps: ProfileDeps, input: ImportTakeoutAlbumInput): Pro
           kind: planned.kind,
           mime: planned.mime,
           takenAt: planned.metadata?.takenAt ?? null,
+          takenOffsetMinutes: null,
+          dateSource: planned.metadata?.takenAt ? 'sidecar' : 'none',
           latitude: planned.metadata?.latitude ?? null,
           longitude: planned.metadata?.longitude ?? null,
           description: planned.metadata?.description ?? '',

@@ -12,6 +12,8 @@ export type TakeoutErrorCode =
   | 'invalid-takeout'
   /** An entry name could escape the archive (`..`, absolute, drive letter, backslash, control characters). */
   | 'unsafe-path'
+  /** Every chosen file failed to read (cloud-only, removed or changed after it was picked). */
+  | 'unreadable-files'
   /** More entries, or bigger entries, than the limits allow. */
   | 'limit-exceeded';
 
