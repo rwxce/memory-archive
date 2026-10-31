@@ -9,6 +9,7 @@ import {
   type IntegrityProgress,
   type LibraryIntegrity,
 } from '@/lib/usecases/archive-health';
+import { retryWhileBusy } from './retry-busy';
 import { useLibraryInternals } from './use-library';
 
 /** One check at a time: progress while it runs, then its result, a calm "stopped", or a typed failure. */
@@ -88,7 +89,7 @@ export function useLibraryCheck() {
   const { state: library } = useLibraryInternals();
   const deps = library.status === 'ready' ? library.deps : undefined;
   const check = useCheck<IntegrityProgress, LibraryIntegrity>(integrityFraction, (signal, onProgress) =>
-    deps ? verifyLibraryIntegrity(deps, { signal, onProgress }) : undefined,
+    deps ? retryWhileBusy(() => verifyLibraryIntegrity(deps, { signal, onProgress }), signal) : undefined,
   );
   return { state: check.state, run: check.start, cancel: check.cancel, reset: check.reset };
 }
