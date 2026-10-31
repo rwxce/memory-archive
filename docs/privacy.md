@@ -35,6 +35,12 @@ The CLI writes only to the output folder the user chooses.
   archive database, so they are inside every backup, and the app never logs or sends their text.
   A note stays with its conversation: removing a conversation removes its notes too.
 
+- Reminders (a quiet card inside the app: "changes not yet shared with another device", "no backup for a while") use
+  two small localStorage entries: the person's choices (on / off, 7 / 14 / 30 days) and when this library was last backed up,
+  when changes started waiting and any snooze. They hold no names, text or file names, never leave the device, and are
+  removed by "Erase everything on this device". There are no notifications, no push and no background timers; the check
+  runs only while a screen is open. A restored or replaced library is a new device and starts counting again.
+
 - The search index (words of messages and file names) is not part of any backup or change pack and
   a restore does not bring one: the app builds it again on this device. A restored or merged
   archive never carries someone else's index. "Erase everything on this device"

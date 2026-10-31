@@ -157,3 +157,12 @@ export interface ResolveConflictInput {
   /** When given and the open row is not this one (another record took the id, or a newer version replaced it), nothing changes: `not-found`. */
   expected?: ExpectedConflict;
 }
+
+/** What a changes pack for one peer would carry now (`count` records) and when this device last exchanged with it. */
+export interface UnsentChanges {
+  peerId: string;
+  count: number;
+  lastSentAt: string | null;
+  /** The later of the last pack sent to and the last pack received from the peer; null when neither. */
+  lastExchangeAt: string | null;
+}

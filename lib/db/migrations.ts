@@ -364,6 +364,17 @@ CREATE TABLE sync_conflicts (
 ) STRICT;
 `;
 
+/**
+ * v10 (expand only): `import_batches.changed_by`, the device a batch was merged from (NULL = made
+ * here). Like the other synced tables, it lets a changes pack and the unsent count skip handing a
+ * batch back to the device it came from; a third device still gets it relayed. Existing rows stay
+ * NULL, which is exactly the old behaviour (every batch above the watermark is carried), so a
+ * v1-v9 backup restores by migrating and no row changes.
+ */
+const V10 = `
+ALTER TABLE import_batches ADD COLUMN changed_by TEXT CHECK (changed_by IS NULL OR (length(changed_by) = 36 AND changed_by = lower(changed_by)));
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, sql: V1 },
   { version: 2, sql: V2 },
@@ -374,6 +385,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 7, sql: V7 },
   { version: 8, sql: V8 },
   { version: 9, sql: V9 },
+  { version: 10, sql: V10 },
 ];
 
 /** Schema version this build produces and understands. */

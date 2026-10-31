@@ -34,7 +34,7 @@ export const MAX_BATCH_PAGE = 5000;
 // echo would look like a second edit there. Other devices' versions still relay. Each slot binds (since, peer).
 const FRESH = 'seq > ? AND (changed_by IS NULL OR changed_by <> ?)';
 const CONVERSATIONS = `(SELECT id FROM conversations WHERE ${FRESH}
-  UNION SELECT conversation_id FROM import_batches WHERE seq > ?
+  UNION SELECT conversation_id FROM import_batches WHERE ${FRESH}
   UNION SELECT conversation_id FROM favorites WHERE ${FRESH}
   UNION SELECT conversation_id FROM notes WHERE ${FRESH} AND conversation_id IS NOT NULL)`;
 
@@ -45,7 +45,7 @@ const PROFILES = `(SELECT id FROM profiles WHERE ${FRESH}
   UNION SELECT profile_id FROM notes WHERE ${FRESH} AND profile_id IS NOT NULL)`;
 
 /** Bind values of `CONVERSATIONS`, in order of appearance. `peer` is never a real id when there is no target. */
-const convParams = (since: number, peer: string): SqlValue[] => [since, peer, since, since, peer, since, peer];
+const convParams = (since: number, peer: string): SqlValue[] => [since, peer, since, peer, since, peer, since, peer];
 const profileParams = (since: number, peer: string): SqlValue[] => [
   since, peer, ...convParams(since, peer), ...convParams(since, peer), since, peer,
 ];
@@ -121,8 +121,8 @@ export function readChangeSet(db: SqlDb, input: ReadChangeSetInput): ChangeSet {
     .all<{ id: string; conversationId: string; source: string; sourceLabel: string; createdAt: string; createdConversation: number; seq: number }>(
       `SELECT id, conversation_id AS conversationId, source, source_label AS sourceLabel, created_at AS createdAt,
               created_conversation AS createdConversation, seq
-         FROM import_batches WHERE seq > ? ORDER BY id`,
-      [since],
+         FROM import_batches WHERE ${FRESH} ORDER BY id`,
+      [since, notPeer],
     )
     .map((b) => ({
       id: b.id, conversationId: b.conversationId, source: b.source, sourceLabel: b.sourceLabel, createdAt: b.createdAt,
@@ -133,9 +133,9 @@ export function readChangeSet(db: SqlDb, input: ReadChangeSetInput): ChangeSet {
   const blobs = db.all<PackBlob>(
     `SELECT sha256, size, mime FROM blobs WHERE sha256 IN (
        SELECT photo_sha256 FROM profiles WHERE photo_sha256 IS NOT NULL AND id IN ${PROFILES}
-       UNION SELECT media_sha256 FROM messages WHERE media_sha256 IS NOT NULL AND batch_id IN (SELECT id FROM import_batches WHERE seq > ?)
+       UNION SELECT media_sha256 FROM messages WHERE media_sha256 IS NOT NULL AND batch_id IN (SELECT id FROM import_batches WHERE ${FRESH})
      ) ORDER BY sha256`,
-    [...profileParams(since, notPeer), since],
+    [...profileParams(since, notPeer), since, notPeer],
   ).map((b) => ({ sha256: b.sha256, size: b.size, mime: b.mime }));
 
   const favorites: PackFavorite[] = db

@@ -12,6 +12,7 @@ import {
   type ReplaceProgress,
 } from '@/lib/usecases/archive-backup';
 import { downloadBlob } from './download-blob';
+import { recordBackupMade } from '@/lib/usecases/reminders';
 import { retryWhileBusy } from './retry-busy';
 import { useLibraryInternals } from './use-library';
 
@@ -115,6 +116,7 @@ export function useArchiveBackup(): ArchiveBackup {
           onCryptoProgress: (p) => onProgress({ phase: 'encrypting', ...p }),
         });
         downloadBlob(blob, fileName);
+        await recordBackupMade(deps, window.localStorage);
         return { encrypted };
       });
     },

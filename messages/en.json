@@ -167,6 +167,13 @@
     "sync": {
       "title": "Sync devices",
       "description": "Carry changes to another device with a file, and receive theirs."
+    },
+    "reminders": {
+      "title": "Reminders",
+      "toggle": "Show reminders",
+      "hint": "A quiet card inside the app. Nothing is sent and no notifications are shown.",
+      "interval": "Remind me after",
+      "days": "{count} days"
     }
   },
   "notFound": {
@@ -1226,5 +1233,19 @@
         "failed": "This could not be saved. Nothing was changed. Try again."
       }
     }
+  },
+  "reminders": {
+    "backup": {
+      "title": "A backup copy could be worth making",
+      "body": "You haven’t made a backup from this app in at least {days} days, as far as it can tell. A copy made some other way isn’t counted.",
+      "action": "Go to Backup and restore"
+    },
+    "sync": {
+      "title": "Changes not shared yet",
+      "body": "You have changes not yet shared with another device.",
+      "action": "Go to Sync devices"
+    },
+    "later": "Remind me later",
+    "never": "Don’t remind me"
   }
 }

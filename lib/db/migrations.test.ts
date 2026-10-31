@@ -898,6 +898,8 @@ describe('migration v7 to v8 (device sync tracking)', () => {
   });
 });
 
+const UPTO_9 = MIGRATIONS.slice(0, 9);
+
 describe('migration v8 to v9 (changes-pack conflicts)', () => {
   const PEER = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
 
@@ -914,7 +916,7 @@ describe('migration v8 to v9 (changes-pack conflicts)', () => {
   test('adds one empty table and changes nothing else: rows, version and the schema match a fresh database', async () => {
     const db = await v8WithData();
     const before = db.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
-    expect(migrate(db)).toEqual({ from: 8, to: 9 });
+    expect(migrate(db, UPTO_9)).toEqual({ from: 8, to: 9 });
     expect(readUserVersion(db)).toBe(9);
     expect(db.all('SELECT * FROM sync_conflicts')).toEqual([]);
     expect(db.all('SELECT display_name, seq FROM profiles')).toEqual([{ display_name: 'Ana', seq: 4 }]);
@@ -923,13 +925,13 @@ describe('migration v8 to v9 (changes-pack conflicts)', () => {
     const after = db.all<{ name: string }>("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
     expect(after.filter((o) => o.name !== 'sync_conflicts' && !o.name.startsWith('sqlite_autoindex_sync_conflicts'))).toEqual(before);
     const fresh = await emptyDb();
-    migrate(fresh);
+    migrate(fresh, UPTO_9);
     expect(after).toEqual(fresh.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"));
   });
 
   test('rules: well-formed peer, known kinds, one open row per peer and record', async () => {
     const db = await v8WithData();
-    migrate(db);
+    migrate(db, UPTO_9);
     const row = (peer: string, kind: string, deleted = 0, key = 'k') =>
       db.run("INSERT INTO sync_conflicts (peer_id, kind, scope, key, incoming, incoming_deleted, detected_at) VALUES (?, ?, '', ?, '{}', ?, 't')", [peer, kind, key, deleted]);
     expect(() => row('short', 'profile')).toThrow(/CHECK/);
@@ -947,12 +949,59 @@ describe('migration v8 to v9 (changes-pack conflicts)', () => {
     expect(() => migrate(db, broken)).toThrow();
     expect(readUserVersion(db)).toBe(8);
     expect(tables(db)).not.toContain('sync_conflicts');
-    expect(migrate(db)).toEqual({ from: 8, to: 9 });
+    expect(migrate(db, UPTO_9)).toEqual({ from: 8, to: 9 });
   });
 
   test('an older app refuses a v9 database', async () => {
     const db = await v8WithData();
-    migrate(db);
+    migrate(db, UPTO_9);
     expect(() => migrate(db, MIGRATIONS.slice(0, 8))).toThrow(/newer than this app understands/);
+  });
+});
+
+describe('migration v9 to v10 (import_batches.changed_by)', () => {
+  const PEER = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+  const CONV = '00000000-0000-4000-8000-0000000000c1';
+  const BATCH = '00000000-0000-4000-8000-0000000000b1';
+
+  async function v9WithData() {
+    const db = await emptyDb();
+    db.exec('PRAGMA foreign_keys = ON');
+    migrate(db, UPTO_9);
+    db.run("INSERT INTO conversations (id, title, source, created_at, seq) VALUES (?, 'Chat', 'whatsapp', 't', 2)", [CONV]);
+    db.run("INSERT INTO import_batches (id, conversation_id, source, created_at, seq) VALUES (?, ?, 'whatsapp', 't', 3)", [BATCH, CONV]);
+    return db;
+  }
+
+  test('adds one nullable column: rows keep their data (changed_by NULL) and the schema matches a fresh database', async () => {
+    const db = await v9WithData();
+    expect(migrate(db)).toEqual({ from: 9, to: 10 });
+    expect(readUserVersion(db)).toBe(10);
+    expect(db.all('SELECT id, seq, changed_by FROM import_batches')).toEqual([{ id: BATCH, seq: 3, changed_by: null }]);
+    const fresh = await emptyDb();
+    migrate(fresh);
+    const sql = (d: typeof db) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
+    expect(sql(db)).toEqual(sql(fresh));
+  });
+
+  test('rule: changed_by is NULL or a lowercase 36-character id', async () => {
+    const db = await v9WithData();
+    migrate(db);
+    expect(() => db.run('UPDATE import_batches SET changed_by = ?', ['short'])).toThrow(/CHECK/);
+    db.run('UPDATE import_batches SET changed_by = ?', [PEER]);
+  });
+
+  test('a failure in v10 leaves the v9 database as it was, and a retry succeeds', async () => {
+    const db = await v9WithData();
+    const broken: Migration[] = [...MIGRATIONS.slice(0, 9), { version: 10, sql: `${MIGRATIONS[9].sql} INSERT INTO missing_table VALUES (1);` }];
+    expect(() => migrate(db, broken)).toThrow();
+    expect(readUserVersion(db)).toBe(9);
+    expect(migrate(db)).toEqual({ from: 9, to: 10 });
+  });
+
+  test('an older app refuses a v10 database', async () => {
+    const db = await v9WithData();
+    migrate(db);
+    expect(() => migrate(db, UPTO_9)).toThrow(/newer than this app understands/);
   });
 });

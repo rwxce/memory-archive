@@ -4,7 +4,7 @@ import en from '@/messages/en.json';
 import { importMessages, renameConversation, setNote, undoImportBatch, updateProfile } from '@/lib/db/queries';
 import { createTestLibrary } from '@/lib/usecases/test-client';
 import { listSyncConflicts } from '@/lib/usecases/sync-conflicts';
-import { ANA, B2, B3, BEN, C1, C2, NOW, idOf, msg, populated, putMedia, send, type Lib } from '@/lib/usecases/test-sync';
+import { ANA, B2, B3, C1, C2, NOW, idOf, msg, populated, putMedia, send, type Lib } from '@/lib/usecases/test-sync';
 import { click, renderWithLibrary, settle, type Rendered } from './test-utils';
 import { SyncScreen } from './sync-screen';
 

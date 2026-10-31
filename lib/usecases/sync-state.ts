@@ -1,4 +1,4 @@
-import type { RecordReceivedInput, RecordSentInput, RecordSentResult, SyncPeer } from '../domain/sync';
+import type { RecordReceivedInput, RecordSentInput, RecordSentResult, SyncPeer, UnsentChanges } from '../domain/sync';
 import { nowOf, type LibraryDeps } from './profiles';
 
 /**
@@ -12,9 +12,19 @@ export function getDeviceId(deps: LibraryDeps): Promise<string> {
   return deps.client.call('getDeviceId', undefined);
 }
 
+/** This library's device id if it exists already; never creates it (`null` otherwise). For read-only callers. */
+export function peekDeviceId(deps: LibraryDeps): Promise<string | null> {
+  return deps.client.call('peekDeviceId', undefined);
+}
+
 /** Every device this one has exchanged packs with, most recently active first. */
 export function listPeers(deps: LibraryDeps): Promise<SyncPeer[]> {
   return deps.client.call('listSyncPeers', undefined);
+}
+
+/** Per known peer, how many records a changes pack for it would carry now (0 = nothing new to hand over). */
+export function countUnsentChanges(deps: LibraryDeps): Promise<UnsentChanges[]> {
+  return deps.client.call('countUnsentChanges', undefined);
 }
 
 /** What was exchanged with one device; `null` when nothing was. */

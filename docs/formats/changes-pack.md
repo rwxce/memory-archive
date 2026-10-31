@@ -147,7 +147,7 @@ batch message  { fingerprint, sentAt, ordinal, type, author|null, body, mediaSha
 fingerprint); note = (`''` or the conversation id, `profile:<id>` | `conversation` |
 `message:<fingerprint>`); batch = (conversation id, batch id).
 
-Locally, favorites and tombstones carry `changed_by` like profiles, conversations and notes (NULL =
+Locally, favorites, tombstones and import batches carry `changed_by` like profiles, conversations and notes (NULL =
 made here; a peer's id = the version merged from that peer). It is not part of a record on the
 wire. A tombstone written here (an unfavorite, an emptied note, an undo) is always NULL, even when
 it replaces one merged from a peer.
@@ -197,7 +197,11 @@ Notation: `S` = the pack's source, `lastReceived` = `sync_peers.last_received_se
   pack has no `ack` and uses the stored value. The same value decides favorites, notes and tombstones.
 - Echo: when building a `changes` pack for P, a record whose `changed_by` is P (its current version
   came from P) is left out, so P never receives its own old version back and mistakes it for a
-  second edit. Versions from other devices still relay. A `full` pack leaves nothing out.
+  second edit. Versions from other devices still relay. A `full` pack leaves nothing out. Import batches
+  follow the same rule (schema v10 adds `import_batches.changed_by`, set to the peer when a batch is merged
+  from it): a batch that came from P is neither carried back to P nor counted as unsent for P, and a
+  conversation that only a batch from P made it relevant is not pulled in for P either. Batches created
+  before v10 have NULL and keep the old behaviour (they are carried until the watermark passes them).
 
 ### Trust and limits
 
@@ -384,7 +388,7 @@ v9 adds only `sync_conflicts` (see "Conflicts"); it is peer state, so a restore 
 |--------|-----|
 | `device(singleton, id, created_at, change_seq)` | Identity and the counter. Row created on first use, not by the migration, so a restore can never inherit an id. |
 | `seq` on profiles, conversations, import_batches, favorites, notes | The only thing a changes pack selects on. Backfill: `1` for every existing row and counter start `1`, so "since 0" is the whole library and any later change is higher. Deterministic: no clock, no ordering. |
-| `changed_by` on profiles, conversations, notes | Stops a merged version counting as a local edit against the same peer. NULL = made here. |
+| `changed_by` on profiles, conversations, import_batches, notes | Stops a merged version counting as a local edit against the same peer. NULL = made here. |
 | `tombstones(kind, scope, key, deleted_at, seq)` | Deletions of favorites, notes and batches have to be able to travel. Written by the same code paths that delete. Cleared when the target is recreated. |
 | `sync_peers` | The watermarks. |
 | Indexes on `favorites.seq`, `notes.seq` | The two tables that can be large; the others are small. |
