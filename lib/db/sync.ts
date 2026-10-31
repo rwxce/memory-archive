@@ -1,4 +1,4 @@
-import type { RecordReceivedInput, RecordSentInput, SyncPeer } from '../domain/sync';
+import type { RecordReceivedInput, RecordSentInput, RecordSentResult, SyncPeer } from '../domain/sync';
 import { DbError } from './errors';
 import type { SqlDb } from './sql';
 
@@ -124,17 +124,33 @@ function ensurePeer(db: SqlDb, peerId: string): void {
 }
 
 /**
- * A changes pack for `peerId` was produced up to `upToSeq`. The watermark only moves forward here;
- * it is optimistic until the peer's next pack confirms it (`recordReceived` with `ackedSeq`).
+ * A changes pack for `peerId` was produced up to `upToSeq`. Without `sinceSeq` the watermark only
+ * moves forward; with it (a pack of changes) it moves only from exactly `sinceSeq`. It is
+ * optimistic until the peer's next pack confirms it (`recordReceived` with `ackedSeq`).
  */
-export function recordSent(db: SqlDb, input: RecordSentInput): SyncPeer {
+export function recordSent(db: SqlDb, input: RecordSentInput): RecordSentResult {
   const peerId = requireUuid(input.peerId, 'peer id');
   const upToSeq = requireSeq(input.upToSeq, 'upToSeq');
+  const since = input.sinceSeq === undefined || input.sinceSeq === null ? null : requireSeq(input.sinceSeq, 'sinceSeq');
   if (typeof input.now !== 'string' || input.now === '') throw invalid('now must be a string');
   if (upToSeq > currentChangeSeq(db)) throw invalid('upToSeq is beyond this device\'s change counter');
+  if (since === null) {
+    ensurePeer(db, peerId);
+    db.run('UPDATE sync_peers SET last_sent_seq = max(last_sent_seq, ?), last_sent_at = ? WHERE peer_id = ?', [upToSeq, input.now, peerId]);
+    return { recorded: true, peer: getPeer(db, peerId)! };
+  }
+  if (since > upToSeq) throw invalid('sinceSeq is above upToSeq');
+  // Compare-and-set: the watermark moves only if nothing (an ack, a newer pack) changed it since the pack was cut.
+  const known = getPeer(db, peerId);
+  if (known === null && since !== 0) return { recorded: false, peer: { peerId, lastSentSeq: 0, lastSentAt: null, lastReceivedSeq: 0, lastReceivedAt: null } };
   ensurePeer(db, peerId);
-  db.run('UPDATE sync_peers SET last_sent_seq = max(last_sent_seq, ?), last_sent_at = ? WHERE peer_id = ?', [upToSeq, input.now, peerId]);
-  return getPeer(db, peerId)!;
+  const changed = db.run('UPDATE sync_peers SET last_sent_seq = ?, last_sent_at = ? WHERE peer_id = ? AND last_sent_seq = ?', [
+    upToSeq,
+    input.now,
+    peerId,
+    since,
+  ]);
+  return { recorded: changed > 0, peer: getPeer(db, peerId)! };
 }
 
 /**

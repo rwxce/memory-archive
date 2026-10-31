@@ -24,7 +24,7 @@ describe('sync state use cases', () => {
     expect(await getPeerState(deps, PEER)).toBeNull();
     const top = opened.db.all<{ n: number }>('SELECT 1 AS n')[0].n; // the counter starts at 1
     expect(await recordSent(deps, PEER, top)).toEqual({
-      peerId: PEER, lastSentSeq: 1, lastSentAt: '2026-05-06T07:08:09.000Z', lastReceivedSeq: 0, lastReceivedAt: null,
+      recorded: true, peer: { peerId: PEER, lastSentSeq: 1, lastSentAt: '2026-05-06T07:08:09.000Z', lastReceivedSeq: 0, lastReceivedAt: null },
     });
     expect(await recordReceived(deps, PEER, 12, 1)).toMatchObject({ lastReceivedSeq: 12, lastSentSeq: 1, lastReceivedAt: '2026-05-06T07:08:09.000Z' });
     await recordReceived(deps, PEER2, 3, null);

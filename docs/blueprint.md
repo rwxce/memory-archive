@@ -409,6 +409,11 @@ test type or architecture rule means updating this file **in the same PR**.
   - `lib/db/snapshot.ts` — `serializeDb`, `loadSnapshot`, `listBlobs`, `isLibraryEmpty`.
   - `lib/exporters/archive/` — `format.ts` (manifest, limits, `ArchiveError`, path validation),
     `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`openArchive`, `restoreArchive`), `verify.ts` (`verifyArchive`).
+  - `lib/exporters/changes-pack/` — the changes pack for manual sync (see "Phase 7" notes above and
+    `docs/formats/changes-pack.md`): `format.ts`, `write.ts`, `read.ts`, tests `format|write|read.test.ts`;
+    `lib/db/changes.test.ts` and `lib/usecases/changes-pack-export.test.ts` cover the queries and the
+    end-to-end export (since-watermark vs full, tombstones, media only for changed records, determinism,
+    encrypted pack, watermark not advanced by exporting).
   - `lib/importers/whatsapp/` — `zip.ts` (single ZIP reader: central directory + ZIP64 over
     `Blob.slice`, fflate streaming inflate per entry), `lines.ts` (UTF-8 decoding + line
     splitting), `timestamp.ts`, `message.ts` (state machine), `chat.ts` (transcript entry,
@@ -575,7 +580,22 @@ test type or architecture rule means updating this file **in the same PR**.
   negative or unsafe-integer `seq` makes the snapshot invalid); tombstones travel in backups;
   `isLibraryEmpty` ignores `device`, `sync_peers` and `tombstones`. Archive `formatVersion` stays 1;
   v1-v7 backups restore by migrating, new backups carry `schemaVersion` 8 (an older app refuses them).
-  Not built yet: writing / reading changes packs, the merge, the conflicts list and its table, any UI.
+  **Export of changes packs (queue item 14)**: `lib/db/changes.ts` (`readChangeSet`: the records, the
+  closure and `upTo` read in ONE synchronous step in the worker; `readBatchMessages`: a batch's messages in pages;
+  ops `readChangeSet` / `readBatchMessages`), `lib/exporters/changes-pack/` (`format.ts` manifest, paths, names;
+  `write.ts` deterministic writer over the backup's ZIP rules; `read.ts` `openChangesPack` / `readPackLines` /
+  `verifyChangesPack`, a structural verifier, NOT a merge; `test-pack.ts` synthetic helpers) which reuse the
+  backup's `ArchiveLimits`, `validateEntryPath` and `openZipPackage` (the generic form of `openArchive`), and
+  `lib/usecases/changes-pack-export.ts` (`exportChangesPack`, optional `.mabackup` envelope, under the archive guard).
+  **Exporting never moves a watermark**: the caller confirms with `confirmChangesPackDelivered` (`recordSent`) once
+  the file is saved or shared, and that refuses if the device id changed (a restore) meanwhile. A pack for an unknown
+  device, or a forced one, is `full` (no target, `ack` null). The confirmation is a compare-and-set on the
+  pack's `since` (`recorded: false` when an ack or a newer pack moved the watermark first). Memory: records
+  are bounded per line (4 MiB in bytes) but `readChangeSet` loads ALL non-message records at once and the
+  pack is assembled as one `Blob`, so a full pack of a very large library costs memory proportional to its
+  records plus the 16 MB write buffer (media streams from OPFS and is not held); the writer rejects with
+  `limit-exceeded` before handing anything over. Streaming it to disk is not built. Domain types: `lib/domain/changes-pack.ts`. Not built
+  yet: the merge, the conflicts list and its table, any UI.
 - **Search: a derived index (decision, no schema change)** — full-text search runs on an FTS5 table that is
   a rebuildable CACHE, not data. FTS5 is compiled into the bundled sqlite-wasm. It could not live in the
   library: `snapshot.ts` refuses virtual tables, triggers and views in anything restored, and backups
@@ -1151,7 +1171,7 @@ test type or architecture rule means updating this file **in the same PR**.
 - `ai-tooling.md` — rulesync layout and how to add rules, skills and commands.
 - `formats/legacy-json.md` — the versioned `messages.json` envelope and what each legacy output
   can be re-imported from.
-- `formats/changes-pack.md` — the changes pack for manual device-to-device sync: manifest, records, merge and conflict rules, watermarks, device identity (design; schema v8 is implemented)
+- `formats/changes-pack.md` — the changes pack for manual device-to-device sync: manifest, records, merge and conflict rules, watermarks, device identity (schema v8 and pack export are implemented; the merge is design)
 - `formats/encrypted-backup.md` — the optional password-encrypted backup envelope (`.mabackup`)
   that wraps the backup ZIP unchanged.
 - `archive/planning/` — the original GSD planning of the wa-backup CLI (phases 1–3, codebase

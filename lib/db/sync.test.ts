@@ -265,13 +265,28 @@ describe('peer watermarks', () => {
     const { db } = await library();
     const top = currentChangeSeq(db);
     expect(recordSent(db, { peerId: PEER, upToSeq: top, now: NOW })).toEqual({
-      peerId: PEER, lastSentSeq: top, lastSentAt: NOW, lastReceivedSeq: 0, lastReceivedAt: null,
+      recorded: true, peer: { peerId: PEER, lastSentSeq: top, lastSentAt: NOW, lastReceivedSeq: 0, lastReceivedAt: null },
     });
-    expect(recordSent(db, { peerId: PEER, upToSeq: 2, now: LATER })).toMatchObject({ lastSentSeq: top, lastSentAt: LATER });
+    expect(recordSent(db, { peerId: PEER, upToSeq: 2, now: LATER }).peer).toMatchObject({ lastSentSeq: top, lastSentAt: LATER });
     expect(() => recordSent(db, { peerId: PEER, upToSeq: top + 1, now: NOW })).toThrow(/beyond/);
     expect(() => recordSent(db, { peerId: 'nope', upToSeq: 1, now: NOW })).toThrow(/UUID/);
     expect(() => recordSent(db, { peerId: PEER, upToSeq: -1, now: NOW })).toThrow(/non-negative/);
     expect(() => recordSent(db, { peerId: PEER, upToSeq: 1.5, now: NOW })).toThrow(/non-negative/);
+  });
+
+  test('recordSent with sinceSeq is a compare-and-set on the sent watermark', async () => {
+    const { db } = await library();
+    nextChangeSeq(db);
+    const top = currentChangeSeq(db);
+    expect(recordSent(db, { peerId: PEER, upToSeq: top, sinceSeq: 0, now: NOW })).toMatchObject({ recorded: true, peer: { lastSentSeq: top } });
+    // the watermark is no longer at 0: nothing changes, not even the timestamp
+    expect(recordSent(db, { peerId: PEER, upToSeq: top, sinceSeq: 0, now: LATER })).toMatchObject({ recorded: false, peer: { lastSentSeq: top, lastSentAt: NOW } });
+    recordReceived(db, { peerId: PEER, upToSeq: 1, ackedSeq: 1, now: LATER });
+    expect(recordSent(db, { peerId: PEER, upToSeq: top, sinceSeq: 1, now: LATER })).toMatchObject({ recorded: true, peer: { lastSentSeq: top } });
+    // an unknown peer is only recorded from 0, and a refused attempt leaves no row behind
+    expect(recordSent(db, { peerId: PEER2, upToSeq: top, sinceSeq: 1, now: NOW }).recorded).toBe(false);
+    expect(getPeer(db, PEER2)).toBeNull();
+    expect(() => recordSent(db, { peerId: PEER, upToSeq: 1, sinceSeq: 2, now: NOW })).toThrow(/sinceSeq/);
   });
 
   test('recordReceived moves the received watermark forward only; the peer ack replaces the sent watermark', async () => {

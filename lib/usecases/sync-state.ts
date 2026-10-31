@@ -1,4 +1,4 @@
-import type { RecordReceivedInput, RecordSentInput, SyncPeer } from '../domain/sync';
+import type { RecordReceivedInput, RecordSentInput, RecordSentResult, SyncPeer } from '../domain/sync';
 import { nowOf, type LibraryDeps } from './profiles';
 
 /**
@@ -22,9 +22,13 @@ export function getPeerState(deps: LibraryDeps, peerId: string): Promise<SyncPee
   return deps.client.call('getSyncPeer', { peerId });
 }
 
-/** A changes pack for `peerId` was produced up to `upToSeq` (the pack's `upTo`). Only moves the watermark forward. */
-export function recordSent(deps: LibraryDeps, peerId: string, upToSeq: number): Promise<SyncPeer> {
-  const input: RecordSentInput = { peerId, upToSeq, now: nowOf(deps) };
+/**
+ * A changes pack for `peerId` was produced up to `upToSeq` (the pack's `upTo`). With `sinceSeq` (the
+ * pack's `since`, for a pack of changes) the watermark moves only if it still equals it; without,
+ * it only moves forward.
+ */
+export function recordSent(deps: LibraryDeps, peerId: string, upToSeq: number, sinceSeq: number | null = null): Promise<RecordSentResult> {
+  const input: RecordSentInput = { peerId, upToSeq, sinceSeq, now: nowOf(deps) };
   return deps.client.call('recordSyncSent', input);
 }
 
