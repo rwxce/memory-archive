@@ -122,13 +122,13 @@ newer backups.**
 
 ## Phase 6 — Full backup and restore
 
-**Status: partly done.** Done: full ZIP export and restore into an empty library; the Backup and restore screen (`/backup/`: storage usage, full backup, open a backup, integrity check of the library, check of a backup file without restoring). Replacing an existing library with a backup is done too (confirmation dialog, automatic safety copy downloaded first, two-stage progress, Stop until the swap). Optional password-encrypted backups are done too (`.mabackup`, AES-256-GCM; see `docs/formats/encrypted-backup.md`): a switch on the backup card, a password prompt when opening, replacing or checking a protected file, and plain backups marked private. The safety copy that replace downloads stays unencrypted (a documented gap). Not done: the automated acceptance scenario.
+**Status: partly done.** Done: full ZIP export and restore into an empty library; the Backup and restore screen (`/backup/`: storage usage, full backup, open a backup, integrity check of the library, check of a backup file without restoring). Replacing an existing library with a backup is done too (confirmation dialog, automatic safety copy downloaded first, two-stage progress, Stop until the swap). Optional password-encrypted backups are done too (`.mabackup`, AES-256-GCM; see `docs/formats/encrypted-backup.md`): a switch on the backup card, a password prompt when opening, replacing or checking a protected file, and plain backups marked private. The safety copy that replace downloads stays unencrypted (a documented gap). The acceptance scenario is automated in Chromium (`e2e/backup-restore.spec.ts`: ten people, plain and protected backups, restore on a clean browser, replace over an existing library). Not done: running it on Safari and Firefox, which stays a manual check until those e2e projects exist.
 
 - Backup & restore screen: full export, restore, integrity check, storage usage; replace an
   existing library with confirmation and an automatic safety backup (done); optional
   encrypted backups (done).
 - **Verify:** the PRD acceptance scenario automated (10 profiles → backup → restore on a clean
-  browser → identical) across Safari, Chrome and Firefox.
+  browser → identical): done in Chromium; Safari and Firefox are checked by hand.
 
 ## Phase 7 — Manual device-to-device sync
 
