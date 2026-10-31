@@ -42,15 +42,29 @@ afterEach(() => {
 });
 
 describe('SyncImportCard result', () => {
-  test('crossed edits are shown as a count with both versions kept, and no way to resolve them yet', async () => {
+  test('crossed edits are shown as a count with both versions kept, and a link to review them', async () => {
     view = await render(<SyncImportCard pack={packWith({ status: 'done', result: done({ conflicts: 2, batchOffers: 1 }, { ...counts, messages: { added: 4, skipped: 1 } }) })} busy={false} />);
     const text = view.container.textContent!;
     expect(text).toContain('4 new messages added.');
     expect(text).toContain('1 message was already in the archive');
     expect(view.container.querySelector('[data-testid="sync-conflicts"]')?.textContent).toContain('2 items were changed on both devices. Both versions are kept and nothing was overwritten.');
-    expect(text).toContain(s.conflictsLater);
+    expect(text).toContain(s.conflictsReview);
     expect(text).toContain('1 import was undone on the other device. Nothing was removed here.');
-    expect(view.container.querySelectorAll('a')).toHaveLength(0);
+    expect(view.container.querySelector('a[href="#sync-conflicts"]')?.textContent).toBe(s.conflictsReview);
+  });
+
+  test('the count is what this file left, the Review link follows what is open now', async () => {
+    const pack = packWith({ status: 'done', result: done({ conflicts: 1, batchOffers: 0 }) });
+    view = await render(<SyncImportCard pack={pack} busy={false} openItems={5} />);
+    expect(view.container.querySelector('[data-testid="sync-conflicts"]')?.textContent).toContain('1 item was changed');
+    expect(view.container.querySelector('a[href="#sync-conflicts"]')).not.toBeNull();
+    view.unmount();
+    view = await render(<SyncImportCard pack={pack} busy={false} openItems={0} />);
+    expect(view.container.querySelector('a[href="#sync-conflicts"]')).toBeNull();
+    view.unmount();
+    // Only offers: still a way to review them.
+    view = await render(<SyncImportCard pack={packWith({ status: 'done', result: done({ conflicts: 0, batchOffers: 2 }) })} busy={false} />);
+    expect(view.container.querySelector('a[href="#sync-conflicts"]')).not.toBeNull();
   });
 
   test('a file with nothing new says so', async () => {

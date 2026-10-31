@@ -1131,7 +1131,6 @@
       "removed": "{count, plural, one {Se ha quitado # favorito o nota, porque se borró en el otro dispositivo.} other {Se han quitado # favoritos o notas, porque se borraron en el otro dispositivo.}}",
       "nothingNew": "Todo lo que había en este archivo ya estaba en el archivo. No ha cambiado nada.",
       "conflicts": "{count, plural, one {# elemento se cambió en los dos dispositivos. Se guardan las dos versiones y no se ha sobrescrito nada.} other {# elementos se cambiaron en los dos dispositivos. Se guardan las dos versiones y no se ha sobrescrito nada.}}",
-      "conflictsLater": "Todavía no se puede elegir cuál conservar.",
       "offers": "{count, plural, one {# importación se deshizo en el otro dispositivo. Aquí no se ha quitado nada.} other {# importaciones se deshicieron en el otro dispositivo. Aquí no se ha quitado nada.}}",
       "another": "Elegir otro archivo",
       "errorTitle": "No se han añadido los cambios",
@@ -1148,8 +1147,84 @@
         "passwordRequired": "Este archivo está protegido. Escribe su contraseña para abrirlo.",
         "encryptionUnavailable": "Este navegador no puede abrir archivos con contraseña aquí. Inténtalo de nuevo desde la aplicación instalada o con una conexión segura. No se ha cambiado nada.",
         "generic": "Algo ha ido mal. No se ha cambiado nada. Inténtalo de nuevo."
-      }
+      },
+      "conflictsReview": "Revísalos"
     },
-    "progressAnnounce": "{percent}% hecho"
+    "progressAnnounce": "{percent}% hecho",
+    "conflicts": {
+      "title": "Cosas por revisar",
+      "description": "Se han cambiado en los dos dispositivos, o otro dispositivo ha deshecho una importación. No se ha sobrescrito ni eliminado nada. Elige qué quieres conservar.",
+      "empty": "Ningún conflicto. No te espera nada.",
+      "loading": "Buscando cosas por revisar…",
+      "failed": "No se ha podido leer la lista. No se ha cambiado nada.",
+      "count": "{count, plural, one {# cosa por revisar} other {# cosas por revisar}}",
+      "thisDevice": "Este dispositivo",
+      "otherDevice": "Dispositivo {code}",
+      "heading": {
+        "profile": "Persona: {name}",
+        "conversation": "Conversación: {name}",
+        "note": "Nota",
+        "noteOn": "Nota: {name}",
+        "batch": "Se deshizo una importación en el dispositivo {code}"
+      },
+      "untitled": "(sin nombre)",
+      "field": {
+        "name": "Nombre",
+        "relationship": "Relación",
+        "description": "Descripción",
+        "title": "Título",
+        "body": "Texto",
+        "archived": "Archivada"
+      },
+      "archivedValue": "Sí",
+      "nothingWritten": "Nada escrito",
+      "deletedThere": "Borrado en ese dispositivo",
+      "missingHere": "Ya no está en este dispositivo",
+      "legend": "¿Qué quieres conservar?",
+      "choose": "Elige una opción para continuar.",
+      "choice": {
+        "mine": "Conservar la versión de este dispositivo",
+        "theirs": "Quedarme con la versión del otro dispositivo",
+        "both": "Conservar las dos",
+        "bothHint": "El texto del otro se añade debajo de este.",
+        "keepHere": "Conservarlo aquí",
+        "deleteHere": "Borrarlo también aquí",
+        "stayDeleted": "Dejarlo borrado",
+        "bringBack": "Recuperar la versión del otro dispositivo"
+      },
+      "apply": "Aplicar",
+      "applying": "Aplicando…",
+      "batch": {
+        "offer": "El dispositivo {code} ha deshecho una importación en «{title}».",
+        "offerCount": "{count, plural, one {# mensaje de esa importación sigue aquí.} other {# mensajes de esa importación siguen aquí.}} No se ha eliminado nada.",
+        "offerUnknown": "El dispositivo {code} ha deshecho una importación que este dispositivo también tiene. No se ha eliminado nada.",
+        "thisConversation": "esta conversación",
+        "undo": "Deshacer esa importación aquí",
+        "keep": "Conservarla",
+        "confirmTitle": "¿Deshacer esta importación aquí?",
+        "confirmBody": "{count, plural, one {El # mensaje añadido} other {Los # mensajes añadidos}} por esa importación se eliminarán de «{title}». Las fotos y los ficheros que ninguna otra conversación use también se eliminarán. Los mensajes que ya estaban en tu archivo se quedan.",
+        "confirmBodyCreated": "{count, plural, one {El # mensaje añadido} other {Los # mensajes añadidos}} por esa importación se eliminarán, y también la conversación «{title}», que creó esa importación. Las fotos y los ficheros que ninguna otra conversación use también se eliminarán. Las notas y los favoritos de esa conversación se van con ella. Todo lo que ya estaba en tu archivo antes se queda.",
+        "confirmBodyMaybeCreated": "{count, plural, one {El # mensaje añadido} other {Los # mensajes añadidos}} por esa importación se eliminarán de «{title}». Si no queda nada más en esa conversación, la conversación también se elimina, con sus notas y favoritos. Las fotos y los ficheros que ninguna otra conversación use también se eliminarán. Todo lo que ya estaba en tu archivo antes se queda.",
+        "confirmBodyUnknown": "Los mensajes añadidos por esa importación se eliminarán. Las fotos y los ficheros que ninguna otra conversación use también se eliminarán. Los mensajes que ya estaban en tu archivo se quedan.",
+        "confirm": "Deshacer la importación",
+        "cancel": "Volver",
+        "unmatched": "Este dispositivo no tiene esa importación, así que no hay nada que eliminar.",
+        "close": "Cerrar esta nota"
+      },
+      "outcome": {
+        "mine": "Se ha conservado la versión de este dispositivo.",
+        "theirs": "Te has quedado con la versión del otro dispositivo.",
+        "both": "Se han conservado los dos textos.",
+        "undone": "La importación se ha deshecho aquí.",
+        "dismissed": "Hecho. No se ha eliminado nada.",
+        "recordGone": "Eso ya no está en este dispositivo, así que no se ha aplicado nada.",
+        "settled": "Esa ya estaba resuelta.",
+        "alreadyGone": "Eso ya no estaba en este dispositivo, así que no se eliminó ni se cambió nada.",
+        "bothRestored": "La nota de aquí ya no estaba, así que solo se añadió el texto del otro dispositivo.",
+        "busy": "Hay otra tarea en curso. Vuelve a intentarlo en un momento.",
+        "tooLong": "Los dos textos juntos son demasiado largos para una nota. No se ha cambiado nada. Elige una de las otras opciones.",
+        "failed": "No se ha podido guardar. No se ha cambiado nada. Vuelve a intentarlo."
+      }
+    }
   }
 }

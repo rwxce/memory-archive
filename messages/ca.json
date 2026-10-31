@@ -1131,7 +1131,6 @@
       "removed": "{count, plural, one {S’ha tret # favorit o nota, perquè es va esborrar a l’altre dispositiu.} other {S’han tret # favorits o notes, perquè es van esborrar a l’altre dispositiu.}}",
       "nothingNew": "Tot el que hi havia en aquest fitxer ja era a l’arxiu. No ha canviat res.",
       "conflicts": "{count, plural, one {# element s’ha canviat als dos dispositius. Es guarden les dues versions i no s’ha sobreescrit res.} other {# elements s’han canviat als dos dispositius. Es guarden les dues versions i no s’ha sobreescrit res.}}",
-      "conflictsLater": "Encara no es pot triar quina conservar.",
       "offers": "{count, plural, one {# importació es va desfer a l’altre dispositiu. Aquí no s’ha tret res.} other {# importacions es van desfer a l’altre dispositiu. Aquí no s’ha tret res.}}",
       "another": "Tria un altre fitxer",
       "errorTitle": "No s’han afegit els canvis",
@@ -1148,8 +1147,84 @@
         "passwordRequired": "Aquest fitxer està protegit. Escriu-ne la contrasenya per obrir-lo.",
         "encryptionUnavailable": "Aquest navegador no pot obrir fitxers amb contrasenya aquí. Torna-ho a provar des de l’aplicació instal·lada o amb una connexió segura. No s’ha canviat res.",
         "generic": "Alguna cosa ha anat malament. No s’ha canviat res. Torna-ho a provar."
-      }
+      },
+      "conflictsReview": "Revisa’ls"
     },
-    "progressAnnounce": "{percent}% fet"
+    "progressAnnounce": "{percent}% fet",
+    "conflicts": {
+      "title": "Coses per revisar",
+      "description": "S’han canviat als dos dispositius, o un altre dispositiu ha desfet una importació. No s’ha sobreescrit ni eliminat res. Tria què vols conservar.",
+      "empty": "Cap conflicte. No t’espera res.",
+      "loading": "Buscant coses per revisar…",
+      "failed": "No s’ha pogut llegir la llista. No s’ha canviat res.",
+      "count": "{count, plural, one {# cosa per revisar} other {# coses per revisar}}",
+      "thisDevice": "Aquest dispositiu",
+      "otherDevice": "Dispositiu {code}",
+      "heading": {
+        "profile": "Persona: {name}",
+        "conversation": "Conversa: {name}",
+        "note": "Nota",
+        "noteOn": "Nota: {name}",
+        "batch": "S’ha desfet una importació al dispositiu {code}"
+      },
+      "untitled": "(sense nom)",
+      "field": {
+        "name": "Nom",
+        "relationship": "Relació",
+        "description": "Descripció",
+        "title": "Títol",
+        "body": "Text",
+        "archived": "Arxivada"
+      },
+      "archivedValue": "Sí",
+      "nothingWritten": "Res escrit",
+      "deletedThere": "Esborrat en aquell dispositiu",
+      "missingHere": "Ja no és en aquest dispositiu",
+      "legend": "Què vols conservar?",
+      "choose": "Tria una opció per continuar.",
+      "choice": {
+        "mine": "Conserva la versió d’aquest dispositiu",
+        "theirs": "Agafa la versió de l’altre dispositiu",
+        "both": "Conserva les dues",
+        "bothHint": "El text de l’altre s’afegeix a sota d’aquest.",
+        "keepHere": "Conserva-ho aquí",
+        "deleteHere": "Esborra-ho també aquí",
+        "stayDeleted": "Deixa-ho esborrat",
+        "bringBack": "Recupera la versió de l’altre dispositiu"
+      },
+      "apply": "Aplica",
+      "applying": "Aplicant…",
+      "batch": {
+        "offer": "El dispositiu {code} ha desfet una importació a «{title}».",
+        "offerCount": "{count, plural, one {# missatge d’aquesta importació encara és aquí.} other {# missatges d’aquesta importació encara són aquí.}} No s’ha eliminat res.",
+        "offerUnknown": "El dispositiu {code} ha desfet una importació que aquest dispositiu també té. No s’ha eliminat res.",
+        "thisConversation": "aquesta conversa",
+        "undo": "Desfés aquesta importació aquí",
+        "keep": "Conserva-la",
+        "confirmTitle": "Vols desfer aquesta importació aquí?",
+        "confirmBody": "{count, plural, one {El # missatge afegit} other {Els # missatges afegits}} per aquesta importació s’eliminaran de «{title}». Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Els missatges que ja eren al teu arxiu es queden.",
+        "confirmBodyCreated": "{count, plural, one {El # missatge afegit} other {Els # missatges afegits}} per aquesta importació s’eliminaran, i també la conversa «{title}», que va crear aquesta importació. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Les notes i els favorits d’aquesta conversa se’n van amb ella. Tot allò que ja era al teu arxiu abans es queda.",
+        "confirmBodyMaybeCreated": "{count, plural, one {El # missatge afegit} other {Els # missatges afegits}} per aquesta importació s’eliminaran de «{title}». Si no hi queda res més en aquesta conversa, la conversa també s’elimina, amb les notes i els favorits. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Tot allò que ja era al teu arxiu abans es queda.",
+        "confirmBodyUnknown": "Els missatges afegits per aquesta importació s’eliminaran. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Els missatges que ja eren al teu arxiu es queden.",
+        "confirm": "Desfés la importació",
+        "cancel": "Torna enrere",
+        "unmatched": "Aquest dispositiu no té aquesta importació, així que no hi ha res per eliminar.",
+        "close": "Tanca aquesta nota"
+      },
+      "outcome": {
+        "mine": "S’ha conservat la versió d’aquest dispositiu.",
+        "theirs": "S’ha agafat la versió de l’altre dispositiu.",
+        "both": "S’han conservat els dos textos.",
+        "undone": "La importació s’ha desfet aquí.",
+        "dismissed": "Fet. No s’ha eliminat res.",
+        "recordGone": "Això ja no és en aquest dispositiu, així que no s’ha aplicat res.",
+        "settled": "Aquesta ja estava resolta.",
+        "alreadyGone": "Això ja no era en aquest dispositiu, així que no s’ha eliminat ni canviat res.",
+        "bothRestored": "La nota d’aquí ja no hi era, així que només s’ha afegit el text de l’altre dispositiu.",
+        "busy": "Hi ha una altra tasca en curs. Torna-ho a provar d’aquí a un moment.",
+        "tooLong": "Els dos textos junts són massa llargs per a una nota. No s’ha canviat res. Tria una de les altres opcions.",
+        "failed": "No s’ha pogut desar. No s’ha canviat res. Torna-ho a provar."
+      }
+    }
   }
 }

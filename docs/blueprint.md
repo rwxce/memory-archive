@@ -188,7 +188,7 @@ test type or architecture rule means updating this file **in the same PR**.
     only: never in state, storage or logs, and cleared from the fields when handed over. The replace dialog states that its
     safety copy is not encrypted. Progress adds `encrypting` / `decrypting`. Tested in `components/backup-encrypted.test.tsx` and `hooks/use-archive-backup.test.tsx`.
   - **Sync devices** (`/[locale]/sync/`, `components/sync-screen.tsx` plus `sync-device-card`, `sync-export-card`,
-    `sync-import-card`, `sync-inbox`, `sync-progress`; hooks `use-sync-device`, `use-changes-pack-export`, `use-changes-pack-import`,
+    `sync-import-card`, `sync-inbox`, `sync-progress`, `sync-conflicts-card`, `sync-conflict-item`, `sync-batch-offer`; hooks `use-sync-device`, `use-sync-conflicts`, `use-changes-pack-export`, `use-changes-pack-import`,
     `peek-archive-file`, `throttle-progress`; copy under `sync.*`). Sub-screen with a back pill to Settings (a Settings row
     links to it like `/backup`). Cards: this device (8-character device code, known devices with last file handed over /
     received); "Send changes to another device" (pick a known device or "A new device" = full file, optional "send everything
@@ -206,6 +206,18 @@ test type or architecture rule means updating this file **in the same PR**.
     wizard is NOT told apart from a protected backup or a bad file: it must be opened from Sync devices). A changes file shared
     to the app (Web Share Target) is left in the share inbox by the wizard and listed under "Received files" on `/sync`
     (`sync-inbox.tsx`: add the changes or remove it; it leaves the inbox only after a successful merge or on removal).
+    "Items to review" (`#sync-conflicts`, `sync-conflicts-card.tsx`): the crossed edits (person, conversation, note) and offered import undos
+    from `listSyncConflicts`, via `hooks/use-sync-conflicts.ts` (per-conflict in-flight guard, outcome, reload; offers are matched to
+    `listImportHistory` by batch id for the chat name and message count). Each item stacks "This device" / "Device ab12cd34" at 375 px;
+    no choice is preselected and Apply waits (aria-disabled) until one is picked; "keep both" is offered for notes only; text is
+    never clamped (nobody chooses blind); notes are headed with their conversation or person when found; all values are React text. An offer has "Undo that import here" (inline confirmation naming the chat
+    and message count, saying media nothing else uses goes too) and "Keep it"; an offer for an import this device lacks is a calm note
+    with a close action. `resolveSyncConflict(id, choice, expected)` takes the `key` + `detectedAt` the person looked at (an id can be reused and a
+    newer incoming version replaces its row in place; a mismatch is `not-found` and changes nothing; UI items are keyed `id:detectedAt`,
+    so the choice and an open undo question reset) and returns `{ recordGone, undone, localMissing }` for neutral "already gone" outcomes;
+    the undo question promises the chat is removed only when all its messages are from that import. One polite live region (at most one update per second); focus
+    goes to the next item or the card heading; an identical repeated outcome is announced again. The import result counts what that file left and links to `#sync-conflicts`. Tested in `components/sync-conflicts-card.test.tsx`
+    and `e2e/sync.spec.ts` (a person renamed on two devices).
     While the hand-over question is open, making another file and changing the device are disabled. Export and import share one task at a time;
     progress goes through `throttleProgress` (new phase always, then every 100 ms or a whole percent). Tested in
     `components/sync-screen.test.tsx`, `components/sync-import-card.test.tsx`, `hooks/throttle-progress.test.ts`, the pointer cases
