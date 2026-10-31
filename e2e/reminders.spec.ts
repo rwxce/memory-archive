@@ -12,6 +12,9 @@ test('a backup reminder appears after the interval, can be snoozed, and is switc
   await page.goto('/en/');
   await expect(page.getByRole('heading', { level: 1, name: 'People' })).toBeVisible();
   await expect(page.getByTestId('reminder-card')).toHaveCount(0);
+  // The count starts once the (asynchronous) first look has stored its starting date: wait for it,
+  // or a slow machine moves the clock before there is a date to count from.
+  await page.waitForFunction(() => localStorage.getItem('memory-archive:reminders-state') !== null);
 
   await page.clock.install({ time: new Date(Date.now() + 15 * 86_400_000) });
   await page.goto('/en/');
