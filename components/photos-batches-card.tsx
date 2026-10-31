@@ -37,6 +37,7 @@ export function PhotosBatchesCard({ batches, disabled }: { batches: PhotoBatches
       {outcome && (
         <p ref={note} tabIndex={-1} role={outcome.status === 'failed' ? 'alert' : 'status'} data-testid="photos-undo-result" className="bg-bg rounded-[14px] p-3.5 outline-none">
           {outcome.status === 'failed' ? t('undoFailed') : outcome.removedItems > 0 ? t('undone', { count: outcome.removedItems }) : t('undoneNone')}
+          {outcome.status === 'done' && outcome.removedAssignments > 0 && <> {t('undoneAssignments', { count: outcome.removedAssignments })}</>}
         </p>
       )}
       {state.status === 'loading' && <LoadingNote>{t('loading')}</LoadingNote>}
@@ -100,6 +101,7 @@ function BatchRow({ batch, asking, disabled, onAsk, onKeep, onUndo }: { batch: P
             {t.rich('confirmTitle', { name: nameTag(name) })}
           </p>
           <p className="text-t2 text-sm leading-relaxed">{t('confirmBody', { count: batch.addedCount })}</p>
+          <p className="text-t2 text-sm leading-relaxed">{t('confirmAssignments')}</p>
           <div className="flex flex-col-reverse gap-2 sm:flex-row">
             <PillButton
               variant="outlined"

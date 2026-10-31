@@ -64,4 +64,34 @@ describe('createQueue', () => {
     await expect(bad.promise).rejects.toThrow('boom');
     expect(await good.promise).toBe('ok');
   });
+
+  test('a high-priority task goes ahead of the waiting ones and may use one slot beyond the limit', async () => {
+    const queue = createQueue(1);
+    const gate = deferred();
+    const order: string[] = [];
+    const first = queue.enqueue(async () => {
+      order.push('tile-1');
+      await gate.promise;
+    });
+    const tile2 = queue.enqueue(async () => void order.push('tile-2'));
+    const full = queue.enqueue(async () => void order.push('full'), { priority: 'high' });
+    await full.promise; // it did not wait for the running tile read
+    expect(order).toEqual(['tile-1', 'full']);
+    gate.resolve();
+    await Promise.all([first.promise, tile2.promise]);
+    expect(order).toEqual(['tile-1', 'full', 'tile-2']);
+  });
+
+  test('a waiting high-priority task can be cancelled like any other', async () => {
+    const queue = createQueue(1);
+    const gates = [deferred(), deferred()];
+    queue.enqueue(() => gates[0].promise);
+    queue.enqueue(() => gates[1].promise, { priority: 'high' });
+    const third = queue.enqueue(async () => 3, { priority: 'high' });
+    expect(queue.waiting).toBe(1);
+    third.cancel();
+    await expect(third.promise).rejects.toBeInstanceOf(Cancelled);
+    expect(queue.waiting).toBe(0);
+    gates.forEach((g) => g.resolve());
+  });
 });

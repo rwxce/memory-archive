@@ -1334,8 +1334,143 @@
       "working": "Deshaciendo la importación…",
       "undone": "{count, plural, one {Se ha quitado # foto o vídeo de la colección.} other {Se han quitado # fotos y vídeos de la colección.}}",
       "undoneNone": "Esta importación ya se había deshecho.",
-      "undoFailed": "No se ha podido deshacer la importación. Vuelve a probar dentro de un momento; la lista muestra lo que hay."
+      "undoFailed": "No se ha podido deshacer la importación. Vuelve a probar dentro de un momento; la lista muestra lo que hay.",
+      "confirmAssignments": "Si una foto estaba asignada a personas y nada más la contiene, también se la quita de esas personas.",
+      "undoneAssignments": "{count, plural, one {# asignación a una persona se ha eliminado con ellas.} other {# asignaciones a personas se han eliminado con ellas.}}"
     },
-    "busyNow": "Hay otra importación en marcha. Espera a que termine y vuelve a elegir."
+    "busyNow": "Hay otra importación en marcha. Espera a que termine y vuelve a elegir.",
+    "selectLink": {
+      "title": "Elige fotos para las personas",
+      "body": "{count, plural, =0 {Todas las fotos están asignadas a alguien.} one {# foto todavía no está asignada a nadie.} other {# fotos todavía no están asignadas a nadie.}}",
+      "open": "Elegir fotos"
+    },
+    "select": {
+      "title": "Elige fotos para las personas",
+      "intro": "Elige las fotos y di para quién son. Nada se asigna por fecha ni por álbum.",
+      "hint": "Pulsa Seleccionar y toca las fotos para elegirlas. Con teclado, usa las flechas y la barra espaciadora; con Mayús pulsada eliges un tramo.",
+      "loading": "Cargando las fotos…",
+      "failed": "No se han podido leer las fotos. No se ha cambiado nada.",
+      "retry": "Volver a intentarlo",
+      "empty": {
+        "unassigned": "Todas las fotos están asignadas a alguien.",
+        "assigned": "Ninguna foto está asignada a nadie todavía.",
+        "all": "Todavía no hay ninguna foto.",
+        "add": "Añadir fotos"
+      },
+      "filter": {
+        "label": "Qué mostrar",
+        "unassigned": "Sin asignar",
+        "assigned": "Asignadas",
+        "all": "Todas"
+      },
+      "selectMode": "Seleccionar",
+      "jump": {
+        "label": "Ir a",
+        "placeholder": "Un mes…",
+        "option": "{name} ({count})",
+        "undated": "Sin fecha ({count})",
+        "empty": "Ninguna foto de ese mes está en esta lista.",
+        "stopped": "Ese mes queda lejos en la lista. Se han cargado tantas fotos como es sensato; usa Mostrar más fotos para seguir.",
+        "failed": "No se han podido leer las fotos, así que el salto se ha detenido. No se ha cambiado nada."
+      },
+      "day": {
+        "undated": "Sin fecha",
+        "estimated": "estimada",
+        "select": "Elegir el día",
+        "unselect": "Quitar el día",
+        "selectLabel": "Elegir {count, plural, one {la # foto} other {las # fotos}} del {day}",
+        "unselectLabel": "Quitar {count, plural, one {la # foto} other {las # fotos}} del {day} de la elección",
+        "selectPartLabel": "Elegir {count, plural, one {la # foto} other {las # fotos}} del {day} que se muestran en este grupo",
+        "unselectPartLabel": "Quitar {count, plural, one {la # foto} other {las # fotos}} del {day} que se muestran en este grupo de la elección"
+      },
+      "tile": {
+        "photo": "Foto",
+        "video": "Vídeo",
+        "noDate": "sin fecha",
+        "about": "hacia el {date}, estimada",
+        "assigned": "ya asignada",
+        "estimated": "Estimada",
+        "failed": "No se puede mostrar"
+      },
+      "count": "{count, plural, one {# foto elegida} other {# fotos elegidas}}",
+      "assignButton": "Asignar a…",
+      "clear": "Borrar la elección",
+      "cap": "Puedes elegir hasta {max} fotos a la vez. Asigna estas primero y luego elige más.",
+      "left": "{count, plural, one {# foto se ha asignado y ha salido de esta lista.} other {# fotos se han asignado y han salido de esta lista.}}",
+      "showMore": "Mostrar más fotos",
+      "loadingMore": "Cargando más…",
+      "moreFailed": "No se han podido leer más fotos. No se ha cambiado nada.",
+      "result": {
+        "label": "Resultado",
+        "added": "{count, plural, =0 {No se ha asignado nada nuevo.} one {Se ha añadido # asignación.} other {Se han añadido # asignaciones.}}",
+        "already": "{count, plural, one {# ya estaba.} other {# ya estaban.}}",
+        "undoNote": "Deshacer solo retira lo que se acaba de añadir. Lo que ya estaba asignado se queda.",
+        "undo": "Deshacer esta asignación",
+        "undone": "{count, plural, =0 {No hacía falta retirar nada.} one {Se ha retirado # asignación.} other {Se han retirado # asignaciones.}}",
+        "failed": "Puede que las fotos no se hayan asignado. La asignación se hace entera o no se hace. Mira la lista de Asignadas para comprobarlo y vuelve a intentarlo.",
+        "undoFailed": "No se ha podido deshacer la asignación. No se ha cambiado nada, así que puedes intentarlo de nuevo.",
+        "close": "Hecho"
+      },
+      "detail": {
+        "label": "Foto",
+        "close": "Cerrar",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "position": "{current} de {total}",
+        "positionMore": "{current} de {total} mostradas",
+        "loading": "Cargando…",
+        "missing": "El archivo de esta foto no está en este dispositivo.",
+        "error": "No se ha podido mostrar esta foto.",
+        "too-large": "Este archivo es demasiado grande para mostrarlo aquí.",
+        "photo": "Foto",
+        "video": "Vídeo",
+        "file": "Archivo",
+        "date": "Fecha",
+        "dateAbout": "Hacia el {date}",
+        "dateUnknown": "Fecha desconocida",
+        "from": {
+          "sidecar": "Del registro de Google Fotos de cuándo se hizo.",
+          "exif": "De la cámara, con su propia zona horaria.",
+          "exif-local": "De la cámara, tal como la cámara la escribió.",
+          "file-modified": "Una estimación: es la última vez que se cambió el archivo, que quizá no es cuando se hizo la foto.",
+          "none": "No hay nada registrado de cuándo se hizo."
+        },
+        "albums": "Álbumes",
+        "albumsMore": "{count, plural, one {y # más} other {y # más}}",
+        "sources": "Añadida desde",
+        "assignedTo": "Asignada a",
+        "assignedNone": "No está asignada a nadie.",
+        "someone": "alguien",
+        "unassign": "Quitar",
+        "unassignLabel": "Quitar esta foto de {name}",
+        "unassignFailed": "No se ha podido quitar la foto. No se ha cambiado nada."
+      },
+      "assign": {
+        "title": "Asignar a…",
+        "confirmTitle": "Revisa antes de asignar",
+        "intro": "{count, plural, one {¿Para quién es esta foto?} other {¿Para quién son estas # fotos?}}",
+        "loading": "Cargando las personas…",
+        "loadFailed": "No se han podido leer las personas. No se ha cambiado nada.",
+        "nobody": "Todavía no hay nadie a quien asignarlas. Añade una persona en Personas y vuelve.",
+        "nobodyLink": "Ir a Personas",
+        "search": "Buscar personas",
+        "noMatch": "Nadie coincide.",
+        "listLabel": "Personas",
+        "archived": "archivada",
+        "limit": "Puedes elegir hasta {max} personas a la vez.",
+        "pickOne": "Elige al menos una persona.",
+        "cancel": "Cancelar",
+        "next": "Continuar",
+        "back": "Atrás",
+        "confirmBody": "{count, plural, one {Se asignará # foto a:} other {Se asignarán # fotos a:}}",
+        "only": "Nada se asigna por fecha; solo estas fotos.",
+        "confirm": "Asignar",
+        "working": "Asignando…",
+        "changed": "La lista de personas ha cambiado. Vuelve atrás y comprueba a quién has elegido."
+      },
+      "selectionCleared": "Se ha borrado la elección.",
+      "selectOffKept": "Elegir está desactivado. Las {count} fotos elegidas siguen elegidas; pulsa Borrar la elección para soltarlas.",
+      "gone": "{count, plural, one {# de las fotos elegidas ya no está en la colección y se ha quitado de la elección. Vuelve a elegir para quién son las demás e inténtalo de nuevo.} other {# de las fotos elegidas ya no están en la colección y se han quitado de la elección. Vuelve a elegir para quién son las demás e inténtalo de nuevo.}}"
+    }
   }
 }

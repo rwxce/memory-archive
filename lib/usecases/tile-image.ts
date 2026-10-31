@@ -23,11 +23,34 @@ export const THUMB_MAX_SOURCE_BYTES = 64 * 1024 * 1024;
  * being deleted is removed again. The cache is only ever an optimisation: a cache that cannot be read
  * or written is ignored. `not-found` / `invalid` from the blob store propagate as for any media.
  */
-export async function readTileImage(
+export function readTileImage(
   deps: { blobStore: BlobStore; thumbStore?: ThumbStore },
   source: { sha256: string; mime?: string | null; name?: string },
   make: (blob: Blob, maxSide: number) => Promise<Blob | undefined> = makeThumbnail,
 ): Promise<Blob> {
+  return tileImage(deps, source, make, 'file') as Promise<Blob>;
+}
+
+/**
+ * Like `readTileImage`, but a photo that is big (over `THUMB_MAX_SOURCE_BYTES`) or cannot be thumbnailed comes back
+ * as `undefined` instead of its full file, so a grid of hundreds of tiles never decodes full-size pictures. A small
+ * file (under `THUMB_MIN_SOURCE_BYTES`) is still returned as it is: it costs less than a thumbnail. Same checks and
+ * errors as `readTileImage`.
+ */
+export function readTileThumbnail(
+  deps: { blobStore: BlobStore; thumbStore?: ThumbStore },
+  source: { sha256: string; mime?: string | null; name?: string },
+  make: (blob: Blob, maxSide: number) => Promise<Blob | undefined> = makeThumbnail,
+): Promise<Blob | undefined> {
+  return tileImage(deps, source, make, 'none');
+}
+
+async function tileImage(
+  deps: { blobStore: BlobStore; thumbStore?: ThumbStore },
+  source: { sha256: string; mime?: string | null; name?: string },
+  make: (blob: Blob, maxSide: number) => Promise<Blob | undefined>,
+  whenNone: 'file' | 'none',
+): Promise<Blob | undefined> {
   if (isSha256Hex(source.sha256) && !(await deps.blobStore.has(source.sha256))) {
     await deps.thumbStore?.delete(source.sha256).catch(() => undefined);
     throw new DbError('not-found', 'media is not in the blob store');
@@ -35,9 +58,10 @@ export async function readTileImage(
   const cached = await deps.thumbStore?.get(source.sha256, TILE_THUMB_SIZE).catch(() => undefined);
   if (cached) return cached;
   const full = await readBlob(deps, source.sha256, source);
-  if (full.size < THUMB_MIN_SOURCE_BYTES || full.size > THUMB_MAX_SOURCE_BYTES) return full;
+  if (full.size < THUMB_MIN_SOURCE_BYTES) return full;
+  if (full.size > THUMB_MAX_SOURCE_BYTES) return whenNone === 'file' ? full : undefined;
   const thumbnail = await make(full, TILE_THUMB_SIZE);
-  if (!thumbnail) return full;
+  if (!thumbnail) return whenNone === 'file' ? full : undefined;
   if (!deps.thumbStore) return thumbnail;
   await deps.thumbStore.put(source.sha256, TILE_THUMB_SIZE, thumbnail).catch(() => undefined);
   if (!(await deps.blobStore.has(source.sha256))) {

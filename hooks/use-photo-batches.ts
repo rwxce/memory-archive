@@ -13,7 +13,7 @@ export type PhotoUndoState =
   | { status: 'idle' }
   | { status: 'working'; batchId: string }
   /** `removedItems` is 0 when the import was already gone. */
-  | { status: 'done'; removedItems: number }
+  | { status: 'done'; removedItems: number; removedAssignments: number }
   | { status: 'failed'; batchId: string; code: PhotoFailure };
 
 export interface PhotoBatches {
@@ -63,7 +63,7 @@ export function usePhotoBatches(): PhotoBatches {
       setUndo({ status: 'working', batchId });
       try {
         const result = await retryWhileBusy(() => undoPhotoImport(deps, batchId));
-        setUndo({ status: 'done', removedItems: result.removedItems });
+        setUndo({ status: 'done', removedItems: result.removedItems, removedAssignments: result.removedAssignments });
       } catch (error) {
         setUndo({ status: 'failed', batchId, code: photoFailureOf(error) });
       } finally {

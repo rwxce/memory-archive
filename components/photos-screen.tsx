@@ -8,6 +8,7 @@ import { PhotosAddCards } from '@/components/photos-add-cards';
 import { PhotosBatchesCard } from '@/components/photos-batches-card';
 import { PhotosNotes } from '@/components/photos-notes';
 import { PhotosRunStatus } from '@/components/photos-run-status';
+import { PhotosSelectLink } from '@/components/photos-select-link';
 import { Shell } from '@/components/screen-shell';
 import { usePhotoBatches } from '@/hooks/use-photo-batches';
 import { usePhotoImport } from '@/hooks/use-photo-import';
@@ -15,8 +16,8 @@ import { useLibrary } from '@/hooks/use-library';
 
 /**
  * Photos: bring pictures and videos into the collection, from a Google Photos download or Takeout ZIP (told apart by
- * its content, not its name) or from the device's gallery, and take an earlier import back. Nothing here assigns a picture
- * to a person. One import runs at a time. The library opens here because all of it needs it.
+ * its content, not its name) or from the device's gallery, and take an earlier import back. Choosing pictures for people is
+ * the next screen (`/photos/select`); nothing here assigns one. One import runs at a time. The library opens here because all of it needs it.
  */
 export function PhotosScreen() {
   const { state, retry } = useLibrary();
@@ -53,6 +54,7 @@ function PhotosContent() {
       <PhotosNotes />
       <PhotosAddCards run={run} disabled={working || batches.undo.status === 'working'} />
       <PhotosRunStatus run={run} />
+      <PhotosSelectLink version={batches.state} />
       <PhotosBatchesCard batches={batches} disabled={working} />
     </Shell>
   );

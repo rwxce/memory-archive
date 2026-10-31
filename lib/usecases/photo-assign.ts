@@ -1,16 +1,16 @@
 import { DbError } from '../db/errors';
-import { PHOTO_DATES_PAGE_MAX, type AssignPhotosResult, type UnassignPhotosResult } from '../db/photo-assign';
+import { PHOTO_DATES_PAGE_MAX, type AssignPhotosResult, type PhotoProfileLinks, type UnassignPhotosResult } from '../db/photo-assign';
 import { PHOTO_ASSIGN_MAX, photoDisplayDate, type PhotoCounts, type PhotoCursor, type PhotoPicture, type PhotoPicturePage, type PhotoScope } from '../domain/photo';
 import type { BlobStore } from '../storage/blob-store';
 import type { ThumbStore } from '../storage/thumb-store';
 import { readBlob } from './conversation-view';
 import { nowOf, type LibraryDeps } from './profiles';
-import { readTileImage } from './tile-image';
+import { readTileThumbnail } from './tile-image';
 
 /*
  * Assigning photos to profiles (`docs/formats/photo-library.md`). The person selects pictures and
  * chooses the profiles; nothing here picks either by date, album, name or anything else. No
- * function in this file assigns on its own, and there is no "assign all". No screen calls this yet.
+ * function in this file assigns on its own, and there is no "assign all".
  */
 
 type Client = Pick<LibraryDeps, 'client'>;
@@ -51,6 +51,13 @@ export const assignPhotos = (deps: Client & Pick<LibraryDeps, 'now'>, input: { s
 export const unassignPhotos = (deps: Client, input: { sha256s: string[]; profileId: string }): Promise<UnassignPhotosResult> =>
   deps.client.call('unassignPhotos', input);
 
+/**
+ * Takes back exactly these links (the `fresh` of an `assignPhotos` result), all or nothing in one transaction: a
+ * failure leaves nothing half undone and the call can be repeated. Links already gone count for nothing.
+ */
+export const unassignPhotoLinks = (deps: Client, links: PhotoProfileLinks[]): Promise<UnassignPhotosResult> => deps.client.call('unassignPhotoLinks', { links });
+
+export type { PhotoProfileLinks };
 export { PHOTO_ASSIGN_MAX };
 
 export interface PhotoMonth {
@@ -115,11 +122,13 @@ export async function readPhotoFile(deps: MediaDeps, sha256: string): Promise<Bl
 
 /**
  * What a grid tile shows: the cached thumbnail, made once from a photo within the decode limit
- * (`readTileImage`); a video, or a photo that cannot be thumbnailed, comes back as the file.
- * Call it for the tiles near the screen only, never for the whole collection.
+ * (`readTileThumbnail`), or a small file as it is. `null` when there is nothing small to show (a video, a
+ * photo too big to decode for a thumbnail, a format the browser cannot thumbnail): the tile then shows a placeholder
+ * and the full file is read only when the person opens the picture. Call it for the tiles near the screen only,
+ * never for the whole collection.
  */
-export async function readPhotoTile(deps: MediaDeps, sha256: string): Promise<Blob> {
+export async function readPhotoTile(deps: MediaDeps, sha256: string): Promise<Blob | null> {
   const picture = await stored(deps, sha256);
-  const source = { sha256, mime: picture.mime, name: picture.fileName };
-  return picture.kind === 'photo' ? readTileImage(deps, source) : readBlob(deps, sha256, source);
+  if (picture.kind !== 'photo') return null;
+  return (await readTileThumbnail(deps, { sha256, mime: picture.mime, name: picture.fileName })) ?? null;
 }

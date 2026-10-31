@@ -63,7 +63,7 @@ import {
   type HighlightScope,
 } from './highlights';
 import { discardSearchIndex, getSearchIndexBytes, getSearchStatus, searchMessages, stepSearchIndex } from './search';
-import { assignPhotos, countPhotoPictures, getPhotoPicture, listPhotoDates, listPhotoPictures, unassignPhotos } from './photo-assign';
+import { assignPhotos, countPhotoPictures, getPhotoPicture, listPhotoDates, listPhotoPictures, unassignPhotoLinks, unassignPhotos } from './photo-assign';
 import { countPhotoItems, importPhotoItems, listPhotoBatches, listPhotoItems, undoPhotoBatch } from './photos';
 import { readBatchMessages, readChangeSet } from './changes';
 import { listConflicts, resolveConflict } from './conflicts';
@@ -120,6 +120,7 @@ const HANDLERS: Handlers = {
   countPhotoPictures: ({ db }) => countPhotoPictures(db),
   assignPhotos: ({ db }, p) => assignPhotos(db, p),
   unassignPhotos: ({ db }, p) => unassignPhotos(db, p),
+  unassignPhotoLinks: ({ db }, p) => unassignPhotoLinks(db, p),
   listBlobHashes: ({ db }) => listBlobs(db).map((b) => b.sha256),
   getStorageBreakdown: ({ db }) => getStorageBreakdown(db),
   getLibraryStats: ({ db }) => ({ ...getLibraryStats(db), searchIndexBytes: getSearchIndexBytes(db) }),

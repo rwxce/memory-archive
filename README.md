@@ -66,7 +66,7 @@ Regenerate them with `pnpm build && pnpm screenshots` (see [docs/blueprint.md](d
 
 * ✅ **Incremental, duplicate-free imports**: import the same chat again years later and only the new messages are added.
 
-* 🟡 **Hand-picked photos**: import from your phone gallery, a Google Photos download or a Google Takeout album from the Photos screen (done, with undo); choosing exactly which photos belong to whom is next.
+* 🟡 **Hand-picked photos**: import from your phone gallery, a Google Photos download or a Google Takeout album from the Photos screen (done, with undo); choose exactly which photos belong to whom, by day, with a confirmation and undo (done); showing them on the person's page is next.
 
 * ✅ **Timeline, gallery, audio archive and calendar** per person, with search and favorites.
 
@@ -256,7 +256,7 @@ cli/                      # same use cases from the terminal
 | 5 | ✅ | Timeline, conversation view, gallery, audio, calendar, search |
 | 6 | ✅ | Full backup and restore |
 | 7 | ✅ | Manual device-to-device sync with ZIP files |
-| 8 | 🟡 | Google Photos (download / Takeout) and loose files: import screen done; selection grid and assigning to people next |
+| 8 | 🟡 | Google Photos (download / Takeout) and loose files: import screen, selection grid and assigning to people done; assigned pictures on the person page next |
 | 9 | ⬜ | Portable viewer exports and hardening |
 
 ✅ done in code and automated tests (manual on-device checks are listed in the roadmap) · 🟡 partly done · ⬜ not started. Details in [`docs/roadmap.md`](docs/roadmap.md).
