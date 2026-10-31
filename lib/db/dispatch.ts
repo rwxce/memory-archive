@@ -63,6 +63,7 @@ import {
   type HighlightScope,
 } from './highlights';
 import { discardSearchIndex, getSearchIndexBytes, getSearchStatus, searchMessages, stepSearchIndex } from './search';
+import { countPhotoItems, importPhotoItems, listPhotoBatches, listPhotoItems, undoPhotoBatch } from './photos';
 import { readBatchMessages, readChangeSet } from './changes';
 import { listConflicts, resolveConflict } from './conflicts';
 import { mergeChangesPack, refusalOf } from './merge';
@@ -107,6 +108,11 @@ const HANDLERS: Handlers = {
     discardSearchIndex(db);
     return undoImportBatch(db, batchId);
   },
+  importPhotoItems: ({ db }, p) => importPhotoItems(db, p),
+  undoPhotoBatch: ({ db }, p) => undoPhotoBatch(db, requireParams(p).batchId as string),
+  listPhotoItems: ({ db }, p) => listPhotoItems(db, p),
+  countPhotoItems: ({ db }) => countPhotoItems(db),
+  listPhotoBatches: ({ db }) => listPhotoBatches(db),
   listBlobHashes: ({ db }) => listBlobs(db).map((b) => b.sha256),
   getStorageBreakdown: ({ db }) => getStorageBreakdown(db),
   getLibraryStats: ({ db }) => ({ ...getLibraryStats(db), searchIndexBytes: getSearchIndexBytes(db) }),

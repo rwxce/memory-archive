@@ -536,11 +536,12 @@ export interface ImportMessagesResult {
   unreferencedBlobs: string[];
 }
 
-/** Whether a message or a profile photo refers to the media hash. */
+/** Whether a message, a profile photo or a photo collection item refers to the media hash. */
 export function isReferenced(db: SqlDb, sha256: string): boolean {
   return (
     db.all('SELECT 1 FROM messages WHERE media_sha256 = ? LIMIT 1', [sha256]).length > 0 ||
-    db.all('SELECT 1 FROM profiles WHERE photo_sha256 = ? LIMIT 1', [sha256]).length > 0
+    db.all('SELECT 1 FROM profiles WHERE photo_sha256 = ? LIMIT 1', [sha256]).length > 0 ||
+    db.all('SELECT 1 FROM photo_items WHERE sha256 = ? LIMIT 1', [sha256]).length > 0
   );
 }
 
@@ -1644,7 +1645,7 @@ export function listNotes(db: SqlDb, scope: NoteScope | undefined, offset: numbe
 
 /** What the library stores, in bytes, as far as the database can tell (see `getStorageBreakdown`). */
 export interface StorageBreakdown {
-  /** Stored files referenced by at least one photo or video message. */
+  /** Stored files referenced by at least one photo or video message or photo collection item. */
   photosVideosBytes: number;
   /** Every other stored file: audio, stickers, documents, profile photos. */
   otherMediaBytes: number;
@@ -1663,7 +1664,8 @@ export function getStorageBreakdown(db: SqlDb): StorageBreakdown {
        COALESCE(SUM(CASE WHEN visual THEN size ELSE 0 END), 0) AS visual,
        COALESCE(SUM(CASE WHEN visual THEN 0 ELSE size END), 0) AS other
      FROM (SELECT b.size AS size,
-                  EXISTS (SELECT 1 FROM messages m WHERE m.media_sha256 = b.sha256 AND m.type IN ('photo', 'video')) AS visual
+                  (EXISTS (SELECT 1 FROM messages m WHERE m.media_sha256 = b.sha256 AND m.type IN ('photo', 'video'))
+                   OR EXISTS (SELECT 1 FROM photo_items p WHERE p.sha256 = b.sha256)) AS visual
            FROM blobs b)`,
   );
   const [pages] = db.all<{ count: number }>('SELECT page_count * page_size AS count FROM pragma_page_count, pragma_page_size');
