@@ -99,7 +99,9 @@ test('pictures are chosen, assigned to a person, kept after a reload and taken o
   await shot('photos-select-detail');
   await detail.getByRole('button', { name: /Take this picture out of Ana/ }).click();
   await expect(options).toHaveCount(1);
-  await page.keyboard.press('Escape');
+  // Close with the button: a browser only honours Escape on a modal dialog after a recent user activation, which made
+  // this step flaky; Escape itself is covered by the component tests.
+  await detail.getByRole('button', { name: 'Close' }).click();
   await expect(detail).toBeHidden();
   await page.getByRole('button', { name: /^Not assigned/ }).click();
   await expect(options).toHaveCount(total - 1);
