@@ -7,12 +7,14 @@ messages or media on its own. A favorite or note the user deleted on another dev
 too (when this device did not change it since), and an undone import is only offered, never applied
 silently (see "Deletions").
 
-Status: **export is implemented; merge is not.** Built: the data layer (schema v8: `device`,
-`sync_peers`, `tombstones`, `seq` / `changed_by`; `lib/db/sync.ts`, `lib/usecases/sync-state.ts`),
-the pack writer and a structural reader / verifier (`lib/exporters/changes-pack/`), the change-set
-queries (`lib/db/changes.ts`) and the export use case (`lib/usecases/changes-pack-export.ts`).
-Not built: merging a pack (the "Merge" section is still design), the conflicts list, any UI. Where
-this document and later code disagree, fix the document in the same PR. Rationale is written next
+Status: **export and merge are implemented; the screens are not.** Built: the data layer (schema v8: `device`,
+`sync_peers`, `tombstones`, `seq` / `changed_by`; `lib/db/sync.ts`, `lib/usecases/sync-state.ts`), the pack writer and
+a structural reader / verifier (`lib/exporters/changes-pack/`), the change-set queries (`lib/db/changes.ts`), the
+export use case (`lib/usecases/changes-pack-export.ts`), and the merge: strict record validation
+(`lib/domain/changes-pack-parse.ts`), the transaction (`lib/db/merge.ts`), the conflicts list, its table (schema v9
+`sync_conflicts`) and its resolution (`lib/db/conflicts.ts`) and the use cases `importChangesPack`,
+`detectArchiveFile`, `listSyncConflicts`, `resolveSyncConflict`. Not built: any UI (import and conflict screens,
+reminders). Where this document and the code disagree, fix the document in the same PR. Rationale is written next
 to each decision because the product owner delegated them.
 
 ## Goals and non-goals
@@ -20,7 +22,7 @@ to each decision because the product owner delegated them.
 - Phone to desktop (and back, and a third device) with nothing but files. No server, no account,
   no clock agreement between devices.
 - Importing the same pack twice changes nothing. Importing packs in any order, or via a third
-  device, is designed to converge to the same archive (not yet verified by code), **except** where two devices edited the same record
+  device, converges to the same archive (tests: either order, relayed), **except** where two devices edited the same record
   independently: that is a conflict, kept side by side until the user chooses (never decided by
   "last writer wins" in silence).
 - Small: a pack carries only changed records and only the media they reference.
@@ -188,7 +190,27 @@ Notation: `S` = the pack's source, `lastReceived` = `sync_peers.last_received_se
 - *S changed it* = `I.seq > lastReceived`. (Otherwise this is a replay or closure record and `L`,
   if present, is at least as new.)
 - *we changed it* = `L.seq > lastSent` **and** `L.changed_by` is not S. (We edited it since S last
-  saw our data; a version we merely merged from S does not count against S.)
+  saw our data; a version we merely merged from S does not count against S.) For a `changes` pack
+  the `lastSent` used here is `min(stored lastSent, pack.ack ?? 0, our counter)`: the pack's own
+  `ack` says what S has really merged from us, and a pack we exported and confirmed but S never
+  imported must not count as seen (otherwise S's later edit would silently overwrite ours). A `full`
+  pack has no `ack` and uses the stored value. The same value decides favorites, notes and tombstones.
+- Echo: when building a `changes` pack for P, a record whose `changed_by` is P (its current version
+  came from P) is left out, so P never receives its own old version back and mistakes it for a
+  second edit. Versions from other devices still relay. A `full` pack leaves nothing out.
+
+### Trust and limits
+
+- `ack` is trusted by design: it comes from the peer that builds the pack, and there is no server to
+  check it. A wrong or hostile `ack` can only make this device resend (a harmless replay) or
+  miss a conflict on data the person handed to that peer themselves.
+- A pack where any record has a `seq` above `upTo` is refused (`integrity`): the watermark would
+  be a lie.
+- A conversation that is absent here is created from the pack without looking for a deletion of
+  ours (deleting a conversation leaves tombstones for its parts, not for itself). A conversation
+  removed here by undoing its import can therefore come back with a later pack that carries it.
+- The same chat imported separately on two devices (two conversations with different ids) is not
+  recognised as one: after a merge both exist. Known limit of v1.
 
 ### Blobs and messages
 
@@ -210,14 +232,18 @@ Notation: `S` = the pack's source, `lastReceived` = `sync_peers.last_received_se
 | different, S changed it, we did not | Take `I` (fast-forward); `changed_by = S`; new local `seq`. |
 | different, both changed it | **Conflict**: keep `L` active, keep `I` beside it (below). |
 
-"Content" excludes `seq`, `changed_by` and, for profiles and notes, `updatedAt`.
-A conversation's content includes its profile links and its participants' profile / "me" links;
+"Content" excludes `seq`, `changed_by` and the dates (`createdAt`, `updatedAt`, which are never edited, so a
+difference there is not an edit): a profile's content is its name, relationship, description, photo and archived
+state; a note's is its text; a conversation's is below. (Two notes created independently with the same text are
+equal, not a conflict.)
+A conversation's content includes its title, source key, group flag, profile links and its participants' profile / "me" links;
 profiles are archived, never deleted (`archivedAt` is an ordinary field).
 
 ### Favorites (a set; add wins)
 
 A favorite has no content to edit. `I` present and S changed it: create it here if absent
-(`changed_by` does not apply), and remove any local tombstone for it. `I` not changed by S: skip.
+(`changed_by` = S, so it does not count as a favorite re-created here when S's deletion arrives later), and remove
+any local tombstone for it. `I` not changed by S: skip.
 
 ### Deletions (tombstones)
 
@@ -246,8 +272,20 @@ the incoming version (or incoming deletion) with its peer, kind and key in a con
 reports the count; the user later picks **mine**, **theirs**, or for a note **both** (the other
 body appended below). Resolving is an ordinary local edit: it takes a new `seq`, travels as a
 normal change, and on the other device it fast-forwards (that device's version was already sent
-and is unchanged since). The schema for that list is added with the merge use case, which is its
-first entry point (no table for it yet).
+and is unchanged since). The list is the schema v9 table `sync_conflicts` (one open row per peer and record; a newer incoming
+version replaces the older one; the row closes by itself when the peer's next version agrees with ours).
+`listSyncConflicts` returns both versions; `resolveSyncConflict` settles one: profile / conversation `mine` keeps the
+active record and re-stamps it (it travels; the other device fast-forwards), `theirs` takes the peer's; a note also
+takes `both` (our text, a blank line, theirs; refused if longer than a note may be); against a deletion `theirs`
+deletes (and leaves our own tombstone) and `mine` keeps the note. An offered batch undo is accepted (`theirs`: the
+ordinary undo runs, then the offer closes) or dismissed (`mine`); it is stored in the same table with `kind: batch`
+and nothing is removed until then.
+
+A conflict never outlives its subject: undoing an import closes its offer, and undoing the one that created a
+conversation closes every conflict on that conversation, its notes and its other batches. If the local record
+disappears some other way, `mine` just closes the conflict and `theirs` recreates the record when its references
+exist (`recordGone: true` when not). A profile photo the incoming version carries stays stored while any open
+conflict holds it; resolving releases it unless a profile or another open conflict still uses it.
 
 Granularity is the whole record: S renaming a person and this device editing the same person's
 description is a conflict even though the fields differ, because the pack carries no base version
@@ -279,7 +317,9 @@ row = never exchanged = watermarks 0.
   `since > lastReceived(S)` (`gap`: a pack between was never merged; the sender must send a
   `full` pack or catch up first). `since <= lastReceived` is fine: the overlap is skipped by the
   *S changed it* test. On success, `recordReceived(S, upTo, ack)` in the same transaction:
-  `lastReceived = max(old, upTo)` and `lastSent = min(ack, our counter)`.
+  `lastReceived = max(old, upTo)` and `lastSent = min(ack, our counter)`. A pack older than what was already
+  merged leaves both alone, and the same pack again only applies its `ack` if that says something new about what
+  we sent, so importing a pack twice leaves every row, `seq` and watermark as it was.
 - **Why `ack` replaces `lastSent`**: `recordSent` is optimistic (the pack may never arrive, or be
   imported on the wrong machine). The peer's next pack says what it really merged; if that is
   lower than we recorded, we move back and resend (a resend is a harmless replay). A lost pack
@@ -336,7 +376,9 @@ to validate, independent of the schema of either side (only `schemaVersion` gate
 records can be listed on a conflict screen. The container, limits, hashing, blob layout and
 encryption are the backup's, unchanged.
 
-## Schema v8 (what this format needs, nothing more)
+## Schema v8 and v9 (what this format needs, nothing more)
+
+v9 adds only `sync_conflicts` (see "Conflicts"); it is peer state, so a restore drops it and an empty-library check ignores it.
 
 | Change | Why |
 |--------|-----|
@@ -354,8 +396,9 @@ that a no-op does not stamp. Messages, participants, blobs and highlights have n
 **Stamping requirement for participants.** Participants have no `seq` of their own: their
 `profile_id` / `is_me` travel inside the conversation record, so every write that changes them
 must `stampRows(db, 'conversations', ...)` (setting "me" on import already does, and is tested).
-Today nothing writes `participants.profile_id` after creation; the merge (queue item 15) will, and
-it must stamp the conversation or the change never reaches a third device.
+Nothing but the merge (and the resolution of a conversation conflict) writes `participants.profile_id` after
+creation, and both go through `writeConversation`, which is always followed by a stamp of the conversation (tested:
+a link set by a merge reaches a third device).
 
 **Limits are checked before anything is handed over.** The writer bounds each record line, each
 staged file (`maxEntryBytes`), the sum of all entries (`maxTotalBytes`), the entry count and the
@@ -367,6 +410,9 @@ and fails with `limit-exceeded` instead of producing a pack its own reader would
 1. **Record-level conflicts** (no field merge): more clicks, never lost text.
 2. **Undo of an import is a suggestion** to other devices, never an automatic delete.
 3. **Highlights are not synced** (re-import the findings file; they are in full backups).
+3b. **Conversations are matched by id.** Two devices that each imported the same chat on their own have two
+   conversations with the same messages; a sync keeps both (messages are deduplicated only within a conversation).
+   Nothing is lost; there is no merge-two-conversations feature yet.
 4. **Two profiles for one person.** Profile ids are generated per device, so the same person
    created independently on both devices stays two profiles after a sync. Nothing is lost;
    there is no merge-two-profiles feature yet (conversations can be moved with the existing move).
@@ -374,7 +420,9 @@ and fails with `limit-exceeded` instead of producing a pack its own reader would
    device later sends a batch for it. There is no conversation tombstone, so nothing can block this;
    only the new messages arrive.
 6. **First exchange after a restore is large and may be conflict-heavy** (see above).
-7. **Pack size**: blobs the target already has are still shipped in a pack that references them.
+7. **Pack size**: blobs the target already has are still shipped in a pack that references them. On the receiving
+   side the records (not the media) are held in memory and sent to the database worker in one request, bounded by
+   `maxRecordBytes` (256 MiB by default).
 8. **Tombstones are never purged.** They are a few dozen bytes each; purging needs every peer's
    watermark, which a manual workflow cannot know.
 9. **A plain pack is as private as a plain backup**: use the encrypted envelope for anything that

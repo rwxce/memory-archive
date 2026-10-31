@@ -30,20 +30,25 @@ const invalid = (message: string) => new DbError('invalid', message);
 export const MAX_BATCH_PAGE = 5000;
 
 /** Conversations the pack touches: changed ones, plus those a changed batch, favorite or note belongs to. */
-const CONVERSATIONS = `(SELECT id FROM conversations WHERE seq > ?
+// A row whose current version came from the target itself (`changed_by`) is not sent back to it: the
+// echo would look like a second edit there. Other devices' versions still relay. Each slot binds (since, peer).
+const FRESH = 'seq > ? AND (changed_by IS NULL OR changed_by <> ?)';
+const CONVERSATIONS = `(SELECT id FROM conversations WHERE ${FRESH}
   UNION SELECT conversation_id FROM import_batches WHERE seq > ?
-  UNION SELECT conversation_id FROM favorites WHERE seq > ?
-  UNION SELECT conversation_id FROM notes WHERE seq > ? AND conversation_id IS NOT NULL)`;
-const CONVERSATIONS_PARAMS = 4;
+  UNION SELECT conversation_id FROM favorites WHERE ${FRESH}
+  UNION SELECT conversation_id FROM notes WHERE ${FRESH} AND conversation_id IS NOT NULL)`;
 
 /** Profiles the pack touches: changed ones, plus those a carried conversation or note refers to. */
-const PROFILES = `(SELECT id FROM profiles WHERE seq > ?
+const PROFILES = `(SELECT id FROM profiles WHERE ${FRESH}
   UNION SELECT profile_id FROM conversation_profiles WHERE conversation_id IN ${CONVERSATIONS}
   UNION SELECT profile_id FROM participants WHERE profile_id IS NOT NULL AND conversation_id IN ${CONVERSATIONS}
-  UNION SELECT profile_id FROM notes WHERE seq > ? AND profile_id IS NOT NULL)`;
-const PROFILES_PARAMS = 2 + 2 * CONVERSATIONS_PARAMS;
+  UNION SELECT profile_id FROM notes WHERE ${FRESH} AND profile_id IS NOT NULL)`;
 
-const times = (since: number, n: number): SqlValue[] => Array.from({ length: n }, () => since);
+/** Bind values of `CONVERSATIONS`, in order of appearance. `peer` is never a real id when there is no target. */
+const convParams = (since: number, peer: string): SqlValue[] => [since, peer, since, since, peer, since, peer];
+const profileParams = (since: number, peer: string): SqlValue[] => [
+  since, peer, ...convParams(since, peer), ...convParams(since, peer), since, peer,
+];
 
 /**
  * Reads the change counter and every record the pack needs in ONE synchronous step (the database
@@ -64,7 +69,9 @@ export function readChangeSet(db: SqlDb, input: ReadChangeSetInput): ChangeSet {
   const ack = kind === 'changes' && peer !== null && peer.lastReceivedAt !== null ? peer.lastReceivedSeq : null;
   const upTo = currentChangeSeq(db);
 
-  const conv = (): SqlValue[] => times(since, CONVERSATIONS_PARAMS);
+  // A full pack is for any device, so it echoes nothing away.
+  const notPeer = kind === 'changes' && peerId !== null ? peerId : '';
+  const conv = (): SqlValue[] => convParams(since, notPeer);
   const profileRows = db.all<{
     id: string; displayName: string; relationship: string; description: string; photoSha256: string | null;
     archivedAt: string | null; createdAt: string; updatedAt: string; seq: number;
@@ -72,7 +79,7 @@ export function readChangeSet(db: SqlDb, input: ReadChangeSetInput): ChangeSet {
     `SELECT id, display_name AS displayName, relationship, description, photo_sha256 AS photoSha256,
             archived_at AS archivedAt, created_at AS createdAt, updated_at AS updatedAt, seq
        FROM profiles WHERE id IN ${PROFILES} ORDER BY id`,
-    times(since, PROFILES_PARAMS),
+    profileParams(since, notPeer),
   );
   const profiles: PackProfile[] = profileRows.map((p) => ({
     id: p.id, displayName: p.displayName, relationship: p.relationship, description: p.description, photoSha256: p.photoSha256,
@@ -128,14 +135,14 @@ export function readChangeSet(db: SqlDb, input: ReadChangeSetInput): ChangeSet {
        SELECT photo_sha256 FROM profiles WHERE photo_sha256 IS NOT NULL AND id IN ${PROFILES}
        UNION SELECT media_sha256 FROM messages WHERE media_sha256 IS NOT NULL AND batch_id IN (SELECT id FROM import_batches WHERE seq > ?)
      ) ORDER BY sha256`,
-    [...times(since, PROFILES_PARAMS), since],
+    [...profileParams(since, notPeer), since],
   ).map((b) => ({ sha256: b.sha256, size: b.size, mime: b.mime }));
 
   const favorites: PackFavorite[] = db
     .all<PackFavorite>(
       `SELECT conversation_id AS conversationId, fingerprint, created_at AS createdAt, seq
-         FROM favorites WHERE seq > ? ORDER BY conversation_id, fingerprint`,
-      [since],
+         FROM favorites WHERE ${FRESH} ORDER BY conversation_id, fingerprint`,
+      [since, notPeer],
     )
     .map((f) => ({ conversationId: f.conversationId, fingerprint: f.fingerprint, createdAt: f.createdAt, seq: f.seq }));
 
@@ -143,8 +150,8 @@ export function readChangeSet(db: SqlDb, input: ReadChangeSetInput): ChangeSet {
     .all<{ kind: string; profileId: string | null; conversationId: string | null; fingerprint: string | null; body: string; createdAt: string; updatedAt: string; seq: number }>(
       `SELECT kind, profile_id AS profileId, conversation_id AS conversationId, fingerprint, body,
               created_at AS createdAt, updated_at AS updatedAt, seq
-         FROM notes WHERE seq > ? ORDER BY kind, coalesce(profile_id, ''), coalesce(conversation_id, ''), coalesce(fingerprint, '')`,
-      [since],
+         FROM notes WHERE ${FRESH} ORDER BY kind, coalesce(profile_id, ''), coalesce(conversation_id, ''), coalesce(fingerprint, '')`,
+      [since, notPeer],
     )
     .map((n) => ({
       target: noteTarget(n),
@@ -153,8 +160,8 @@ export function readChangeSet(db: SqlDb, input: ReadChangeSetInput): ChangeSet {
 
   const tombstones: PackTombstone[] = db
     .all<PackTombstone>(
-      'SELECT kind, scope, key, deleted_at AS deletedAt, seq FROM tombstones WHERE seq > ? ORDER BY kind, scope, key',
-      [since],
+      `SELECT kind, scope, key, deleted_at AS deletedAt, seq FROM tombstones WHERE ${FRESH} ORDER BY kind, scope, key`,
+      [since, notPeer],
     )
     .map((t) => ({ kind: t.kind, scope: t.scope, key: t.key, deletedAt: t.deletedAt, seq: t.seq }));
 

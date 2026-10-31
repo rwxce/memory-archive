@@ -20,7 +20,19 @@ import type {
 } from '../domain/library';
 import type { HighlightImportCounts, HighlightCategory, HighlightItem, HighlightMessage } from '../domain/highlights';
 import type { BatchMessagesPage, ChangeSet, ReadBatchMessagesInput, ReadChangeSetInput } from '../domain/changes-pack';
-import type { RecordReceivedInput, RecordSentInput, RecordSentResult, SyncPeer } from '../domain/sync';
+import type {
+  MergeChangesPackInput,
+  MergeChangesPackResult,
+  MergeRefusal,
+  PackAddress,
+  RecordReceivedInput,
+  RecordSentInput,
+  RecordSentResult,
+  ResolveConflictInput,
+  SyncConflict,
+  SyncPeer,
+} from '../domain/sync';
+import type { ResolveConflictResult } from './conflicts';
 import type { BlobRow, DatabaseExport } from './snapshot';
 import type { DbErrorData } from './errors';
 import type { DbInfo } from './open';
@@ -158,6 +170,14 @@ export interface DbOps {
   readChangeSet: { params: ReadChangeSetInput; result: ChangeSet };
   /** One page of an import batch's messages for a changes pack. */
   readBatchMessages: { params: ReadBatchMessagesInput; result: BatchMessagesPage };
+  /** Whether this device would refuse a pack with this address (`null` = it would not). Reads only. */
+  checkChangesPack: { params: PackAddress; result: MergeRefusal | null };
+  /** Merges a validated pack in ONE transaction (all or nothing, watermark included). */
+  mergeChangesPack: { params: MergeChangesPackInput; result: MergeChangesPackResult };
+  /** Crossed edits and offered batch undos a merge left open. */
+  listSyncConflicts: { params: undefined; result: SyncConflict[] };
+  /** Settles one of them as a local edit. */
+  resolveSyncConflict: { params: ResolveConflictInput; result: ResolveConflictResult };
   getSearchStatus: { params: undefined; result: SearchStatus };
   stepSearchIndex: { params: { limit?: number } | undefined; result: SearchIndexStep };
   searchMessages: { params: SearchInput; result: SearchResult[] };

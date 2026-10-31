@@ -132,10 +132,12 @@ newer backups.**
 
 ## Phase 7 — Manual device-to-device sync
 
-**Status: foundation and export done (queue items 13-14). The changes-pack format is designed and documented in `docs/formats/changes-pack.md`;
+**Status: foundation, export and merge done (queue items 13-15). The changes-pack format is designed and documented in `docs/formats/changes-pack.md`;
 schema v8 adds the device id, per-peer watermarks, tombstones and per-record change numbers (every write path stamps them); a restored or
 replaced library is a new device; the use cases `lib/usecases/sync-state.ts` exist; a changes pack can be exported (plain or encrypted; watermarks move only
-when the caller confirms delivery). Not done: merging a pack, the conflicts list, the UI and reminders (items 15-17).**
+when the caller confirms delivery); importing a pack is a merge (one transaction, watermarks, conflicts kept beside the active record in the schema v9
+table `sync_conflicts`, undone imports only offered, `resolveSyncConflict` mine / theirs / both). Not done: the import and conflict screens and
+the reminders (items 16-17).**
 
 - Device id; export a *changes* pack since the last export to that device, or the full
   archive; import = merge (messages by fingerprint, media by hash, profiles / favorites /

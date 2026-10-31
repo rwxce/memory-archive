@@ -55,8 +55,9 @@ function userTables(db: SqlDb): string[] {
  * that is open (see `renewDevice`); it is not content, so it does not make a library non-empty.
  * `sync_peers` is what this device exchanged with others under that identity: a restore starts
  * with none (a restored library is a new device, and the peers' watermarks no longer describe it).
+ * `sync_conflicts` holds what those peers sent and is just as tied to them.
  */
-const DEVICE_STATE_TABLES: ReadonlySet<string> = new Set(['device', 'sync_peers']);
+const DEVICE_STATE_TABLES: ReadonlySet<string> = new Set(['device', 'sync_peers', 'sync_conflicts']);
 
 /**
  * True when the library holds no content (also for a fresh database). Its identity (`device`), what
@@ -65,7 +66,7 @@ const DEVICE_STATE_TABLES: ReadonlySet<string> = new Set(['device', 'sync_peers'
  */
 export function isLibraryEmpty(db: SqlDb): boolean {
   return userTables(db)
-    .filter((t) => t !== 'device' && t !== 'tombstones' && t !== 'sync_peers')
+    .filter((t) => t !== 'device' && t !== 'tombstones' && t !== 'sync_peers' && t !== 'sync_conflicts')
     .every((t) => db.all(`SELECT 1 FROM ${quote(t)} LIMIT 1`).length === 0);
 }
 
@@ -234,6 +235,8 @@ export async function loadSnapshot(
         if (options.replace) for (const table of tables) target.run(`DELETE FROM ${quote(table)}`);
         // An emptied library may still remember what it deleted; the snapshot's own tombstones replace those.
         else target.run('DELETE FROM tombstones');
+        // What peers sent describes the library that is going away, never the restored one.
+        target.run('DELETE FROM sync_conflicts');
         const count = (db: SqlDb, table: string) => db.all<{ n: number }>(`SELECT count(*) AS n FROM ${quote(table)}`)[0].n;
         for (const table of tables) {
           if (DEVICE_STATE_TABLES.has(table)) continue;

@@ -47,6 +47,7 @@ describe('migrate', () => {
       'notes',
       'participants',
       'profiles',
+      'sync_conflicts',
       'sync_peers',
       'tombstones',
     ]);
@@ -777,6 +778,7 @@ describe('migration v6 to v7 (highlights)', () => {
 describe('migration v7 to v8 (device sync tracking)', () => {
   const NOTE_FP = 'cd'.repeat(32);
   const PEER = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+  const UPTO_8 = MIGRATIONS.slice(0, 8);
 
   /** A populated v7 library: every table a sync pack reads has rows. */
   async function v7WithData() {
@@ -796,7 +798,7 @@ describe('migration v7 to v8 (device sync tracking)', () => {
   test('adds the device, peer and tombstone tables and the seq / changed_by columns; the schema is the same fresh or migrated', async () => {
     const db = await v7WithData();
     const before = db.all<{ name: string }>("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
-    expect(migrate(db)).toEqual({ from: 7, to: 8 });
+    expect(migrate(db, UPTO_8)).toEqual({ from: 7, to: 8 });
     expect(readUserVersion(db)).toBe(8);
     const after = db.all<{ name: string }>("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
     const added = ['device', 'sync_peers', 'tombstones'];
@@ -805,14 +807,14 @@ describe('migration v7 to v8 (device sync tracking)', () => {
     );
     expect(after.map((t) => t.name)).toEqual(expect.arrayContaining(added));
     const fresh = await emptyDb();
-    migrate(fresh);
+    migrate(fresh, UPTO_8);
     const dump = (d: SqlDb) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
     expect(dump(db)).toEqual(dump(fresh));
   });
 
   test('existing rows are kept unchanged and backfilled with the baseline seq 1; no changed_by, no tombstone; the device row exists', async () => {
     const db = await v7WithData();
-    migrate(db);
+    migrate(db, UPTO_8);
     expect(db.all('SELECT display_name, created_at, updated_at, seq, changed_by FROM profiles')).toEqual([
       { display_name: 'Ana', created_at: 't1', updated_at: 't2', seq: 1, changed_by: null },
     ]);
@@ -835,11 +837,11 @@ describe('migration v7 to v8 (device sync tracking)', () => {
   test('the device id is created once by the migration: it never changes afterwards and differs between libraries', async () => {
     const a = await v7WithData();
     const b = await v7WithData();
-    migrate(a);
-    migrate(b);
+    migrate(a, UPTO_8);
+    migrate(b, UPTO_8);
     const id = (d: SqlDb) => d.all<{ id: string }>('SELECT id FROM device')[0].id;
     const first = id(a);
-    expect(migrate(a)).toEqual({ from: 8, to: 8 });
+    expect(migrate(a, UPTO_8)).toEqual({ from: 8, to: 8 });
     expect(id(a)).toBe(first);
     expect(id(b)).not.toBe(first);
   });
@@ -847,8 +849,8 @@ describe('migration v7 to v8 (device sync tracking)', () => {
   test('the backfill is deterministic: two libraries with the same rows migrate to the same seq values', async () => {
     const a = await v7WithData();
     const b = await v7WithData();
-    migrate(a);
-    migrate(b);
+    migrate(a, UPTO_8);
+    migrate(b, UPTO_8);
     for (const table of ['profiles', 'conversations', 'import_batches', 'favorites', 'notes']) {
       expect(a.all(`SELECT seq FROM ${table} ORDER BY rowid`)).toEqual(b.all(`SELECT seq FROM ${table} ORDER BY rowid`));
     }
@@ -856,7 +858,7 @@ describe('migration v7 to v8 (device sync tracking)', () => {
 
   test('rules: one device row, well-formed ids, counter from 1, kinds and watermarks checked', async () => {
     const db = await v7WithData();
-    migrate(db);
+    migrate(db, UPTO_8);
     db.run('DELETE FROM device');
     const device = (id: string, seq = 1, singleton = 1) =>
       db.run('INSERT INTO device (singleton, id, created_at, change_seq) VALUES (?, ?, ?, ?)', [singleton, id, 't', seq]);
@@ -886,12 +888,71 @@ describe('migration v7 to v8 (device sync tracking)', () => {
     expect(readUserVersion(db)).toBe(7);
     expect(db.all("SELECT name FROM sqlite_master WHERE name IN ('device', 'sync_peers', 'tombstones')")).toHaveLength(0);
     expect(db.all("SELECT name FROM pragma_table_info('profiles') WHERE name = 'seq'")).toHaveLength(0);
-    expect(migrate(db)).toEqual({ from: 7, to: 8 });
+    expect(migrate(db, UPTO_8)).toEqual({ from: 7, to: 8 });
   });
 
   test('an older app refuses a v8 database', async () => {
     const db = await v7WithData();
-    migrate(db);
+    migrate(db, UPTO_8);
     expect(() => migrate(db, MIGRATIONS.slice(0, 7))).toThrow(/newer than this app understands/);
+  });
+});
+
+describe('migration v8 to v9 (changes-pack conflicts)', () => {
+  const PEER = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+
+  async function v8WithData() {
+    const db = await emptyDb();
+    db.exec('PRAGMA foreign_keys = ON');
+    migrate(db, MIGRATIONS.slice(0, 8));
+    db.run('INSERT INTO profiles (id, display_name, created_at, updated_at, seq) VALUES (?, ?, ?, ?, 4)', [PROFILE, 'Ana', 't1', 't2']);
+    db.run('INSERT INTO sync_peers (peer_id, last_sent_seq, last_received_seq) VALUES (?, 3, 2)', [PEER]);
+    db.run("INSERT INTO tombstones (kind, scope, key, deleted_at, seq) VALUES ('note', '', 'k', 't', 5)");
+    return db;
+  }
+
+  test('adds one empty table and changes nothing else: rows, version and the schema match a fresh database', async () => {
+    const db = await v8WithData();
+    const before = db.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
+    expect(migrate(db)).toEqual({ from: 8, to: 9 });
+    expect(readUserVersion(db)).toBe(9);
+    expect(db.all('SELECT * FROM sync_conflicts')).toEqual([]);
+    expect(db.all('SELECT display_name, seq FROM profiles')).toEqual([{ display_name: 'Ana', seq: 4 }]);
+    expect(db.all('SELECT peer_id, last_sent_seq, last_received_seq FROM sync_peers')).toEqual([{ peer_id: PEER, last_sent_seq: 3, last_received_seq: 2 }]);
+    expect(db.all('SELECT seq FROM tombstones')).toEqual([{ seq: 5 }]);
+    const after = db.all<{ name: string }>("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
+    expect(after.filter((o) => o.name !== 'sync_conflicts' && !o.name.startsWith('sqlite_autoindex_sync_conflicts'))).toEqual(before);
+    const fresh = await emptyDb();
+    migrate(fresh);
+    expect(after).toEqual(fresh.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"));
+  });
+
+  test('rules: well-formed peer, known kinds, one open row per peer and record', async () => {
+    const db = await v8WithData();
+    migrate(db);
+    const row = (peer: string, kind: string, deleted = 0, key = 'k') =>
+      db.run("INSERT INTO sync_conflicts (peer_id, kind, scope, key, incoming, incoming_deleted, detected_at) VALUES (?, ?, '', ?, '{}', ?, 't')", [peer, kind, key, deleted]);
+    expect(() => row('short', 'profile')).toThrow(/CHECK/);
+    expect(() => row(PEER, 'favorite')).toThrow(/CHECK/);
+    expect(() => row(PEER, 'profile', 2)).toThrow(/CHECK/);
+    row(PEER, 'profile');
+    expect(() => row(PEER, 'profile')).toThrow(/UNIQUE/);
+    row(PEER, 'profile', 0, 'other');
+    row(PEER, 'note');
+  });
+
+  test('a failure in v9 leaves the v8 database as it was, and a retry succeeds', async () => {
+    const db = await v8WithData();
+    const broken: Migration[] = [...MIGRATIONS.slice(0, 8), { version: 9, sql: `${MIGRATIONS[8].sql} INSERT INTO missing_table VALUES (1);` }];
+    expect(() => migrate(db, broken)).toThrow();
+    expect(readUserVersion(db)).toBe(8);
+    expect(tables(db)).not.toContain('sync_conflicts');
+    expect(migrate(db)).toEqual({ from: 8, to: 9 });
+  });
+
+  test('an older app refuses a v9 database', async () => {
+    const db = await v8WithData();
+    migrate(db);
+    expect(() => migrate(db, MIGRATIONS.slice(0, 8))).toThrow(/newer than this app understands/);
   });
 });
