@@ -3,7 +3,7 @@
 **Memory Archive** is a **privacy-first, fully offline memory archive** that brings WhatsApp conversations, photos, videos and voice messages into a **unified, portable timeline** — one profile per person you want to remember.
 Everything runs **on your own device**. No server, no account, no cloud, no telemetry: your memories never leave your hands.
 
-> **Status:** in development (v0.6). The installable offline app already imports WhatsApp ZIPs into profiles, with timeline, conversation view, gallery, audio, calendar, search and favorites, and can export a full backup ZIP and restore it into an empty library. It also keeps the original **WhatsApp export → Markdown / HTML / JSON** command-line tool (inherited from [guionardo/wa-backup](https://github.com/guionardo/wa-backup)). Sync, Google Photos import and the portable viewer are still ahead — see [🗺️ Roadmap](#️-roadmap).
+> **Status:** in development (v0.11). The installable offline app imports WhatsApp chats into profiles, with timeline, conversation view, gallery, audio, calendar, search and favorites; backs up and restores your whole archive (optionally password-protected); keeps two devices in step with small *changes* files; and imports hand-picked photos (phone gallery, Google Photos download or Takeout album) that you assign to people yourself. It also keeps the original **WhatsApp export → Markdown / HTML / JSON** command-line tool (inherited from [guionardo/wa-backup](https://github.com/guionardo/wa-backup)). The portable viewer and final hardening are still ahead — see [🗺️ Roadmap](#️-roadmap).
 
 ---
 
@@ -66,7 +66,7 @@ Regenerate them with `pnpm build && pnpm screenshots` (see [docs/blueprint.md](d
 
 * ✅ **Incremental, duplicate-free imports**: import the same chat again years later and only the new messages are added.
 
-* 🟡 **Hand-picked photos**: import from your phone gallery, a Google Photos download or a Google Takeout album from the Photos screen (done, with undo); choose exactly which photos belong to whom, by day, with a confirmation and undo (done); showing them on the person's page is next.
+* 🟡 **Hand-picked photos**: import from your phone gallery, a Google Photos download or a Google Takeout album from the Photos screen (done, with undo); choose exactly which photos belong to whom, by day, with a confirmation and undo (done); showing them on the person's page is a follow-up.
 
 * ✅ **Timeline, gallery, audio archive and calendar** per person, with search and favorites.
 
@@ -256,7 +256,7 @@ cli/                      # same use cases from the terminal
 | 5 | ✅ | Timeline, conversation view, gallery, audio, calendar, search |
 | 6 | ✅ | Full backup and restore |
 | 7 | ✅ | Manual device-to-device sync with ZIP files |
-| 8 | 🟡 | Google Photos (download / Takeout) and loose files: import screen, selection grid and assigning to people done; assigned pictures on the person page next |
+| 8 | ✅ | Google Photos (download / Takeout) and loose files |
 | 9 | ⬜ | Portable viewer exports and hardening |
 
 ✅ done in code and automated tests (manual on-device checks are listed in the roadmap) · 🟡 partly done · ⬜ not started. Details in [`docs/roadmap.md`](docs/roadmap.md).

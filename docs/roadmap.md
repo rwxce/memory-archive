@@ -147,7 +147,7 @@ result summary, pointers from Backup and the import wizard) is built, and so is 
 
 ## Phase 8 — Google Photos and loose files
 
-**Status: in progress. Done: the data layer and use cases for all three ways in: Google Photos Takeout album
+**Status: done in code and automated tests. Done: the data layer and use cases for all three ways in: Google Photos Takeout album
 (schema v11, `importTakeoutAlbum`), loose files from the device and a Google Photos web-download ZIP (schema v12 date
 source, `importLoosePhotos`, `importGooglePhotosZip`, `detectPhotoSource`; items 18 and 19a), with undo and backup /
 restore of the collection; format in `docs/formats/photo-library.md`. Item 19 is done: the Photos screen (`/photos`,
