@@ -79,6 +79,9 @@ export function SettingsScreen() {
         <Link href="/backup" className={settingsRowClass}>
           <SettingsRowContent title={t('backup.title')} hint={t('backup.description')} />
         </Link>
+        <Link href="/sync" className={settingsRowClass}>
+          <SettingsRowContent title={t('sync.title')} hint={t('sync.description')} />
+        </Link>
       </SettingsRows>
 
       <EraseCard />

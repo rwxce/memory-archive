@@ -163,6 +163,10 @@
     "backup": {
       "title": "Copia y restauración",
       "description": "Haz una copia de todo el archivo, compruébalo y mira cuánto espacio ocupa."
+    },
+    "sync": {
+      "title": "Sincroniza dispositivos",
+      "description": "Lleva los cambios a otro dispositivo con un archivo y recibe los suyos."
     }
   },
   "notFound": {
@@ -183,9 +187,13 @@
       "remove": "Quitar",
       "removeLabel": "Quitar {name} de la lista",
       "shared": "Compartido con Memory Archive",
-      "sharedNote": "Los ficheros compartidos desde WhatsApp se quedan aquí hasta que los importes o los quites. Los ficheros compartidos que no se pueden importar se eliminan de este dispositivo.",
+      "sharedNote": "Los ficheros compartidos desde WhatsApp se quedan aquí hasta que los importes o los quites. Los ficheros compartidos que no se pueden importar se eliminan de este dispositivo, salvo los archivos de cambios de otro dispositivo, que esperan en Sincroniza dispositivos.",
       "skipped": "{count, plural, one {Se ha dejado fuera # fichero: por ahora solo se pueden importar ficheros ZIP, de texto y de copias antiguas.} other {Se han dejado fuera # ficheros: por ahora solo se pueden importar ficheros ZIP, de texto y de copias antiguas.}}",
-      "start": "{count, plural, one {Continuar con # fichero} other {Continuar con # ficheros}}"
+      "start": "{count, plural, one {Continuar con # fichero} other {Continuar con # ficheros}}",
+      "syncPointer": {
+        "text": "{count, plural, one {# archivo que has elegido es un archivo de cambios de otro dispositivo y se ha dejado fuera.} other {# archivos que has elegido son archivos de cambios de otro dispositivo y se han dejado fuera.}} Se abren en Sincroniza dispositivos.",
+        "link": "Ir a Sincroniza dispositivos"
+      }
     },
     "wizard": {
       "step": "Paso {step} de {total}",
@@ -1023,6 +1031,10 @@
       "title": "Esta copia está protegida",
       "body": "Escribe la contraseña que elegiste al hacer {fileName}.",
       "cancel": "Cancelar"
+    },
+    "syncPointer": {
+      "text": "{fileName} es un archivo de cambios de otro dispositivo, no una copia. Ábrelo en Sincroniza dispositivos.",
+      "link": "Ir a Sincroniza dispositivos"
     }
   },
   "subpage": {
@@ -1038,5 +1050,106 @@
     "saved": "Se ha guardado la frase de {name}.",
     "failed": "No se ha podido guardar la frase de {name}. No se ha cambiado nada.",
     "saving": "Guardando…"
+  },
+  "sync": {
+    "title": "Sincroniza dispositivos",
+    "intro": "Acerca dos dispositivos llevando un archivo de uno a otro. No se envía nada por internet: el archivo lo mueves tú.",
+    "device": {
+      "title": "Este dispositivo",
+      "loading": "Leyendo este dispositivo…",
+      "failed": "No se han podido leer los datos de este dispositivo. No se ha cambiado nada.",
+      "codeLabel": "Código del dispositivo",
+      "codeHelp": "Un código corto que distingue tus dispositivos. El otro dispositivo muestra este para este.",
+      "peersTitle": "Otros dispositivos",
+      "noPeers": "Todavía no hay otro dispositivo. Cuando hayas intercambiado un archivo con uno, aparecerá aquí.",
+      "peerName": "Dispositivo {code}",
+      "sent": "Último archivo entregado: {date}",
+      "sentNever": "Todavía no se ha entregado ningún archivo",
+      "received": "Último archivo recibido: {date}",
+      "receivedNever": "Todavía no se ha recibido ningún archivo"
+    },
+    "export": {
+      "title": "Envía cambios a otro dispositivo",
+      "description": "Hace un archivo con lo que ha cambiado en este dispositivo. Ábrelo en el otro dispositivo, en Sincroniza dispositivos.",
+      "peerLegend": "¿Para qué dispositivo es el archivo?",
+      "newDevice": "Un dispositivo nuevo",
+      "newDeviceHint": "Hace un archivo completo: todo lo que hay en este archivo. Úsalo para un dispositivo que aún no tiene nada de tu archivo, o que no aparece en la lista.",
+      "peerHint": "Solo lo que ha cambiado desde el último archivo que entregaste a este dispositivo.",
+      "full": "Envía todo otra vez, no solo los cambios",
+      "fullNote": "Úsalo si el otro dispositivo ha dicho que le falta un archivo. El archivo es más grande.",
+      "privateNote": "Sin contraseña el archivo es privado: cualquiera que lo tenga puede leer tus mensajes y fotos. Guárdalo en un lugar al que solo tú tengas acceso y bórralo cuando el otro dispositivo ya lo tenga.",
+      "protectNote": "Opcional. Si olvidas esta contraseña, el archivo no se puede abrir y nosotros no podemos recuperarla. La necesitarás en el otro dispositivo.",
+      "submit": "Hacer el archivo",
+      "progressLabel": "Haciendo el archivo",
+      "nothing": "No hay nada nuevo que enviar a este dispositivo, así que no se ha hecho ningún archivo.",
+      "savedTitle": "El archivo se ha hecho",
+      "saved": "Se ha dado {fileName} al navegador. Mira la carpeta de descargas para asegurarte de que está.",
+      "savedProtected": "Está protegido con una contraseña.",
+      "savedPrivate": "No está protegido con contraseña, así que cualquiera que lo tenga puede leerlo. Manténlo privado.",
+      "savedFull": "Contiene todo lo que hay en este archivo.",
+      "savedChanges": "Contiene solo lo que ha cambiado.",
+      "savedNewDevice": "Ábrelo en el otro dispositivo. Cuando ese dispositivo te envíe un archivo, este ya lo sabrá.",
+      "confirmTitle": "¿Has entregado {fileName} al dispositivo {code}?",
+      "confirmHelp": "Responde que sí solo cuando el archivo esté en el otro dispositivo. Hasta entonces este dispositivo guarda estos cambios para el archivo siguiente.",
+      "confirmYes": "Sí, lo he entregado",
+      "confirmNo": "Todavía no",
+      "recording": "Guardando tu respuesta…",
+      "handed": "Anotado. El archivo siguiente para este dispositivo solo tendrá lo que cambie a partir de ahora.",
+      "handedStale": "No se ha anotado nada nuevo: el último archivo del otro dispositivo ha cambiado lo que sabe este. No se pierde nada, y el archivo siguiente empezará desde lo que este dispositivo sabe.",
+      "notHanded": "No se ha anotado nada. El archivo siguiente para este dispositivo tendrá estos mismos cambios.",
+      "errorReplaced": "Este archivo se sustituyó después de hacer el archivo, así que no se ha anotado nada. Haz un archivo nuevo.",
+      "errorRecord": "No se ha podido guardar tu respuesta. No se ha perdido nada. Inténtalo de nuevo.",
+      "another": "Hacer otro archivo"
+    },
+    "inbox": {
+      "title": "Archivos recibidos",
+      "description": "Los archivos de cambios compartidos con Memory Archive esperan aquí hasta que añadas sus cambios o los quites.",
+      "add": "Añadir los cambios",
+      "addLabel": "Añadir los cambios de {fileName}",
+      "remove": "Quitar",
+      "removeLabel": "Quitar {fileName} de este dispositivo"
+    },
+    "import": {
+      "title": "Recibe cambios de otro dispositivo",
+      "description": "Abre un archivo hecho por otro dispositivo. Cuando se haya añadido, esta pantalla te cuenta qué ha cambiado; nada de aquí se sustituye ni se borra sin avisarte.",
+      "pick": "Elige un archivo",
+      "progressLabel": "Añadiendo los cambios",
+      "promptTitle": "Este archivo está protegido",
+      "promptBody": "Escribe la contraseña que elegiste al hacer {fileName}.",
+      "promptCancel": "Cancelar",
+      "promptSubmit": "Abrir archivo",
+      "wrongPassword": "Esa contraseña no abre el archivo. Revísala; si estás seguro de que es correcta, puede que el archivo esté dañado. No se ha cambiado nada.",
+      "isBackup": "{fileName} es una copia completa, no un archivo de cambios. Ábrela desde Copia y restauración.",
+      "isBackupLink": "Ir a Copia y restauración",
+      "resultTitle": "Se han añadido los cambios",
+      "messagesAdded": "{count, plural, one {Se ha añadido # mensaje nuevo.} other {Se han añadido # mensajes nuevos.}}",
+      "messagesSkipped": "{count, plural, one {# mensaje ya estaba en el archivo y no se ha vuelto a copiar.} other {# mensajes ya estaban en el archivo y no se han vuelto a copiar.}}",
+      "people": "{count, plural, one {Se ha añadido o actualizado # persona.} other {Se han añadido o actualizado # personas.}}",
+      "conversations": "{count, plural, one {Se ha añadido o actualizado # conversación.} other {Se han añadido o actualizado # conversaciones.}}",
+      "notes": "{count, plural, one {Se ha añadido o actualizado # nota.} other {Se han añadido o actualizado # notas.}}",
+      "favorites": "{count, plural, one {Se ha añadido # favorito.} other {Se han añadido # favoritos.}}",
+      "removed": "{count, plural, one {Se ha quitado # favorito o nota, porque se borró en el otro dispositivo.} other {Se han quitado # favoritos o notas, porque se borraron en el otro dispositivo.}}",
+      "nothingNew": "Todo lo que había en este archivo ya estaba en el archivo. No ha cambiado nada.",
+      "conflicts": "{count, plural, one {# elemento se cambió en los dos dispositivos. Se guardan las dos versiones y no se ha sobrescrito nada.} other {# elementos se cambiaron en los dos dispositivos. Se guardan las dos versiones y no se ha sobrescrito nada.}}",
+      "conflictsLater": "Todavía no se puede elegir cuál conservar.",
+      "offers": "{count, plural, one {# importación se deshizo en el otro dispositivo. Aquí no se ha quitado nada.} other {# importaciones se deshicieron en el otro dispositivo. Aquí no se ha quitado nada.}}",
+      "another": "Elegir otro archivo",
+      "errorTitle": "No se han añadido los cambios",
+      "error": {
+        "gap": "Este archivo se salta uno anterior del otro dispositivo, así que no se ha añadido nada. En el otro dispositivo, elige «Envía todo otra vez» y trae ese archivo.",
+        "wrongDevice": "Este archivo se hizo para otro dispositivo, así que no se ha añadido nada. Pide al otro dispositivo que haga uno para este.",
+        "ownPack": "Este archivo lo hizo este mismo dispositivo. Ábrelo en el otro dispositivo. No se ha cambiado nada.",
+        "notPack": "Esto no es un archivo de cambios de Memory Archive, así que no se ha añadido nada. Si es una copia, ábrela desde Copia y restauración.",
+        "damaged": "Este archivo está dañado o incompleto, así que no se ha añadido nada. Pide al otro dispositivo que lo vuelva a hacer.",
+        "newer": "Este archivo viene de una versión más nueva de Memory Archive. Actualiza la aplicación para abrirlo. No se ha cambiado nada.",
+        "limit": "Este archivo es más grande de lo que la aplicación puede abrir con seguridad. No se ha cambiado nada. Pide al otro dispositivo archivos más pequeños.",
+        "storage": "No hay espacio suficiente en este dispositivo, o no se ha podido escribir en él. No se ha cambiado nada.",
+        "busy": "Ya hay otra tarea en marcha. Espera a que termine e inténtalo de nuevo.",
+        "passwordRequired": "Este archivo está protegido. Escribe su contraseña para abrirlo.",
+        "encryptionUnavailable": "Este navegador no puede abrir archivos con contraseña aquí. Inténtalo de nuevo desde la aplicación instalada o con una conexión segura. No se ha cambiado nada.",
+        "generic": "Algo ha ido mal. No se ha cambiado nada. Inténtalo de nuevo."
+      }
+    },
+    "progressAnnounce": "{percent}% hecho"
   }
 }

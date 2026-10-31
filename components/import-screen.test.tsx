@@ -8,6 +8,8 @@ import { storeSharedFiles } from '@/lib/storage/share-inbox';
 import { createMemoryCacheStorage } from '@/lib/storage/test-cache-storage';
 import { createLoopbackImports } from '@/lib/usecases/test-client';
 import { createProfile } from '@/lib/usecases/profiles';
+import { exportChangesPack } from '@/lib/usecases/changes-pack-export';
+import { populated } from '@/lib/usecases/test-sync';
 import { click, render, renderWithLibrary, settle, submit, type, type Rendered } from './test-utils';
 import { ImportScreen } from './import-screen';
 import { ProblemText } from './import-steps';
@@ -143,6 +145,54 @@ describe('the import wizard', () => {
 
       await click(view.container.querySelector('button[aria-label="Remove WhatsApp Chat - Ana.zip from the list"]'));
       expect(text(view)).toContain(m.choose.empty);
+    });
+
+    test('a changes file from another device is left out of the list and pointed to Sync devices', async () => {
+      ({ view } = await open());
+      const pack = await exportChangesPack((await populated()).deps, { appVersion: '1.0.0' });
+      await pick(view, [anaFile(), new File([pack.blob], pack.fileName)]);
+      await settle();
+      expect(text(view)).toContain('WhatsApp Chat - Ana.zip');
+      expect(text(view)).not.toContain(pack.fileName);
+      expect(text(view)).toContain('Files to import (1)');
+      const pointer = view.container.querySelector('[data-testid="sync-pointer"]')!;
+      expect(pointer.textContent).toContain('1 file you chose is a file of changes from another device');
+      expect(pointer.querySelector('a[href="/sync"]')).not.toBeNull();
+    });
+
+    test('a changes file shared to the app is not listed and stays in the inbox for Sync devices', async () => {
+      const caches = createMemoryCacheStorage();
+      const pack = await exportChangesPack((await populated()).deps, { appVersion: '1.0.0' });
+      await storeSharedFiles(caches, 'https://x.example/', [new File([pack.blob], pack.fileName, { type: 'application/zip' })]);
+      vi.stubGlobal('caches', caches);
+      ({ view } = await open());
+      await settle();
+      await settle();
+      expect(text(view)).not.toContain(pack.fileName);
+      expect(view.container.querySelector('[data-testid="sync-pointer"]')).not.toBeNull();
+      const cache = await caches.open('memory-archive-share-inbox-v1');
+      expect((await cache.keys()).length).toBe(1);
+    });
+
+    test('files chosen one batch after another keep their pick order and add up the changes files', async () => {
+      ({ view } = await open());
+      const pack = await exportChangesPack((await populated()).deps, { appVersion: '1.0.0' });
+      const input = view.container.querySelector<HTMLInputElement>('[data-testid="import-file-input"]')!;
+      const choose = (files: File[]) => {
+        Object.defineProperty(input, 'files', { configurable: true, value: files });
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      await act(async () => {
+        choose([zipFile('First.zip', GUESS), new File([pack.blob], 'p1.zip')]);
+        choose([new File([pack.blob], 'p2.zip'), zipFile('Second.zip', TWO_NAMES)]);
+        choose([zipFile('Third.zip', TIE)]);
+      });
+      await settle();
+      await settle();
+      const names = [...view.container.querySelectorAll('section li')].map((li) => li.textContent ?? '');
+      expect(names.findIndex((n) => n.includes('First.zip'))).toBeLessThan(names.findIndex((n) => n.includes('Second.zip')));
+      expect(names.findIndex((n) => n.includes('Second.zip'))).toBeLessThan(names.findIndex((n) => n.includes('Third.zip')));
+      expect(view.container.querySelector('[data-testid="sync-pointer"]')?.textContent).toContain('2 files you chose');
     });
 
     test('a plain-text chat export is listed next to ZIPs', async () => {
