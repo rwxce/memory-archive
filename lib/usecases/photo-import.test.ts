@@ -214,7 +214,7 @@ describe('importLoosePhotos', () => {
   test('undo removes the items and the files only that import brought', async () => {
     const lib = await createTestLibrary();
     const result = await loose(lib, [file('a.jpg', jpeg(1)), file('b.jpg', jpeg(2))]);
-    expect(await undoPhotoImport(lib.deps, result.batchId!)).toEqual({ found: true, removedItems: 2, removedMedia: 2 });
+    expect(await undoPhotoImport(lib.deps, result.batchId!)).toEqual({ found: true, removedItems: 2, removedAssignments: 0, removedMedia: 2 });
     expect(await countPhotoItems(lib.deps)).toBe(0);
     expect(await lib.deps.blobStore.list()).toEqual([]);
     expect(await undoPhotoImport(lib.deps, result.batchId!)).toMatchObject({ found: false });

@@ -1,13 +1,14 @@
-# Photo collection (library schema v12)
+# Photo collection (library schema v13)
 
 Pictures and videos the person brings in from a source that is not a chat. Three sources: a **Google
 Photos Takeout** ZIP (an album, several albums, or a whole library; schema v11), **loose files** chosen on the
 device, and a **Google Photos web download** ZIP (a selection from photos.google.com), the last two with
-the date source of schema v12. Phase 8. The Photos screen, the selection grid (queue item 20) and the
-assignment of photos to profiles are not built.
+the date source of schema v12. Phase 8. The Photos screen imports and undoes; the assignment of photos to
+profiles has its data layer (schema v13, "Assigning pictures to profiles"); the selection grid that drives it
+(queue item 20b) is not built.
 
-Status: **implemented**: schema v11 + v12 (`lib/db/migrations.ts`), `lib/domain/photo.ts`,
-`lib/db/photos.ts`, `lib/importers/takeout/`, `lib/importers/photos/`, `lib/usecases/photo-library.ts`,
+Status: **implemented**: schema v11 + v12 + v13 (`lib/db/migrations.ts`), `lib/domain/photo.ts`,
+`lib/db/photos.ts`, `lib/db/photo-assign.ts`, `lib/usecases/photo-assign.ts`, `lib/importers/takeout/`, `lib/importers/photos/`, `lib/usecases/photo-library.ts`,
 `lib/usecases/photo-import.ts`, `lib/usecases/photo-source.ts`. No screen calls them yet.
 Where this document and the code disagree, fix the document in the same PR.
 
@@ -84,9 +85,8 @@ Identity: `UNIQUE (sha256, source, album)`. Reasons and consequences:
 
 ### What is NOT created yet
 
-- **No profile link table.** Assigning photos to profiles is item 20's entry point; a table with no
-  working entry point is dead schema (and a changes-pack format commitment). It will be an
-  expand-only migration then (`photo_item_profiles(photo_item_id, profile_id)`, composite key).
+- **No profile link table in v11/v12.** It came with its first entry point, in v13 (below), keyed by
+  picture (`sha256`) rather than by item as first sketched: the grid has one tile per picture.
 - No `people`, `url`, `favorited`, device or upload-date columns: the sidecar carries them, nothing
   displays them. People names are third parties' personal data; they are not stored.
 - No decoded dimensions, thumbnails or EXIF: nothing here decodes an image. A thumbnail comes later
@@ -240,6 +240,78 @@ backslash, control characters) refuse a ZIP; a loose file's name is reduced to i
 becomes a path. Result: `{ batchId | null, summary: { added, alreadyThere, duplicatesInFile, mediaAdded, withoutDate,
 dateGuessed, unreadableFiles, ignoredFiles, unusableSidecars (0 here), tooLarge } }`. The history label of a download is cleaned like any text.
 
+## Assigning pictures to profiles (schema v13, queue item 20a)
+
+Data layer and use cases only; the selection grid is 20b. The PRD rule stands: **photos are never assigned
+automatically.** Nothing assigns by date, album, name or source, there is no "assign all" and an import never
+writes a link. The person selects pictures and chooses profiles; `assignPhotos` records exactly that.
+
+### Table `photo_profiles` (expand only)
+
+`photo_profiles(sha256 -> blobs, profile_id -> profiles ON DELETE CASCADE, created_at, PRIMARY KEY (sha256,
+profile_id))` plus an index `(profile_id, sha256)` for "what has this profile". Empty after migrating; no existing
+row changes, so a v1-v12 backup restores by migrating (tested for v12 and for a v13 round trip).
+
+- **Per picture, not per item.** The same bytes from two albums or sources are two `photo_items` rows but one tile
+  and one assignment. A picture assigned once is assigned for every item that holds it.
+- **A link lives while an item holds the picture.** This cannot be a constraint (items are not unique per
+  `sha256`), so it is kept by the writers and checked on read-back: `assignPhotos` refuses a hash that no item
+  holds (a chat photo or profile photo in the blob store is not a collection picture); `undoPhotoBatch` deletes the
+  links of a picture that loses its LAST item, in the same transaction and before the blob row goes (the FK to
+  `blobs` would refuse otherwise) and reports them as `removedAssignments`; a picture still held by an item of
+  another import keeps its links; `loadSnapshot` refuses a backup that links a picture no item holds. Re-importing
+  a picture after its import was undone starts unassigned: undo discards the person's choices about it, which the
+  UI must say before undoing (`removedAssignments` tells what was lost).
+- **Blobs.** `isReferenced` is unchanged: a blob is referenced by an item, and a link implies an item, so a link
+  alone never keeps (or loses) bytes. The FK from the link to `blobs` is the integrity backstop.
+- **Profiles** are archived, not deleted, today; `ON DELETE CASCADE` covers a future hard delete and merge paths.
+  Assigning to an archived profile is allowed (archiving hides a profile, it does not freeze it).
+- **Erase everything / replace library** need no extra code: the first deletes the database file, the second
+  clears every user table (`loadSnapshot` `replace`) and restores the snapshot's own links.
+
+### Operations (`lib/db/photo-assign.ts`, worker ops; use cases in `lib/usecases/photo-assign.ts`)
+
+| Operation | Notes |
+|-----------|-------|
+| `assignPhotos({sha256s, profileIds})` | 1..2000 pictures x 1..50 profiles, one transaction, idempotent (an existing pair keeps its `created_at`), returns `{added, alreadyThere}`. `invalid` for malformed/empty/too many; `not-found` for an unknown picture or profile, and then nothing is written. |
+| `unassignPhotos({sha256s, profileId})` | Removes those links only; the pictures stay. Idempotent, returns `{removed}`. |
+| `listPhotoPictures({scope, cursor, limit})` | One row per picture (`PhotoPicture`). `scope`: `all`, `unassigned`, `assigned` (any profile) or `assigned` + `profileId`. `limit` 1..500. Returns `{pictures, nextCursor}`; pass `nextCursor` back for the next page. |
+| `listProfilePhotos(profileId, page)` | `listPhotoPictures` with `scope: assigned + profileId`. |
+| `countPhotoPictures()` | `{pictures, unassigned, items}` for the UI. |
+| `getPhotoPicture(sha256)` | One `PhotoPicture` or null. |
+| `listPhotoMonths({scope, zoneOffsetMinutes})` | `{months: [{month, count}], undated}`, newest first. |
+| `readPhotoFile(sha256)` / `readPhotoTile(sha256)` | The lightbox file / the tile image; only for a hash held by an item. |
+
+**The picture row.** `sha256`, `kind`, `mime`, `takenAt`, `takenOffsetMinutes`, `dateSource`, `fileName` come from the
+item with the most trustworthy date (the SQL ordering is `betterDate` written out; a test pins them to each other and
+to arrival order); `albums` (distinct non-empty names, sorted, at most 5) with `albumCount`, `sources`, `itemCount`,
+and `assignedProfileIds`. The date is shown only through `photoDisplayDate(picture, zone)`.
+
+**Order and paging.** Newest first, undated last, then by hash so the order is total. The key is the wall clock at
+the place of the photo: `takenAt + offset` for `exif` with an offset, `takenAt` as stored otherwise (`exif-local`
+digits are already wall clock). Keyset paging: assigning or importing between pages never repeats a picture already
+past the cursor. The key does not know the viewer's zone, so a `sidecar` or `file-modified` picture can sit up to the
+viewer's UTC offset from where `photoDisplayDate` puts it: a screen that shows day headers must start a new header
+whenever the displayed day changes, and never assume one run per day. The listing is a window query over the
+collection per page (tens of thousands of items are fine; if a library reaches the hundreds of thousands, a
+materialised picture table is the next step, behind the same operations).
+
+**Months.** The viewer's zone is a function and cannot cross the worker boundary, so `listPhotoMonths` reads the date
+fields of every picture in scope (5000 per page, by hash) and folds them with `photoDisplayDate`: the one date rule.
+So a 00:30 `exif` photo at +10:00 counts in its own month, `exif-local` digits are never shifted, and a `sidecar`
+instant lands in the month of the viewer's zone (UTC by default; pass `(ms) => -new Date(ms).getTimezoneOffset()`).
+Undated pictures are counted apart. Months are a navigation aid: a `file-modified` guess counts in its month too.
+
+**Reading.** `readPhotoFile` is `readBlob` (a lazy view of the stored file when the store has `file()`, else read
+into memory up to the usual limit, `too-large` above it); `readPhotoTile` is `readTileImage` for a photo (cached
+thumbnail, made once for a photo within the 64 MiB decode limit and above 32 KiB, else the file) and the file for a
+video. Nothing here decodes more than that existing path; call them for the tiles near the screen only.
+
+**Person page (not built).** The Gallery of a person lists chat media; `listProfilePhotos` gives the assigned
+pictures in the same newest-first shape, with `takenAt`/`dateSource` for `photoDisplayDate`. Merging them into the
+Gallery's order, and opening one in its lightbox via `readPhotoFile`, is UI work for a follow-up; the Gallery code
+is untouched here.
+
 ## Reading a Takeout ZIP (`lib/importers/takeout/`)
 
 Untrusted input throughout. File names are never storage paths (bytes go by hash) and a hostile
@@ -300,16 +372,16 @@ JSON is parsed with `JSON.parse` and only named own fields are read.
 
 The backup ZIP is unchanged in layout: the database file carries both tables and the photo files are
 `blobs` rows like any other, so they are exported, verified and restored with the existing
-machinery. `formatVersion` stays **1**; the manifest's `schemaVersion` is 12 (11 for the first release
-with photos), so an app that only knows an older schema refuses the file with a clear `newer-schema`
-message instead of dropping the photos or their date sources, and every backup of schema v1-v11
+machinery. `formatVersion` stays **1**; the manifest's `schemaVersion` is 13 (11 for the first release
+with photos, 13 with assignments), so an app that only knows an older schema refuses the file with a clear `newer-schema`
+message instead of dropping the photos, their date sources or their assignments, and every backup of schema v1-v12
 restores by migrating (tested). `isLibraryEmpty` treats
 both tables as content (a library holding only photos is not empty, so a restore never overwrites
 it silently). `getStorageBreakdown` counts photo-item files as photos and videos.
 
 ## Sync (changes pack): known limit
 
-The changes pack does **not** carry photo items or batches yet, and the media of photo-only blobs is
+The changes pack does **not** carry photo items, batches or the assignments of pictures to profiles yet, and the media of photo-only blobs is
 not in a pack either. Photos reach another device through a full backup (restore). Carrying them
 needs a pack record kind (`photo-item`, keyed by `(sha256, source, album)`, which is already
 device-independent), tombstones for undone batches, and a pack `formatVersion` decision; it is
@@ -325,6 +397,10 @@ cross-source dedupe and undo, big file hash, limits, abort, store and database f
 (also `fixtures/google-photos-download.zip`).
 
 `lib/importers/takeout/*.test.ts` (paths, sidecar fields, name matching, layouts, hostile input),
+`lib/db/photo-assign.test.ts` and `lib/usecases/photo-assign.test.ts` (one row per picture, order with undated and offsets,
+paging without gaps or repeats, scopes, SQL best date vs `betterDate`, assign / unassign idempotency and bounds,
+unknown picture or profile, cascade, undo with shared pictures, month buckets across the offset rules, reading, backup
+round trip), `lib/db/migrations.test.ts` (v12 to v13) and `snapshot.test.ts` (v12 backup restores, orphan assignment refused),
 `lib/db/photos.test.ts` (validation, idempotency, rollback, undo, paging),
 `lib/db/migrations.test.ts` (v10 to v11) and `snapshot.test.ts` (a v10 backup restores),
 `lib/usecases/photo-library.test.ts` (import, re-import, overlap, two albums one file, undo, abort,

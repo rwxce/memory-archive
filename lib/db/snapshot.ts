@@ -179,6 +179,10 @@ async function openChecked(target: SqlDb, bytes: Uint8Array, options: LoadSnapsh
     if (scratch.all("SELECT 1 FROM photo_items WHERE (date_source = 'none') <> (taken_at IS NULL) LIMIT 1").length > 0) {
       throw invalid('a photo has a date source that does not match its date');
     }
+    // An assignment only exists for a picture that is in the collection (not expressible as a constraint, see migration v13).
+    if (scratch.all('SELECT 1 FROM photo_profiles a WHERE NOT EXISTS (SELECT 1 FROM photo_items i WHERE i.sha256 = a.sha256) LIMIT 1').length > 0) {
+      throw invalid('a photo is assigned to a profile but is not in the collection');
+    }
 
     const tables = userTables(target);
     if (JSON.stringify(userTables(scratch)) !== JSON.stringify(tables)) throw invalid('tables differ from the current schema');

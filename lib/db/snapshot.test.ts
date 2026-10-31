@@ -156,7 +156,7 @@ describe('loadSnapshot', () => {
     v4.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
     const target = (await openMemoryDb()).db;
     expect(await loadSnapshot(target, serializeDb(v4))).toEqual({ from: 4, to: SCHEMA_VERSION });
-    expect(SCHEMA_VERSION).toBe(12);
+    expect(SCHEMA_VERSION).toBe(13);
     expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
     expect(target.all('SELECT * FROM favorites')).toEqual([]);
     expect(target.all('SELECT * FROM notes')).toEqual([]);
@@ -260,6 +260,41 @@ describe('loadSnapshot', () => {
     const restored = (await openMemoryDb()).db;
     await loadSnapshot(restored, serializeDb(source), { expectBlobs: [{ sha256: 'cd'.repeat(32), size: 1 }] });
     expect(restored.all('SELECT source, date_source FROM photo_items')).toEqual([{ source: 'loose', date_source: 'file-modified' }]);
+  });
+
+  test('a schema v12 snapshot restores by migrating with no assignments; a v13 snapshot keeps them, replace included', async () => {
+    const SHA = 'ab'.repeat(32);
+    const v12 = await bareDb(MIGRATIONS.slice(0, 12));
+    v12.run('INSERT INTO blobs (sha256, size, mime) VALUES (?, 1, NULL)', [SHA]);
+    v12.run("INSERT INTO photo_batches (id, source, created_at, added_count) VALUES (?, 'loose', ?, 1)", [ID1, NOW]);
+    v12.run("INSERT INTO photo_items (batch_id, sha256, kind, source, album, file_name) VALUES (?, ?, 'photo', 'loose', '', 'b.jpg')", [ID1, SHA]);
+    const target = (await openMemoryDb()).db;
+    expect(await loadSnapshot(target, serializeDb(v12), { expectBlobs: [{ sha256: SHA, size: 1 }] })).toEqual({ from: 12, to: SCHEMA_VERSION });
+    expect(target.all('SELECT file_name FROM photo_items')).toEqual([{ file_name: 'b.jpg' }]);
+    expect(target.all('SELECT * FROM photo_profiles')).toEqual([]);
+
+    const source = (await openMemoryDb()).db;
+    source.run("INSERT INTO profiles (id, display_name, created_at, updated_at) VALUES (?, 'Ana', ?, ?)", [ID2, NOW, NOW]);
+    source.run('INSERT INTO blobs (sha256, size, mime) VALUES (?, 1, NULL)', [SHA]);
+    source.run("INSERT INTO photo_batches (id, source, created_at, added_count) VALUES (?, 'loose', ?, 1)", [ID1, NOW]);
+    source.run("INSERT INTO photo_items (batch_id, sha256, kind, source, album, file_name) VALUES (?, ?, 'photo', 'loose', '', 'b.jpg')", [ID1, SHA]);
+    source.run('INSERT INTO photo_profiles (sha256, profile_id, created_at) VALUES (?, ?, ?)', [SHA, ID2, NOW]);
+    const restored = (await openMemoryDb()).db;
+    await loadSnapshot(restored, serializeDb(source), { expectBlobs: [{ sha256: SHA, size: 1 }] });
+    expect(restored.all('SELECT sha256, profile_id FROM photo_profiles')).toEqual([{ sha256: SHA, profile_id: ID2 }]);
+    // Replacing a library that has other assignments leaves exactly the snapshot's.
+    await loadSnapshot(restored, serializeDb(source), { replace: true, expectBlobs: [{ sha256: SHA, size: 1 }] });
+    expect(restored.all('SELECT sha256, profile_id FROM photo_profiles')).toEqual([{ sha256: SHA, profile_id: ID2 }]);
+  });
+
+  test('refuses a snapshot that assigns a picture which is not in the collection', async () => {
+    const SHA = 'ab'.repeat(32);
+    const bad = (await openMemoryDb()).db;
+    bad.run("INSERT INTO profiles (id, display_name, created_at, updated_at) VALUES (?, 'Ana', ?, ?)", [ID2, NOW, NOW]);
+    bad.run('INSERT INTO blobs (sha256, size, mime) VALUES (?, 1, NULL)', [SHA]);
+    bad.run('INSERT INTO photo_profiles (sha256, profile_id, created_at) VALUES (?, ?, ?)', [SHA, ID2, NOW]);
+    const target = (await openMemoryDb()).db;
+    await expect(loadSnapshot(target, serializeDb(bad), { expectBlobs: [{ sha256: SHA, size: 1 }] })).rejects.toThrow(/not in the collection/);
   });
 
   test('refuses a snapshot whose photo date source contradicts its date', async () => {

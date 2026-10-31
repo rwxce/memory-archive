@@ -643,6 +643,14 @@ test type or architecture rule means updating this file **in the same PR**.
   migrating. New sources `loose` and `google-photos-zip` need no schema change (`source` is a free label). Use cases in
   `lib/usecases/photo-import.ts` (`importLoosePhotos`, `importGooglePhotosZip`, a Takeout-shaped ZIP is delegated to
   `importTakeoutAlbum`) and `lib/usecases/photo-source.ts` (`detectPhotoSource`); no screen yet.
+- **Schema v13 (implemented, expand-only; photo assignments, queue item 20a)** — `photo_profiles(sha256, profile_id,
+  created_at)`, keyed by PICTURE (bytes), not by item; `sha256` references `blobs`, `profile_id` cascades on profile
+  deletion. Only an explicit `assignPhotos` writes it (never by date), at most 2000 pictures x 50 profiles per call, one
+  transaction. A link exists only while an item holds the picture: `undoPhotoBatch` removes the links of a picture that
+  loses its last item (reported as `removedAssignments`), and `loadSnapshot` refuses a backup that breaks it. `schemaVersion`
+  13, `formatVersion` 1; v1-v12 backups restore by migrating. Code: `lib/db/photo-assign.ts` (grid listing by cursor, month
+  dates, counts, assign / unassign), `lib/usecases/photo-assign.ts` (the same plus `listProfilePhotos`, `listPhotoMonths`,
+  `readPhotoFile`, `readPhotoTile`). Not in the changes pack. The selection grid is 20b; no screen calls this yet.
 - **Schema v8 (implemented, expand-only; foundation of manual device-to-device sync)** — format and
   rationale in `docs/formats/changes-pack.md`. New: `device(singleton, id, created_at, change_seq)` (this
   library's identity and a monotonic change counter; the migration creates the row with a random id and

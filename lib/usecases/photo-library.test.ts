@@ -140,7 +140,7 @@ describe('importTakeoutAlbum', () => {
     const result = await run(lib, only('IMG_0008'));
     expect(result.summary).toMatchObject({ added: 1, mediaAdded: 0 });
     const undone = await undoPhotoImport(lib.deps, result.batchId!);
-    expect(undone).toEqual({ found: true, removedItems: 1, removedMedia: 0 });
+    expect(undone).toEqual({ found: true, removedItems: 1, removedAssignments: 0, removedMedia: 0 });
     expect(await lib.deps.blobStore.list()).toEqual([hashOf(8)]);
   });
 });
@@ -249,12 +249,12 @@ describe('undoPhotoImport', () => {
     const lib = await createTestLibrary();
     const a = await run(lib, only('Family dinner/dinner-1', 'Family dinner/metadata'));
     const b = await run(lib);
-    expect(await undoPhotoImport(lib.deps, b.batchId!)).toEqual({ found: true, removedItems: 14, removedMedia: 13 });
+    expect(await undoPhotoImport(lib.deps, b.batchId!)).toEqual({ found: true, removedItems: 14, removedAssignments: 0, removedMedia: 13 });
     // dinner-1 belongs to the first batch; its file (also IMG_0001's bytes) stays.
     expect((await listPhotoItems(lib.deps, { limit: 100 })).map((i) => i.fileName)).toEqual(['dinner-1.jpg']);
     expect(await lib.deps.blobStore.list()).toEqual([hashOf(1)]);
-    expect(await undoPhotoImport(lib.deps, b.batchId!)).toEqual({ found: false, removedItems: 0, removedMedia: 0 });
-    expect(await undoPhotoImport(lib.deps, a.batchId!)).toEqual({ found: true, removedItems: 1, removedMedia: 1 });
+    expect(await undoPhotoImport(lib.deps, b.batchId!)).toEqual({ found: false, removedItems: 0, removedAssignments: 0, removedMedia: 0 });
+    expect(await undoPhotoImport(lib.deps, a.batchId!)).toEqual({ found: true, removedItems: 1, removedAssignments: 0, removedMedia: 1 });
     expect(await lib.deps.blobStore.list()).toEqual([]);
     expect(await listPhotoBatches(lib.deps)).toEqual([]);
   });

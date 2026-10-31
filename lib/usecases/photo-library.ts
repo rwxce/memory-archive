@@ -206,6 +206,8 @@ export interface UndoPhotoImportResult {
   /** False when the batch does not exist (already undone): nothing changed. */
   found: boolean;
   removedItems: number;
+  /** Profile assignments dropped with a picture that no other import holds. */
+  removedAssignments: number;
   /** Media files deleted because nothing else refers to them. */
   removedMedia: number;
 }
@@ -220,7 +222,7 @@ export function undoPhotoImport(deps: ProfileDeps, batchId: string): Promise<Und
     deps.blobStore,
     async () => {
       const result = await deps.client.call('undoPhotoBatch', { batchId });
-      return { found: result.found, removedItems: result.removedItems, removedMedia: await deleteBlobs(deps, result.unreferencedBlobs) };
+      return { found: result.found, removedItems: result.removedItems, removedAssignments: result.removedAssignments, removedMedia: await deleteBlobs(deps, result.unreferencedBlobs) };
     },
     deps.lock,
   );

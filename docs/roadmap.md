@@ -152,7 +152,9 @@ result summary, pointers from Backup and the import wizard) is built, and so is 
 source, `importLoosePhotos`, `importGooglePhotosZip`, `detectPhotoSource`; items 18 and 19a), with undo and backup /
 restore of the collection; format in `docs/formats/photo-library.md`. Item 19 is done: the Photos screen (`/photos`,
 linked from Settings) picks a ZIP (told apart by content) or loose files, shows progress with Stop, the result and past
-imports with Undo. Not built: the selection grid and assigning photos to profiles (item 20), syncing photos in a
+imports with Undo. Item 20a is done: the assignment data layer (schema v13 `photo_profiles`, `assignPhotos`,
+`unassignPhotos`, the picture listing, month buckets and the reading of a picture; no screen calls it yet). Not built:
+the selection grid (item 20b), the assigned pictures in the person page, and syncing photos or assignments in a
 changes pack (known limit, unchanged). Not yet checked on a real phone gallery picker.**
 
 - Three ways to pick specific photos: Google Photos web download of a selection, Takeout of
