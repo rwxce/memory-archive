@@ -179,6 +179,14 @@ test type or architecture rule means updating this file **in the same PR**.
     copy for `safety-backup-failed` and `cancelled`); "Check my archive" (`verifyLibraryIntegrity`: progress, Stop, result by kind, never file names or hashes);
     "Check a backup file" (`verifyBackupFile`: complete / damaged parts / refusal copy per `ArchiveErrorCode`). Results take
     focus when they appear; one archive task at a time. Tested in `components/backup-screen.test.tsx` (confirm required, cancel/Escape inert, safety copy before the swap, refusal, safety-copy failure, Stop). Copy under `backup.*` and `archive.*`.
+    **Encrypted backups** (UI over `docs/formats/encrypted-backup.md`): `backup-password.tsx` holds `BackupMaker` (the
+    "Protect with a password" switch, password + repeat, show/hide, inline empty/mismatch errors, plain backups marked
+    private, a forgotten password cannot be recovered) and `PasswordPrompt` / `ExistingPasswordField`. After a file is
+    picked, `hooks/is-encrypted-backup.ts` (`isEncryptedBackup`, by magic bytes, never the name) decides: a protected file
+    asks for its password inline (open, check) or inside the replace dialog; a wrong password keeps the file and asks again;
+    a plain file goes on unchanged. The password is an argument of `backup` / `restore` / `replace` / `useBackupFileCheck().run`
+    only: never in state, storage or logs, and cleared from the fields when handed over. The replace dialog states that its
+    safety copy is not encrypted. Progress adds `encrypting` / `decrypting`. Tested in `components/backup-encrypted.test.tsx` and `hooks/use-archive-backup.test.tsx`.
   - **Import history** (`/[locale]/import/history/`, optional `?person=<id>`,
     `components/import-history-screen.tsx`, `hooks/use-import-history.ts`): newest-first list of imports
     (file name, relative + absolute date, messages added / already there, conversation title, the
@@ -1115,6 +1123,8 @@ test type or architecture rule means updating this file **in the same PR**.
 - `ai-tooling.md` — rulesync layout and how to add rules, skills and commands.
 - `formats/legacy-json.md` — the versioned `messages.json` envelope and what each legacy output
   can be re-imported from.
+- `formats/encrypted-backup.md` — the optional password-encrypted backup envelope (`.mabackup`)
+  that wraps the backup ZIP unchanged.
 - `archive/planning/` — the original GSD planning of the wa-backup CLI (phases 1–3, codebase
   map, concerns). Historical, read-only.
 - `archive/specs/` — design specs and plans of the CLI features (linkification, link titles,

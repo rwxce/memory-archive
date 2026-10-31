@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { CircleAlert, CircleCheck } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { PasswordPrompt } from '@/components/backup-password';
 import { Eyebrow } from '@/components/eyebrow';
 import { PillButton } from '@/components/pill-button';
 import { SectionCard } from '@/components/section-card';
 import { TaskProgress } from '@/components/task-progress';
+import { detectEncryptedBackup } from '@/hooks/is-encrypted-backup';
 import type { useBackupFileCheck, useLibraryCheck } from '@/hooks/use-archive-checks';
 import type { ArchiveErrorCode } from '@/lib/usecases/archive-backup';
 import type { BackupVerification, LibraryIntegrity } from '@/lib/usecases/archive-health';
@@ -149,8 +151,12 @@ function LibraryResult({ result }: { result: LibraryIntegrity }) {
 }
 
 /** Which `backup.file.refusal.*` message explains why a file could not be examined at all. */
-export function refusalKey(code: ArchiveErrorCode): 'notArchive' | 'damaged' | 'newer' | 'limit' | 'generic' {
+export function refusalKey(code: ArchiveErrorCode): 'notArchive' | 'damaged' | 'newer' | 'limit' | 'wrongPassword' | 'unavailable' | 'generic' {
   switch (code) {
+    case 'wrong-password':
+      return 'wrongPassword';
+    case 'encryption-unavailable':
+      return 'unavailable';
     case 'not-an-archive':
       return 'notArchive';
     case 'invalid-manifest':
@@ -170,15 +176,25 @@ export function refusalKey(code: ArchiveErrorCode): 'notArchive' | 'damaged' | '
   }
 }
 
-/** "Check a backup file": pick a ZIP and verify it without restoring. */
+/**
+ * "Check a backup file": pick a backup and verify it without restoring. A password-protected file asks for its
+ * password right here; a wrong one keeps the file and asks again. Nothing about the password is kept.
+ */
 export function FileCheckCard({ check }: { check: ReturnType<typeof useBackupFileCheck> }) {
   const t = useTranslations('backup.file');
   const ta = useTranslations('archive.error');
   const picker = useRef<HTMLInputElement>(null);
+  /** A protected backup waiting for its password. */
+  const [asking, setAsking] = useState<File | null>(null);
   const { state } = check;
   const running = state.status === 'running';
+  const wrong = state.status === 'done' && state.result.refusal === 'wrong-password';
+  const finished = state.status === 'done' || state.status === 'failed' || state.status === 'cancelled';
+  useEffect(() => {
+    if (finished && !wrong) setAsking(null);
+  }, [state, finished, wrong]);
   const progress = state.status === 'running' ? state.progress : undefined;
-  const text = progress ? t('progress', { done: progress.done, total: progress.total }) : t('starting');
+  const text = progress ? (progress.phase === 'decrypting' ? t('decrypting') : t('progress', { done: progress.done, total: progress.total })) : t('starting');
   const step = progress ? announceStep(percentOf(progress.done, progress.total)) : undefined;
 
   return (
@@ -193,13 +209,17 @@ export function FileCheckCard({ check }: { check: ReturnType<typeof useBackupFil
         <input
           ref={picker}
           type="file"
-          accept=".zip,application/zip"
+          accept=".zip,.mabackup,application/zip"
           hidden
           data-testid="verify-input"
-          onChange={(event) => {
+          onChange={async (event) => {
             const file = event.currentTarget.files?.[0];
             event.currentTarget.value = '';
-            if (file) void check.run(file);
+            if (!file) return;
+            setAsking(null);
+            check.reset();
+            if (await detectEncryptedBackup(file)) setAsking(file);
+            else void check.run(file);
           }}
         />
         <PillButton variant={running ? 'outlined' : 'primary'} onClick={() => (running ? check.cancel() : picker.current?.click())}>
@@ -224,7 +244,10 @@ export function FileCheckCard({ check }: { check: ReturnType<typeof useBackupFil
           <p>{ta('generic')}</p>
         </Outcome>
       )}
-      {state.status === 'done' && <FileResult result={state.result} />}
+      {asking && !running && (
+        <PasswordPrompt fileName={asking.name} wrong={wrong} submitLabel={t('checkPrompt')} onCancel={() => setAsking(null)} onSubmit={(password) => void check.run(asking, password)} />
+      )}
+      {state.status === 'done' && !wrong && <FileResult result={state.result} />}
     </SectionCard>
   );
 }
@@ -243,6 +266,7 @@ function FileResult({ result }: { result: BackupVerification }) {
     return (
       <Outcome icon="ok" title={t('okTitle')} testId="file-check-result">
         <p>{t('ok', { count: result.checkedEntries })}</p>
+        {result.encrypted && <p className="text-t2 text-sm">{t('encryptedOk')}</p>}
         {result.createdAt && result.appVersion && (
           <p className="text-t2 text-sm">{t('meta', { date: formatWhen(result.createdAt, locale).absolute, version: result.appVersion })}</p>
         )}

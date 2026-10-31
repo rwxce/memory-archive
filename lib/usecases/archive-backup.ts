@@ -13,6 +13,8 @@ import {
 import type { ProfileDeps } from './profiles';
 
 export { ArchiveError } from './archive-core';
+export { isEncryptedBackup } from '../exporters/archive/encrypt';
+export type { CryptoProgress } from '../exporters/archive/encrypt';
 export type {
   ArchiveErrorCode,
   ArchiveProgress,

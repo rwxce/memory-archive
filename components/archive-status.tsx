@@ -35,6 +35,12 @@ export function archiveErrorKey(code: Failed['code']): string {
       return 'changedDuringReplace';
     case 'cancelled':
       return 'cancelled';
+    case 'password-required':
+      return 'passwordRequired';
+    case 'wrong-password':
+      return 'wrongPassword';
+    case 'encryption-unavailable':
+      return 'encryptionUnavailable';
     default:
       return 'generic';
   }
@@ -60,8 +66,12 @@ export function ArchiveStatus({ state, className }: { state: ArchiveBackupState;
   let text = '';
   if (state.status === 'working') {
     text = archiveProgressText(t, state);
-  } else if (state.status === 'done') text = t(`done.${state.kind}`);
-  else if (state.status === 'failed') text = t(`error.${archiveErrorKey(state.code)}`);
+  } else if (state.status === 'done') {
+    text = t(`done.${state.kind}`);
+    // A backup says whether it needs a password. A plain one is private: anyone with the file can read it.
+    if (state.kind === 'backup') text = state.encrypted ? t('done.backupEncrypted') : `${text} ${t('done.backupPrivate')}`;
+  }
+  if (state.status === 'failed') text = t(`error.${archiveErrorKey(state.code)}`);
   // A safety copy already handed to the browser: say where it is, on success and on a failure after it.
   const kept = state.status === 'done' || state.status === 'failed' ? state.safetyBackupFileName : undefined;
   if (kept) text = `${text} ${t('replace.safetyKept', { fileName: kept })}`;

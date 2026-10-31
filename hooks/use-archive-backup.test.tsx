@@ -8,6 +8,7 @@ import type { ArchiveBackup } from './use-archive-backup';
 const refresh = vi.fn<() => Promise<void>>();
 const replaceLibraryFromBackup = vi.fn();
 const restoreArchiveFromZip = vi.fn();
+const exportArchiveFromLibrary = vi.fn();
 
 vi.mock('./use-library', () => ({
   useLibraryInternals: () => ({ state: { status: 'ready', deps: {} }, refresh }),
@@ -19,6 +20,7 @@ vi.mock('@/lib/usecases/archive-backup', async () => {
     ...actual,
     replaceLibraryFromBackup: (...args: unknown[]) => replaceLibraryFromBackup(...args),
     restoreArchiveFromZip: (...args: unknown[]) => restoreArchiveFromZip(...args),
+    exportArchiveFromLibrary: (...args: unknown[]) => exportArchiveFromLibrary(...args),
   };
 });
 
@@ -36,6 +38,7 @@ beforeEach(async () => {
   refresh.mockReset().mockResolvedValue();
   replaceLibraryFromBackup.mockReset().mockResolvedValue({ safetyBackupFileName: 'safety.zip' });
   restoreArchiveFromZip.mockReset().mockResolvedValue(undefined);
+  exportArchiveFromLibrary.mockReset().mockResolvedValue({ blob: new Blob(['x']), fileName: 'b.mabackup', encrypted: true });
   const container = document.createElement('div');
   const root = createRoot(container);
   await act(async () => root.render(<Probe />));
@@ -45,6 +48,36 @@ beforeEach(async () => {
 afterEach(() => unmount());
 
 describe('useArchiveBackup', () => {
+  test('a backup with a password is encrypted, the result says so, and the password is not kept in the state', async () => {
+    await act(async () => current.backup({ password: 'a long phrase' }));
+    expect(exportArchiveFromLibrary.mock.calls[0][1]).toMatchObject({ password: 'a long phrase' });
+    expect(current.state).toEqual({ status: 'done', kind: 'backup', safetyBackupFileName: undefined, encrypted: true });
+    expect(JSON.stringify(current.state)).not.toContain('a long phrase');
+  });
+
+  test('an empty password is forwarded as is, never turned into a plain backup', async () => {
+    exportArchiveFromLibrary.mockResolvedValue({ blob: new Blob(['x']), fileName: 'b.zip', encrypted: false });
+    await act(async () => current.backup({ password: '' }));
+    expect(exportArchiveFromLibrary.mock.calls[0][1].password).toBe('');
+  });
+
+  test('a backup without a password is asked for as a plain one', async () => {
+    exportArchiveFromLibrary.mockResolvedValue({ blob: new Blob(['x']), fileName: 'b.zip', encrypted: false });
+    await act(async () => current.backup());
+    expect(exportArchiveFromLibrary.mock.calls[0][1].password).toBeUndefined();
+    expect(current.state).toMatchObject({ status: 'done', encrypted: false });
+  });
+
+  test('a wrong password on restore is a typed failure the screen can retry from', async () => {
+    const { ArchiveError } = await import('@/lib/usecases/archive-backup');
+    restoreArchiveFromZip.mockRejectedValueOnce(new ArchiveError('wrong-password', 'nope'));
+    await act(async () => current.restore(new Blob(['x']), 'bad'));
+    expect(current.state).toMatchObject({ status: 'failed', kind: 'restore', code: 'wrong-password' });
+    await act(async () => current.restore(new Blob(['x']), 'good'));
+    expect(restoreArchiveFromZip.mock.calls[1][2]).toMatchObject({ password: 'good' });
+    expect(current.state).toMatchObject({ status: 'done', kind: 'restore' });
+  });
+
   test('a replace that committed is a success even when reloading the screens throws', async () => {
     refresh.mockRejectedValue(new Error('reload failed'));
     await act(async () => current.replace(new Blob(['x'])));
