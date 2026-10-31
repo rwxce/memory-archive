@@ -19,6 +19,7 @@ import type {
   StoredMessage,
 } from '../domain/library';
 import type { HighlightImportCounts, HighlightCategory, HighlightItem, HighlightMessage } from '../domain/highlights';
+import type { RecordReceivedInput, RecordSentInput, SyncPeer } from '../domain/sync';
 import type { BlobRow, DatabaseExport } from './snapshot';
 import type { DbErrorData } from './errors';
 import type { DbInfo } from './open';
@@ -144,6 +145,14 @@ export interface DbOps {
   listHighlightMessages: { params: { conversationId: string; highlightId: string }; result: HighlightMessage[] };
   deleteHighlight: { params: { conversationId: string; highlightId: string }; result: boolean };
   deleteHighlights: { params: { scope: HighlightScope }; result: number };
+  /** This library's device id (created on first call; new after a restore or replace). */
+  getDeviceId: { params: undefined; result: string };
+  listSyncPeers: { params: undefined; result: SyncPeer[] };
+  getSyncPeer: { params: { peerId: string }; result: SyncPeer | null };
+  /** A changes pack for the peer was produced up to `upToSeq`. */
+  recordSyncSent: { params: RecordSentInput; result: SyncPeer };
+  /** A pack from the peer was merged completely. */
+  recordSyncReceived: { params: RecordReceivedInput; result: SyncPeer };
   getSearchStatus: { params: undefined; result: SearchStatus };
   stepSearchIndex: { params: { limit?: number } | undefined; result: SearchIndexStep };
   searchMessages: { params: SearchInput; result: SearchResult[] };
