@@ -38,6 +38,7 @@ describe('migrate', () => {
       'blobs',
       'conversation_profiles',
       'conversations',
+      'device',
       'favorites',
       'highlight_messages',
       'highlights',
@@ -46,6 +47,8 @@ describe('migrate', () => {
       'notes',
       'participants',
       'profiles',
+      'sync_peers',
+      'tombstones',
     ]);
   });
 
@@ -614,7 +617,7 @@ describe('migration v5 to v6 (notes)', () => {
 
   test('schema of the notes table is pinned (real keys, kind-checked columns, one note per target, no link to messages)', async () => {
     const db = await emptyDb();
-    migrate(db);
+    migrate(db, MIGRATIONS.slice(0, 6));
     expect(db.all<{ sql: string }>("SELECT sql FROM sqlite_master WHERE name = 'notes'")[0].sql).toMatchInlineSnapshot(`
       "CREATE TABLE notes (
         kind            TEXT NOT NULL CHECK (kind IN ('profile', 'conversation', 'message')),
@@ -663,7 +666,7 @@ describe('migration v5 to v6 (notes)', () => {
     expect(() => add('message', null, CONVERSATION, 'ab')).toThrow(/CHECK/);
     expect(() => add('profile', BATCH, null, null)).toThrow(/FOREIGN/);
     expect(() => add('conversation', null, BATCH, null)).toThrow(/FOREIGN/);
-    expect(() => db.run("INSERT INTO notes VALUES ('profile', ?, NULL, NULL, NULL, 't', 't')", [PROFILE])).toThrow(/NOT NULL|UNIQUE/);
+    expect(() => db.run("INSERT INTO notes (kind, profile_id, conversation_id, fingerprint, body, created_at, updated_at) VALUES ('profile', ?, NULL, NULL, NULL, 't', 't')", [PROFILE])).toThrow(/NOT NULL|UNIQUE/);
   });
 
   test('a message note outlives its message and goes with its conversation; a profile note goes with its profile', async () => {
@@ -712,7 +715,7 @@ describe('migration v6 to v7 (highlights)', () => {
   test('adds only the two highlight tables: existing tables and rows are untouched, and the schema is the same fresh or migrated', async () => {
     const db = await v6WithData();
     const before = db.all("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
-    expect(migrate(db)).toEqual({ from: 6, to: 7 });
+    expect(migrate(db, MIGRATIONS.slice(0, 7))).toEqual({ from: 6, to: 7 });
     expect(readUserVersion(db)).toBe(7);
     const after = db.all<{ name: string }>("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
     expect(after.filter((t) => !t.name.startsWith('highlight'))).toEqual(before);
@@ -721,7 +724,7 @@ describe('migration v6 to v7 (highlights)', () => {
     expect(db.all('SELECT * FROM highlights')).toEqual([]);
     expect(db.all('SELECT * FROM highlight_messages')).toEqual([]);
     const fresh = await emptyDb();
-    migrate(fresh);
+    migrate(fresh, MIGRATIONS.slice(0, 7));
     const dump = (d: SqlDb) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
     expect(dump(db)).toEqual(dump(fresh));
   });
@@ -767,6 +770,128 @@ describe('migration v6 to v7 (highlights)', () => {
     expect(() => migrate(db, broken)).toThrow();
     expect(readUserVersion(db)).toBe(6);
     expect(db.all("SELECT name FROM sqlite_master WHERE name LIKE 'highlight%'")).toHaveLength(0);
-    expect(migrate(db)).toEqual({ from: 6, to: 7 });
+    expect(migrate(db, MIGRATIONS.slice(0, 7))).toEqual({ from: 6, to: 7 });
+  });
+});
+
+describe('migration v7 to v8 (device sync tracking)', () => {
+  const NOTE_FP = 'cd'.repeat(32);
+  const PEER = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+
+  /** A populated v7 library: every table a sync pack reads has rows. */
+  async function v7WithData() {
+    const db = await emptyDb();
+    db.exec('PRAGMA foreign_keys = ON');
+    migrate(db, MIGRATIONS.slice(0, 7));
+    db.run('INSERT INTO profiles (id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)', [PROFILE, 'Ana', 't1', 't2']);
+    db.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [CONVERSATION, 'Chat', 'whatsapp', 't']);
+    db.run('INSERT INTO import_batches (id, conversation_id, source, created_at, added_count) VALUES (?, ?, ?, ?, 1)', [BATCH, CONVERSATION, 'whatsapp', 't']);
+    db.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [CONVERSATION, BATCH, HASH, '2026-01-01T10:00:00', 'text']);
+    db.run('INSERT INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [CONVERSATION, HASH, 't']);
+    db.run("INSERT INTO notes (kind, conversation_id, fingerprint, body, created_at, updated_at) VALUES ('message', ?, ?, 'x', 't', 't')", [CONVERSATION, NOTE_FP]);
+    db.run("INSERT INTO notes (kind, profile_id, body, created_at, updated_at) VALUES ('profile', ?, 'y', 't', 't')", [PROFILE]);
+    return db;
+  }
+
+  test('adds the device, peer and tombstone tables and the seq / changed_by columns; the schema is the same fresh or migrated', async () => {
+    const db = await v7WithData();
+    const before = db.all<{ name: string }>("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
+    expect(migrate(db)).toEqual({ from: 7, to: 8 });
+    expect(readUserVersion(db)).toBe(8);
+    const after = db.all<{ name: string }>("SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name");
+    const added = ['device', 'sync_peers', 'tombstones'];
+    expect(after.filter((t) => !added.includes(t.name) && !['profiles', 'conversations', 'notes', 'import_batches', 'favorites'].includes(t.name))).toEqual(
+      before.filter((t) => !['profiles', 'conversations', 'notes', 'import_batches', 'favorites'].includes(t.name)),
+    );
+    expect(after.map((t) => t.name)).toEqual(expect.arrayContaining(added));
+    const fresh = await emptyDb();
+    migrate(fresh);
+    const dump = (d: SqlDb) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
+    expect(dump(db)).toEqual(dump(fresh));
+  });
+
+  test('existing rows are kept unchanged and backfilled with the baseline seq 1; no changed_by, no tombstone; the device row exists', async () => {
+    const db = await v7WithData();
+    migrate(db);
+    expect(db.all('SELECT display_name, created_at, updated_at, seq, changed_by FROM profiles')).toEqual([
+      { display_name: 'Ana', created_at: 't1', updated_at: 't2', seq: 1, changed_by: null },
+    ]);
+    expect(db.all('SELECT title, seq, changed_by FROM conversations')).toEqual([{ title: 'Chat', seq: 1, changed_by: null }]);
+    expect(db.all('SELECT id, added_count, seq FROM import_batches')).toEqual([{ id: BATCH, added_count: 1, seq: 1 }]);
+    expect(db.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: HASH }]);
+    expect(db.all('SELECT fingerprint, seq FROM favorites')).toEqual([{ fingerprint: HASH, seq: 1 }]);
+    expect(db.all('SELECT body, seq, changed_by FROM notes ORDER BY body')).toEqual([
+      { body: 'x', seq: 1, changed_by: null },
+      { body: 'y', seq: 1, changed_by: null },
+    ]);
+    expect(db.all('SELECT singleton, id, change_seq FROM device')).toEqual([
+      { singleton: 1, id: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/), change_seq: 1 },
+    ]);
+    expect(db.all('SELECT * FROM favorites WHERE changed_by IS NOT NULL')).toEqual([]);
+    expect(db.all('SELECT * FROM tombstones')).toEqual([]);
+    expect(db.all('SELECT * FROM sync_peers')).toEqual([]);
+  });
+
+  test('the device id is created once by the migration: it never changes afterwards and differs between libraries', async () => {
+    const a = await v7WithData();
+    const b = await v7WithData();
+    migrate(a);
+    migrate(b);
+    const id = (d: SqlDb) => d.all<{ id: string }>('SELECT id FROM device')[0].id;
+    const first = id(a);
+    expect(migrate(a)).toEqual({ from: 8, to: 8 });
+    expect(id(a)).toBe(first);
+    expect(id(b)).not.toBe(first);
+  });
+
+  test('the backfill is deterministic: two libraries with the same rows migrate to the same seq values', async () => {
+    const a = await v7WithData();
+    const b = await v7WithData();
+    migrate(a);
+    migrate(b);
+    for (const table of ['profiles', 'conversations', 'import_batches', 'favorites', 'notes']) {
+      expect(a.all(`SELECT seq FROM ${table} ORDER BY rowid`)).toEqual(b.all(`SELECT seq FROM ${table} ORDER BY rowid`));
+    }
+  });
+
+  test('rules: one device row, well-formed ids, counter from 1, kinds and watermarks checked', async () => {
+    const db = await v7WithData();
+    migrate(db);
+    db.run('DELETE FROM device');
+    const device = (id: string, seq = 1, singleton = 1) =>
+      db.run('INSERT INTO device (singleton, id, created_at, change_seq) VALUES (?, ?, ?, ?)', [singleton, id, 't', seq]);
+    expect(() => device('short')).toThrow(/CHECK/);
+    expect(() => device(PEER.toUpperCase())).toThrow(/CHECK/);
+    expect(() => device(PEER, 0)).toThrow(/CHECK/);
+    expect(() => device(PEER, 1, 2)).toThrow(/CHECK/);
+    device(PEER);
+    expect(() => device(PEER)).toThrow(/UNIQUE|PRIMARY/);
+    expect(() => db.run("INSERT INTO sync_peers (peer_id) VALUES ('nope')")).toThrow(/CHECK/);
+    expect(() => db.run('INSERT INTO sync_peers (peer_id, last_sent_seq) VALUES (?, -1)', [PEER])).toThrow(/CHECK/);
+    db.run('INSERT INTO sync_peers (peer_id) VALUES (?)', [PEER]);
+    expect(db.all('SELECT last_sent_seq, last_received_seq FROM sync_peers')).toEqual([{ last_sent_seq: 0, last_received_seq: 0 }]);
+    const tomb = (kind: string, seq = 2) => db.run('INSERT INTO tombstones (kind, scope, key, deleted_at, seq) VALUES (?, ?, ?, ?, ?)', [kind, '', 'k', 't', seq]);
+    expect(() => tomb('conversation')).toThrow(/CHECK/);
+    expect(() => tomb('note', 0)).toThrow(/CHECK/);
+    tomb('note');
+    expect(() => tomb('note')).toThrow(/UNIQUE|PRIMARY/);
+    expect(() => db.run("UPDATE profiles SET changed_by = 'nope'")).toThrow(/CHECK/);
+    db.run('UPDATE profiles SET changed_by = ?', [PEER]);
+  });
+
+  test('a failure in v8 leaves the v7 database as it was, and a retry succeeds', async () => {
+    const db = await v7WithData();
+    const broken: Migration[] = [...MIGRATIONS.slice(0, 7), { version: 8, sql: `${MIGRATIONS[7].sql} INSERT INTO missing_table VALUES (1);` }];
+    expect(() => migrate(db, broken)).toThrow();
+    expect(readUserVersion(db)).toBe(7);
+    expect(db.all("SELECT name FROM sqlite_master WHERE name IN ('device', 'sync_peers', 'tombstones')")).toHaveLength(0);
+    expect(db.all("SELECT name FROM pragma_table_info('profiles') WHERE name = 'seq'")).toHaveLength(0);
+    expect(migrate(db)).toEqual({ from: 7, to: 8 });
+  });
+
+  test('an older app refuses a v8 database', async () => {
+    const db = await v7WithData();
+    migrate(db);
+    expect(() => migrate(db, MIGRATIONS.slice(0, 7))).toThrow(/newer than this app understands/);
   });
 });

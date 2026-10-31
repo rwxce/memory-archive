@@ -83,7 +83,8 @@ describe('move', () => {
     const { deps, opened } = await setup();
     const before = dataOf(opened.db);
     const linksBefore = count(opened.db, 'conversation_profiles');
-    const conversationsBefore = opened.db.all('SELECT * FROM conversations ORDER BY id');
+    const conversationColumns = 'SELECT id, title, source, source_key, is_group, created_at FROM conversations ORDER BY id';
+    const conversationsBefore = opened.db.all(conversationColumns);
     const moved = await moveConversation(deps, PRIVATE, ANA, CY);
     expect(moved.profileIds).toEqual([CY]);
     expect(moved.messageCount).toBe(3);
@@ -92,7 +93,7 @@ describe('move', () => {
     // The conversation row is not cloned and the number of links is the same (one replaced by one).
     expect(count(opened.db, 'conversations')).toBe(2);
     expect(count(opened.db, 'conversation_profiles')).toBe(linksBefore);
-    expect(opened.db.all('SELECT * FROM conversations ORDER BY id')).toEqual(conversationsBefore);
+    expect(opened.db.all(conversationColumns)).toEqual(conversationsBefore);
     expect((await listConversations(deps, { profileId: ANA })).map((c) => c.id)).toEqual([GROUP]);
     expect((await listConversations(deps, { profileId: CY })).map((c) => c.id)).toEqual([PRIVATE]);
   });

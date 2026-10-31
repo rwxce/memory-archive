@@ -5,6 +5,7 @@ import { SCHEMA_VERSION, migrate, MIGRATIONS } from '../../db/migrations';
 import { openMemoryDb } from '../../db/open';
 import { createConversation, createProfile, importMessages } from '../../db/queries';
 import { isLibraryEmpty, serializeDb } from '../../db/snapshot';
+import { getDeviceId } from '../../db/sync';
 import { wrapOo1Db, type SqlDb } from '../../db/sql';
 import { readZipEntries } from '../../importers/whatsapp/zip';
 import { openBlobStore } from '../../storage/opfs-blob-store';
@@ -65,9 +66,12 @@ async function seed({ db, blobStore }: ArchiveLibrary): Promise<void> {
   });
 }
 
+/** Every table row by row, except this device's own identity and peers: a restore is a NEW device (see `deviceOf`). */
 function dump(db: SqlDb): Record<string, unknown[]> {
   const tables = db.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
-  return Object.fromEntries(tables.map(({ name }) => [name, db.all(`SELECT * FROM "${name}" ORDER BY rowid`)]));
+  return Object.fromEntries(
+    tables.filter(({ name }) => name !== 'device' && name !== 'sync_peers').map(({ name }) => [name, db.all(`SELECT * FROM "${name}" ORDER BY rowid`)]),
+  );
 }
 
 async function exported(): Promise<{ lib: ArchiveLibrary; bytes: Uint8Array; blob: Blob }> {
@@ -112,6 +116,9 @@ describe('export and restore', () => {
     expect(result.blobCount).toBe(4);
     expect(dump(target.db)).toEqual(dump(source.lib.db));
     expect(await target.blobStore.list()).toEqual(await source.lib.blobStore.list());
+    // a restore is a different device: new id, no peers (the rows' change numbers travel unchanged)
+    expect(getDeviceId(target.db)).not.toBe(getDeviceId(source.lib.db));
+    expect(target.db.all('SELECT * FROM sync_peers')).toEqual([]);
     expect(dump(target.db).messages).toHaveLength(6);
     expect(target.db.all('SELECT body FROM messages WHERE body LIKE ?', ['Hola%'])).toEqual([{ body: 'Hola, què tal? ñandú — 日本語 😀 café' }]);
     expect(target.db.all('SELECT display_name, archived_at FROM profiles WHERE id = ?', [uuid(3)])).toEqual([{ display_name: 'Zoë 山田', archived_at: '2026-02-02T00:00:00Z' }]);

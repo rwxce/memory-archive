@@ -63,6 +63,8 @@ import {
   type HighlightScope,
 } from './highlights';
 import { discardSearchIndex, getSearchIndexBytes, getSearchStatus, searchMessages, stepSearchIndex } from './search';
+import { getDeviceId, getPeer, listPeers, recordReceived, recordSent } from './sync';
+import { transaction } from './sql';
 import { checkSnapshot, exportDatabase, isLibraryEmpty, listBlobs, loadSnapshot } from './snapshot';
 
 /** Most handlers are synchronous; `restoreDatabase` awaits the scratch database. `serve.ts` runs requests one at a time. */
@@ -179,6 +181,11 @@ const HANDLERS: Handlers = {
     return findPersonTimelineOffsetById(db, params.profileId as string, params.messageId as number);
   },
   listPersonTimelineDays: ({ db }, p) => listPersonTimelineDays(db, requireParams(p).profileId as string),
+  getDeviceId: ({ db }) => getDeviceId(db),
+  listSyncPeers: ({ db }) => listPeers(db),
+  getSyncPeer: ({ db }, p) => getPeer(db, requireParams(p).peerId as string),
+  recordSyncSent: ({ db }, p) => transaction(db, () => recordSent(db, p)),
+  recordSyncReceived: ({ db }, p) => transaction(db, () => recordReceived(db, p)),
   getSearchStatus: ({ db }) => getSearchStatus(db),
   stepSearchIndex: ({ db }, p) => stepSearchIndex(db, p === undefined ? undefined : (requireParams(p).limit as number | undefined)),
   searchMessages: ({ db }, p) => searchMessages(db, requireParams(p) as unknown as DbOps['searchMessages']['params']),
