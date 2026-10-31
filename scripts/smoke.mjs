@@ -78,7 +78,7 @@ const LOCALES = ['en', 'ca', 'es'];
 const pages = [
   'index.html',
   '404.html',
-  ...LOCALES.flatMap((l) => [`${l}/index.html`, `${l}/settings/index.html`, `${l}/import/index.html`, `${l}/import/history/index.html`, `${l}/offline/index.html`]),
+  ...LOCALES.flatMap((l) => [`${l}/index.html`, `${l}/settings/index.html`, `${l}/import/index.html`, `${l}/import/history/index.html`, `${l}/backup/index.html`, `${l}/offline/index.html`]),
 ];
 for (const page of pages) {
   if (!fs.existsSync(path.join(OUT, page))) fail(`out/${page} missing — did next build run?`);

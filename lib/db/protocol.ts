@@ -45,6 +45,8 @@ import type {
   SetProfilePhotoInput,
   SetProfilePhotoResult,
   StorageBreakdown,
+  DanglingReference,
+  LibraryStats,
   UndoImportBatchResult,
   UpdateProfileInput,
 } from './queries';
@@ -83,6 +85,12 @@ export interface DbOps {
   undoImportBatch: { params: { batchId: string }; result: UndoImportBatchResult };
   listBlobHashes: { params: undefined; result: string[] };
   getStorageBreakdown: { params: undefined; result: StorageBreakdown };
+  /** Counts and bytes for the Backup screen; `searchIndexBytes` is 0 until an index exists. Read-only. */
+  getLibraryStats: { params: undefined; result: LibraryStats & { searchIndexBytes: number } };
+  /** Media rows in hash order after `after` (exclusive), up to `limit` (1..5000): a long check pages through them. */
+  listBlobPage: { params: { after?: string; limit: number }; result: BlobRow[] };
+  /** Messages and profile photos whose media hash has no row; `items` capped at `limit`. */
+  findDanglingBlobRefs: { params: { limit: number }; result: { total: number; items: DanglingReference[] } };
   /** The whole library as a backup needs it: schema version, SQLite bytes and media list, from one moment. */
   exportDatabase: { params: undefined; result: DatabaseExport };
   /** True when no table holds a row. */

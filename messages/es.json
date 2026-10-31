@@ -161,8 +161,8 @@
       "description": "Mira lo que ha añadido cada importación y deshaz una si lo necesitas."
     },
     "backup": {
-      "title": "Haz una copia de todo el archivo",
-      "description": "Un solo fichero ZIP que puedes abrir en cualquier dispositivo."
+      "title": "Copia y restauración",
+      "description": "Haz una copia de todo el archivo, compruébalo y mira cuánto espacio ocupa."
     }
   },
   "notFound": {
@@ -885,6 +885,91 @@
       "missingMedia": "Falta algún fichero del archivo, así que no se ha podido hacer la copia. No se ha cambiado nada.",
       "storage": "No hay suficiente espacio en este dispositivo o no se ha podido escribir. No se ha cambiado nada.",
       "generic": "Algo ha ido mal. No se ha borrado nada. Vuelve a intentarlo."
+    }
+  },
+  "backup": {
+    "title": "Copia y restauración",
+    "intro": "Guarda una copia de todo, comprueba que no hay nada dañado y mira cuánto espacio ocupa el archivo. Todo ocurre en este dispositivo.",
+    "usage": {
+      "title": "Qué contiene el archivo",
+      "loading": "Contando…",
+      "failed": "No se ha podido leer el tamaño del archivo. No se ha cambiado nada.",
+      "counts": "Recuento",
+      "people": "{count, plural, one {# persona} other {# personas}}",
+      "conversations": "{count, plural, one {# conversación} other {# conversaciones}}",
+      "messages": "{count, plural, one {# mensaje} other {# mensajes}}",
+      "files": "{count, plural, one {# fichero de foto, vídeo o audio} other {# ficheros de fotos, vídeos y audios}}",
+      "sizes": "Espacio usado",
+      "media": "Fotos, vídeos y audio",
+      "thumbnails": "Vistas previas",
+      "database": "Mensajes y notas",
+      "searchIndex": "Búsqueda",
+      "device": "Este dispositivo deja que la aplicación use {used} de unos {total}.",
+      "deviceUnknown": "Este navegador no indica cuánto espacio puede usar la aplicación."
+    },
+    "copy": {
+      "title": "Haz una copia",
+      "description": "Un solo fichero ZIP con todos tus mensajes y ficheros. Puedes abrirlo en cualquier dispositivo.",
+      "backup": "Haz una copia de todo el archivo",
+      "progressLabel": "Progreso",
+      "restoreTitle": "Abre una copia",
+      "restoreDescription": "Abre una copia ZIP en un dispositivo que todavía no tenga ningún archivo.",
+      "restore": "Elige un fichero de copia",
+      "restoreNotEmpty": "Este dispositivo ya tiene un archivo, así que por ahora no se puede abrir una copia aquí. Tu archivo está bien y no se ha cambiado. Sustituirlo por una copia llegará más adelante, con una copia de seguridad previa. Mientras tanto puedes abrir una copia en un dispositivo vacío."
+    },
+    "check": {
+      "title": "Comprueba tu archivo",
+      "description": "Mira cada fichero de foto, vídeo y audio guardado en este dispositivo y comprueba que está completo. No se cambia nada.",
+      "run": "Comprobar mi archivo",
+      "again": "Volver a comprobar",
+      "cancel": "Parar",
+      "starting": "Preparando…",
+      "progress": "{done} de {total} ficheros comprobados",
+      "progressLabel": "Comprobando tu archivo",
+      "cancelled": "Se ha parado la comprobación. No se ha cambiado nada.",
+      "okTitle": "Todos tus ficheros están en su sitio",
+      "ok": "{count, plural, one {Se ha comprobado # fichero y está completo.} other {Se han comprobado # ficheros y todos están completos.}}",
+      "problemTitle": "Algunos ficheros necesitan atención",
+      "problems": "{count, plural, one {Se ha encontrado # problema.} other {Se han encontrado # problemas.}} No se ha cambiado nada. Una copia reciente puede recuperar estos ficheros.",
+      "kinds": {
+        "missing-file": "{count, plural, one {Falta # fichero} other {Faltan # ficheros}}",
+        "wrong-size": "{count, plural, one {# fichero está incompleto} other {# ficheros están incompletos}}",
+        "hash-mismatch": "{count, plural, one {# fichero ha cambiado o está dañado} other {# ficheros han cambiado o están dañados}}",
+        "dangling-reference": "{count, plural, one {# mensaje o foto apunta a un fichero que no está} other {# mensajes o fotos apuntan a un fichero que no está}}"
+      },
+      "announce": "{percent} % comprobado"
+    },
+    "file": {
+      "title": "Comprueba un fichero de copia",
+      "description": "Elige una copia ZIP y mira si está completa, sin abrirla. Tu archivo no se toca.",
+      "pick": "Elige un fichero de copia",
+      "another": "Comprobar otro fichero",
+      "cancel": "Parar",
+      "starting": "Preparando…",
+      "progress": "{done} de {total} partes comprobadas",
+      "progressLabel": "Comprobando la copia",
+      "cancelled": "Se ha parado la comprobación. No se ha cambiado nada.",
+      "okTitle": "Los ficheros de esta copia están completos",
+      "ok": "{count, plural, one {Se ha comprobado # parte y está completa.} other {Se han comprobado # partes y todas están completas.}}",
+      "meta": "Hecha el {date} con Memory Archive {version}.",
+      "problemTitle": "Esta copia tiene partes dañadas",
+      "problems": "{count, plural, one {Se ha encontrado # problema.} other {Se han encontrado # problemas.}} No se ha cambiado nada. Si tienes otra copia, usa esa.",
+      "databaseDamaged": "La parte que contiene tus mensajes está dañada, así que esta copia no se puede abrir.",
+      "capped": "Se muestran los tipos de los primeros {shown} de {total}.",
+      "kinds": {
+        "size-mismatch": "{count, plural, one {# parte tiene un tamaño incorrecto} other {# partes tienen un tamaño incorrecto}}",
+        "hash-mismatch": "{count, plural, one {# parte ha cambiado o está dañada} other {# partes han cambiado o están dañadas}}",
+        "unreadable": "{count, plural, one {# parte no se ha podido leer} other {# partes no se han podido leer}}"
+      },
+      "refusalTitle": "Este fichero no se puede usar",
+      "refusal": {
+        "notArchive": "Esto no es una copia de Memory Archive. No se ha cambiado nada.",
+        "damaged": "Esta copia está incompleta o dañada. No se ha cambiado nada. Si tienes otra copia, usa esa.",
+        "newer": "Esta copia la guardó una versión más nueva de Memory Archive. Actualiza la aplicación para comprobarla. No se ha cambiado nada.",
+        "limit": "Esta copia es más grande de lo que la aplicación puede leer con seguridad. No se ha cambiado nada.",
+        "generic": "Algo ha ido mal al comprobar el fichero. No se ha cambiado nada. Vuelve a intentarlo."
+      },
+      "announce": "{percent} % comprobado"
     }
   },
   "subpage": {

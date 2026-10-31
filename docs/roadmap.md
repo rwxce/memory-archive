@@ -122,7 +122,7 @@ newer backups.**
 
 ## Phase 6 — Full backup and restore
 
-**Status: partly done.** Export a full ZIP and restore into an empty library work (phase 2 proof of concept). Not done: the Backup and restore screen, integrity check, replace with safety backup, encrypted backups, the automated acceptance scenario.
+**Status: partly done.** Done: full ZIP export and restore into an empty library; the Backup and restore screen (`/backup/`: storage usage, full backup, open a backup, integrity check of the library, check of a backup file without restoring). Not done: replace an existing library with an automatic safety backup, encrypted backups, the automated acceptance scenario.
 
 - Backup & restore screen: full export, restore, integrity check, storage usage; replace an
   existing library with confirmation and an automatic safety backup; optional encrypted
