@@ -174,6 +174,10 @@
       "hint": "Una tarjeta discreta dentro de la app. No se envía nada ni se muestran notificaciones.",
       "interval": "Recordármelo después de",
       "days": "{count} días"
+    },
+    "photos": {
+      "title": "Fotos",
+      "description": "Añade fotos y vídeos del teléfono o de Google Fotos."
     }
   },
   "notFound": {
@@ -1247,5 +1251,91 @@
     },
     "later": "Recuérdamelo más tarde",
     "never": "No me lo recuerdes"
+  },
+  "photos": {
+    "title": "Fotos",
+    "intro": "Trae fotos y vídeos del teléfono o de Google Fotos. Todo se queda en este dispositivo.",
+    "notes": {
+      "title": "Conviene saber",
+      "unassigned": "Las imágenes que añades aquí todavía no están asignadas a nadie.",
+      "estimate": "Una fecha marcada como estimada viene del archivo, no de la cámara."
+    },
+    "zip": {
+      "title": "De Google Fotos",
+      "description": "Elige un archivo ZIP descargado de Google Fotos, o un Google Takeout de un álbum. La app mira qué hay dentro antes de añadir nada.",
+      "pick": "Elige un archivo ZIP"
+    },
+    "loose": {
+      "title": "De este dispositivo",
+      "description": "Elige fotos y vídeos de la galería o de los archivos.",
+      "pick": "Elige fotos y vídeos",
+      "pickMore": "Elige más",
+      "chosen": "{count, plural, one {# archivo elegido} other {# archivos elegidos}}",
+      "remove": "Quitar la selección",
+      "labelLabel": "Nombre del álbum (opcional)",
+      "labelHint": "Mantiene estas fotos juntas bajo un mismo nombre.",
+      "add": "Añadir a la colección"
+    },
+    "progressLabel": "Añadiendo fotos y vídeos",
+    "checking": "Mirando <name></name>…",
+    "stop": "Detener",
+    "stopped": "Detenido. No se ha añadido nada.",
+    "result": {
+      "title": "Fotos añadidas",
+      "titleNone": "No se ha añadido nada nuevo",
+      "another": "Añadir más",
+      "added": "{count, plural, one {Se ha añadido # foto o vídeo a la colección.} other {Se han añadido # fotos y vídeos a la colección.}}",
+      "alreadyThere": "{count, plural, one {# ya estaba en la colección y no se ha vuelto a añadir.} other {# ya estaban en la colección y no se han vuelto a añadir.}}",
+      "ignored": "{count, plural, one {# archivo no era una foto ni un vídeo y se ha saltado.} other {# archivos no eran fotos ni vídeos y se han saltado.}}",
+      "unreadable": "{count, plural, one {# archivo no se ha podido leer y se ha saltado.} other {# archivos no se han podido leer y se han saltado.}}",
+      "tooLarge": "{count, plural, one {# archivo era demasiado grande y se ha saltado.} other {# archivos eran demasiado grandes y se han saltado.}}",
+      "estimates": "{count, plural, one {# fecha es estimada, tomada del archivo.} other {# fechas son estimadas, tomadas del archivo.}}",
+      "delegated": "Este archivo tenía la estructura de un Google Takeout y se ha leído como tal."
+    },
+    "elsewhere": {
+      "chat": "<name></name> es un chat de WhatsApp, no un conjunto de fotos. Añádelo desde Importar.",
+      "chatLink": "Ir a Importar",
+      "backup": "<name></name> es una copia de esta app. Ábrela desde Copia y restauración.",
+      "backupLink": "Ir a Copia y restauración",
+      "sync": "<name></name> es un archivo de cambios de otro dispositivo. Ábrelo desde Sincroniza dispositivos.",
+      "syncLink": "Ir a Sincroniza dispositivos"
+    },
+    "error": {
+      "title": "No se ha añadido nada",
+      "invalid": "Este archivo no parece fotos ni vídeos de Google Fotos. No se ha cambiado nada.",
+      "unreadable": "No se ha podido leer ninguno de los archivos elegidos. Quizá solo estén en la nube o se hayan movido. No se ha cambiado nada.",
+      "limit": "Son más cosas de las que se pueden añadir de una vez. Prueba con una selección más pequeña. No se ha cambiado nada.",
+      "busy": "Hay otra cosa usando el archivo ahora mismo. Espera un momento y vuelve a probar. No se ha cambiado nada.",
+      "closed": "El archivo ha dejado de responder. Recarga la página y mira la lista de abajo para ver qué hay. Las fotos se añaden todas a la vez o ninguna.",
+      "newer": "Este archivo lo hizo una versión más nueva de la app. Actualiza la app para añadir fotos.",
+      "storage": "No hay espacio suficiente en este dispositivo, o no se ha podido escribir en él. Prueba con una selección más pequeña. Las fotos se añaden todas a la vez o ninguna. Mira la lista de abajo para comprobar qué hay.",
+      "generic": "Algo ha ido mal y puede que las fotos no se hayan añadido. Las fotos se añaden todas a la vez o ninguna. Mira la lista de abajo para comprobar qué hay y, si hace falta, vuelve a probar.",
+      "titleUnsure": "No se ha podido confirmar el resultado",
+      "titleWrong": "Algo ha ido mal"
+    },
+    "batches": {
+      "title": "Añadido hasta ahora",
+      "loading": "Cargando…",
+      "empty": "Todavía no se ha añadido nada.",
+      "failed": "No se ha podido leer la lista. No se ha perdido nada.",
+      "source": {
+        "takeout": "Google Takeout",
+        "google-photos-zip": "Descarga de Google Fotos",
+        "loose": "De este dispositivo",
+        "other": "Otra fuente"
+      },
+      "added": "{count, plural, one {# foto o vídeo añadido} other {# fotos y vídeos añadidos}}",
+      "undo": "Deshacer la importación",
+      "undoLabel": "Deshacer la importación: {name}",
+      "confirmTitle": "¿Deshacer <name></name>?",
+      "confirmBody": "{count, plural, one {La # foto o vídeo que añadió se quitará de la colección. Si también se usa en otro sitio, como un chat o una foto de perfil, se queda ahí.} other {Las # fotos y vídeos que añadió se quitarán de la colección. Los que también se usan en otro sitio, como un chat o una foto de perfil, se quedan ahí.}}",
+      "confirmYes": "Deshacer la importación",
+      "confirmKeep": "Conservarla",
+      "working": "Deshaciendo la importación…",
+      "undone": "{count, plural, one {Se ha quitado # foto o vídeo de la colección.} other {Se han quitado # fotos y vídeos de la colección.}}",
+      "undoneNone": "Esta importación ya se había deshecho.",
+      "undoFailed": "No se ha podido deshacer la importación. Vuelve a probar dentro de un momento; la lista muestra lo que hay."
+    },
+    "busyNow": "Hay otra importación en marcha. Espera a que termine y vuelve a elegir."
   }
 }

@@ -11,8 +11,8 @@ import { Link } from '@/i18n/navigation';
 export function LoadingNote({ children }: { children: ReactNode }) {
   return (
     <p role="status" className="text-mu flex min-h-11 items-center gap-2 py-4">
-      <Loader className="size-4 motion-safe:animate-spin" aria-hidden />
-      {children}
+      <Loader className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden />
+      <span className="min-w-0 break-words">{children}</span>
     </p>
   );
 }
