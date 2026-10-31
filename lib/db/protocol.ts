@@ -19,6 +19,21 @@ import type {
   StoredMessage,
 } from '../domain/library';
 import type { HighlightImportCounts, HighlightCategory, HighlightItem, HighlightMessage } from '../domain/highlights';
+import type { BatchMessagesPage, ChangeSet, ReadBatchMessagesInput, ReadChangeSetInput } from '../domain/changes-pack';
+import type {
+  MergeChangesPackInput,
+  MergeChangesPackResult,
+  MergeRefusal,
+  PackAddress,
+  RecordReceivedInput,
+  RecordSentInput,
+  RecordSentResult,
+  ResolveConflictInput,
+  SyncConflict,
+  SyncPeer,
+  UnsentChanges,
+} from '../domain/sync';
+import type { ResolveConflictResult } from './conflicts';
 import type { BlobRow, DatabaseExport } from './snapshot';
 import type { DbErrorData } from './errors';
 import type { DbInfo } from './open';
@@ -144,6 +159,30 @@ export interface DbOps {
   listHighlightMessages: { params: { conversationId: string; highlightId: string }; result: HighlightMessage[] };
   deleteHighlight: { params: { conversationId: string; highlightId: string }; result: boolean };
   deleteHighlights: { params: { scope: HighlightScope }; result: number };
+  /** This library's device id (created on first call; new after a restore or replace). */
+  getDeviceId: { params: undefined; result: string };
+  listSyncPeers: { params: undefined; result: SyncPeer[] };
+  /** This library's device id if it already has one; never creates it (read-only, for reminders). */
+  peekDeviceId: { params: undefined; result: string | null };
+  /** Per known peer, how many records a changes pack for it would carry now, and when it was last exchanged with. Counts only. */
+  countUnsentChanges: { params: undefined; result: UnsentChanges[] };
+  getSyncPeer: { params: { peerId: string }; result: SyncPeer | null };
+  /** A changes pack for the peer was produced up to `upToSeq`. */
+  recordSyncSent: { params: RecordSentInput; result: RecordSentResult };
+  /** A pack from the peer was merged completely. */
+  recordSyncReceived: { params: RecordReceivedInput; result: SyncPeer };
+  /** The records of a changes pack and the counter they were cut at, from one moment. Writes nothing. */
+  readChangeSet: { params: ReadChangeSetInput; result: ChangeSet };
+  /** One page of an import batch's messages for a changes pack. */
+  readBatchMessages: { params: ReadBatchMessagesInput; result: BatchMessagesPage };
+  /** Whether this device would refuse a pack with this address (`null` = it would not). Reads only. */
+  checkChangesPack: { params: PackAddress; result: MergeRefusal | null };
+  /** Merges a validated pack in ONE transaction (all or nothing, watermark included). */
+  mergeChangesPack: { params: MergeChangesPackInput; result: MergeChangesPackResult };
+  /** Crossed edits and offered batch undos a merge left open. */
+  listSyncConflicts: { params: undefined; result: SyncConflict[] };
+  /** Settles one of them as a local edit. */
+  resolveSyncConflict: { params: ResolveConflictInput; result: ResolveConflictResult };
   getSearchStatus: { params: undefined; result: SearchStatus };
   stepSearchIndex: { params: { limit?: number } | undefined; result: SearchIndexStep };
   searchMessages: { params: SearchInput; result: SearchResult[] };

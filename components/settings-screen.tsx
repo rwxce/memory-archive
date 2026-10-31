@@ -7,6 +7,7 @@ import { EraseCard } from '@/components/erase-card';
 import { Eyebrow } from '@/components/eyebrow';
 import { GitHubLink } from '@/components/github-link';
 import { LanguagePicker } from '@/components/language-picker';
+import { ReminderSettingsCard } from '@/components/reminder-settings-card';
 import { PageTitle } from '@/components/page-title';
 import { SectionCard } from '@/components/section-card';
 import { settingsRowClass, SettingsRowContent, SettingsRows } from '@/components/settings-row';
@@ -79,7 +80,12 @@ export function SettingsScreen() {
         <Link href="/backup" className={settingsRowClass}>
           <SettingsRowContent title={t('backup.title')} hint={t('backup.description')} />
         </Link>
+        <Link href="/sync" className={settingsRowClass}>
+          <SettingsRowContent title={t('sync.title')} hint={t('sync.description')} />
+        </Link>
       </SettingsRows>
+
+      <ReminderSettingsCard />
 
       <EraseCard />
 

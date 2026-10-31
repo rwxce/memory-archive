@@ -1,4 +1,5 @@
 import { ARCHIVE_FORMAT_NAME, ARCHIVE_FORMAT_VERSION } from '../../domain/archive';
+import { CHANGES_PACK_FORMAT_NAME } from '../../domain/changes-pack';
 
 /**
  * The archive file (`memory-archive-YYYY-MM-DD.zip`) is a public, versioned
@@ -189,6 +190,7 @@ export function parseManifest(
     throw invalid('not valid JSON');
   }
   if (!isRecord(raw)) throw invalid('not an object');
+  if (raw.format === CHANGES_PACK_FORMAT_NAME) throw invalid('this file is a changes pack, not a full backup');
   if (raw.format !== ARCHIVE_FORMAT_NAME) throw invalid('wrong format name');
   if (!isCount(raw.formatVersion) || raw.formatVersion < 1) throw invalid('formatVersion');
   if (raw.formatVersion > ARCHIVE_FORMAT_VERSION) {

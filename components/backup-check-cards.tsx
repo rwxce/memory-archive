@@ -15,7 +15,7 @@ import type { BackupVerification, LibraryIntegrity } from '@/lib/usecases/archiv
 import { formatWhen } from './format';
 
 /** The outcome of a check. It takes focus when it appears, so the result is read right away and keyboard users land on it. */
-function Outcome({ icon, title, children, testId }: { icon: 'ok' | 'attention' | 'quiet'; title?: ReactNode; children: ReactNode; testId: string }) {
+export function Outcome({ icon, title, children, testId }: { icon: 'ok' | 'attention' | 'quiet'; title?: ReactNode; children: ReactNode; testId: string }) {
   const box = useRef<HTMLDivElement>(null);
   // Take focus only if the person has not moved on: it is still on the button that started the check
   // (or on nothing at all). Never pull it away from something else they chose in the meantime.
@@ -54,7 +54,7 @@ function countByKind<K extends string>(problems: { kind: K }[]): [K, number][] {
  * The progress while a check runs: the bar and the exact sentence on screen, and a separate live
  * region for screen readers that only changes at coarse steps (`announce`), not for every file.
  */
-function Running({ label, text, announce, value }: { label: string; text: string; announce: string; value?: number }) {
+export function Running({ label, text, announce, value }: { label: string; text: string; announce: string; value?: number }) {
   return (
     <div className="flex flex-col gap-2">
       <TaskProgress label={label} text={text} value={value} />

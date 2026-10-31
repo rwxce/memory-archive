@@ -112,7 +112,7 @@ Chromium e2e and unit tests).**
 **Status: done in code and Chromium e2e (PRs #26, #33-#48). Not done: a check on a real mid-range phone with 200k
 messages (only a 200k synthetic archive in Node and 30k in Chromium with a 4x CPU throttle), Safari/Firefox/iOS checks of
 the new screens. The Settings button for "erase everything" (`eraseDevice` clears database, search index, media,
-thumbnails, share inbox, app keys) and the note button on the conversation rows of the person page are done. Schema is now v6 (v4 timeline index, v5 favorites, v6 notes): an older app refuses
+thumbnails, share inbox, app keys) and the note button on the conversation rows of the person page are done. Schema was v6 then (v4 timeline index, v5 favorites, v6 notes; v7 highlights and v8 sync tracking followed): an older app refuses
 newer backups.**
 
 - Virtualized conversation view in the current HTML style; per-profile timeline, gallery with
@@ -132,7 +132,12 @@ newer backups.**
 
 ## Phase 7 — Manual device-to-device sync
 
-**Status: not started.**
+**Status: done in code and automated tests (queue items 13-17). The changes-pack format is designed and documented in `docs/formats/changes-pack.md`;
+schema v8 adds the device id, per-peer watermarks, tombstones and per-record change numbers (every write path stamps them); a restored or
+replaced library is a new device; the use cases `lib/usecases/sync-state.ts` exist; a changes pack can be exported (plain or encrypted; watermarks move only
+when the caller confirms delivery); importing a pack is a merge (one transaction, watermarks, conflicts kept beside the active record in the schema v9
+table `sync_conflicts`, undone imports only offered, `resolveSyncConflict` mine / theirs / both). The `/sync` screen (device code and peers, export with a delivery confirmation, import with password and
+result summary, pointers from Backup and the import wizard) is built, and so is the "Items to review" card on it (both versions side by side, keep this device's / take the other's / keep both for notes, offered import undos with a confirmation). Export reminders are done too: a quiet in-app card (People, Sync, Backup) for changes not yet shared with a known device and for no backup in 7 / 14 / 30 days, with "remind me later" (7 days) and "don't remind me", and a Settings section; local only, no notifications. Not done: the manual Safari / Firefox checks.**
 
 - Device id; export a *changes* pack since the last export to that device, or the full
   archive; import = merge (messages by fingerprint, media by hash, profiles / favorites /

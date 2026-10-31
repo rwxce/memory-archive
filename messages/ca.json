@@ -163,6 +163,17 @@
     "backup": {
       "title": "Còpia i restauració",
       "description": "Fes una còpia de tot l’arxiu, comprova’l i mira quin espai ocupa."
+    },
+    "sync": {
+      "title": "Sincronitza dispositius",
+      "description": "Porta els canvis a un altre dispositiu amb un fitxer i rep els seus."
+    },
+    "reminders": {
+      "title": "Recordatoris",
+      "toggle": "Mostra els recordatoris",
+      "hint": "Una targeta discreta dins l’app. No s’envia res ni es mostren notificacions.",
+      "interval": "Recorda-m’ho després de",
+      "days": "{count} dies"
     }
   },
   "notFound": {
@@ -183,9 +194,13 @@
       "remove": "Treu",
       "removeLabel": "Treu {name} de la llista",
       "shared": "Compartit amb Memory Archive",
-      "sharedNote": "Els fitxers compartits des de WhatsApp es queden aquí fins que els importis o els treguis. Els fitxers compartits que no es poden importar se suprimeixen d’aquest dispositiu.",
+      "sharedNote": "Els fitxers compartits des de WhatsApp es queden aquí fins que els importis o els treguis. Els fitxers compartits que no es poden importar se suprimeixen d’aquest dispositiu, tret dels fitxers de canvis d’un altre dispositiu, que esperen a Sincronitza dispositius.",
       "skipped": "{count, plural, one {S’ha deixat fora # fitxer: de moment només es poden importar fitxers ZIP, de text i de còpies antigues.} other {S’han deixat fora # fitxers: de moment només es poden importar fitxers ZIP, de text i de còpies antigues.}}",
-      "start": "{count, plural, one {Continua amb # fitxer} other {Continua amb # fitxers}}"
+      "start": "{count, plural, one {Continua amb # fitxer} other {Continua amb # fitxers}}",
+      "syncPointer": {
+        "text": "{count, plural, one {# fitxer que has triat és un fitxer de canvis d’un altre dispositiu i s’ha deixat fora.} other {# fitxers que has triat són fitxers de canvis d’un altre dispositiu i s’han deixat fora.}} S’obren a Sincronitza dispositius.",
+        "link": "Ves a Sincronitza dispositius"
+      }
     },
     "wizard": {
       "step": "Pas {step} de {total}",
@@ -1023,6 +1038,10 @@
       "title": "Aquesta còpia està protegida",
       "body": "Escriu la contrasenya que vas triar en fer {fileName}.",
       "cancel": "Cancel·la"
+    },
+    "syncPointer": {
+      "text": "{fileName} és un fitxer de canvis d’un altre dispositiu, no una còpia. Obre’l a Sincronitza dispositius.",
+      "link": "Ves a Sincronitza dispositius"
     }
   },
   "subpage": {
@@ -1038,5 +1057,195 @@
     "saved": "S’ha desat la frase de {name}.",
     "failed": "No s’ha pogut desar la frase de {name}. No s’ha canviat res.",
     "saving": "Desant…"
+  },
+  "sync": {
+    "title": "Sincronitza dispositius",
+    "intro": "Apropa dos dispositius portant un fitxer de l’un a l’altre. No s’envia res per internet: el fitxer el mous tu.",
+    "device": {
+      "title": "Aquest dispositiu",
+      "loading": "Llegint aquest dispositiu…",
+      "failed": "No s’han pogut llegir les dades d’aquest dispositiu. No s’ha canviat res.",
+      "codeLabel": "Codi del dispositiu",
+      "codeHelp": "Un codi curt que distingeix els teus dispositius. L’altre dispositiu mostra aquest per a aquest.",
+      "peersTitle": "Altres dispositius",
+      "noPeers": "Encara cap altre dispositiu. Quan hagis intercanviat un fitxer amb un, apareixerà aquí.",
+      "peerName": "Dispositiu {code}",
+      "sent": "Últim fitxer lliurat: {date}",
+      "sentNever": "Encara no s’ha lliurat cap fitxer",
+      "received": "Últim fitxer rebut: {date}",
+      "receivedNever": "Encara no s’ha rebut cap fitxer"
+    },
+    "export": {
+      "title": "Envia canvis a un altre dispositiu",
+      "description": "Fa un fitxer amb el que ha canviat en aquest dispositiu. Obre’l a l’altre dispositiu, a Sincronitza dispositius.",
+      "peerLegend": "Per a quin dispositiu és el fitxer?",
+      "newDevice": "Un dispositiu nou",
+      "newDeviceHint": "Fa un fitxer complet: tot el que hi ha en aquest arxiu. Fes-lo servir per a un dispositiu que encara no té res del teu arxiu, o que no surt a la llista.",
+      "peerHint": "Només el que ha canviat des de l’últim fitxer que vas lliurar a aquest dispositiu.",
+      "full": "Envia-ho tot un altre cop, no només els canvis",
+      "fullNote": "Fes-ho servir si l’altre dispositiu ha dit que li falta un fitxer. El fitxer és més gran.",
+      "privateNote": "Sense contrasenya el fitxer és privat: qualsevol persona que el tingui pot llegir els teus missatges i fotos. Guarda’l en un lloc on només tu hi puguis accedir i esborra’l quan l’altre dispositiu ja el tingui.",
+      "protectNote": "Opcional. Si oblides aquesta contrasenya, el fitxer no es pot obrir i nosaltres no la podem recuperar. La necessitaràs a l’altre dispositiu.",
+      "submit": "Fes el fitxer",
+      "progressLabel": "Fent el fitxer",
+      "nothing": "No hi ha res de nou per enviar a aquest dispositiu, així que no s’ha fet cap fitxer.",
+      "savedTitle": "El fitxer s’ha fet",
+      "saved": "S’ha donat {fileName} al navegador. Mira la carpeta de baixades per assegurar-te que hi és.",
+      "savedProtected": "Està protegit amb una contrasenya.",
+      "savedPrivate": "No està protegit amb contrasenya, així que qualsevol persona que el tingui el pot llegir. Mantén-lo privat.",
+      "savedFull": "Conté tot el que hi ha en aquest arxiu.",
+      "savedChanges": "Conté només el que ha canviat.",
+      "savedNewDevice": "Obre’l a l’altre dispositiu. Quan aquell dispositiu t’enviï un fitxer, aquest ja ho sabrà.",
+      "confirmTitle": "Has lliurat {fileName} al dispositiu {code}?",
+      "confirmHelp": "Respon que sí només quan el fitxer sigui a l’altre dispositiu. Fins llavors aquest dispositiu guarda aquests canvis per al fitxer següent.",
+      "confirmYes": "Sí, l’he lliurat",
+      "confirmNo": "Encara no",
+      "recording": "Desant la teva resposta…",
+      "handed": "Anotat. El fitxer següent per a aquest dispositiu només tindrà el que canviï a partir d’ara.",
+      "handedStale": "No s’ha anotat res de nou: l’últim fitxer de l’altre dispositiu ha canviat el que sap aquest. No es perd res, i el fitxer següent començarà d’allò que aquest dispositiu sap.",
+      "notHanded": "No s’ha anotat res. El fitxer següent per a aquest dispositiu tindrà aquests mateixos canvis.",
+      "errorReplaced": "Aquest arxiu s’ha substituït després de fer el fitxer, així que no s’ha anotat res. Fes un fitxer nou.",
+      "errorRecord": "No s’ha pogut desar la teva resposta. No s’ha perdut res. Torna-ho a provar.",
+      "another": "Fes un altre fitxer"
+    },
+    "inbox": {
+      "title": "Fitxers rebuts",
+      "description": "Els fitxers de canvis compartits amb Memory Archive esperen aquí fins que n’afegeixis els canvis o els treguis.",
+      "add": "Afegeix els canvis",
+      "addLabel": "Afegeix els canvis de {fileName}",
+      "remove": "Treu",
+      "removeLabel": "Treu {fileName} d’aquest dispositiu"
+    },
+    "import": {
+      "title": "Rep canvis d’un altre dispositiu",
+      "description": "Obre un fitxer fet per un altre dispositiu. Quan s’hagi afegit, aquesta pantalla t’explica què ha canviat; res d’aquí se substitueix ni s’esborra sense avisar-te.",
+      "pick": "Tria un fitxer",
+      "progressLabel": "Afegint els canvis",
+      "promptTitle": "Aquest fitxer està protegit",
+      "promptBody": "Escriu la contrasenya que vas triar en fer {fileName}.",
+      "promptCancel": "Cancel·la",
+      "promptSubmit": "Obre el fitxer",
+      "wrongPassword": "Aquesta contrasenya no obre el fitxer. Revisa-la; si estàs segur que és correcta, potser el fitxer està malmès. No s’ha canviat res.",
+      "isBackup": "{fileName} és una còpia completa, no un fitxer de canvis. Obre’l des de Còpia i restauració.",
+      "isBackupLink": "Ves a Còpia i restauració",
+      "resultTitle": "S’han afegit els canvis",
+      "messagesAdded": "{count, plural, one {S’ha afegit # missatge nou.} other {S’han afegit # missatges nous.}}",
+      "messagesSkipped": "{count, plural, one {# missatge ja era a l’arxiu i no s’ha tornat a copiar.} other {# missatges ja eren a l’arxiu i no s’han tornat a copiar.}}",
+      "people": "{count, plural, one {S’ha afegit o actualitzat # persona.} other {S’han afegit o actualitzat # persones.}}",
+      "conversations": "{count, plural, one {S’ha afegit o actualitzat # conversa.} other {S’han afegit o actualitzat # converses.}}",
+      "notes": "{count, plural, one {S’ha afegit o actualitzat # nota.} other {S’han afegit o actualitzat # notes.}}",
+      "favorites": "{count, plural, one {S’ha afegit # favorit.} other {S’han afegit # favorits.}}",
+      "removed": "{count, plural, one {S’ha tret # favorit o nota, perquè es va esborrar a l’altre dispositiu.} other {S’han tret # favorits o notes, perquè es van esborrar a l’altre dispositiu.}}",
+      "nothingNew": "Tot el que hi havia en aquest fitxer ja era a l’arxiu. No ha canviat res.",
+      "conflicts": "{count, plural, one {# element s’ha canviat als dos dispositius. Es guarden les dues versions i no s’ha sobreescrit res.} other {# elements s’han canviat als dos dispositius. Es guarden les dues versions i no s’ha sobreescrit res.}}",
+      "offers": "{count, plural, one {# importació es va desfer a l’altre dispositiu. Aquí no s’ha tret res.} other {# importacions es van desfer a l’altre dispositiu. Aquí no s’ha tret res.}}",
+      "another": "Tria un altre fitxer",
+      "errorTitle": "No s’han afegit els canvis",
+      "error": {
+        "gap": "Aquest fitxer s’ha saltat un fitxer anterior de l’altre dispositiu, així que no s’ha afegit res. A l’altre dispositiu, tria «Envia-ho tot un altre cop» i porta aquest fitxer.",
+        "wrongDevice": "Aquest fitxer es va fer per a un altre dispositiu, així que no s’ha afegit res. Demana a l’altre dispositiu que en faci un per a aquest.",
+        "ownPack": "Aquest fitxer l’ha fet aquest mateix dispositiu. Obre’l a l’altre dispositiu. No s’ha canviat res.",
+        "notPack": "Això no és un fitxer de canvis de Memory Archive, així que no s’ha afegit res. Si és una còpia, obre’l des de Còpia i restauració.",
+        "damaged": "Aquest fitxer està malmès o incomplet, així que no s’ha afegit res. Demana a l’altre dispositiu que el torni a fer.",
+        "newer": "Aquest fitxer ve d’una versió més nova de Memory Archive. Actualitza l’aplicació per obrir-lo. No s’ha canviat res.",
+        "limit": "Aquest fitxer és més gran del que l’aplicació pot obrir amb seguretat. No s’ha canviat res. Demana a l’altre dispositiu fitxers més petits.",
+        "storage": "No hi ha prou espai en aquest dispositiu, o no s’hi ha pogut escriure. No s’ha canviat res.",
+        "busy": "Ja hi ha una altra tasca en marxa. Espera que acabi i torna-ho a provar.",
+        "passwordRequired": "Aquest fitxer està protegit. Escriu-ne la contrasenya per obrir-lo.",
+        "encryptionUnavailable": "Aquest navegador no pot obrir fitxers amb contrasenya aquí. Torna-ho a provar des de l’aplicació instal·lada o amb una connexió segura. No s’ha canviat res.",
+        "generic": "Alguna cosa ha anat malament. No s’ha canviat res. Torna-ho a provar."
+      },
+      "conflictsReview": "Revisa’ls"
+    },
+    "progressAnnounce": "{percent}% fet",
+    "conflicts": {
+      "title": "Coses per revisar",
+      "description": "S’han canviat als dos dispositius, o un altre dispositiu ha desfet una importació. No s’ha sobreescrit ni eliminat res. Tria què vols conservar.",
+      "empty": "Cap conflicte. No t’espera res.",
+      "loading": "Buscant coses per revisar…",
+      "failed": "No s’ha pogut llegir la llista. No s’ha canviat res.",
+      "count": "{count, plural, one {# cosa per revisar} other {# coses per revisar}}",
+      "thisDevice": "Aquest dispositiu",
+      "otherDevice": "Dispositiu {code}",
+      "heading": {
+        "profile": "Persona: {name}",
+        "conversation": "Conversa: {name}",
+        "note": "Nota",
+        "noteOn": "Nota: {name}",
+        "batch": "S’ha desfet una importació al dispositiu {code}"
+      },
+      "untitled": "(sense nom)",
+      "field": {
+        "name": "Nom",
+        "relationship": "Relació",
+        "description": "Descripció",
+        "title": "Títol",
+        "body": "Text",
+        "archived": "Arxivada"
+      },
+      "archivedValue": "Sí",
+      "nothingWritten": "Res escrit",
+      "deletedThere": "Esborrat en aquell dispositiu",
+      "missingHere": "Ja no és en aquest dispositiu",
+      "legend": "Què vols conservar?",
+      "choose": "Tria una opció per continuar.",
+      "choice": {
+        "mine": "Conserva la versió d’aquest dispositiu",
+        "theirs": "Agafa la versió de l’altre dispositiu",
+        "both": "Conserva les dues",
+        "bothHint": "El text de l’altre s’afegeix a sota d’aquest.",
+        "keepHere": "Conserva-ho aquí",
+        "deleteHere": "Esborra-ho també aquí",
+        "stayDeleted": "Deixa-ho esborrat",
+        "bringBack": "Recupera la versió de l’altre dispositiu"
+      },
+      "apply": "Aplica",
+      "applying": "Aplicant…",
+      "batch": {
+        "offer": "El dispositiu {code} ha desfet una importació a «{title}».",
+        "offerCount": "{count, plural, one {# missatge d’aquesta importació encara és aquí.} other {# missatges d’aquesta importació encara són aquí.}} No s’ha eliminat res.",
+        "offerUnknown": "El dispositiu {code} ha desfet una importació que aquest dispositiu també té. No s’ha eliminat res.",
+        "thisConversation": "aquesta conversa",
+        "undo": "Desfés aquesta importació aquí",
+        "keep": "Conserva-la",
+        "confirmTitle": "Vols desfer aquesta importació aquí?",
+        "confirmBody": "{count, plural, one {El # missatge afegit} other {Els # missatges afegits}} per aquesta importació s’eliminaran de «{title}». Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Els missatges que ja eren al teu arxiu es queden.",
+        "confirmBodyCreated": "{count, plural, one {El # missatge afegit} other {Els # missatges afegits}} per aquesta importació s’eliminaran, i també la conversa «{title}», que va crear aquesta importació. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Les notes i els favorits d’aquesta conversa se’n van amb ella. Tot allò que ja era al teu arxiu abans es queda.",
+        "confirmBodyMaybeCreated": "{count, plural, one {El # missatge afegit} other {Els # missatges afegits}} per aquesta importació s’eliminaran de «{title}». Si no hi queda res més en aquesta conversa, la conversa també s’elimina, amb les notes i els favorits. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Tot allò que ja era al teu arxiu abans es queda.",
+        "confirmBodyUnknown": "Els missatges afegits per aquesta importació s’eliminaran. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Els missatges que ja eren al teu arxiu es queden.",
+        "confirm": "Desfés la importació",
+        "cancel": "Torna enrere",
+        "unmatched": "Aquest dispositiu no té aquesta importació, així que no hi ha res per eliminar.",
+        "close": "Tanca aquesta nota"
+      },
+      "outcome": {
+        "mine": "S’ha conservat la versió d’aquest dispositiu.",
+        "theirs": "S’ha agafat la versió de l’altre dispositiu.",
+        "both": "S’han conservat els dos textos.",
+        "undone": "La importació s’ha desfet aquí.",
+        "dismissed": "Fet. No s’ha eliminat res.",
+        "recordGone": "Això ja no és en aquest dispositiu, així que no s’ha aplicat res.",
+        "settled": "Aquesta ja estava resolta.",
+        "alreadyGone": "Això ja no era en aquest dispositiu, així que no s’ha eliminat ni canviat res.",
+        "bothRestored": "La nota d’aquí ja no hi era, així que només s’ha afegit el text de l’altre dispositiu.",
+        "busy": "Hi ha una altra tasca en curs. Torna-ho a provar d’aquí a un moment.",
+        "tooLong": "Els dos textos junts són massa llargs per a una nota. No s’ha canviat res. Tria una de les altres opcions.",
+        "failed": "No s’ha pogut desar. No s’ha canviat res. Torna-ho a provar."
+      }
+    }
+  },
+  "reminders": {
+    "backup": {
+      "title": "Potser val la pena fer una còpia",
+      "body": "Que aquesta app sàpiga, fa almenys {days} dies que no fas cap còpia des d’aquí. Una còpia feta d’una altra manera no compta.",
+      "action": "Ves a Còpia i restauració"
+    },
+    "sync": {
+      "title": "Canvis sense compartir",
+      "body": "Tens canvis que encara no has compartit amb un altre dispositiu.",
+      "action": "Ves a Sincronitza dispositius"
+    },
+    "later": "Recorda-m’ho més tard",
+    "never": "No m’ho recordis"
   }
 }

@@ -261,6 +261,120 @@ CREATE TABLE highlight_messages (
 CREATE INDEX highlight_messages_by_message ON highlight_messages(conversation_id, fingerprint);
 `;
 
+/**
+ * v8 (expand only): what manual device-to-device sync needs (`docs/formats/changes-pack.md`). New
+ * tables and columns only, all with defaults: no row changes meaning, so a v1-v7 backup restores
+ * by migrating.
+ *
+ * - `device`: this library's identity (id, creation instant) and a monotonic change counter. The
+ *   migration creates the row (random id, counter 1) so the database file never changes later just
+ *   because something asked for the id (the replace digest check depends on that). A restored
+ *   database never keeps the id it was backed up with: a restore is a different device
+ *   (`renewDevice`), and the row copied from a snapshot is ignored.
+ * - `seq` on the records a pack carries (profiles, conversations, import batches, favorites,
+ *   notes): the counter value at their last change here. Existing rows get the baseline 1 (the
+ *   counter's first value), so "everything since 0" is the whole library and every later change
+ *   gets a number above it. Deterministic: no clock, no ordering. Messages have no `seq`: they are
+ *   immutable and travel with their import batch. Highlights are not synced (in a full backup only).
+ * - `changed_by` (profiles, conversations, notes, favorites, tombstones): the peer device whose version this row holds;
+ *   NULL = made here. It stops a version just merged from a peer from counting as a local edit
+ *   against that same peer (a false conflict).
+ * - `tombstones`: deleted favorites, notes and import batches, so the deletion can travel.
+ * - `sync_peers`: per peer device, the watermarks sent to and received from it.
+ */
+const V8 = `
+CREATE TABLE device (
+  singleton  INTEGER PRIMARY KEY CHECK (singleton = 1),
+  id         TEXT NOT NULL CHECK (length(id) = 36 AND id = lower(id)),
+  created_at TEXT NOT NULL,
+  change_seq INTEGER NOT NULL CHECK (change_seq >= 1)
+) STRICT;
+
+CREATE TABLE sync_peers (
+  peer_id           TEXT PRIMARY KEY CHECK (length(peer_id) = 36 AND peer_id = lower(peer_id)),
+  last_sent_seq     INTEGER NOT NULL DEFAULT 0 CHECK (last_sent_seq >= 0),
+  last_sent_at      TEXT,
+  last_received_seq INTEGER NOT NULL DEFAULT 0 CHECK (last_received_seq >= 0),
+  last_received_at  TEXT
+) STRICT;
+
+-- scope: the conversation id ('' for a person's note); key: favorite = message fingerprint,
+-- note = 'profile:<id>' | 'conversation' | 'message:<fingerprint>', batch = batch id.
+CREATE TABLE tombstones (
+  kind       TEXT NOT NULL CHECK (kind IN ('favorite', 'note', 'batch')),
+  scope      TEXT NOT NULL,
+  key        TEXT NOT NULL,
+  deleted_at TEXT NOT NULL,
+  seq        INTEGER NOT NULL CHECK (seq >= 1),
+  changed_by TEXT CHECK (changed_by IS NULL OR (length(changed_by) = 36 AND changed_by = lower(changed_by))),
+  PRIMARY KEY (kind, scope, key)
+) STRICT;
+CREATE INDEX tombstones_by_seq ON tombstones(seq);
+
+ALTER TABLE profiles ADD COLUMN seq INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE profiles ADD COLUMN changed_by TEXT CHECK (changed_by IS NULL OR (length(changed_by) = 36 AND changed_by = lower(changed_by)));
+ALTER TABLE conversations ADD COLUMN seq INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE conversations ADD COLUMN changed_by TEXT CHECK (changed_by IS NULL OR (length(changed_by) = 36 AND changed_by = lower(changed_by)));
+ALTER TABLE notes ADD COLUMN seq INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE notes ADD COLUMN changed_by TEXT CHECK (changed_by IS NULL OR (length(changed_by) = 36 AND changed_by = lower(changed_by)));
+ALTER TABLE import_batches ADD COLUMN seq INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE favorites ADD COLUMN seq INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE favorites ADD COLUMN changed_by TEXT CHECK (changed_by IS NULL OR (length(changed_by) = 36 AND changed_by = lower(changed_by)));
+
+UPDATE profiles SET seq = 1;
+UPDATE conversations SET seq = 1;
+UPDATE notes SET seq = 1;
+UPDATE import_batches SET seq = 1;
+UPDATE favorites SET seq = 1;
+
+INSERT INTO device (singleton, id, created_at, change_seq) VALUES (1,
+  lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' ||
+  substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6))),
+  strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), 1);
+
+CREATE INDEX favorites_by_seq ON favorites(seq);
+CREATE INDEX notes_by_seq ON notes(seq);
+`;
+
+/**
+ * v9 (expand only): the open conflicts of a changes-pack merge (`docs/formats/changes-pack.md`,
+ * "Conflicts"). One new table, empty at first: no existing column or row changes, so a v1-v8
+ * backup restores by migrating. Added with its first entry point, the merge.
+ *
+ * A row keeps the INCOMING version (or incoming deletion) beside the active local record, which
+ * the merge never touches; the user later picks mine / theirs / both. `kind` `batch` is not a
+ * conflict but the offer "the other device undid this import; remove it here too?": nothing is
+ * applied until the user accepts. `scope` / `key` name the record like `tombstones` do (profile and
+ * conversation: scope '' and the id; note: as the note tombstone; batch: conversation id and batch
+ * id). `incoming` is the pack's JSON record (a tombstone when `incoming_deleted` is 1). One open
+ * row per peer and record: a newer incoming version replaces the older. It describes this device's
+ * exchange with a peer, so, like `sync_peers`, a restore does not carry it over.
+ */
+const V9 = `
+CREATE TABLE sync_conflicts (
+  id               INTEGER PRIMARY KEY,
+  peer_id          TEXT NOT NULL CHECK (length(peer_id) = 36 AND peer_id = lower(peer_id)),
+  kind             TEXT NOT NULL CHECK (kind IN ('profile', 'conversation', 'note', 'batch')),
+  scope            TEXT NOT NULL,
+  key              TEXT NOT NULL,
+  incoming         TEXT NOT NULL,
+  incoming_deleted INTEGER NOT NULL DEFAULT 0 CHECK (incoming_deleted IN (0, 1)),
+  detected_at      TEXT NOT NULL,
+  UNIQUE (peer_id, kind, scope, key)
+) STRICT;
+`;
+
+/**
+ * v10 (expand only): `import_batches.changed_by`, the device a batch was merged from (NULL = made
+ * here). Like the other synced tables, it lets a changes pack and the unsent count skip handing a
+ * batch back to the device it came from; a third device still gets it relayed. Existing rows stay
+ * NULL, which is exactly the old behaviour (every batch above the watermark is carried), so a
+ * v1-v9 backup restores by migrating and no row changes.
+ */
+const V10 = `
+ALTER TABLE import_batches ADD COLUMN changed_by TEXT CHECK (changed_by IS NULL OR (length(changed_by) = 36 AND changed_by = lower(changed_by)));
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, sql: V1 },
   { version: 2, sql: V2 },
@@ -269,6 +383,9 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 5, sql: V5 },
   { version: 6, sql: V6 },
   { version: 7, sql: V7 },
+  { version: 8, sql: V8 },
+  { version: 9, sql: V9 },
+  { version: 10, sql: V10 },
 ];
 
 /** Schema version this build produces and understands. */

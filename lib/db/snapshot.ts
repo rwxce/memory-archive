@@ -3,6 +3,7 @@ import { DbError, toDbError } from './errors';
 import { MIGRATIONS, migrate, readUserVersion, type Migration } from './migrations';
 import { loadSqlite } from './open';
 import { discardSearchIndex } from './search';
+import { renewDevice } from './sync';
 import { transaction, wrapOo1Db, type SqlDb, type SqlValue } from './sql';
 
 /**
@@ -49,9 +50,24 @@ function userTables(db: SqlDb): string[] {
     .map((r) => r.name);
 }
 
-/** True when no table of the library holds a row (also true for a fresh database). */
+/**
+ * This device's own state, never copied from a snapshot. `device` is the identity of the library
+ * that is open (see `renewDevice`); it is not content, so it does not make a library non-empty.
+ * `sync_peers` is what this device exchanged with others under that identity: a restore starts
+ * with none (a restored library is a new device, and the peers' watermarks no longer describe it).
+ * `sync_conflicts` holds what those peers sent and is just as tied to them.
+ */
+const DEVICE_STATE_TABLES: ReadonlySet<string> = new Set(['device', 'sync_peers', 'sync_conflicts']);
+
+/**
+ * True when the library holds no content (also for a fresh database). Its identity (`device`), what
+ * it exchanged with other devices (`sync_peers`) and the bookkeeping of deleted things
+ * (`tombstones`: an emptied library keeps them) are not content.
+ */
 export function isLibraryEmpty(db: SqlDb): boolean {
-  return userTables(db).every((t) => db.all(`SELECT 1 FROM ${quote(t)} LIMIT 1`).length === 0);
+  return userTables(db)
+    .filter((t) => t !== 'device' && t !== 'tombstones' && t !== 'sync_peers' && t !== 'sync_conflicts')
+    .every((t) => db.all(`SELECT 1 FROM ${quote(t)} LIMIT 1`).length === 0);
 }
 
 function columns(db: SqlDb, table: string): { name: string; type: string }[] {
@@ -83,6 +99,31 @@ export interface LoadSnapshotOptions {
 export const databaseDigest = (bytes: Uint8Array): string => sha256Hex(bytes);
 
 const invalid = (message: string) => new DbError('invalid', `invalid database snapshot: ${message}`);
+
+const COUNTED_TABLES = ['profiles', 'conversations', 'import_batches', 'favorites', 'notes', 'tombstones', 'device'] as const;
+
+/**
+ * The change counter a restored library continues from: the highest change number anywhere in the
+ * snapshot (the stored counter is not trusted: a doctored one could sit below its own rows and
+ * hand out numbers the rows already use). Values outside the exactly representable integers are
+ * refused: they would round in JavaScript and break the ordering.
+ */
+function restoredCounter(scratch: SqlDb): number {
+  let highest = 1;
+  for (const table of COUNTED_TABLES) {
+    const column = table === 'device' ? 'change_seq' : 'seq';
+    const [row] = scratch.all<{ lo: unknown; hi: unknown }>(`SELECT min(${column}) AS lo, max(${column}) AS hi FROM ${quote(table)}`);
+    if (row.hi === null) continue;
+    if (
+      typeof row.lo !== 'number' || typeof row.hi !== 'number' ||
+      !Number.isSafeInteger(row.hi) || !Number.isSafeInteger(row.lo) || row.lo < 0
+    ) {
+      throw invalid(`change numbers of ${table} are out of range`);
+    }
+    highest = Math.max(highest, row.hi);
+  }
+  return highest;
+}
 
 /** Opens `bytes` as a scratch in-memory database. Throws `invalid` when they are not SQLite. */
 async function openScratch(bytes: Uint8Array): Promise<SqlDb> {
@@ -143,12 +184,14 @@ async function openChecked(target: SqlDb, bytes: Uint8Array, options: LoadSnapsh
       }
     }
 
+    const counter = restoredCounter(scratch);
+
     if (options.expectBlobs) {
       const have = JSON.stringify(listBlobs(scratch));
       const want = JSON.stringify([...options.expectBlobs].sort((a, b) => (a.sha256 < b.sha256 ? -1 : 1)));
       if (have !== want) throw invalid('media references do not match the archive contents');
     }
-    return { scratch, versions, tables };
+    return { scratch, versions, tables, counter };
   } catch (error) {
     scratch.close();
     throw error;
@@ -177,7 +220,7 @@ export async function loadSnapshot(
   bytes: Uint8Array,
   options: LoadSnapshotOptions = {},
 ): Promise<{ from: number; to: number }> {
-  const { scratch, versions, tables } = await openChecked(target, bytes, options);
+  const { scratch, versions, tables, counter } = await openChecked(target, bytes, options);
   try {
     // Everything from here on is synchronous: no other request can write between this check and the swap.
     if (options.unchangedSince !== undefined && databaseDigest(serializeDb(target)) !== options.unchangedSince) {
@@ -190,8 +233,13 @@ export async function loadSnapshot(
       transaction(target, () => {
         target.exec('PRAGMA defer_foreign_keys = ON');
         if (options.replace) for (const table of tables) target.run(`DELETE FROM ${quote(table)}`);
+        // An emptied library may still remember what it deleted; the snapshot's own tombstones replace those.
+        else target.run('DELETE FROM tombstones');
+        // What peers sent describes the library that is going away, never the restored one.
+        target.run('DELETE FROM sync_conflicts');
         const count = (db: SqlDb, table: string) => db.all<{ n: number }>(`SELECT count(*) AS n FROM ${quote(table)}`)[0].n;
         for (const table of tables) {
+          if (DEVICE_STATE_TABLES.has(table)) continue;
           const before = count(target, table);
           const names = columns(target, table).map((c) => c.name);
           const insert = `INSERT INTO ${quote(table)} (${names.map(quote).join(', ')}) VALUES (${names.map(() => '?').join(', ')})`;
@@ -215,6 +263,7 @@ export async function loadSnapshot(
           // Nothing may be lost or invented on the way (rowid edge cases).
           if (count(target, table) - before !== count(scratch, table)) throw invalid(`rows of ${table} were not copied completely`);
         }
+        renewDevice(target, counter);
         if (target.all('PRAGMA foreign_key_check').length > 0) throw invalid('foreign key violations');
       });
     } catch (error) {

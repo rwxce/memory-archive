@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { MIGRATIONS, SCHEMA_VERSION, migrate, type Migration } from './migrations';
 import { openMemoryDb } from './open';
-import { createConversation, createProfile } from './queries';
+import { createConversation, createProfile, setNote } from './queries';
+import { getDeviceId, nextChangeSeq, recordSent, recordTombstone } from './sync';
 import { checkSnapshot, databaseDigest, isLibraryEmpty, listBlobs, loadSnapshot, serializeDb } from './snapshot';
 import { wrapOo1Db, type SqlDb } from './sql';
 
@@ -46,6 +47,41 @@ describe('serializeDb / isLibraryEmpty / listBlobs', () => {
     db.run("INSERT INTO blobs (sha256, size) VALUES (?, 1)", ['ab'.repeat(32)]);
     expect(isLibraryEmpty(db)).toBe(false);
     expect(listBlobs(db)).toEqual([{ sha256: 'ab'.repeat(32), size: 1 }]);
+  });
+
+  test('the device row, tombstones and sync_peers alone do not make the library non-empty', async () => {
+    const { db } = await openMemoryDb();
+    expect(db.all('SELECT * FROM device')).toHaveLength(1);
+    db.run('INSERT INTO sync_peers (peer_id) VALUES (?)', ['9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d']);
+    expect(isLibraryEmpty(db)).toBe(true);
+    recordTombstone(db, 'favorite', ID2, 'ab'.repeat(32), NOW);
+    expect(isLibraryEmpty(db)).toBe(true);
+    profile(db, ID1);
+    expect(isLibraryEmpty(db)).toBe(false);
+  });
+});
+
+describe('open conflicts of a changes-pack merge', () => {
+  const PEER = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+  const conflict = (db: SqlDb) =>
+    db.run("INSERT INTO sync_conflicts (peer_id, kind, scope, key, incoming, detected_at) VALUES (?, 'profile', '', ?, '{}', 't')", [PEER, ID1]);
+
+  test('they do not make the library non-empty, and a restore leaves them behind with the peers they belong to', async () => {
+    const source = (await openMemoryDb()).db;
+    profile(source, ID1);
+    conflict(source);
+    const empty = (await openMemoryDb()).db;
+    conflict(empty);
+    expect(isLibraryEmpty(empty)).toBe(true);
+    await loadSnapshot(empty, serializeDb(source));
+    expect(empty.all('SELECT * FROM sync_conflicts')).toEqual([]);
+    expect(empty.all('SELECT id FROM profiles')).toEqual([{ id: ID1 }]);
+
+    const full = (await openMemoryDb()).db;
+    profile(full, ID2);
+    conflict(full);
+    await loadSnapshot(full, serializeDb(source), { replace: true });
+    expect(full.all('SELECT * FROM sync_conflicts')).toEqual([]);
   });
 });
 
@@ -120,7 +156,7 @@ describe('loadSnapshot', () => {
     v4.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
     const target = (await openMemoryDb()).db;
     expect(await loadSnapshot(target, serializeDb(v4))).toEqual({ from: 4, to: SCHEMA_VERSION });
-    expect(SCHEMA_VERSION).toBe(7);
+    expect(SCHEMA_VERSION).toBe(10);
     expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
     expect(target.all('SELECT * FROM favorites')).toEqual([]);
     expect(target.all('SELECT * FROM notes')).toEqual([]);
@@ -140,7 +176,7 @@ describe('loadSnapshot', () => {
     expect(target.all('SELECT * FROM notes')).toEqual([]);
   });
 
-  test('a current (v7) snapshot round-trips with its index, favorites, notes and highlights, anchored by fingerprint', async () => {
+  test('a current (v8) snapshot round-trips with its index, favorites, notes and highlights, anchored by fingerprint', async () => {
     const source = (await openMemoryDb()).db;
     createConversation(source, { id: ID2, title: 'Chat', source: 'whatsapp', isGroup: false, profileIds: [], participants: [], now: NOW });
     source.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
@@ -169,14 +205,14 @@ describe('loadSnapshot', () => {
     expect(target2.all('SELECT * FROM highlight_messages ORDER BY position')).toEqual(source.all('SELECT * FROM highlight_messages ORDER BY position'));
   });
 
-  test('a schema v6 snapshot restores by migrating to v7: messages and notes kept, highlights empty', async () => {
+  test('a schema v6 snapshot restores by migrating to the current schema: messages and notes kept, highlights empty', async () => {
     const v6 = await bareDb(MIGRATIONS.slice(0, 6));
     v6.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [ID2, 'Chat', 'whatsapp', NOW]);
     v6.run('INSERT INTO import_batches (id, conversation_id, source, created_at) VALUES (?, ?, ?, ?)', [ID1, ID2, 'whatsapp', NOW]);
     v6.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
     v6.run("INSERT INTO notes (kind, conversation_id, body, created_at, updated_at) VALUES ('conversation', ?, 'kept', ?, ?)", [ID2, NOW, NOW]);
     const target = (await openMemoryDb()).db;
-    expect(await loadSnapshot(target, serializeDb(v6))).toEqual({ from: 6, to: 7 });
+    expect(await loadSnapshot(target, serializeDb(v6))).toEqual({ from: 6, to: SCHEMA_VERSION });
     expect(target.all('SELECT body FROM notes')).toEqual([{ body: 'kept' }]);
     expect(target.all('SELECT * FROM highlights')).toEqual([]);
     expect(target.all('SELECT * FROM highlight_messages')).toEqual([]);
@@ -380,5 +416,110 @@ describe('checkSnapshot', () => {
     source.exec('CREATE TRIGGER t AFTER INSERT ON profiles BEGIN SELECT 1; END');
     expect(await code(checkSnapshot(target, serializeDb(source)))).toBe('invalid');
     expect(await code(checkSnapshot(target, serializeDb(source), { expectBlobs: [] }))).toBe('invalid');
+  });
+});
+
+describe('device identity and sync state across a restore', () => {
+  const PEER = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+
+  /** A library that has synced: some changes, a peer and a tombstone. */
+  async function syncedLibrary() {
+    const db = (await openMemoryDb()).db;
+    profile(db, ID1);
+    createConversation(db, { id: ID2, title: 'Chat', source: 'whatsapp', isGroup: false, profileIds: [ID1], participants: [], now: NOW });
+    setNote(db, { target: { kind: 'profile', profileId: ID1 }, body: 'about Ana', now: NOW });
+    recordTombstone(db, 'favorite', ID2, 'ab'.repeat(32), NOW);
+    recordSent(db, { peerId: PEER, upToSeq: nextChangeSeq(db), now: NOW });
+    return db;
+  }
+
+  test('a restore on an empty library gives it a NEW device id, no peers, and a counter that continues; records keep their seq', async () => {
+    const source = await syncedLibrary();
+    const sourceId = getDeviceId(source);
+    const counter = source.all<{ n: number }>('SELECT change_seq AS n FROM device')[0].n;
+    const target = (await openMemoryDb()).db;
+    const targetId = getDeviceId(target); // an identity alone does not make the library non-empty
+    expect(isLibraryEmpty(target)).toBe(true);
+    await loadSnapshot(target, serializeDb(source));
+    const restoredId = getDeviceId(target);
+    expect(restoredId).not.toBe(sourceId);
+    expect(restoredId).not.toBe(targetId);
+    expect(restoredId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(target.all('SELECT * FROM sync_peers')).toEqual([]);
+    expect(target.all<{ n: number }>('SELECT change_seq AS n FROM device')).toEqual([{ n: counter }]);
+    expect(target.all('SELECT seq FROM profiles ORDER BY id')).toEqual(source.all('SELECT seq FROM profiles ORDER BY id'));
+    expect(target.all('SELECT * FROM tombstones')).toEqual(source.all('SELECT * FROM tombstones'));
+    expect(target.all('SELECT * FROM notes')).toEqual(source.all('SELECT * FROM notes'));
+    // the source is untouched, and its identity and peers stay with it
+    expect(getDeviceId(source)).toBe(sourceId);
+    expect(source.all('SELECT peer_id FROM sync_peers')).toEqual([{ peer_id: PEER }]);
+  });
+
+  test('restoring the same snapshot twice gives two different devices (two machines never share an id)', async () => {
+    const source = await syncedLibrary();
+    const a = (await openMemoryDb()).db;
+    const b = (await openMemoryDb()).db;
+    await loadSnapshot(a, serializeDb(source));
+    await loadSnapshot(b, serializeDb(source));
+    expect(getDeviceId(a)).not.toBe(getDeviceId(b));
+  });
+
+  test('replace: the library keeps no trace of its old identity or peers; a failed replace keeps both', async () => {
+    const source = await syncedLibrary();
+    const target = await syncedLibrary();
+    const oldId = getDeviceId(target);
+    const oldPeers = target.all('SELECT * FROM sync_peers');
+    expect(await code(loadSnapshot(target, serializeDb(source), { replace: true, expectBlobs: [{ sha256: 'ab'.repeat(32), size: 1 }] }))).toBe('invalid');
+    expect(getDeviceId(target)).toBe(oldId);
+    expect(target.all('SELECT * FROM sync_peers')).toEqual(oldPeers);
+    await loadSnapshot(target, serializeDb(source), { replace: true });
+    expect(getDeviceId(target)).not.toBe(oldId);
+    expect(getDeviceId(target)).not.toBe(getDeviceId(source));
+    expect(target.all('SELECT * FROM sync_peers')).toEqual([]);
+    // the change counter never moves back below the restored rows
+    expect(nextChangeSeq(target)).toBeGreaterThan(Math.max(...target.all<{ seq: number }>('SELECT seq FROM profiles UNION ALL SELECT seq FROM tombstones').map((r) => r.seq)));
+  });
+
+  test('a snapshot that never used sync (no device row) restores and gets an identity', async () => {
+    const source = await bareDb(MIGRATIONS.slice(0, 7));
+    source.run('INSERT INTO conversations (id, title, source, created_at) VALUES (?, ?, ?, ?)', [ID2, 'Chat', 'whatsapp', NOW]);
+    const target = (await openMemoryDb()).db;
+    expect(await loadSnapshot(target, serializeDb(source))).toEqual({ from: 7, to: SCHEMA_VERSION });
+    expect(target.all('SELECT seq FROM conversations')).toEqual([{ seq: 1 }]);
+    expect(target.all<{ n: number }>('SELECT change_seq AS n FROM device')).toEqual([{ n: 1 }]);
+    expect(getDeviceId(target)).toHaveLength(36);
+  });
+
+  test('the restored counter is the real highest change number, not the stored one', async () => {
+    const source = await syncedLibrary();
+    const highest = Math.max(...source.all<{ seq: number }>('SELECT seq FROM profiles UNION ALL SELECT seq FROM notes UNION ALL SELECT seq FROM tombstones').map((r) => r.seq));
+    source.run('UPDATE device SET change_seq = 1'); // doctored: below its own rows
+    const target = (await openMemoryDb()).db;
+    await loadSnapshot(target, serializeDb(source));
+    expect(target.all('SELECT change_seq AS n FROM device')).toEqual([{ n: highest }]);
+    expect(nextChangeSeq(target)).toBe(highest + 1);
+  });
+
+  test.each([
+    ['a huge seq', 'UPDATE profiles SET seq = 4611686018427387904'],
+    ['a negative seq', 'UPDATE profiles SET seq = -5'],
+    ['a huge counter', 'UPDATE device SET change_seq = 4611686018427387904'],
+    ['a huge tombstone seq', 'UPDATE tombstones SET seq = 9007199254740993'],
+  ])('%s is refused and the target is untouched', async (_name, doctor) => {
+    const source = await syncedLibrary();
+    source.exec('PRAGMA ignore_check_constraints = ON');
+    source.run(doctor);
+    const target = (await openMemoryDb()).db;
+    const id = getDeviceId(target);
+    await expectInvalid(source, /out of range/, target);
+    expect(getDeviceId(target)).toBe(id);
+    expect(target.all('SELECT * FROM profiles')).toEqual([]);
+  });
+
+  test('a snapshot with a malformed device or peer row is refused and the target is untouched', async () => {
+    const source = (await openMemoryDb()).db;
+    source.exec('PRAGMA ignore_check_constraints = ON');
+    source.run("UPDATE device SET id = 'x'");
+    await expectInvalid(source, /./);
   });
 });

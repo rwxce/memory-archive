@@ -187,6 +187,41 @@ test type or architecture rule means updating this file **in the same PR**.
     a plain file goes on unchanged. The password is an argument of `backup` / `restore` / `replace` / `useBackupFileCheck().run`
     only: never in state, storage or logs, and cleared from the fields when handed over. The replace dialog states that its
     safety copy is not encrypted. Progress adds `encrypting` / `decrypting`. Tested in `components/backup-encrypted.test.tsx` and `hooks/use-archive-backup.test.tsx`.
+  - **Sync devices** (`/[locale]/sync/`, `components/sync-screen.tsx` plus `sync-device-card`, `sync-export-card`,
+    `sync-import-card`, `sync-inbox`, `sync-progress`, `sync-conflicts-card`, `sync-conflict-item`, `sync-batch-offer`; hooks `use-sync-device`, `use-sync-conflicts`, `use-changes-pack-export`, `use-changes-pack-import`,
+    `peek-archive-file`, `throttle-progress`; copy under `sync.*`). Sub-screen with a back pill to Settings (a Settings row
+    links to it like `/backup`). Cards: this device (8-character device code, known devices with last file handed over /
+    received); "Send changes to another device" (pick a known device or "A new device" = full file, optional "send everything
+    again" for a known one, optional password through `BackupMaker` with its own labels, plain file marked private, download from
+    the click via `downloadBlob`; nothing new = no file; for a known device a "Did you hand the file to the other device?" step
+    calls `confirmChangesPackDelivered` ONLY on "Yes", "Not yet" records nothing; a new device has no such step because there is
+    nothing to record; copy says "downloaded / check Downloads", never "sent"); "Receive changes from another device" (file
+    picker; `peekArchiveFile` = `detectArchiveFile` without a password tells a backup from a pack by its manifest, never its name:
+    a backup gets a pointer to `/backup`, a protected file asks for its password inline with `PasswordPrompt` and keeps the file on
+    a wrong one; result summary of what was added; crossed edits and offered import undos shown as counts only, resolving them
+    is a later screen; calm copy per error code: gap suggests asking for a full file, wrong target, own file, damaged, newer,
+    too large, busy). The reverse pointers: `/backup` (open or replace) and the import wizard leave a changes file out and link to
+    `/sync` (`backup.syncPointer`, `import.choose.syncPointer`); a protected pack picked in `/backup` or the wizard cannot be
+    recognised without its password and is handled by that screen's own error (a protected pack picked on `/backup` or in the
+    wizard is NOT told apart from a protected backup or a bad file: it must be opened from Sync devices). A changes file shared
+    to the app (Web Share Target) is left in the share inbox by the wizard and listed under "Received files" on `/sync`
+    (`sync-inbox.tsx`: add the changes or remove it; it leaves the inbox only after a successful merge or on removal).
+    "Items to review" (`#sync-conflicts`, `sync-conflicts-card.tsx`): the crossed edits (person, conversation, note) and offered import undos
+    from `listSyncConflicts`, via `hooks/use-sync-conflicts.ts` (per-conflict in-flight guard, outcome, reload; offers are matched to
+    `listImportHistory` by batch id for the chat name and message count). Each item stacks "This device" / "Device ab12cd34" at 375 px;
+    no choice is preselected and Apply waits (aria-disabled) until one is picked; "keep both" is offered for notes only; text is
+    never clamped (nobody chooses blind); notes are headed with their conversation or person when found; all values are React text. An offer has "Undo that import here" (inline confirmation naming the chat
+    and message count, saying media nothing else uses goes too) and "Keep it"; an offer for an import this device lacks is a calm note
+    with a close action. `resolveSyncConflict(id, choice, expected)` takes the `key` + `detectedAt` the person looked at (an id can be reused and a
+    newer incoming version replaces its row in place; a mismatch is `not-found` and changes nothing; UI items are keyed `id:detectedAt`,
+    so the choice and an open undo question reset) and returns `{ recordGone, undone, localMissing }` for neutral "already gone" outcomes;
+    the undo question promises the chat is removed only when all its messages are from that import. One polite live region (at most one update per second); focus
+    goes to the next item or the card heading; an identical repeated outcome is announced again. The import result counts what that file left and links to `#sync-conflicts`. Tested in `components/sync-conflicts-card.test.tsx`
+    and `e2e/sync.spec.ts` (a person renamed on two devices).
+    While the hand-over question is open, making another file and changing the device are disabled. Export and import share one task at a time;
+    progress goes through `throttleProgress` (new phase always, then every 100 ms or a whole percent). Tested in
+    `components/sync-screen.test.tsx`, `components/sync-import-card.test.tsx`, `hooks/throttle-progress.test.ts`, the pointer cases
+    in `components/backup-screen.test.tsx` and `components/import-screen.test.tsx`, and `e2e/sync.spec.ts` (two browser contexts).
   - **Import history** (`/[locale]/import/history/`, optional `?person=<id>`,
     `components/import-history-screen.tsx`, `hooks/use-import-history.ts`): newest-first list of imports
     (file name, relative + absolute date, messages added / already there, conversation title, the
@@ -246,7 +281,7 @@ test type or architecture rule means updating this file **in the same PR**.
     missing id is a calm not-found with the way back. Focus returns to the opener, or to the
     section heading when the chat left the list; results are announced in the status region;
     wrapped in `Suspense` because of `useSearchParams`), `/[locale]/welcome/` (always reachable; *Start* asks for persistent storage and
-    goes to People), `/[locale]/settings/` (language, appearance, app version + archive format version), `/[locale]/backup/` (backup and restore),
+    goes to People), `/[locale]/settings/` (language, appearance, app version + archive format version), `/[locale]/backup/` (backup and restore), `/[locale]/sync/` (sync devices),
     `not-found` → `out/404.html`.
   - Next.js telemetry disabled (`NEXT_TELEMETRY_DISABLED` in scripts, CI and
     `next.config.ts`; `.npmrc` `shell-emulator=true` makes the env prefix work on Windows).
@@ -312,7 +347,7 @@ test type or architecture rule means updating this file **in the same PR**.
     plain TS, pinned by NIST vectors; WebCrypto has no incremental digest, so this is how
     media is hashed while it streams, with no dependency).
   - `lib/db/` — the only code that issues SQL. `sql.ts` (`SqlDb`: the narrow sync surface
-    over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1 to v7,
+    over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1 to v10,
     `PRAGMA user_version`, forward-only, one transaction per migration, newer DB refused),
     `queries.ts` (profiles: create / update / archive / get / list; conversations: list / rename /
     move / link / unlink; `importMessages` (batch, optional new conversation and "me", all in one transaction), `findImportCandidates`, `findExistingFingerprints`, `undoImportBatch`, `listImportBatches` (read-only history: newest first, keyset `before` cursor, page <= 200, filter by conversation or profile), `listMessages`; the conversation view's reads, all by position on `messages_timeline` with no schema change: `getConversationBounds`, `countMessages`, `getMessageWindow` (limit clamped to 1..500, any offset, window ids from the covering index, then a join of only those rows; carries `isMe`, system flag, media hash/name/mime), `findMessageOffsetByDate` (`null` when every message is earlier), `listConversationDays` (count and first offset per local day), `getMessageSource(conversationId, messageId)` (the first import batch that added the message: source, label, date, batch id; `not-found` unless the pair matches, `invalid` for a malformed id; read-only, no schema change); an unknown conversation is `not-found`; a person's media, also with no schema change: `countPersonMedia` / `listPersonMedia(profileId, kinds, offset, limit)` (messages with a stored file of the asked media types over every conversation linked to the profile, archived or not; total order `(sent_at, ordinal, id)`, limit clamped to 1..500, ids picked first and only that page joined; `invalid` for empty / non-media `kinds`, `not-found` for an unknown profile; ~15 ms first page and count over 15k audio items in a 200k-message archive, guarded by `person-media.perf.test.ts`); a person's combined timeline (schema v4 index `messages_by_time`): `getPersonTimelineBounds`, `getPersonTimelineWindow(profileId, offset, limit)` (every message of every conversation linked to the profile, archived or not, merged in the total order `(sent_at, ordinal, conversation_id, id)`; limit clamped to 1..500; each item is a conversation-view message plus `conversationId` / `conversationTitle`; a conversation linked to two people is in both timelines), `findPersonTimelineOffsetByDate` (`null` when all are earlier), `listPersonTimelineDays`; `not-found` for an unknown profile, `invalid` for a malformed id, offset or date; use cases in `lib/usecases/person-timeline.ts`; guarded by `person-timeline.perf.test.ts`); favorites (schema v5): `setFavorite({ conversationId, messageId, favorite, now })` (the screen passes the local message id; the pair is checked, `not-found` otherwise; resolved to `(conversation, fingerprint)` inside; idempotent), `countFavorites(scope?)` / `listFavorites(scope, offset, limit)` (scope = `{ profileId }`, `{ conversationId }` or none = whole archive, both = `invalid`; timeline-shaped items, oldest first in the timeline order, limit clamped to 1..500; favorites whose message is not in the archive are not returned or counted), and `isFavorite` on every item of `getMessageWindow` / `getPersonTimelineWindow` through a LEFT JOIN on the favorites primary key (page rows only, so no N+1); use cases in `lib/usecases/favorites.ts`; guarded by `favorites.perf.test.ts`); notes (schema v6): `setNote({ target, body, now })` (target = `{ kind: 'profile', profileId }`, `{ kind: 'conversation', conversationId }` or `{ kind: 'message', conversationId, messageId }`, strictly validated; the message pair is checked, `not-found` otherwise, and resolved to `(conversation, fingerprint)` inside; the text is trimmed and bounded by `NOTE_MAX` = 10,000 in `domain/profile.ts` (`invalid` over it, never truncated); creates, edits (keeps `created_at`, moves `updated_at` only when the text changes) or, when empty, deletes and returns `null`), `getNote(target)`, `countNotes(scope?)` / `listNotes(scope, offset, limit)` (scope = `{ profileId }` (the person's own note plus those of their conversations and messages), `{ conversationId }` (its note plus its messages') or none, both = `invalid`; most recently edited first (`updated_at` desc, ties by `created_at` then rowid, so pages tile), limit clamped to 1..500; each item carries kind, text, dates, profile name / conversation title and, for a message note, the message (id, sent_at, type, author, text, file name); notes on a message that is not in the archive are not returned or counted), and `hasNote` on every item of `getMessageWindow` / `getPersonTimelineWindow` / `listFavorites` through a LEFT JOIN on the unique `(conversation_id, fingerprint)` index (page rows only, so no N+1); use cases in `lib/usecases/notes.ts`; guarded by `notes.perf.test.ts`); full-text search (a derived index, no change to the library schema): `getSearchStatus` (`not-built` / `stale` / `ready` plus the message total), `stepSearchIndex({ limit? })` (one chunk of a reconcile pass, default 5,000 messages, clamped to 100..20,000: adds what is missing, removes what is gone or different; `finished` / `verified` end the pass) and `searchMessages({ scope?, query, offset, limit })` (scope = `{ profileId }`, `{ conversationId }` or none, both = `invalid`, unknown = `not-found`; the query is reduced to quoted words with the last one as a prefix from 2 letters, so no FTS5 syntax typed by a person reaches the engine; newest first in the timeline order; limit clamped to 1..500; items are timeline-shaped plus `snippet: { text, ranges }`, plain text with UTF-16 offsets, never HTML; `unavailable` before the first complete pass); use cases in `lib/usecases/search.ts` (`getSearchStatus`, `buildSearchIndex({ onProgress, signal })`, `searchMessages(scope, query, offset, limit)`, which brings a missing or stale index up to date first); guarded by `search.perf.test.ts`),
@@ -409,6 +444,16 @@ test type or architecture rule means updating this file **in the same PR**.
   - `lib/db/snapshot.ts` — `serializeDb`, `loadSnapshot`, `listBlobs`, `isLibraryEmpty`.
   - `lib/exporters/archive/` — `format.ts` (manifest, limits, `ArchiveError`, path validation),
     `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`openArchive`, `restoreArchive`), `verify.ts` (`verifyArchive`).
+  - `lib/exporters/changes-pack/` — the changes pack for manual sync (see "Phase 7" notes above and
+    `docs/formats/changes-pack.md`): `format.ts`, `write.ts`, `read.ts`, tests `format|write|read.test.ts`;
+    `lib/db/changes.test.ts` and `lib/usecases/changes-pack-export.test.ts` cover the queries and the
+    end-to-end export (since-watermark vs full, tombstones, media only for changed records, determinism,
+    encrypted pack, watermark not advanced by exporting); `identify.ts` (`identifyArchiveFile`: backup, pack or
+    unknown by the manifest's `format`). The merge: `lib/domain/changes-pack-parse.ts` (strict validators of every
+    record of an untrusted pack), `lib/db/merge.ts` (`mergeChangesPack`, `refusalOf`), `lib/db/conflicts.ts`,
+    `lib/usecases/changes-pack-import.ts` (`importChangesPack`, `detectArchiveFile`), `sync-conflicts.ts`;
+    tests `changes-pack-import.test.ts`, `sync-conflicts.test.ts`, `changes-pack-parse.test.ts`, with the shared
+    helpers in `lib/usecases/test-sync.ts`.
   - `lib/importers/whatsapp/` — `zip.ts` (single ZIP reader: central directory + ZIP64 over
     `Blob.slice`, fflate streaming inflate per entry), `lines.ts` (UTF-8 decoding + line
     splitting), `timestamp.ts`, `message.ts` (state machine), `chat.ts` (transcript entry,
@@ -555,6 +600,65 @@ test type or architecture rule means updating this file **in the same PR**.
   backups carry `schemaVersion` 7, so an older app refuses them (`newer-schema`). There is no merge of two
   devices' archives in the code yet; when it exists it must treat `highlights` like favorites and notes
   (union by key).
+- **Schema v8 (implemented, expand-only; foundation of manual device-to-device sync)** — format and
+  rationale in `docs/formats/changes-pack.md`. New: `device(singleton, id, created_at, change_seq)` (this
+  library's identity and a monotonic change counter; the migration creates the row with a random id and
+  counter 1, so reading the id never changes the file; `ensureDevice` is only a safety net), `sync_peers(peer_id, last_sent_seq,
+  last_sent_at, last_received_seq, last_received_at)` and `tombstones(kind, scope, key, deleted_at, seq)`
+  (kind favorite / note / batch; local ones have `changed_by` NULL). Added columns, all defaulted: `seq` on profiles, conversations,
+  import_batches, favorites, notes (backfilled to the baseline `1`, deterministic) and `changed_by` on
+  profiles, conversations, notes, favorites, tombstones (NULL = made here). Every write path in `lib/db/queries.ts` stamps the
+  row through `lib/db/sync.ts` (`stampRows`, `recordTombstone` / `clearTombstone`; no triggers, because a
+  snapshot with triggers is refused); a no-op write stamps nothing (including a profile save that changes no field). Removing a conversation
+  by undoing its last import writes tombstones for its favorites, notes and other batches
+  (`recordConversationCascade`). Highlights, messages, participants
+  and blobs have no `seq` (messages travel with their import batch; highlights are not synced).
+  Use cases in `lib/usecases/sync-state.ts`: `getDeviceId`, `listPeers`, `getPeerState`, `countUnsentChanges` (read-only COUNTs per peer, with `lastSentAt` / `lastExchangeAt`), `peekDeviceId` (read-only lookup, `null` when no device row; never inserts),
+  `recordSent`, `recordReceived` (the peer's `ack` replaces the sent watermark, so a lost pack is resent).
+  **In-app reminders** (`lib/usecases/reminders.ts`, prefs in `lib/storage/reminder-prefs.ts`, `hooks/use-reminders.ts`, `ReminderCard` on People, Backup and Sync, `ReminderSettingsCard` in Settings): evaluated when a screen opens from `isLibraryEmpty`, `peekDeviceId` + `countUnsentChanges` (read-only: no device row is ever created by a reminder check, and only peers exchanged with in the last 90 days count, so a receive-only or long-gone peer cannot keep "changes waiting" alive) and two localStorage keys (`memory-archive:reminders` = the person's choices, kept across restores; `memory-archive:reminders-state` = per-library bookkeeping tagged with the device id and dropped when it changes, so a restored library inherits no snooze or last-backup time). No notification, push, timer or network. Tests: `reminders.test.ts`, `components/reminder-card.test.tsx`. **A restore
+  or replace makes a NEW device** (`loadSnapshot` ignores the backup's `device` and `sync_peers`, calls
+  `renewDevice`: fresh id, no peers; the counter continues from the highest `seq` really present, and a
+  negative or unsafe-integer `seq` makes the snapshot invalid); tombstones travel in backups;
+  `isLibraryEmpty` ignores `device`, `sync_peers` and `tombstones`. Archive `formatVersion` stays 1;
+  v1-v7 backups restore by migrating, new backups carry `schemaVersion` 8 (an older app refuses them).
+  **Export of changes packs (queue item 14)**: `lib/db/changes.ts` (`readChangeSet`: the records, the
+  closure and `upTo` read in ONE synchronous step in the worker; `readBatchMessages`: a batch's messages in pages;
+  ops `readChangeSet` / `readBatchMessages`), `lib/exporters/changes-pack/` (`format.ts` manifest, paths, names;
+  `write.ts` deterministic writer over the backup's ZIP rules; `read.ts` `openChangesPack` / `readPackLines` /
+  `verifyChangesPack`, a structural verifier, NOT a merge; `test-pack.ts` synthetic helpers) which reuse the
+  backup's `ArchiveLimits`, `validateEntryPath` and `openZipPackage` (the generic form of `openArchive`), and
+  `lib/usecases/changes-pack-export.ts` (`exportChangesPack`, optional `.mabackup` envelope, under the archive guard).
+  **Exporting never moves a watermark**: the caller confirms with `confirmChangesPackDelivered` (`recordSent`) once
+  the file is saved or shared, and that refuses if the device id changed (a restore) meanwhile. A pack for an unknown
+  device, or a forced one, is `full` (no target, `ack` null). The confirmation is a compare-and-set on the
+  pack's `since` (`recorded: false` when an ack or a newer pack moved the watermark first). Memory: records
+  are bounded per line (4 MiB in bytes) but `readChangeSet` loads ALL non-message records at once and the
+  pack is assembled as one `Blob`, so a full pack of a very large library costs memory proportional to its
+  records plus the 16 MB write buffer (media streams from OPFS and is not held); the writer rejects with
+  `limit-exceeded` before handing anything over. Streaming it to disk is not built. Domain types: `lib/domain/changes-pack.ts`. 
+  **Merge of changes packs (queue item 15, schema v9)**: `importChangesPack(deps, file, { password?, ... })` in
+  `lib/usecases/changes-pack-import.ts`, under the archive guard. Order: decrypt (a sealed file is a pack only
+  after decrypting, by the manifest's `format`: `detectArchiveFile`), open and refuse early (`ChangesPackMergeError`
+  `wrong-device` / `own-pack` / `gap`, `newer-format` / `newer-schema`), read and validate EVERY record
+  (`lib/domain/changes-pack-parse.ts`: types, UUIDs, hashes, normalized profile / note text, tombstone key shapes,
+  duplicates; unknown extra keys ignored; the same validators run again in the worker), counts and the blob
+  listing checked against the manifest, media streamed into the store (hash-verified, hashes the store has are not
+  rewritten; removed again on any later failure), then ONE transaction in the worker (`mergeChangesPack`,
+  `lib/db/merge.ts`): blobs, profiles, conversations, batches, favorites, notes, tombstones, `recordReceived`.
+  Decisions use the watermarks only (`S changed it` = `seq > lastReceived`, `we changed it` = `seq > lastSent` and
+  `changed_by` is not S); merged rows are stamped with `stampMergedRows` (new local `seq`, `changed_by` = the
+  peer). Writing a conversation record from a pack writes `participants.profile_id` / `is_me` and always stamps
+  the conversation. Records the pack carries a second time, or whose `seq` is not above what was received, change
+  nothing; a pack no newer than the last one merged does not touch the watermark. **Schema v10** (expand-only) adds `import_batches.changed_by` (the peer a batch was merged from; NULL = made here, which is also every pre-v10 row) so batches get the same echo rule as other records in packs and in `countUnsentChanges`; backups of v1-v9 restore by migrating, `formatVersion` unchanged. **Schema v9** adds only
+  `sync_conflicts(id, peer_id, kind, scope, key, incoming, incoming_deleted, detected_at)`: a crossed edit
+  (profile, conversation, note; deleted-there/edited-here and the reverse for notes) keeps `incoming` beside the
+  untouched active record, and an undone batch from a peer is stored the same way as an OFFER (`kind: 'batch'`,
+  nothing removed). It is peer state like `sync_peers`: a restore drops it and `isLibraryEmpty` ignores it.
+  `listSyncConflicts` returns both versions; `resolveSyncConflict(id, 'mine' | 'theirs' | 'both')` is a local edit
+  (new `seq`, travels, the other device fast-forwards); accepting a batch offer runs the ordinary undo. Limits:
+  the records of a pack (not its media) are held in memory and cross the worker boundary in one request
+  (`maxRecordBytes`, default 256 MiB, else `limit-exceeded`); the page-side use case imports `./import` for blob
+  deletion. Not built yet: the import and conflict screens, export reminders.
 - **Search: a derived index (decision, no schema change)** — full-text search runs on an FTS5 table that is
   a rebuildable CACHE, not data. FTS5 is compiled into the bundled sqlite-wasm. It could not live in the
   library: `snapshot.ts` refuses virtual tables, triggers and views in anything restored, and backups
@@ -926,6 +1030,8 @@ test type or architecture rule means updating this file **in the same PR**.
   - Search UI — `components/search-screen.test.tsx`, `components/search-highlight.test.tsx` and `hooks/use-search.test.tsx` (debounce with fake timers, Enter at once, minimum length, stale answer ignored, accent-less query, marks from ranges with hostile text, paging 50 + Show more, empty / error + Retry / unavailable, index progress, Cancel, resume, abort on unmount, stale index copy, scopes and links, not-found) and `e2e/search-ui.spec.ts` (390 and 1440 px: import a synthetic ZIP, search from People, "Preparing search" seen on first use, open a result, scoped search from the person page and the conversation header).
   - Search — `lib/domain/search-query.test.ts` (quoting and prefix rule, operators / `NEAR` / `OR` / `-` / `*` / quotes / column filters are only words, bounds on 1M-character input, snippets cut with ranges, markup and control characters stay text, a cut never splits a surrogate pair, long words are kept whole), `lib/usecases/search.test.ts` (status not-built / stale / ready, progress, abort and continue, shared build, accents and case, prefix, scopes, paging, file names, undo, id reuse never shows another message's text, hostile queries, an export carries no index, restore into an empty library then search rebuilds, restore starts the index over, ids that hold other content never show old text, abort semantics for joined builds, a snapshot with an FTS5 table is refused), `lib/db/search.test.ts` (a write between chunks leaves the pass unverified, a pass resumed after an outside write finds the new message, an undo leaves no table and no free page and costs nothing without an index, damaged / wrong-shaped / cut-short indexes reset and rebuild), the 200k guard `lib/db/search.perf.test.ts` and `e2e/search.spec.ts` (real OPFS: attach / search / detach next to an import, built index survives a reload, undo).
   - Notes — `lib/db/notes.test.ts` (one per target, edit keeps `created_at`, same text is a no-op, empty deletes, bound and control characters, hostile text as data, pair check and unknown targets, scopes and order, tiling pages, `hasNote` in both windows and the favorites list, newer export keeps it, undo leaves it dormant and a re-import revives it, conversation undo cascades), `lib/usecases/notes.test.ts` and the 200k guard `lib/db/notes.perf.test.ts` (plan probes `notes_one_per_message` for the page rows only); schema in `migrations.test.ts` (pinned DDL and indexes, v5 → v6 keeps rows and equals a fresh schema, kind/column CHECKs, uniqueness, cascades, rollback) and `snapshot.test.ts` (v4 and v5 snapshots restore into v6, v6 round-trips all four kinds, orphan / malformed refused).
+  - Changes-pack merge (schema v9) — `lib/usecases/changes-pack-import.test.ts` (A to B gives the same archive including media bytes, the same pack twice changes no row, full after changes, incremental, a third device in either order and relayed, a participant link reaches a third device, wrong device / own pack / gap before anything is stored, ack heals a lost pack, a restored device, deletions and add wins, note conflicts both ways, offered batch undo, hostile records and a merge failing half way leave database and media store untouched, size limit, backups and non-ZIPs refused, newer schema, archive guard, encrypted packs and `detectArchiveFile`), `sync-conflicts.test.ts` (mine / theirs / both converge, replay adds nothing, conflict closes when versions agree, too-long `both`, batch offer accepted or dismissed), `lib/domain/changes-pack-parse.test.ts`, `lib/exporters/changes-pack/identify.test.ts`, `migrations.test.ts` (v8 → v9) and `snapshot.test.ts` (conflicts ignored and dropped by a restore).
+  - Sync tracking (schema v8) — `lib/db/sync.test.ts` (device id created on first use and stable, counter strictly increasing, every write path stamps and a no-op does not, `changed_by` cleared by a local edit, tombstones for favorites / notes / batches and their clearing, a failed write stamps nothing, peer watermarks forward-only, `ack` moves the sent watermark back, clamping, self-peer refused), `lib/usecases/sync-state.test.ts`; `migrations.test.ts` (v7 → v8 on a populated library: rows kept, deterministic backfill to 1, no device row, fresh schema equals migrated, CHECKs, rollback and retry, older app refuses v8); `snapshot.test.ts` (a restore is a new device with no peers and a counter that continues, two restores of one backup differ, replace renews identity and a failed replace keeps it, a v7 snapshot restores and gets an identity) and `archive.test.ts` (round trip excludes the identity).
   - Person timeline — `lib/db/person-timeline.test.ts` (merge order across conversations, ties, tiling windows, date jump, days, other people's conversations, move / link / unlink, archived person, invalid input), `lib/usecases/person-timeline.test.ts` and the 200k guard `lib/db/person-timeline.perf.test.ts` (plan must be the covering `messages_by_time` walk with no temp b-tree).
   - Database — `lib/db/*.test.ts` run the real sqlite-wasm in memory under Node:
     migrations (empty → latest, idempotent re-run, failed migration rolls back, every
@@ -1129,6 +1235,7 @@ test type or architecture rule means updating this file **in the same PR**.
 - `ai-tooling.md` — rulesync layout and how to add rules, skills and commands.
 - `formats/legacy-json.md` — the versioned `messages.json` envelope and what each legacy output
   can be re-imported from.
+- `formats/changes-pack.md` — the changes pack for manual device-to-device sync: manifest, records, merge and conflict rules, watermarks, device identity (schema v8, pack export and the merge with schema v9 conflicts are implemented; the screens are not)
 - `formats/encrypted-backup.md` — the optional password-encrypted backup envelope (`.mabackup`)
   that wraps the backup ZIP unchanged.
 - `archive/planning/` — the original GSD planning of the wa-backup CLI (phases 1–3, codebase

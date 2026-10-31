@@ -18,6 +18,7 @@ import { formatBytes } from './format';
 export function ImportChoose({
   items,
   skipped,
+  syncFiles,
   headingRef,
   onAdd,
   onRemove,
@@ -26,6 +27,8 @@ export function ImportChoose({
   items: FileItem[];
   /** Files that were offered but cannot be imported yet (not a ZIP, text or old backup file). */
   skipped: number;
+  /** Files that are changes files from another device: left out, with a pointer to Sync devices. */
+  syncFiles: number;
   headingRef: React.Ref<HTMLHeadingElement>;
   onAdd: (files: File[]) => void;
   onRemove: (id: string) => void;
@@ -143,6 +146,17 @@ export function ImportChoose({
         <p role="status" className="text-mu text-sm break-words empty:hidden">
           {skipped > 0 ? t('choose.skipped', { count: skipped }) : ''}
         </p>
+        {syncFiles > 0 && (
+          <div role="status" data-testid="sync-pointer" className="bg-bg flex flex-col gap-1 rounded-[14px] p-3.5 text-sm">
+            <p>{t('choose.syncPointer.text', { count: syncFiles })}</p>
+            <Link
+              href="/sync"
+              className="text-ac-tx focus-visible:ring-ring/50 flex min-h-11 w-fit items-center rounded-full px-2 font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px]"
+            >
+              {t('choose.syncPointer.link')}
+            </Link>
+          </div>
+        )}
       </section>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

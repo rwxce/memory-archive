@@ -5,6 +5,7 @@ import ca from '@/messages/ca.json';
 import { sha256Hex } from '@/lib/domain/sha256';
 import { BLOBS_DIRECTORY, type OpfsDirectoryHandle } from '@/lib/storage/opfs-blob-store';
 import { exportArchiveFromLibrary } from '@/lib/usecases/archive-backup';
+import { exportChangesPack } from '@/lib/usecases/changes-pack-export';
 import { createTestLibrary } from '@/lib/usecases/test-client';
 import { click, renderWithLibrary, settle, type Rendered } from './test-utils';
 import { announceStep } from './backup-check-cards';
@@ -143,6 +144,21 @@ describe('BackupScreen', () => {
     expect(view.container.querySelector('[data-testid="backup-counts"]')!.textContent).toContain('3 messages');
     expect(view.container.querySelector('[data-testid="replace-input"]')).not.toBeNull();
   });
+  test('a changes file from another device picked here is pointed to Sync devices and is not opened', async () => {
+    const source = await seeded();
+    const pack = await exportChangesPack(source.deps, { appVersion: '1.0.0' });
+    const target = await createTestLibrary();
+    view = await renderWithLibrary(<BackupScreen />, { lib: target });
+    await settle();
+    await pick(view.container.querySelector('[data-testid="restore-input"]'), new File([pack.blob], pack.fileName));
+    await settle();
+    const pointer = result(view, 'sync-pointer')!;
+    expect(pointer.textContent).toContain(pack.fileName);
+    expect(pointer.querySelector('a[href="/sync"]')?.textContent).toBe(b.syncPointer.link);
+    expect(view.container.textContent).not.toContain(en.archive.done.restore);
+    expect(target.opened.db.all<{ n: number }>('SELECT count(*) AS n FROM messages')[0].n).toBe(0);
+  });
+
   test('checking the archive: all files in place', async () => {
     view = await renderWithLibrary(<BackupScreen />, { lib: await seeded() });
     await settle();

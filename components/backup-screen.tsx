@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { BackupCopyCard } from '@/components/backup-copy-card';
 import { FileCheckCard, LibraryCheckCard } from '@/components/backup-check-cards';
+import { ReminderCard } from '@/components/reminder-card';
 import { BackupUsageCard } from '@/components/backup-usage-card';
 import { LibraryNotice } from '@/components/library-notice';
 import { PageTitle } from '@/components/page-title';
@@ -54,9 +55,10 @@ function BackupContent() {
   return (
     <Shell back={{ href: '/settings', label: tn('title') }}>
       <div className="flex flex-col gap-1.5">
-        <PageTitle>{t('title')}</PageTitle>
+        <PageTitle tabIndex={-1}>{t('title')}</PageTitle>
         <p className="text-t2 leading-relaxed">{t('intro')}</p>
       </div>
+      <ReminderCard kinds={['backup']} refreshKey={backup.state.status} />
       <BackupUsageCard state={usage} />
       <BackupCopyCard backup={backup} canRestore={canRestore} busy={libraryCheck.state.status === 'running'} usage={usage} />
       <LibraryCheckCard check={libraryCheck} busy={backup.state.status === 'working'} />

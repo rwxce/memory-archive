@@ -33,6 +33,7 @@ import {
   normalizeRelationship,
 } from '../domain/profile';
 import { DbError } from './errors';
+import { clearTombstone, recordConversationCascade, recordTombstone, stampRows } from './sync';
 import { transaction, type SqlDb, type SqlValue } from './sql';
 
 /**
@@ -140,6 +141,7 @@ export function createProfile(db: SqlDb, input: CreateProfileInput): Profile {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [input.id, displayName, relationship, description, photoSha256, input.now, input.now],
     );
+    stampRows(db, 'profiles', 'id = ?', [input.id]);
     return readProfile(db, input.id);
   });
 }
@@ -175,13 +177,21 @@ export function updateProfile(db: SqlDb, input: UpdateProfileInput): Profile {
   }
   const photo = input.photo === undefined ? undefined : checkPhoto(input.photo);
   return transaction(db, () => {
-    readProfile(db, input.id);
+    const before = readProfile(db, input.id);
     if (photo !== undefined) {
       sets.push('photo_sha256 = ?');
       values.push(registerPhoto(db, photo));
     }
     if (sets.length > 0) {
       db.run(`UPDATE profiles SET ${sets.join(', ')}, updated_at = ? WHERE id = ?`, [...values, input.now, input.id]);
+      const after = readProfile(db, input.id);
+      // Only a real change is a new version to send; a save that changed nothing stamps nothing.
+      if (
+        after.displayName !== before.displayName || after.relationship !== before.relationship ||
+        after.description !== before.description || after.photoSha256 !== before.photoSha256
+      ) {
+        stampRows(db, 'profiles', 'id = ?', [input.id]);
+      }
     }
     return readProfile(db, input.id);
   });
@@ -214,6 +224,7 @@ export function setProfilePhoto(db: SqlDb, input: SetProfilePhotoInput): SetProf
     const before = readProfile(db, input.id);
     const photoSha256 = registerPhoto(db, photo);
     db.run('UPDATE profiles SET photo_sha256 = ?, updated_at = ? WHERE id = ?', [photoSha256, input.now, input.id]);
+    if (photoSha256 !== before.photoSha256) stampRows(db, 'profiles', 'id = ?', [input.id]);
     const unreferencedBlobs: string[] = [];
     const old = before.photoSha256;
     if (old !== null && old !== photoSha256 && !isReferenced(db, old)) {
@@ -244,6 +255,7 @@ export function setProfileArchived(db: SqlDb, input: SetProfileArchivedInput): P
         input.now,
         input.id,
       ]);
+      stampRows(db, 'profiles', 'id = ?', [input.id]);
     }
     return readProfile(db, input.id);
   });
@@ -301,6 +313,7 @@ function insertConversation(db: SqlDb, input: CreateConversationInput): void {
       p.profileId,
     ]);
   }
+  stampRows(db, 'conversations', 'id = ?', [input.id]);
 }
 
 export function createConversation(db: SqlDb, input: CreateConversationInput): void {
@@ -387,7 +400,9 @@ export function renameConversation(db: SqlDb, input: { conversationId: string; t
   const title = field(normalizeConversationTitle, input.title);
   return transaction(db, () => {
     readConversation(db, input.conversationId);
-    db.run('UPDATE conversations SET title = ? WHERE id = ?', [title, input.conversationId]);
+    if (db.run('UPDATE conversations SET title = ? WHERE id = ? AND title <> ?', [title, input.conversationId, title]) > 0) {
+      stampRows(db, 'conversations', 'id = ?', [input.conversationId]);
+    }
     return readConversation(db, input.conversationId);
   });
 }
@@ -405,10 +420,11 @@ export function linkConversationProfile(db: SqlDb, input: ConversationProfileInp
   return transaction(db, () => {
     readConversation(db, input.conversationId);
     requireProfileExists(db, input.profileId);
-    db.run('INSERT OR IGNORE INTO conversation_profiles (conversation_id, profile_id) VALUES (?, ?)', [
+    const linked = db.run('INSERT OR IGNORE INTO conversation_profiles (conversation_id, profile_id) VALUES (?, ?)', [
       input.conversationId,
       input.profileId,
     ]);
+    if (linked > 0) stampRows(db, 'conversations', 'id = ?', [input.conversationId]);
     return readConversation(db, input.conversationId);
   });
 }
@@ -424,10 +440,11 @@ export function unlinkConversationProfile(db: SqlDb, input: ConversationProfileI
   requireUuid(input.profileId, 'profile id');
   return transaction(db, () => {
     readConversation(db, input.conversationId);
-    db.run('DELETE FROM conversation_profiles WHERE conversation_id = ? AND profile_id = ?', [
+    const unlinked = db.run('DELETE FROM conversation_profiles WHERE conversation_id = ? AND profile_id = ?', [
       input.conversationId,
       input.profileId,
     ]);
+    if (unlinked > 0) stampRows(db, 'conversations', 'id = ?', [input.conversationId]);
     return readConversation(db, input.conversationId);
   });
 }
@@ -466,6 +483,7 @@ export function moveConversation(db: SqlDb, input: MoveConversationInput): Conve
         input.conversationId,
         input.fromProfileId,
       ]);
+      stampRows(db, 'conversations', 'id = ?', [input.conversationId]);
     }
     return readConversation(db, input.conversationId);
   });
@@ -518,7 +536,8 @@ export interface ImportMessagesResult {
   unreferencedBlobs: string[];
 }
 
-function isReferenced(db: SqlDb, sha256: string): boolean {
+/** Whether a message or a profile photo refers to the media hash. */
+export function isReferenced(db: SqlDb, sha256: string): boolean {
   return (
     db.all('SELECT 1 FROM messages WHERE media_sha256 = ? LIMIT 1', [sha256]).length > 0 ||
     db.all('SELECT 1 FROM profiles WHERE photo_sha256 = ? LIMIT 1', [sha256]).length > 0
@@ -583,6 +602,7 @@ export function importMessages(db: SqlDb, input: ImportMessagesInput): ImportMes
        VALUES (?, ?, ?, ?, ?, ?)`,
       [input.batchId, input.conversationId, input.source, input.sourceLabel, input.now, created ? 1 : 0],
     );
+    stampRows(db, 'import_batches', 'id = ?', [input.batchId]);
     for (const b of input.blobs) {
       db.run('INSERT OR IGNORE INTO blobs (sha256, size, mime) VALUES (?, ?, ?)', [b.sha256, b.size, b.mime]);
     }
@@ -627,10 +647,10 @@ export function importMessages(db: SqlDb, input: ImportMessagesInput): ImportMes
       );
     }
     if (input.meAuthor !== undefined && input.meAuthor !== null) {
-      db.run('UPDATE participants SET is_me = (id = ?) WHERE conversation_id = ?', [
-        participantId(input.meAuthor),
-        input.conversationId,
-      ]);
+      const me = participantId(input.meAuthor);
+      const [current] = db.all<{ id: number }>('SELECT id FROM participants WHERE conversation_id = ? AND is_me = 1', [input.conversationId]);
+      db.run('UPDATE participants SET is_me = (id = ?) WHERE conversation_id = ?', [me, input.conversationId]);
+      if (current?.id !== me) stampRows(db, 'conversations', 'id = ?', [input.conversationId]);
     }
     const skipped = input.messages.length - added;
     db.run('UPDATE import_batches SET added_count = ?, skipped_count = ? WHERE id = ?', [added, skipped, input.batchId]);
@@ -798,7 +818,18 @@ export function undoImportBatch(db: SqlDb, batchId: string): UndoImportBatchResu
     }
     const [{ n }] = db.all<{ n: number }>('SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ?', [batch.conversationId]);
     const removedConversation = batch.created === 1 && n === 0;
+    // The undo travels as a tombstone of the batch (informational for peers: see the format doc).
+    recordTombstone(db, 'batch', batch.conversationId, batchId);
+    // Open sync conflicts about what is going away can no longer be decided: the offer to undo this batch,
+    // and (with the conversation) every conflict on the conversation, its notes and its other batches.
+    db.run("DELETE FROM sync_conflicts WHERE kind = 'batch' AND key = ?", [batchId]);
     if (removedConversation) {
+      db.run(
+        "DELETE FROM sync_conflicts WHERE (kind = 'conversation' AND key = ?) OR (kind IN ('note', 'batch') AND scope = ?)",
+        [batch.conversationId, batch.conversationId],
+      );
+      // Its favorites, notes and other batches go with it: each deletion leaves a tombstone.
+      recordConversationCascade(db, batch.conversationId, batchId);
       // Its other batches added nothing (no message is left), so they go with it.
       db.run('DELETE FROM import_batches WHERE conversation_id = ?', [batch.conversationId]);
       db.run('DELETE FROM conversations WHERE id = ?', [batch.conversationId]);
@@ -1327,13 +1358,17 @@ export function setFavorite(db: SqlDb, input: SetFavoriteInput): { messageId: nu
     ]);
     if (!row) notFound('message');
     if (input.favorite) {
-      db.run('INSERT OR IGNORE INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [
+      const added = db.run('INSERT OR IGNORE INTO favorites (conversation_id, fingerprint, created_at) VALUES (?, ?, ?)', [
         conversationId,
         row.fingerprint,
         input.now,
       ]);
-    } else {
-      db.run('DELETE FROM favorites WHERE conversation_id = ? AND fingerprint = ?', [conversationId, row.fingerprint]);
+      if (added > 0) {
+        stampRows(db, 'favorites', 'conversation_id = ? AND fingerprint = ?', [conversationId, row.fingerprint]);
+        clearTombstone(db, 'favorite', conversationId, row.fingerprint);
+      }
+    } else if (db.run('DELETE FROM favorites WHERE conversation_id = ? AND fingerprint = ?', [conversationId, row.fingerprint]) > 0) {
+      recordTombstone(db, 'favorite', conversationId, row.fingerprint, input.now);
     }
     return { messageId: input.messageId, isFavorite: input.favorite };
   });
@@ -1458,6 +1493,13 @@ function noteWhere(key: NoteKey): { where: string; params: SqlValue[] } {
   return { where: 'conversation_id = ? AND fingerprint = ?', params: [key.conversationId, key.fingerprint] };
 }
 
+/** How a deleted note is named in `tombstones` (see schema v8). */
+function noteTombstoneKey(key: NoteKey): { scope: string; key: string } {
+  if (key.kind === 'profile') return { scope: '', key: `profile:${key.profileId}` };
+  if (key.kind === 'conversation') return { scope: key.conversationId!, key: 'conversation' };
+  return { scope: key.conversationId!, key: `message:${key.fingerprint}` };
+}
+
 const NOTE_COLUMNS = 'kind, body, created_at AS createdAt, updated_at AS updatedAt';
 
 /** The note on a target, or `null` when there is none. `not-found` when the target does not exist. */
@@ -1479,8 +1521,9 @@ export function setNote(db: SqlDb, input: SetNoteInput): Note | null {
   return transaction(db, () => {
     const key = resolveNoteTarget(db, input.target);
     const { where, params } = noteWhere(key);
+    const tombstone = noteTombstoneKey(key);
     if (body === '') {
-      db.run(`DELETE FROM notes WHERE ${where}`, params);
+      if (db.run(`DELETE FROM notes WHERE ${where}`, params) > 0) recordTombstone(db, 'note', tombstone.scope, tombstone.key, input.now);
       return null;
     }
     const [existing] = db.all<Note>(`SELECT ${NOTE_COLUMNS} FROM notes WHERE ${where}`, params);
@@ -1494,10 +1537,13 @@ export function setNote(db: SqlDb, input: SetNoteInput): Note | null {
         input.now,
         input.now,
       ]);
+      stampRows(db, 'notes', where, params);
+      clearTombstone(db, 'note', tombstone.scope, tombstone.key);
       return { kind: key.kind, body, createdAt: input.now, updatedAt: input.now };
     }
     if (existing.body === body) return existing;
     db.run(`UPDATE notes SET body = ?, updated_at = ? WHERE ${where}`, [body, input.now, ...params]);
+    stampRows(db, 'notes', where, params);
     return { ...existing, body, updatedAt: input.now };
   });
 }

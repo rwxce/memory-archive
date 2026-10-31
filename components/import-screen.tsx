@@ -10,6 +10,7 @@ import { LibraryNotice } from '@/components/library-notice';
 import type { ProfileFormValues } from '@/components/profile-form';
 import { Shell } from '@/components/screen-shell';
 import { PillButton } from '@/components/pill-button';
+import { peekArchiveFile } from '@/hooks/peek-archive-file';
 import { useSharedInbox } from '@/hooks/use-device-storage';
 import { useImportActions } from '@/hooks/use-import';
 import { useLibrary } from '@/hooks/use-library';
@@ -58,6 +59,8 @@ function ImportContent({ onRetry }: { onRetry: () => void }) {
   const [position, setPosition] = useState<{ index: number; step: StepId }>({ index: 0, step: 1 });
   const [message, setMessage] = useState('');
   const [skipped, setSkipped] = useState(0);
+  /** Files that are changes files from another device: not chats, so they are left out and pointed to Sync devices. */
+  const [syncFiles, setSyncFiles] = useState(0);
   const [progress, setProgress] = useState<ImportProgress>();
   const [cancelling, setCancelling] = useState(false);
 
@@ -74,6 +77,8 @@ function ImportContent({ onRetry }: { onRetry: () => void }) {
   const jobs = useRef(new Map<string, AbortController>());
   const runAbort = useRef<AbortController>(undefined);
   const nextId = useRef(0);
+  /** Batches of files whose kind is still being read. */
+  const peeking = useRef(0);
   const seenShared = useRef(new Set<string>());
   const chooseHeading = useRef<HTMLHeadingElement>(null);
   const runHeading = useRef<HTMLHeadingElement>(null);
@@ -87,11 +92,29 @@ function ImportContent({ onRetry }: { onRetry: () => void }) {
   const add = useCallback((files: File[], sharedKeys: (string | undefined)[] = []) => {
     const accepted = files.map((file, i) => ({ file, key: sharedKeys[i] })).filter(({ file }) => isImportableExport(file));
     setSkipped(files.length - accepted.length);
-    setItems((list) => {
-      const same = (a: File, b: File) => a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
-      const fresh = accepted.filter(({ file }) => !list.some((item) => same(item.file, file)));
-      return [...list, ...fresh.map(({ file, key }) => newItem(`file-${nextId.current++}`, file, key))];
-    });
+    // A new count starts only when no other batch is still being looked at; otherwise it adds to theirs.
+    if (peeking.current === 0) setSyncFiles(0);
+    // Pick order is fixed now, before any file is looked at: a quick file must not jump the queue.
+    const ids = accepted.map(() => nextId.current++);
+    peeking.current++;
+    void (async () => {
+      try {
+        // A changes file looks like any other ZIP: its manifest says what it is, never its name.
+        const kinds = await Promise.all(accepted.map(({ file }) => peekArchiveFile(file)));
+        const packs = accepted.filter((_, i) => kinds[i] === 'changes-pack').length;
+        if (packs > 0) setSyncFiles((count) => count + packs);
+        // A shared changes file stays in the inbox: Sync devices lists it and adds or removes it from there.
+        const chats = accepted.map((entry, i) => ({ ...entry, seq: ids[i] })).filter((_, i) => kinds[i] !== 'changes-pack');
+        setItems((list) => {
+          const same = (a: File, b: File) => a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
+          const fresh = chats.filter(({ file }) => !list.some((item) => same(item.file, file)));
+          const added = fresh.map(({ file, key, seq }) => newItem(`file-${seq}`, file, key));
+          return [...list, ...added].sort((a, b) => Number(a.id.slice(5)) - Number(b.id.slice(5)));
+        });
+      } finally {
+        peeking.current--;
+      }
+    })();
   }, []);
 
   // Files shared from WhatsApp are offered in the same list, once each.
@@ -421,6 +444,7 @@ function ImportContent({ onRetry }: { onRetry: () => void }) {
         <ImportChoose
           items={items}
           skipped={skipped}
+          syncFiles={syncFiles}
           headingRef={chooseHeading}
           onAdd={(files) => add(files)}
           onRemove={remove}
