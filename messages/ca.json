@@ -1334,8 +1334,143 @@
       "working": "Desfent la importació…",
       "undone": "{count, plural, one {S’ha tret # foto o vídeo de la col·lecció.} other {S’han tret # fotos i vídeos de la col·lecció.}}",
       "undoneNone": "Aquesta importació ja s’havia desfet.",
-      "undoFailed": "No s’ha pogut desfer la importació. Torna-ho a provar d’aquí a un moment; la llista mostra què hi ha."
+      "undoFailed": "No s’ha pogut desfer la importació. Torna-ho a provar d’aquí a un moment; la llista mostra què hi ha.",
+      "confirmAssignments": "Si una foto estava assignada a persones i no la té cap altre lloc, també se la treu d’aquestes persones.",
+      "undoneAssignments": "{count, plural, one {# assignació a una persona s’ha eliminat amb elles.} other {# assignacions a persones s’han eliminat amb elles.}}"
     },
-    "busyNow": "Hi ha una altra importació en marxa. Espera que acabi i torna a triar."
+    "busyNow": "Hi ha una altra importació en marxa. Espera que acabi i torna a triar.",
+    "selectLink": {
+      "title": "Tria fotos per a les persones",
+      "body": "{count, plural, =0 {Totes les fotos estan assignades a algú.} one {# foto encara no està assignada a ningú.} other {# fotos encara no estan assignades a ningú.}}",
+      "open": "Tria fotos"
+    },
+    "select": {
+      "title": "Tria fotos per a les persones",
+      "intro": "Tria les fotos i digues per a qui són. Res s’assigna per data ni per àlbum.",
+      "hint": "Prem Seleccionar i toca les fotos per triar-les. Amb teclat, fes servir les fletxes i l’espai; amb Maj premut tries un tram.",
+      "loading": "Carregant les fotos…",
+      "failed": "No s’han pogut llegir les fotos. No s’ha canviat res.",
+      "retry": "Torna-ho a provar",
+      "empty": {
+        "unassigned": "Totes les fotos estan assignades a algú.",
+        "assigned": "Cap foto no està assignada a ningú encara.",
+        "all": "Encara no hi ha cap foto.",
+        "add": "Afegeix fotos"
+      },
+      "filter": {
+        "label": "Què mostrar",
+        "unassigned": "Sense assignar",
+        "assigned": "Assignades",
+        "all": "Totes"
+      },
+      "selectMode": "Seleccionar",
+      "jump": {
+        "label": "Vés a",
+        "placeholder": "Un mes…",
+        "option": "{name} ({count})",
+        "undated": "Sense data ({count})",
+        "empty": "Cap foto d’aquest mes és en aquesta llista.",
+        "stopped": "Aquest mes queda lluny a la llista. S’han carregat tantes fotos com és sensat; fes servir Mostra més fotos per continuar.",
+        "failed": "No s’han pogut llegir les fotos, així que el salt s’ha aturat. No s’ha canviat res."
+      },
+      "day": {
+        "undated": "Sense data",
+        "estimated": "estimada",
+        "select": "Tria el dia",
+        "unselect": "Desfés el dia",
+        "selectLabel": "Tria {count, plural, one {la # foto} other {les # fotos}} del dia {day}",
+        "unselectLabel": "Desfés la tria {count, plural, one {de la # foto} other {de les # fotos}} del dia {day}",
+        "selectPartLabel": "Tria {count, plural, one {la # foto} other {les # fotos}} del dia {day} que es mostren en aquest grup",
+        "unselectPartLabel": "Desfés la tria {count, plural, one {de la # foto} other {de les # fotos}} del dia {day} que es mostren en aquest grup"
+      },
+      "tile": {
+        "photo": "Foto",
+        "video": "Vídeo",
+        "noDate": "sense data",
+        "about": "cap al {date}, estimada",
+        "assigned": "ja assignada",
+        "estimated": "Estimada",
+        "failed": "No es pot mostrar"
+      },
+      "count": "{count, plural, one {# foto triada} other {# fotos triades}}",
+      "assignButton": "Assigna a…",
+      "clear": "Esborra la tria",
+      "cap": "Pots triar fins a {max} fotos alhora. Assigna aquestes primer i després tria’n més.",
+      "left": "{count, plural, one {# foto s’ha assignat i ha sortit d’aquesta llista.} other {# fotos s’han assignat i han sortit d’aquesta llista.}}",
+      "showMore": "Mostra més fotos",
+      "loadingMore": "Carregant-ne més…",
+      "moreFailed": "No s’han pogut llegir més fotos. No s’ha canviat res.",
+      "result": {
+        "label": "Resultat",
+        "added": "{count, plural, =0 {No s’ha assignat res de nou.} one {S’ha afegit # assignació.} other {S’han afegit # assignacions.}}",
+        "already": "{count, plural, one {# ja hi era.} other {# ja hi eren.}}",
+        "undoNote": "Desfer només retira el que s’acaba d’afegir. El que ja estava assignat es queda.",
+        "undo": "Desfés aquesta assignació",
+        "undone": "{count, plural, =0 {No calia retirar res.} one {S’ha retirat # assignació.} other {S’han retirat # assignacions.}}",
+        "failed": "Pot ser que les fotos no s’hagin assignat. L’assignació es fa tota o no es fa. Mira la llista d’Assignades per comprovar-ho i torna-ho a provar.",
+        "undoFailed": "No s’ha pogut desfer l’assignació. No s’ha canviat res, així que pots tornar-ho a provar.",
+        "close": "Fet"
+      },
+      "detail": {
+        "label": "Foto",
+        "close": "Tanca",
+        "previous": "Anterior",
+        "next": "Següent",
+        "position": "{current} de {total}",
+        "positionMore": "{current} de {total} mostrades",
+        "loading": "Carregant…",
+        "missing": "El fitxer d’aquesta foto no és en aquest dispositiu.",
+        "error": "No s’ha pogut mostrar aquesta foto.",
+        "too-large": "Aquest fitxer és massa gran per mostrar-lo aquí.",
+        "photo": "Foto",
+        "video": "Vídeo",
+        "file": "Fitxer",
+        "date": "Data",
+        "dateAbout": "Cap al {date}",
+        "dateUnknown": "Data desconeguda",
+        "from": {
+          "sidecar": "Del registre de Google Fotos de quan es va fer.",
+          "exif": "De la càmera, amb la seva pròpia zona horària.",
+          "exif-local": "De la càmera, tal com la càmera la va escriure.",
+          "file-modified": "Una estimació: és l’últim cop que es va canviar el fitxer, que potser no és quan es va fer la foto.",
+          "none": "No hi ha res registrat de quan es va fer."
+        },
+        "albums": "Àlbums",
+        "albumsMore": "{count, plural, one {i # més} other {i # més}}",
+        "sources": "Afegida des de",
+        "assignedTo": "Assignada a",
+        "assignedNone": "No està assignada a ningú.",
+        "someone": "algú",
+        "unassign": "Treu-la",
+        "unassignLabel": "Treu aquesta foto de {name}",
+        "unassignFailed": "No s’ha pogut treure la foto. No s’ha canviat res."
+      },
+      "assign": {
+        "title": "Assigna a…",
+        "confirmTitle": "Revisa abans d’assignar",
+        "intro": "{count, plural, one {Per a qui és aquesta foto?} other {Per a qui són aquestes # fotos?}}",
+        "loading": "Carregant les persones…",
+        "loadFailed": "No s’han pogut llegir les persones. No s’ha canviat res.",
+        "nobody": "Encara no hi ha ningú a qui assignar-les. Afegeix una persona a Persones i torna.",
+        "nobodyLink": "Vés a Persones",
+        "search": "Cerca persones",
+        "noMatch": "Ningú coincideix.",
+        "listLabel": "Persones",
+        "archived": "arxivada",
+        "limit": "Pots triar fins a {max} persones alhora.",
+        "pickOne": "Tria almenys una persona.",
+        "cancel": "Cancel·la",
+        "next": "Continua",
+        "back": "Enrere",
+        "confirmBody": "{count, plural, one {S’assignarà # foto a:} other {S’assignaran # fotos a:}}",
+        "only": "Res s’assigna per data; només aquestes fotos.",
+        "confirm": "Assigna",
+        "working": "Assignant…",
+        "changed": "La llista de persones ha canviat. Torna enrere i comprova a qui has triat."
+      },
+      "selectionCleared": "S’ha esborrat la tria.",
+      "selectOffKept": "Tria està desactivada. Les {count} fotos triades continuen triades; prem Esborra la tria per deixar-les anar.",
+      "gone": "{count, plural, one {# de les fotos triades ja no és a la col·lecció i s’ha tret de la tria. Torna a triar per a qui són les altres i prova-ho de nou.} other {# de les fotos triades ja no són a la col·lecció i s’han tret de la tria. Torna a triar per a qui són les altres i prova-ho de nou.}}"
+    }
   }
 }

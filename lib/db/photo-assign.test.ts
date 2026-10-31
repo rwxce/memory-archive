@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { PHOTO_ASSIGN_MAX, betterDate, type NewPhotoItem } from '../domain/photo';
 import { DbError } from './errors';
 import { openMemoryDb } from './open';
-import { assignPhotos, countPhotoPictures, getPhotoPicture, listPhotoDates, listPhotoPictures, unassignPhotos } from './photo-assign';
+import { assignPhotos, countPhotoPictures, getPhotoPicture, listPhotoDates, listPhotoPictures, PHOTO_UNDO_MAX, unassignPhotoLinks, unassignPhotos } from './photo-assign';
 import { importPhotoItems, undoPhotoBatch } from './photos';
 import type { SqlDb } from './sql';
 
@@ -210,8 +210,12 @@ describe('assignPhotos / unassignPhotos', () => {
   test('is explicit and idempotent: new links are counted, repeats change nothing and keep created_at', async () => {
     const d = await db();
     add(d, [item(1), item(2)]);
-    expect(assignPhotos(d, { sha256s: [hash(1), hash(2)], profileIds: [P1], now: NOW })).toEqual({ added: 2, alreadyThere: 0 });
-    expect(assignPhotos(d, { sha256s: [hash(2), hash(2), hash(1)], profileIds: [P1, P2], now: '2027-01-01T00:00:00.000Z' })).toEqual({ added: 2, alreadyThere: 2 });
+    expect(assignPhotos(d, { sha256s: [hash(1), hash(2)], profileIds: [P1], now: NOW })).toEqual({ added: 2, alreadyThere: 0, fresh: [{ profileId: P1, sha256s: [hash(1), hash(2)] }] });
+    expect(assignPhotos(d, { sha256s: [hash(2), hash(2), hash(1)], profileIds: [P1, P2], now: '2027-01-01T00:00:00.000Z' })).toEqual({
+      added: 2,
+      alreadyThere: 2,
+      fresh: [{ profileId: P2, sha256s: [hash(2), hash(1)] }],
+    });
     expect(d.all('SELECT created_at FROM photo_profiles WHERE profile_id = ? ORDER BY sha256', [P1])).toEqual([{ created_at: NOW }, { created_at: NOW }]);
   });
 
@@ -257,7 +261,7 @@ describe('assignPhotos / unassignPhotos', () => {
     const d = await db();
     const items = Array.from({ length: PHOTO_ASSIGN_MAX }, (_, i) => item(1, { sha256: `${'0'.repeat(60)}${i.toString(16).padStart(4, '0')}`, fileName: `${i}.jpg` }));
     add(d, items);
-    expect(assignPhotos(d, { sha256s: items.map((i) => i.sha256), profileIds: [P1], now: NOW })).toEqual({ added: PHOTO_ASSIGN_MAX, alreadyThere: 0 });
+    expect(assignPhotos(d, { sha256s: items.map((i) => i.sha256), profileIds: [P1], now: NOW })).toMatchObject({ added: PHOTO_ASSIGN_MAX, alreadyThere: 0, fresh: [{ profileId: P1 }] });
   });
 
   test('unassign removes only that profile\'s links, keeps the picture, and is idempotent', async () => {
@@ -272,6 +276,34 @@ describe('assignPhotos / unassignPhotos', () => {
       { sha256: hash(2), profile_id: P2 },
     ]);
     expect(countPhotoPictures(d).items).toBe(2);
+  });
+
+  test('fresh is left out (null) when more links than an undo can carry were added', async () => {
+    const d = await db();
+    const items = Array.from({ length: PHOTO_ASSIGN_MAX }, (_, i) => item(1, { sha256: `${'0'.repeat(60)}${i.toString(16).padStart(4, '0')}`, fileName: `${i}.jpg` }));
+    add(d, items);
+    const P3 = '00000000-0000-4000-8000-0000000000a3';
+    d.run('INSERT INTO profiles (id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)', [P3, 'Cris', NOW, NOW]);
+    const many = assignPhotos(d, { sha256s: items.map((i) => i.sha256), profileIds: [P1, P2, P3], now: NOW });
+    expect(many.added).toBe(3 * PHOTO_ASSIGN_MAX);
+    expect(many.added).toBeGreaterThan(PHOTO_UNDO_MAX);
+    expect(many.fresh).toBeNull();
+    const few = assignPhotos(d, { sha256s: items.slice(0, 5).map((i) => i.sha256), profileIds: [P1], now: NOW });
+    expect(few).toMatchObject({ added: 0, fresh: [] });
+  });
+
+  test('unassignPhotoLinks removes exactly the given links in one transaction and refuses malformed input without touching anything', async () => {
+    const d = await db();
+    add(d, [item(1), item(2)]);
+    assignPhotos(d, { sha256s: [hash(1), hash(2)], profileIds: [P1, P2], now: NOW });
+    const bad = (input: unknown) => expect(() => unassignPhotoLinks(d, input as never)).toThrow(expect.objectContaining({ code: 'invalid' }));
+    bad({ links: [] });
+    bad({ links: [{ profileId: P1, sha256s: [hash(1)] }, { profileId: 'x', sha256s: [hash(2)] }] });
+    bad({ links: [{ profileId: P1, sha256s: ['nope'] }] });
+    expect(d.all('SELECT 1 FROM photo_profiles')).toHaveLength(4);
+    expect(unassignPhotoLinks(d, { links: [{ profileId: P1, sha256s: [hash(1)] }, { profileId: P2, sha256s: [hash(1), hash(2)] }] })).toEqual({ removed: 3 });
+    expect(d.all('SELECT sha256, profile_id FROM photo_profiles')).toEqual([{ sha256: hash(2), profile_id: P1 }]);
+    expect(unassignPhotoLinks(d, { links: [{ profileId: '00000000-0000-4000-8000-0000000000ff', sha256s: [hash(2)] }] })).toEqual({ removed: 0 });
   });
 
   test('deleting a profile removes its links and nothing else', async () => {

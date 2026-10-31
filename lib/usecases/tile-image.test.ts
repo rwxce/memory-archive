@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import { webpBlob } from '../storage/test-thumbnail';
 import { createTestLibrary } from './test-client';
-import { readTileImage, THUMB_MIN_SOURCE_BYTES, TILE_THUMB_SIZE } from './tile-image';
+import { readTileImage, readTileThumbnail, THUMB_MIN_SOURCE_BYTES, TILE_THUMB_SIZE } from './tile-image';
 
 async function setup(size = THUMB_MIN_SOURCE_BYTES + 1) {
   const lib = await createTestLibrary();
@@ -50,6 +50,17 @@ describe('readTileImage', () => {
     expect(full.size).toBe(THUMB_MIN_SOURCE_BYTES + 1);
     expect(full.type).toBe('image/heic');
     expect(await lib.deps.thumbStore!.usage()).toEqual({ count: 0, bytes: 0 });
+  });
+
+  test('readTileThumbnail: no thumbnail possible (or a photo over the decode limit) is undefined, never the full file', async () => {
+    const { lib, sha256 } = await setup();
+    expect(await readTileThumbnail(lib.deps, { sha256, mime: 'image/heic' }, async () => undefined)).toBeUndefined();
+    expect(await lib.deps.thumbStore!.usage()).toEqual({ count: 0, bytes: 0 });
+    expect((await readTileThumbnail(lib.deps, { sha256 }, async () => thumb()))!.size).toBe(40);
+    // Cached now: served without decoding again.
+    expect((await readTileThumbnail(lib.deps, { sha256 }, async () => undefined))!.size).toBe(40);
+    const small = await setup(THUMB_MIN_SOURCE_BYTES - 1);
+    expect((await readTileThumbnail(small.lib.deps, { sha256: small.sha256 }, async () => undefined))!.size).toBe(THUMB_MIN_SOURCE_BYTES - 1);
   });
 
   test('a small photo is shown as it is, without trying', async () => {

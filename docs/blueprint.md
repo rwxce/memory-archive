@@ -201,8 +201,44 @@ test type or architecture rule means updating this file **in the same PR**.
     shown. Two notes are always visible: pictures are not assigned to anyone yet, and an estimated date comes from the file.
     "Added so far" lists `listPhotoBatches` (label or source, source, when, count; names are text, clamped) with Undo behind an
     inline confirmation that names the import, the number of items and says that pictures also used in a chat, a profile photo
-    or elsewhere stay. No grid and no assignment yet (queue item 20). Tested in `components/photos-screen.test.tsx` (every
+    or elsewhere stay, and (generic wording, no pre-count use case) that a picture nothing else holds is also taken out of
+    the people it was assigned to; after an undo `removedAssignments` is shown. A card "Choose pictures for people" (`photos-select-link`,
+    `use-photo-counts`) shows how many pictures nobody has and links to `/photos/select`. Tested in `components/photos-screen.test.tsx` (every
     detect route, loose import, cancel, errors, undo, double click, escaping) and `e2e/photos.spec.ts` (390 and 1440 px).
+  - **Choose pictures for people** (`/[locale]/photos/select/`, queue item 20b; `components/photos-select-screen.tsx` plus
+    `photo-select-toolbar`, `photo-day-grid`, `photo-tile`, `photo-days.ts`, `photo-select-bar` (action bar and result),
+    `photo-assign-dialog`, `photo-detail-dialog`; hooks `use-photo-grid`, `use-photo-selection`, `use-photo-assign`, `use-photo-image`,
+    `use-photo-months`, `viewer-offset`; copy under `photos.select.*`). Calls only `lib/usecases/photo-assign.ts`. Pictures are grouped by
+    DAY of `photoDisplayDate(picture, viewerOffset)` with a sticky heading (a new group whenever the displayed day changes; undated
+    last; a guessed date is marked "Estimated" on the tile, in its name and in the detail), filters Not assigned (default) / Assigned / All
+    with counts, a jump-to-month `<select>` (`listPhotoMonths`, read again after every assignment, undo and take-out; pages are loaded until the month
+    is on screen, at most `JUMP_PAGES_MAX` = 40 pages, then it stops and says so; a failed page read, or a month that is not in the list, also
+    ends the jump with a calm message), paged by cursor, 120 a page, with the next
+    page read when the end comes near (IntersectionObserver) or by "Show more". The list is NOT virtualized and loaded pages are never unloaded
+    (known limit): every loaded tile stays in the DOM (about 4,900 after the longest jump; more if the person keeps scrolling), but a tile far
+    from the screen renders no image (IntersectionObserver margin, shared media queue, object URLs revoked on leaving and unmounting), and a tile
+    reads only a small cached thumbnail: a video, a photo with no thumbnail over 32 KiB (too big to decode, or undecodable) shows a placeholder with
+    its name, never the full file. The detail view's full read goes through the same queue with a high-priority lane (one extra slot,
+    `createQueue(...).enqueue(task, {priority: 'high'})`), so it does not wait behind tile reads. Tiles are memoized with stable callbacks
+    (the grid reads the latest selection through a ref), so choosing a picture re-renders that tile only; a day that appears twice in the
+    list (pictures of two zones interleave) is two groups and "Select day" says it acts on the group shown. Each day is a `listbox` of `option`s (`aria-multiselectable`, `aria-selected`) rather than an ARIA grid:
+    the layout has no fixed rows, and a day heading with its own "Select day" button cannot live inside a grid. One tile is in the tab order;
+    arrows (across days), Home/End, Space (choose), Shift+arrows (range), Ctrl/Cmd+A (everything loaded). Escape does not clear the choice; "Clear" does.
+    Changing the filter clears the choice ("Selection cleared." announced); turning Select off clears up to 20 chosen pictures and keeps a longer choice (and says so). A tap or click opens the
+    detail until "Select" is on (or a long press on a touch screen, or a Shift/Ctrl/Cmd-click); then it chooses. The choice (`usePhotoSelection`,
+    at most `PHOTO_ASSIGN_MAX`, a calm message beyond it) lives outside the grid so it survives paging, filters and the detail. The sticky bar says
+    how many are chosen with "Assign to…" and "Clear". "Assign to…" is a native modal `<dialog>` in two steps: tick people (search above 8, archived last
+    and labelled, a way to People when there is nobody), then a confirmation naming the number of pictures and the people with the line "Nothing is
+    assigned by date; only these pictures." After the call the result card ("N assignments added, M were already there") takes focus, with "Undo this
+    assignment": `assignPhotos` returns `fresh`, exactly the links that call inserted, and Undo sends those to `unassignPhotoLinks` in one
+    transaction (nothing from another tab or an earlier call is touched; a failed undo changes nothing, keeps the card and can be pressed again; no Undo
+    when `fresh` is `null`, over 5,000 new links). If an assignment fails the screen checks the chosen pictures (`getPhotoPicture`), drops those that left
+    the collection from the choice and says how many, so a retry can work. The dialog sends exactly the people it lists and turns "Assign" off if the
+    list of people changed under the choice. In the Not assigned list the assigned pictures
+    leave it with a polite announcement. The detail dialog shows the picture (`readPhotoFile`; a video with controls), its date and where it comes from
+    (sidecar / camera / file estimate / unknown), albums (clamped, `safeName`), sources, and the profiles holding it with "Take out" for each; Previous / Next,
+    Escape and focus back to the tile. Tested in `components/photos-select-screen.test.tsx` (real in-memory library), `components/photo-day-grid.test.tsx` (render counts, repeated days), `components/photo-assign-dialog.test.tsx`, `components/photo-days.test.ts`,
+    `hooks/use-photo-selection.test.tsx`, `components/photos-select-link.test.tsx` and `e2e/photos-select.spec.ts` (390 and 1440 px).
   - **Sync devices** (`/[locale]/sync/`, `components/sync-screen.tsx` plus `sync-device-card`, `sync-export-card`,
     `sync-import-card`, `sync-inbox`, `sync-progress`, `sync-conflicts-card`, `sync-conflict-item`, `sync-batch-offer`; hooks `use-sync-device`, `use-sync-conflicts`, `use-changes-pack-export`, `use-changes-pack-import`,
     `peek-archive-file`, `throttle-progress`; copy under `sync.*`). Sub-screen with a back pill to Settings (a Settings row
@@ -650,7 +686,7 @@ test type or architecture rule means updating this file **in the same PR**.
   loses its last item (reported as `removedAssignments`), and `loadSnapshot` refuses a backup that breaks it. `schemaVersion`
   13, `formatVersion` 1; v1-v12 backups restore by migrating. Code: `lib/db/photo-assign.ts` (grid listing by cursor, month
   dates, counts, assign / unassign), `lib/usecases/photo-assign.ts` (the same plus `listProfilePhotos`, `listPhotoMonths`,
-  `readPhotoFile`, `readPhotoTile`). Not in the changes pack. The selection grid is 20b; no screen calls this yet.
+  `readPhotoFile`, `readPhotoTile`), plus `unassignPhotoLinks` (exact-links undo). Not in the changes pack. The selection screen (20b) is the only caller.
 - **Schema v8 (implemented, expand-only; foundation of manual device-to-device sync)** — format and
   rationale in `docs/formats/changes-pack.md`. New: `device(singleton, id, created_at, change_seq)` (this
   library's identity and a monotonic change counter; the migration creates the row with a random id and

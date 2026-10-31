@@ -12,6 +12,7 @@ import {
   listProfilePhotos,
   readPhotoFile,
   readPhotoTile,
+  unassignPhotoLinks,
   unassignPhotos,
 } from './photo-assign';
 import { importTakeoutAlbum, undoPhotoImport } from './photo-library';
@@ -110,14 +111,38 @@ describe('assigning through the use cases', () => {
     const [ana, bru] = await twoProfiles(lib);
     await addItems(lib, [item(1, { takenAt: '2019-07-03T00:00:00Z' }), item(2, { takenAt: '2019-07-02T00:00:00Z' }), item(3, { takenAt: '2019-07-01T00:00:00Z' })]);
     expect(await countPhotoPictures(lib.deps)).toEqual({ pictures: 3, unassigned: 3, items: 3 });
-    expect(await assignPhotos(lib.deps, { sha256s: [hash(1), hash(2)], profileIds: [ana] })).toEqual({ added: 2, alreadyThere: 0 });
-    expect(await assignPhotos(lib.deps, { sha256s: [hash(2)], profileIds: [ana, bru] })).toEqual({ added: 1, alreadyThere: 1 });
+    expect(await assignPhotos(lib.deps, { sha256s: [hash(1), hash(2)], profileIds: [ana] })).toEqual({ added: 2, alreadyThere: 0, fresh: [{ profileId: ana, sha256s: [hash(1), hash(2)] }] });
+    expect(await assignPhotos(lib.deps, { sha256s: [hash(2)], profileIds: [ana, bru] })).toEqual({
+      added: 1,
+      alreadyThere: 1,
+      fresh: [{ profileId: bru, sha256s: [hash(2)] }],
+    });
     expect(await countPhotoPictures(lib.deps)).toEqual({ pictures: 3, unassigned: 1, items: 3 });
     expect((await listProfilePhotos(lib.deps, ana, { limit: 10 })).pictures.map((p) => p.sha256)).toEqual([hash(1), hash(2)]);
     expect((await listProfilePhotos(lib.deps, bru, { limit: 10 })).pictures.map((p) => p.sha256)).toEqual([hash(2)]);
     expect((await listPhotoPictures(lib.deps, { limit: 10, scope: { show: 'unassigned' } })).pictures.map((p) => p.sha256)).toEqual([hash(3)]);
     expect(await unassignPhotos(lib.deps, { sha256s: [hash(1), hash(3)], profileId: ana })).toEqual({ removed: 1 });
     expect((await countPhotoPictures(lib.deps)).unassigned).toBe(2);
+  });
+
+  test('undo takes back exactly the links one call added, even with another tab changing things', async () => {
+    const lib = await createTestLibrary();
+    const [ana, bru] = await twoProfiles(lib);
+    await addItems(lib, [item(1), item(2), item(3)]);
+    await assignPhotos(lib.deps, { sha256s: [hash(1)], profileIds: [ana] }); // an earlier call
+    const mine = await assignPhotos(lib.deps, { sha256s: [hash(1), hash(2)], profileIds: [ana, bru] });
+    expect(mine.fresh).toEqual([
+      { profileId: ana, sha256s: [hash(2)] },
+      { profileId: bru, sha256s: [hash(1), hash(2)] },
+    ]);
+    // Another tab already took one of them out and gave away a third picture: the undo touches neither.
+    await unassignPhotos(lib.deps, { sha256s: [hash(2)], profileId: bru });
+    await assignPhotos(lib.deps, { sha256s: [hash(3)], profileIds: [ana] });
+    expect(await unassignPhotoLinks(lib.deps, mine.fresh!)).toEqual({ removed: 2 });
+    const left = async (id: string) => (await listProfilePhotos(lib.deps, id, { limit: 10 })).pictures.map((p) => p.sha256);
+    expect(await left(ana)).toEqual([hash(1), hash(3)]);
+    expect(await left(bru)).toEqual([]);
+    expect(await unassignPhotoLinks(lib.deps, mine.fresh!)).toEqual({ removed: 0 });
   });
 
   test('errors cross the worker boundary as DbErrors; a refused call changes nothing', async () => {
@@ -182,7 +207,13 @@ describe('reading a picture', () => {
     expect(file.type).toBe('image/jpeg');
     expect(file.size).toBeGreaterThan(0);
     // Not decodable here: the tile falls back to the file itself.
-    expect((await readPhotoTile(lib.deps, jpeg.sha256)).size).toBe(file.size);
+    expect((await readPhotoTile(lib.deps, jpeg.sha256))!.size).toBe(file.size);
+  });
+
+  test('a video has no tile image: the tile gets null and shows a placeholder', async () => {
+    const lib = await createTestLibrary();
+    await addItems(lib, [item(1, { kind: 'video', mime: 'video/mp4', fileName: 'a.mp4' })]);
+    expect(await readPhotoTile(lib.deps, hash(1))).toBeNull();
   });
 
   test('a hash outside the collection is not readable through here, even when the store holds it', async () => {

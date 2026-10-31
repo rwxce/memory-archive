@@ -19,7 +19,7 @@ import type {
   StoredMessage,
 } from '../domain/library';
 import type { PhotoBatch, PhotoCounts, PhotoItem, PhotoPicture, PhotoPicturePage } from '../domain/photo';
-import type { AssignPhotosInput, AssignPhotosResult, ListPhotoPicturesInput, PhotoDateRow, UnassignPhotosResult } from './photo-assign';
+import type { AssignPhotosInput, AssignPhotosResult, ListPhotoPicturesInput, PhotoDateRow, PhotoProfileLinks, UnassignPhotosResult } from './photo-assign';
 import type { ImportPhotoItemsInput, ImportPhotoItemsResult, ListPhotoItemsInput, UndoPhotoBatchResult } from './photos';
 import type { HighlightImportCounts, HighlightCategory, HighlightItem, HighlightMessage } from '../domain/highlights';
 import type { BatchMessagesPage, ChangeSet, ReadBatchMessagesInput, ReadChangeSetInput } from '../domain/changes-pack';
@@ -114,6 +114,7 @@ export interface DbOps {
   countPhotoPictures: { params: undefined; result: PhotoCounts };
   assignPhotos: { params: AssignPhotosInput; result: AssignPhotosResult };
   unassignPhotos: { params: { sha256s: string[]; profileId: string }; result: UnassignPhotosResult };
+  unassignPhotoLinks: { params: { links: PhotoProfileLinks[] }; result: UnassignPhotosResult };
   listBlobHashes: { params: undefined; result: string[] };
   getStorageBreakdown: { params: undefined; result: StorageBreakdown };
   /** Counts and bytes for the Backup screen; `searchIndexBytes` is 0 until an index exists. Read-only. */

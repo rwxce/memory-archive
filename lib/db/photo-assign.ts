@@ -255,11 +255,26 @@ export interface AssignPhotosInput {
   now: string;
 }
 
+/** The pictures one profile was given by one call. */
+export interface PhotoProfileLinks {
+  profileId: string;
+  sha256s: string[];
+}
+
+/** An undo list longer than this is not returned (see `AssignPhotosResult.fresh`): 5,000 hashes are about 330 KB. */
+export const PHOTO_UNDO_MAX = 5000;
+
 export interface AssignPhotosResult {
   /** New links. */
   added: number;
   /** Links that already existed (the same picture and profile): not touched. */
   alreadyThere: number;
+  /**
+   * Exactly the links this call inserted, per profile (a link that existed is not here), so an undo takes
+   * back what this call did and nothing a second tab or an earlier call did. `null` when more than
+   * `PHOTO_UNDO_MAX` links were added: the response stays small and the call cannot be undone as a whole.
+   */
+  fresh: PhotoProfileLinks[] | null;
 }
 
 /**
@@ -283,12 +298,16 @@ export function assignPhotos(db: SqlDb, input: AssignPhotosInput): AssignPhotosR
       throw new DbError('not-found', 'a profile does not exist');
     }
     let added = 0;
+    const fresh: PhotoProfileLinks[] = [];
     for (const profileId of profileIds) {
+      const inserted: string[] = [];
       for (const sha256 of sha256s) {
-        added += db.run('INSERT OR IGNORE INTO photo_profiles (sha256, profile_id, created_at) VALUES (?, ?, ?)', [sha256, profileId, params.now as string]);
+        if (db.run('INSERT OR IGNORE INTO photo_profiles (sha256, profile_id, created_at) VALUES (?, ?, ?)', [sha256, profileId, params.now as string]) > 0) inserted.push(sha256);
       }
+      added += inserted.length;
+      if (inserted.length > 0) fresh.push({ profileId, sha256s: inserted });
     }
-    return { added, alreadyThere: sha256s.length * profileIds.length - added };
+    return { added, alreadyThere: sha256s.length * profileIds.length - added, fresh: added > PHOTO_UNDO_MAX ? null : fresh };
   });
 }
 
@@ -308,6 +327,33 @@ export function unassignPhotos(db: SqlDb, input: { sha256s: string[]; profileId:
     let removed = 0;
     for (const sha256 of sha256s) {
       removed += db.run('DELETE FROM photo_profiles WHERE sha256 = ? AND profile_id = ?', [sha256, params.profileId as string]);
+    }
+    return { removed };
+  });
+}
+
+/**
+ * Removes exactly these links (the `fresh` of an `assignPhotos` call) in ONE transaction: all or nothing, so a
+ * failure leaves nothing half undone and the same call can be retried. Idempotent; a link that is already gone
+ * (another tab took it out) counts for nothing, and a profile that no longer exists is not an error (its links went with it).
+ * `invalid` for malformed or too many entries.
+ */
+export function unassignPhotoLinks(db: SqlDb, input: { links: PhotoProfileLinks[] }): UnassignPhotosResult {
+  const params = record(input, 'params');
+  if (!Array.isArray(params.links) || params.links.length === 0) invalid('links must be a non-empty list');
+  const links = params.links as unknown[];
+  if (links.length > PHOTO_ASSIGN_PROFILES_MAX) invalid(`links has too many entries (at most ${PHOTO_ASSIGN_PROFILES_MAX})`);
+  const checked = links.map((raw) => {
+    const link = record(raw, 'link');
+    if (!isUuid(link.profileId)) invalid('profile id must be a UUID');
+    const sha256s = hashList(link.sha256s, 'sha256s', PHOTO_ASSIGN_MAX);
+    if (!sha256s.every(isSha256Hex)) invalid('every sha256 must be 64 lowercase hex characters');
+    return { profileId: link.profileId as string, sha256s };
+  });
+  return transaction(db, () => {
+    let removed = 0;
+    for (const { profileId, sha256s } of checked) {
+      for (const sha256 of sha256s) removed += db.run('DELETE FROM photo_profiles WHERE sha256 = ? AND profile_id = ?', [sha256, profileId]);
     }
     return { removed };
   });

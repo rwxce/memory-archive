@@ -289,11 +289,23 @@ describe('Photos screen: earlier imports and undo', () => {
     expect(ask).toContain('The 12 photos and videos it added will be removed from the collection.');
     expect(ask).toContain('used somewhere else, such as in a chat or a profile photo, stay there');
     expect(ask).not.toMatch(/forever|permanent/i);
+    // It also warns about the people the pictures were given to.
+    expect(ask).toContain(p.batches.confirmAssignments);
+  });
+
+  test('after an undo it says how many assignments to people went with the pictures', async () => {
+    list.mockResolvedValueOnce([batch()]).mockResolvedValue([]);
+    undo.mockResolvedValue({ found: true, removedItems: 12, removedAssignments: 3, removedMedia: 12 });
+    await open();
+    await click(button(/Undo import/));
+    await click(button(p.batches.confirmYes));
+    await settle();
+    expect(q('photos-undo-result')!.textContent).toBe('12 photos and videos were removed from the collection. 3 assignments to people were removed with them.');
   });
 
   test('Keep leaves everything as it was; confirming undoes once, reads the list again and says how many were removed', async () => {
     list.mockResolvedValueOnce([batch()]).mockResolvedValue([]);
-    undo.mockResolvedValue({ found: true, removedItems: 12, removedMedia: 12 });
+    undo.mockResolvedValue({ found: true, removedItems: 12, removedAssignments: 0, removedMedia: 12 });
     await open();
     await click(button(/Undo import/));
     await click(button(p.batches.confirmKeep));
@@ -313,7 +325,7 @@ describe('Photos screen: earlier imports and undo', () => {
 
   test('an import that was already taken back says so; a failure is calm', async () => {
     list.mockResolvedValue([batch()]);
-    undo.mockResolvedValueOnce({ found: false, removedItems: 0, removedMedia: 0 });
+    undo.mockResolvedValueOnce({ found: false, removedItems: 0, removedAssignments: 0, removedMedia: 0 });
     await open();
     await click(button(/Undo import/));
     await click(button(p.batches.confirmYes));
@@ -433,7 +445,7 @@ describe('Photos screen: undo and imports do not overlap', () => {
 
   test('the last undo result is cleared when an import begins', async () => {
     list.mockResolvedValueOnce([batch()]).mockResolvedValue([]);
-    undo.mockResolvedValue({ found: true, removedItems: 12, removedMedia: 12 });
+    undo.mockResolvedValue({ found: true, removedItems: 12, removedAssignments: 0, removedMedia: 12 });
     loose.mockReturnValue(new Promise(() => undefined));
     await open();
     await click(button(/Undo import/));

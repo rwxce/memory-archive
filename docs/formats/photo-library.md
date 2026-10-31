@@ -4,8 +4,8 @@ Pictures and videos the person brings in from a source that is not a chat. Three
 Photos Takeout** ZIP (an album, several albums, or a whole library; schema v11), **loose files** chosen on the
 device, and a **Google Photos web download** ZIP (a selection from photos.google.com), the last two with
 the date source of schema v12. Phase 8. The Photos screen imports and undoes; the assignment of photos to
-profiles has its data layer (schema v13, "Assigning pictures to profiles"); the selection grid that drives it
-(queue item 20b) is not built.
+profiles has its data layer (schema v13, "Assigning pictures to profiles"); the selection screen that drives it
+(`/photos/select`, queue item 20b) is built.
 
 Status: **implemented**: schema v11 + v12 + v13 (`lib/db/migrations.ts`), `lib/domain/photo.ts`,
 `lib/db/photos.ts`, `lib/db/photo-assign.ts`, `lib/usecases/photo-assign.ts`, `lib/importers/takeout/`, `lib/importers/photos/`, `lib/usecases/photo-library.ts`,
@@ -242,7 +242,7 @@ dateGuessed, unreadableFiles, ignoredFiles, unusableSidecars (0 here), tooLarge 
 
 ## Assigning pictures to profiles (schema v13, queue item 20a)
 
-Data layer and use cases only; the selection grid is 20b. The PRD rule stands: **photos are never assigned
+Data layer and use cases (20a); the screen that calls them is `/photos/select` (20b). The PRD rule stands: **photos are never assigned
 automatically.** Nothing assigns by date, album, name or source, there is no "assign all" and an import never
 writes a link. The person selects pictures and chooses profiles; `assignPhotos` records exactly that.
 
@@ -273,8 +273,9 @@ row changes, so a v1-v12 backup restores by migrating (tested for v12 and for a 
 
 | Operation | Notes |
 |-----------|-------|
-| `assignPhotos({sha256s, profileIds})` | 1..2000 pictures x 1..50 profiles, one transaction, idempotent (an existing pair keeps its `created_at`), returns `{added, alreadyThere}`. `invalid` for malformed/empty/too many; `not-found` for an unknown picture or profile, and then nothing is written. |
+| `assignPhotos({sha256s, profileIds})` | 1..2000 pictures x 1..50 profiles, one transaction, idempotent (an existing pair keeps its `created_at`), returns `{added, alreadyThere, fresh}`; `fresh` is exactly the links THIS call inserted, per profile (`[{profileId, sha256s}]`), or `null` when more than 5,000 were added (the response stays small; such a call has no whole-call undo). `invalid` for malformed/empty/too many; `not-found` for an unknown picture or profile, and then nothing is written. |
 | `unassignPhotos({sha256s, profileId})` | Removes those links only; the pictures stay. Idempotent, returns `{removed}`. |
+| `unassignPhotoLinks({links: [{profileId, sha256s}]})` | Removes exactly these links (the `fresh` of an `assignPhotos` call) in ONE transaction: all or nothing, so a failed undo leaves nothing half done and is retried as it is. At most 50 profiles x 2000 pictures. Idempotent: a link already gone (another tab) counts for nothing; a profile that no longer exists is not an error. Returns `{removed}`. |
 | `listPhotoPictures({scope, cursor, limit})` | One row per picture (`PhotoPicture`). `scope`: `all`, `unassigned`, `assigned` (any profile) or `assigned` + `profileId`. `limit` 1..500. Returns `{pictures, nextCursor}`; pass `nextCursor` back for the next page. |
 | `listProfilePhotos(profileId, page)` | `listPhotoPictures` with `scope: assigned + profileId`. |
 | `countPhotoPictures()` | `{pictures, unassigned, items}` for the UI. |
@@ -303,9 +304,10 @@ instant lands in the month of the viewer's zone (UTC by default; pass `(ms) => -
 Undated pictures are counted apart. Months are a navigation aid: a `file-modified` guess counts in its month too.
 
 **Reading.** `readPhotoFile` is `readBlob` (a lazy view of the stored file when the store has `file()`, else read
-into memory up to the usual limit, `too-large` above it); `readPhotoTile` is `readTileImage` for a photo (cached
-thumbnail, made once for a photo within the 64 MiB decode limit and above 32 KiB, else the file) and the file for a
-video. Nothing here decodes more than that existing path; call them for the tiles near the screen only.
+into memory up to the usual limit, `too-large` above it); `readPhotoTile` is `readTileThumbnail` for a photo (cached
+thumbnail, made once for a photo within the 64 MiB decode limit and above 32 KiB; a file under 32 KiB as it is) and `null`
+for a video, for a photo over the decode limit and for one the browser cannot thumbnail: the tile then shows a placeholder
+(the file name), never the full file decoded in a tile. The full file is read when the picture is opened. Nothing here decodes more than that existing path; call them for the tiles near the screen only.
 
 **Person page (not built).** The Gallery of a person lists chat media; `listProfilePhotos` gives the assigned
 pictures in the same newest-first shape, with `takenAt`/`dateSource` for `photoDisplayDate`. Merging them into the
