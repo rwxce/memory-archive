@@ -79,6 +79,40 @@ export function stampRows(db: SqlDb, table: StampedTable, where: string, params:
   db.run(`UPDATE ${table} SET ${set} WHERE ${where}`, [seq, ...params]);
 }
 
+/**
+ * Like `stampRows`, for a version merged from `peerId`: it gets a new local `seq` (so it reaches a
+ * third device through this one) but `changed_by` names the peer, so it never counts as a local
+ * edit against that same peer (a false conflict). Tables without `changed_by` (import batches)
+ * only take the `seq`.
+ */
+export function stampMergedRows(
+  db: SqlDb,
+  table: StampedTable,
+  peerId: string,
+  where: string,
+  params: readonly (string | number | null)[],
+): void {
+  const seq = nextChangeSeq(db);
+  if (!CHANGED_BY.has(table)) {
+    db.run(`UPDATE ${table} SET seq = ? WHERE ${where}`, [seq, ...params]);
+    return;
+  }
+  db.run(`UPDATE ${table} SET seq = ?, changed_by = ? WHERE ${where}`, [seq, peerId, ...params]);
+}
+
+/** A deletion merged from `peerId`: kept (so it travels on) with a new local `seq` and the peer as `changed_by`. */
+export function recordMergedTombstone(db: SqlDb, peerId: string, kind: TombstoneKind, scope: string, key: string, deletedAt: string): void {
+  const seq = nextChangeSeq(db);
+  db.run('INSERT OR REPLACE INTO tombstones (kind, scope, key, deleted_at, seq, changed_by) VALUES (?, ?, ?, ?, ?, ?)', [
+    kind,
+    scope,
+    key,
+    deletedAt,
+    seq,
+    peerId,
+  ]);
+}
+
 export type TombstoneKind = 'favorite' | 'note' | 'batch';
 
 /**

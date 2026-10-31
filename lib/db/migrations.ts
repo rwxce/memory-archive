@@ -336,6 +336,34 @@ CREATE INDEX favorites_by_seq ON favorites(seq);
 CREATE INDEX notes_by_seq ON notes(seq);
 `;
 
+/**
+ * v9 (expand only): the open conflicts of a changes-pack merge (`docs/formats/changes-pack.md`,
+ * "Conflicts"). One new table, empty at first: no existing column or row changes, so a v1-v8
+ * backup restores by migrating. Added with its first entry point, the merge.
+ *
+ * A row keeps the INCOMING version (or incoming deletion) beside the active local record, which
+ * the merge never touches; the user later picks mine / theirs / both. `kind` `batch` is not a
+ * conflict but the offer "the other device undid this import; remove it here too?": nothing is
+ * applied until the user accepts. `scope` / `key` name the record like `tombstones` do (profile and
+ * conversation: scope '' and the id; note: as the note tombstone; batch: conversation id and batch
+ * id). `incoming` is the pack's JSON record (a tombstone when `incoming_deleted` is 1). One open
+ * row per peer and record: a newer incoming version replaces the older. It describes this device's
+ * exchange with a peer, so, like `sync_peers`, a restore does not carry it over.
+ */
+const V9 = `
+CREATE TABLE sync_conflicts (
+  id               INTEGER PRIMARY KEY,
+  peer_id          TEXT NOT NULL CHECK (length(peer_id) = 36 AND peer_id = lower(peer_id)),
+  kind             TEXT NOT NULL CHECK (kind IN ('profile', 'conversation', 'note', 'batch')),
+  scope            TEXT NOT NULL,
+  key              TEXT NOT NULL,
+  incoming         TEXT NOT NULL,
+  incoming_deleted INTEGER NOT NULL DEFAULT 0 CHECK (incoming_deleted IN (0, 1)),
+  detected_at      TEXT NOT NULL,
+  UNIQUE (peer_id, kind, scope, key)
+) STRICT;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, sql: V1 },
   { version: 2, sql: V2 },
@@ -345,6 +373,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 6, sql: V6 },
   { version: 7, sql: V7 },
   { version: 8, sql: V8 },
+  { version: 9, sql: V9 },
 ];
 
 /** Schema version this build produces and understands. */

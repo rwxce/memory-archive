@@ -61,6 +61,30 @@ describe('serializeDb / isLibraryEmpty / listBlobs', () => {
   });
 });
 
+describe('open conflicts of a changes-pack merge', () => {
+  const PEER = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+  const conflict = (db: SqlDb) =>
+    db.run("INSERT INTO sync_conflicts (peer_id, kind, scope, key, incoming, detected_at) VALUES (?, 'profile', '', ?, '{}', 't')", [PEER, ID1]);
+
+  test('they do not make the library non-empty, and a restore leaves them behind with the peers they belong to', async () => {
+    const source = (await openMemoryDb()).db;
+    profile(source, ID1);
+    conflict(source);
+    const empty = (await openMemoryDb()).db;
+    conflict(empty);
+    expect(isLibraryEmpty(empty)).toBe(true);
+    await loadSnapshot(empty, serializeDb(source));
+    expect(empty.all('SELECT * FROM sync_conflicts')).toEqual([]);
+    expect(empty.all('SELECT id FROM profiles')).toEqual([{ id: ID1 }]);
+
+    const full = (await openMemoryDb()).db;
+    profile(full, ID2);
+    conflict(full);
+    await loadSnapshot(full, serializeDb(source), { replace: true });
+    expect(full.all('SELECT * FROM sync_conflicts')).toEqual([]);
+  });
+});
+
 describe('loadSnapshot', () => {
   test('loads the same schema and keeps ids', async () => {
     const source = (await openMemoryDb()).db;
@@ -132,7 +156,7 @@ describe('loadSnapshot', () => {
     v4.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
     const target = (await openMemoryDb()).db;
     expect(await loadSnapshot(target, serializeDb(v4))).toEqual({ from: 4, to: SCHEMA_VERSION });
-    expect(SCHEMA_VERSION).toBe(8);
+    expect(SCHEMA_VERSION).toBe(9);
     expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
     expect(target.all('SELECT * FROM favorites')).toEqual([]);
     expect(target.all('SELECT * FROM notes')).toEqual([]);

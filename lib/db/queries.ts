@@ -536,7 +536,8 @@ export interface ImportMessagesResult {
   unreferencedBlobs: string[];
 }
 
-function isReferenced(db: SqlDb, sha256: string): boolean {
+/** Whether a message or a profile photo refers to the media hash. */
+export function isReferenced(db: SqlDb, sha256: string): boolean {
   return (
     db.all('SELECT 1 FROM messages WHERE media_sha256 = ? LIMIT 1', [sha256]).length > 0 ||
     db.all('SELECT 1 FROM profiles WHERE photo_sha256 = ? LIMIT 1', [sha256]).length > 0
@@ -819,7 +820,14 @@ export function undoImportBatch(db: SqlDb, batchId: string): UndoImportBatchResu
     const removedConversation = batch.created === 1 && n === 0;
     // The undo travels as a tombstone of the batch (informational for peers: see the format doc).
     recordTombstone(db, 'batch', batch.conversationId, batchId);
+    // Open sync conflicts about what is going away can no longer be decided: the offer to undo this batch,
+    // and (with the conversation) every conflict on the conversation, its notes and its other batches.
+    db.run("DELETE FROM sync_conflicts WHERE kind = 'batch' AND key = ?", [batchId]);
     if (removedConversation) {
+      db.run(
+        "DELETE FROM sync_conflicts WHERE (kind = 'conversation' AND key = ?) OR (kind IN ('note', 'batch') AND scope = ?)",
+        [batch.conversationId, batch.conversationId],
+      );
       // Its favorites, notes and other batches go with it: each deletion leaves a tombstone.
       recordConversationCascade(db, batch.conversationId, batchId);
       // Its other batches added nothing (no message is left), so they go with it.
