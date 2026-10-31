@@ -93,16 +93,35 @@ export function useLibraryCheck() {
   return { state: check.state, run: check.start, cancel: check.cancel, reset: check.reset };
 }
 
-/** "Check a backup file": verifies a ZIP the person picked without restoring it. Needs no library. */
+/** Progress of a file check: parts checked, or (`phase: 'decrypting'`) the password step that comes first. */
+export type FileCheckProgress = { done: number; total: number; phase?: 'decrypting' };
+
+/**
+ * "Check a backup file": verifies a backup the person picked without restoring it. Needs no library. An encrypted
+ * file needs its `password`; a wrong one comes back as a `wrong-password` refusal so the caller can ask again. The
+ * password is handed to the check once and not kept.
+ */
 export function useBackupFileCheck() {
   const file = useRef<Blob>(undefined);
-  const check = useCheck<{ done: number; total: number }, BackupVerification>(countFraction, (signal, onProgress) =>
-    file.current ? verifyBackupFile(file.current, { signal, onProgress }) : undefined,
+  const secret = useRef<string>(undefined);
+  const check = useCheck<FileCheckProgress, BackupVerification>(countFraction, (signal, onProgress) =>
+    file.current
+      ? verifyBackupFile(file.current, {
+          signal,
+          password: secret.current,
+          onProgress,
+          onCryptoProgress: (p) => onProgress({ ...p, phase: 'decrypting' }),
+        })
+      : undefined,
   );
   const run = useCallback(
-    (picked: Blob) => {
+    (picked: Blob, password?: string) => {
       file.current = picked;
-      return check.start();
+      secret.current = password || undefined;
+      const job = check.start();
+      // The check has read it by now (the work starts synchronously): forget it.
+      secret.current = undefined;
+      return job;
     },
     [check],
   );

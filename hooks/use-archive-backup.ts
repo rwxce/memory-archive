@@ -8,6 +8,7 @@ import {
   restoreArchiveFromZip,
   type ArchiveErrorCode,
   type ArchiveProgress,
+  type CryptoProgress,
   type ReplaceProgress,
 } from '@/lib/usecases/archive-backup';
 import { downloadBlob } from './download-blob';
@@ -15,12 +16,18 @@ import { useLibraryInternals } from './use-library';
 
 export type ArchiveKind = 'backup' | 'restore' | 'replace';
 
+/** The archive's own progress, plus the password step: `encrypting` after a backup is built, `decrypting` before a protected one is opened. */
+export type BackupProgress = ArchiveProgress | ({ phase: 'encrypting' | 'decrypting' } & CryptoProgress);
+
 export type ArchiveBackupState =
   | { status: 'idle' }
   /** `stage` is set while replacing; `cancellable` is false once the swap has begun and cannot be stopped. */
-  | { status: 'working'; kind: ArchiveKind; progress: ArchiveProgress; stage?: ReplaceProgress['stage']; cancellable?: boolean }
-  /** `safetyBackupFileName`: the safety copy handed to the browser while replacing a library that had data. */
-  | { status: 'done'; kind: ArchiveKind; safetyBackupFileName?: string }
+  | { status: 'working'; kind: ArchiveKind; progress: BackupProgress; stage?: ReplaceProgress['stage']; cancellable?: boolean }
+  /**
+   * `safetyBackupFileName`: the safety copy handed to the browser while replacing a library that had data.
+   * `encrypted`: for a backup, whether the file saved is password-protected (`false` = a plain ZIP anyone can read).
+   */
+  | { status: 'done'; kind: ArchiveKind; safetyBackupFileName?: string; encrypted?: boolean }
   /**
    * `code` is the `ArchiveError` code, `'cancelled'` when the person stopped a replace, or `'unknown'` for anything
    * else (never contains text from the archive). `safetyBackupFileName` is set when a safety copy was already handed to the browser.
@@ -29,15 +36,21 @@ export type ArchiveBackupState =
 
 export interface ArchiveBackup {
   state: ArchiveBackupState;
-  /** Builds the backup ZIP and downloads it. Resolves when the download was handed to the browser. */
-  backup(): Promise<void>;
-  /** Restores a ZIP the person picked into the (empty) library, then reloads the screens. */
-  restore(file: Blob): Promise<void>;
+  /**
+   * Builds the backup and downloads it. With a `password` the file is encrypted (`.mabackup`); without one it is a
+   * plain ZIP. Resolves when the download was handed to the browser. The password is used for this call only.
+   */
+  backup(options?: { password?: string }): Promise<void>;
+  /**
+   * Restores a backup the person picked into the (empty) library, then reloads the screens. `password` is needed for an
+   * encrypted file; a wrong one fails with `wrong-password` and changes nothing, so the caller can ask again.
+   */
+  restore(file: Blob, password?: string): Promise<void>;
   /**
    * Replaces the whole library with a backup the person picked, after saving a safety copy of the current one
-   * (downloaded before anything changes). Reloads the screens when done.
+   * (downloaded before anything changes; that copy is not encrypted). Reloads the screens when done. `password` as in `restore`.
    */
-  replace(file: Blob): Promise<void>;
+  replace(file: Blob, password?: string): Promise<void>;
   /** Stops a replace that has not reached the swap yet; the library stays exactly as it was. */
   cancel(): void;
 }
@@ -53,7 +66,7 @@ export function useArchiveBackup(): ArchiveBackup {
   const busy = useRef(false);
 
   const run = useCallback(
-    async (kind: ArchiveKind, work: (onProgress: (p: ArchiveProgress, stage?: ReplaceProgress['stage']) => void) => Promise<{ safetyBackupFileName?: string } | void>) => {
+    async (kind: ArchiveKind, work: (onProgress: (p: BackupProgress, stage?: ReplaceProgress['stage']) => void) => Promise<{ safetyBackupFileName?: string; encrypted?: boolean } | void>) => {
       if (busy.current) return;
       busy.current = true;
       setState({ status: 'working', kind, progress: { phase: 'preparing' } });
@@ -61,7 +74,7 @@ export function useArchiveBackup(): ArchiveBackup {
         const outcome = await work((progress, stage) =>
           setState({ status: 'working', kind, progress, stage, cancellable: stage === undefined ? undefined : !(stage === 'restoring' && progress.phase === 'finishing') }),
         );
-        setState({ status: 'done', kind, safetyBackupFileName: outcome?.safetyBackupFileName });
+        setState({ status: 'done', kind, safetyBackupFileName: outcome?.safetyBackupFileName, encrypted: outcome?.encrypted });
       } catch (error) {
         const cancelled = kind === 'replace' && controller.current?.signal.aborted === true && !(error instanceof ArchiveError);
         const code = cancelled ? 'cancelled' : error instanceof ArchiveError ? error.code : 'unknown';
@@ -82,21 +95,36 @@ export function useArchiveBackup(): ArchiveBackup {
     }
   }, [refresh]);
 
-  const backup = useCallback(async () => {
-    if (library.status !== 'ready' || busy.current) return;
-    const deps = library.deps;
-    await run('backup', async (onProgress) => {
-      const { blob, fileName } = await exportArchiveFromLibrary(deps, { appVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0', onProgress });
-      downloadBlob(blob, fileName);
-    });
-  }, [library, run]);
+  const backup = useCallback(
+    async (options?: { password?: string }) => {
+      if (library.status !== 'ready' || busy.current) return;
+      const deps = library.deps;
+      // Passed through unchanged: an empty string must reach the core, which refuses it (fail closed).
+      const password = options?.password;
+      await run('backup', async (onProgress) => {
+        const { blob, fileName, encrypted } = await exportArchiveFromLibrary(deps, {
+          appVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0',
+          onProgress,
+          password,
+          onCryptoProgress: (p) => onProgress({ phase: 'encrypting', ...p }),
+        });
+        downloadBlob(blob, fileName);
+        return { encrypted };
+      });
+    },
+    [library, run],
+  );
 
   const restore = useCallback(
-    async (file: Blob) => {
+    async (file: Blob, password?: string) => {
       if (library.status !== 'ready' || busy.current) return;
       const deps = library.deps;
       await run('restore', async (onProgress) => {
-        await restoreArchiveFromZip(deps, file, { onProgress });
+        await restoreArchiveFromZip(deps, file, {
+          onProgress,
+          password: password || undefined,
+          onCryptoProgress: (p) => onProgress({ phase: 'decrypting', ...p }),
+        });
         await refreshAfterCommit();
       });
     },
@@ -104,7 +132,7 @@ export function useArchiveBackup(): ArchiveBackup {
   );
 
   const replace = useCallback(
-    async (file: Blob) => {
+    async (file: Blob, password?: string) => {
       if (library.status !== 'ready' || busy.current) return;
       const deps = library.deps;
       const abort = new AbortController();
@@ -114,6 +142,9 @@ export function useArchiveBackup(): ArchiveBackup {
         const result = await replaceLibraryFromBackup(deps, file, {
           appVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0',
           signal: abort.signal,
+          password: password || undefined,
+          // Opening the protected backup comes before the safety copy, so it has no step number.
+          onCryptoProgress: (p) => onProgress({ phase: 'decrypting', ...p }),
           onProgress: ({ stage, progress }) => onProgress(progress, stage),
           // The browser saves the safety copy; the replace goes on only after this resolves.
           deliverSafetyBackup: async (blob, fileName) => {

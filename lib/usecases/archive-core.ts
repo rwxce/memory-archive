@@ -17,8 +17,10 @@ import {
   MANIFEST_PATH,
   archiveFileName,
   blobPath,
+  encryptedArchiveFileName,
   type ArchiveLimits,
 } from '../exporters/archive/format';
+import { assertCanEncrypt, encryptBackup, openBackupBlob, type CryptoProgress } from '../exporters/archive/encrypt';
 import { verifyArchive } from '../exporters/archive/verify';
 import { writeArchive } from '../exporters/archive/write';
 import type { BlobStore } from '../storage/blob-store';
@@ -83,9 +85,14 @@ export type ArchiveProgress =
 
 export interface ExportArchiveResult {
   blob: Blob;
-  /** `memory-archive-YYYY-MM-DD.zip` */
+  /** `memory-archive-YYYY-MM-DD.zip`, or `.mabackup` when encrypted. */
   fileName: string;
   blobCount: number;
+  /**
+   * Whether the file is password-encrypted. When `false` it is a plain ZIP holding every message
+   * and photo readably: the UI marks it as private.
+   */
+  encrypted: boolean;
 }
 
 export interface ExportArchiveOptions {
@@ -93,11 +100,22 @@ export interface ExportArchiveOptions {
   now?: Date;
   limits?: Partial<ArchiveLimits>;
   onProgress?: (progress: ArchiveProgress) => void;
+  /** Encrypts the backup with this password (see `docs/formats/encrypted-backup.md`). `undefined` = plain ZIP; an empty string is refused (`password-required`). */
+  password?: string;
+  /** Progress of the encryption step, which runs after `finishing`. */
+  onCryptoProgress?: (progress: CryptoProgress) => void;
+  /** Stops the encryption between chunks; rejects with the signal's reason. */
+  signal?: AbortSignal;
 }
 
 export interface RestoreArchiveOptions {
   limits?: Partial<ArchiveLimits>;
   onProgress?: (progress: ArchiveProgress) => void;
+  /** Needed when the file is encrypted (`password-required` / `wrong-password`); ignored for a plain ZIP. */
+  password?: string;
+  /** Progress of the decryption step, which runs first. */
+  onCryptoProgress?: (progress: CryptoProgress) => void;
+  signal?: AbortSignal;
 }
 
 /** What an export or restore needs, whichever way the database is reached. */
@@ -142,6 +160,8 @@ async function exportUnguarded(
   observe?: (database: Uint8Array) => void,
 ): Promise<ExportArchiveResult> {
   const now = options.now ?? new Date();
+  // Fail fast, before the ZIP is built: an empty password or no WebCrypto cannot produce a backup.
+  if (options.password !== undefined) assertCanEncrypt(options.password);
   options.onProgress?.({ phase: 'preparing' });
   // Schema version, database bytes and media list come from ONE moment (a single synchronous
   // read in the worker, which serializes requests); slow checks come after.
@@ -163,17 +183,21 @@ async function exportUnguarded(
     onProgress: (done, total) => options.onProgress?.({ phase: 'media', done, total }),
   });
   options.onProgress?.({ phase: 'finishing' });
-  return { blob: zip, fileName: archiveFileName(now), blobCount: blobs.length };
+  if (options.password === undefined) return { blob: zip, fileName: archiveFileName(now), blobCount: blobs.length, encrypted: false };
+  const sealed = await encryptBackup(zip, options.password, { onProgress: options.onCryptoProgress, signal: options.signal });
+  return { blob: sealed, fileName: encryptedArchiveFileName(now), blobCount: blobs.length, encrypted: true };
 }
 
 export const restoreParts = (library: ArchiveParts, zip: Blob, options: RestoreArchiveOptions): Promise<RestoreResult> =>
   exclusive(library, () => restoreUnguarded(library, zip, options));
 
-async function restoreUnguarded(library: ArchiveParts, zip: Blob, options: RestoreArchiveOptions): Promise<RestoreResult> {
+async function restoreUnguarded(library: ArchiveParts, file: Blob, options: RestoreArchiveOptions): Promise<RestoreResult> {
   options.onProgress?.({ phase: 'preparing' });
   if (!(await library.database.isEmpty())) {
     throw new ArchiveError('target-not-empty', 'this device already has an archive; restore only works on an empty one');
   }
+  // Before anything is swept or written: a wrong password changes nothing.
+  const zip = await openBackupBlob(file, options.password, { onProgress: options.onCryptoProgress, signal: options.signal });
   // The busy guard (`withArchiveGuard`, shared with import, undo and the orphan sweep) is the
   // ONLY protection against a concurrent writer here: without it this sweep could delete the
   // blobs of an import that has written them but not yet committed.
@@ -219,6 +243,9 @@ export interface ReplaceLibraryOptions {
    * and the replace fails with `safety-backup-failed`.
    */
   deliverSafetyBackup: (blob: Blob, fileName: string) => Promise<void>;
+  /** Needed when the chosen backup is encrypted. The safety backup of the current library is NOT encrypted (`encrypted: false`). */
+  password?: string;
+  onCryptoProgress?: (progress: CryptoProgress) => void;
 }
 
 export interface ReplaceLibraryResult extends RestoreResult {
@@ -237,10 +264,11 @@ const rolledBack = (error: unknown): boolean =>
     ? error.code === 'changed-during-replace' || error.code === 'newer-schema' || error.code === 'invalid-database'
     : error instanceof DbError && (error.code === 'invalid' || error.code === 'constraint' || error.code === 'newer-schema' || error.code === 'changed');
 
-export async function replaceParts(library: ArchiveParts, zip: Blob, options: ReplaceLibraryOptions): Promise<ReplaceLibraryResult> {
+export async function replaceParts(library: ArchiveParts, file: Blob, options: ReplaceLibraryOptions): Promise<ReplaceLibraryResult> {
   const aborted = () => {
     if (options.signal?.aborted) throw options.signal.reason;
   };
+  const zip = await openBackupBlob(file, options.password, { onProgress: options.onCryptoProgress, signal: options.signal });
   // 1. The chosen backup must verify completely before anything of the current library is touched.
   const verification = await verifyArchive(zip, { supportedSchemaVersion: SCHEMA_VERSION, limits: options.limits, signal: options.signal });
   if (!verification.ok) {

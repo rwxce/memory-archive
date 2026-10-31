@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { ExistingPasswordField } from '@/components/backup-password';
 import { PillButton } from '@/components/pill-button';
 import type { ArchiveUsage } from '@/lib/usecases/archive-health';
 
@@ -9,24 +10,33 @@ import type { ArchiveUsage } from '@/lib/usecases/archive-health';
  * Asks before a backup replaces the whole archive. A native modal `<dialog>`: focus is trapped and
  * handed back by the browser, Escape cancels. It says in plain words what is replaced (with the
  * counts when they are known), that a safety copy is downloaded first, and that the person should
- * keep it. Nothing happens until the explicit confirm button; Cancel has the initial focus.
- * `file` is the backup the person picked (`null` = closed).
+ * keep it (and that the safety copy itself is not password-protected). Nothing happens until the explicit
+ * confirm button; Cancel has the initial focus. `file` is the backup the person picked (`null` = closed).
+ * When the backup is protected (`encrypted`) the dialog also asks for its password; after a wrong one
+ * (`wrong`) the caller reopens it with the same file, so only the password is typed again. The typed password
+ * lives in the dialog's content, which is gone when it closes.
  */
 export function ReplaceBackupDialog({
   file,
   counts,
+  encrypted = false,
+  wrong = false,
   onConfirm,
   onCancel,
 }: {
   file: File | null;
   counts: ArchiveUsage['counts'] | undefined;
-  onConfirm: () => void;
+  encrypted?: boolean;
+  wrong?: boolean;
+  onConfirm: (password?: string) => void;
   onCancel: () => void;
 }) {
   const t = useTranslations('backup.replace');
   const tu = useTranslations('backup.usage');
   const dialog = useRef<HTMLDialogElement>(null);
   const cancelButton = useRef<HTMLButtonElement>(null);
+  const passwordInput = useRef<HTMLInputElement>(null);
+  const [password, setPassword] = useState('');
   const confirmed = useRef(false);
   const open = file !== null;
 
@@ -37,9 +47,13 @@ export function ReplaceBackupDialog({
       confirmed.current = false;
       element.showModal();
       // Explicit, not `autoFocus`: the safe choice has the focus whatever the browser does on showModal.
-      cancelButton.current?.focus();
+      // A protected backup needs its password first, so the field takes it then.
+      (passwordInput.current ?? cancelButton.current)?.focus();
     }
-    if (!open && element.open) element.close();
+    if (!open && element.open) {
+      element.close();
+      setPassword('');
+    }
   }, [open]);
 
   return (
@@ -72,7 +86,14 @@ export function ReplaceBackupDialog({
               </div>
             )}
             <p className="font-medium">{t('safety')}</p>
+            <p>{t('safetyPlain')}</p>
             <p className="text-t2 break-words">{t('file', { fileName: file.name })}</p>
+            {encrypted && (
+              <form onSubmit={(event) => event.preventDefault()} noValidate className="flex flex-col gap-2">
+                <p>{t('encrypted')}</p>
+                <ExistingPasswordField value={password} onChange={setPassword} wrong={wrong} inputRef={passwordInput} />
+              </form>
+            )}
           </div>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <PillButton ref={cancelButton} variant="outlined" onClick={onCancel}>
@@ -82,8 +103,14 @@ export function ReplaceBackupDialog({
               variant="danger"
               onClick={() => {
                 if (confirmed.current) return;
+                if (encrypted && password.length === 0) {
+                  passwordInput.current?.focus();
+                  return;
+                }
                 confirmed.current = true;
-                onConfirm();
+                const chosen = encrypted ? password : undefined;
+                setPassword('');
+                onConfirm(chosen);
               }}
             >
               {t('confirm')}

@@ -27,6 +27,11 @@ export function archiveFileName(date: Date): string {
   return `memory-archive-${date.toISOString().slice(0, 10)}.zip`;
 }
 
+/** `memory-archive-YYYY-MM-DD.mabackup` (UTC date): the encrypted envelope, not a ZIP. */
+export function encryptedArchiveFileName(date: Date): string {
+  return `memory-archive-${date.toISOString().slice(0, 10)}.mabackup`;
+}
+
 export interface ManifestEntry {
   path: string;
   size: number;
@@ -107,6 +112,12 @@ export type ArchiveErrorCode =
   | 'safety-backup-failed'
   /** Replace: the library was edited (a note, a favorite, a profile) after its safety backup was made; nothing was changed. Try again. */
   | 'changed-during-replace'
+  /** The backup is encrypted and no password was given (or an empty one). */
+  | 'password-required'
+  /** The key check failed: wrong password (or a header damaged so the key differs). */
+  | 'wrong-password'
+  /** WebCrypto is missing (insecure context), so a backup cannot be encrypted or opened. */
+  | 'encryption-unavailable'
   | 'storage';
 
 /** Messages never contain file names, chat text or author names. */

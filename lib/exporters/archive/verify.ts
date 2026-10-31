@@ -25,6 +25,8 @@ export interface BackupVerification {
    * manifest, unsafe path, entries and manifest disagree, over the limits). Then nothing else is known.
    */
   refusal?: ArchiveErrorCode;
+  /** Set by `verifyBackupFile` when the file was an encrypted backup that opened with the password. */
+  encrypted?: boolean;
   /** From the manifest; absent on a `refusal`. */
   formatVersion?: number;
   schemaVersion?: number;

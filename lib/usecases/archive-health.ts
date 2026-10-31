@@ -1,7 +1,8 @@
 import { SCHEMA_VERSION } from '../db/migrations';
 import type { DanglingReference } from '../db/queries';
+import { openBackupBlob, type CryptoProgress } from '../exporters/archive/encrypt';
 import { verifyArchive, type BackupVerification } from '../exporters/archive/verify';
-import type { ArchiveLimits } from '../exporters/archive/format';
+import { ArchiveError, type ArchiveLimits } from '../exporters/archive/format';
 import { readStorageStatus, type StorageStatus } from '../storage/quota';
 import { withArchiveGuard } from './archive-guard';
 import type { ProfileDeps } from './profiles';
@@ -117,6 +118,10 @@ export interface VerifyBackupOptions {
   signal?: AbortSignal;
   /** Tests lower the limits to stay fast. */
   limits?: Partial<ArchiveLimits>;
+  /** Needed for an encrypted backup; without it the result is a `password-required` refusal. */
+  password?: string;
+  /** Progress of the decryption step, which runs first. */
+  onCryptoProgress?: (progress: CryptoProgress) => void;
 }
 
 /**
@@ -126,13 +131,21 @@ export interface VerifyBackupOptions {
  * A file that cannot be examined as an archive is reported as `refusal` (an `ArchiveErrorCode`),
  * not thrown. Touches no library, so it needs no guard.
  */
-export function verifyBackupFile(file: Blob, options: VerifyBackupOptions = {}): Promise<BackupVerification> {
-  return verifyArchive(file, {
+export async function verifyBackupFile(file: Blob, options: VerifyBackupOptions = {}): Promise<BackupVerification> {
+  let zip: Blob;
+  try {
+    zip = await openBackupBlob(file, options.password, { onProgress: options.onCryptoProgress, signal: options.signal });
+  } catch (error) {
+    if (error instanceof ArchiveError) return { ok: false, refusal: error.code, totalEntries: 0, checkedEntries: 0, problemCount: 0, problems: [] };
+    throw error;
+  }
+  const result = await verifyArchive(zip, {
     supportedSchemaVersion: SCHEMA_VERSION,
     limits: options.limits,
     signal: options.signal,
     onProgress: options.onProgress ? (done, total) => options.onProgress?.({ done, total }) : undefined,
   });
+  return zip === file ? result : { ...result, encrypted: true };
 }
 
 export interface ArchiveUsage {

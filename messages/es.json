@@ -870,12 +870,16 @@
     "progress": {
       "preparing": "Preparando…",
       "media": "Copiando ficheros: {done} de {total}",
-      "finishing": "Terminando…"
+      "finishing": "Terminando…",
+      "encrypting": "Protegiendo el fichero con tu contraseña…",
+      "decrypting": "Abriendo la copia protegida…"
     },
     "done": {
       "backup": "La copia se ha guardado como fichero ZIP.",
       "restore": "El archivo se ha abierto. Todo está en este dispositivo.",
-      "replace": "Tu archivo se ha sustituido por la copia. Todo está en este dispositivo."
+      "replace": "Tu archivo se ha sustituido por la copia. Todo está en este dispositivo.",
+      "backupEncrypted": "La copia se ha guardado como fichero protegido. Necesitarás la contraseña para abrirla.",
+      "backupPrivate": "No tiene contraseña, así que cualquiera que tenga el fichero puede leerlo. Guárdalo en un lugar al que solo tú puedas acceder."
     },
     "error": {
       "busy": "Ya hay una copia o una apertura en marcha. Espera a que termine y vuelve a intentarlo.",
@@ -888,14 +892,17 @@
       "generic": "Algo ha ido mal. No se ha borrado nada. Vuelve a intentarlo.",
       "safetyBackupFailed": "No se ha podido entregar al navegador la copia de seguridad de tu archivo para descargarla, así que no se ha sustituido nada. Tu archivo no se ha cambiado.",
       "changedDuringReplace": "Tu archivo ha cambiado mientras se preparaba la copia, así que no se ha sustituido nada. Tu archivo está como estaba. Inténtalo de nuevo.",
-      "cancelled": "Se ha detenido la sustitución. Tu archivo no se ha cambiado."
+      "cancelled": "Se ha detenido la sustitución. Tu archivo no se ha cambiado.",
+      "wrongPassword": "Esa contraseña no abre la copia. Comprueba la contraseña; si estás seguro, el archivo podría estar dañado. No se ha cambiado nada.",
+      "passwordRequired": "Esta copia está protegida. Escribe su contraseña para abrirla.",
+      "encryptionUnavailable": "Este navegador no puede proteger ni abrir ficheros con contraseña aquí. Inténtalo de nuevo desde la aplicación instalada o con una conexión segura."
     },
     "replace": {
       "stage": {
         "safety-backup": "Copia de seguridad, paso 1 de 2.",
         "restoring": "Sustituyendo tu archivo, paso 2 de 2."
       },
-      "safetyKept": "Se ha ofrecido a tu navegador una copia de seguridad de tu archivo con el nombre {fileName}. Comprueba la carpeta Descargas para asegurarte de que está y guárdala."
+      "safetyKept": "Se ha ofrecido a tu navegador una copia de seguridad de tu archivo con el nombre {fileName}. Comprueba la carpeta Descargas para asegurarte de que está y guárdala. Esa copia no está protegida con contraseña, así que quien la tenga puede leerla."
     }
   },
   "backup": {
@@ -920,15 +927,19 @@
     },
     "copy": {
       "title": "Haz una copia",
-      "description": "Un solo fichero ZIP con todos tus mensajes y ficheros. Puedes abrirlo en cualquier dispositivo.",
+      "description": "Un solo fichero con todos tus mensajes y ficheros. Puedes abrirlo en cualquier dispositivo.",
       "backup": "Haz una copia de todo el archivo",
       "progressLabel": "Progreso",
       "restoreTitle": "Abre una copia",
       "restoreDescription": "Abre una copia ZIP en un dispositivo que todavía no tenga ningún archivo.",
       "restore": "Elige un fichero de copia",
       "replace": "Sustituir mi archivo por una copia",
-      "replaceDescription": "Sustituye el archivo de este dispositivo por una copia ZIP. Te pediremos que lo confirmes y antes se ofrecerá a tu navegador una copia de seguridad de tu archivo actual para descargarla.",
-      "cancel": "Parar"
+      "replaceDescription": "Sustituye el archivo de este dispositivo por un archivo de copia. Te pediremos que lo confirmes y antes se ofrecerá a tu navegador una copia de seguridad de tu archivo actual para descargarla.",
+      "cancel": "Parar",
+      "protect": "Proteger con una contraseña",
+      "protectNote": "Opcional. Si olvidas esta contraseña, la copia no se puede abrir y nosotros no podemos recuperarla. Usa una frase larga que recordarás y guárdala en un lugar seguro.",
+      "privateNote": "Sin contraseña la copia es privada: cualquiera que tenga el fichero puede leerla. Guárdala en un lugar al que solo tú puedas acceder.",
+      "restorePrompt": "Abrir la copia"
     },
     "check": {
       "title": "Comprueba tu archivo",
@@ -980,9 +991,14 @@
         "damaged": "Esta copia está incompleta o dañada. No se ha cambiado nada. Si tienes otra copia, usa esa.",
         "newer": "Esta copia la guardó una versión más nueva de Memory Archive. Actualiza la aplicación para comprobarla. No se ha cambiado nada.",
         "limit": "Esta copia es más grande de lo que la aplicación puede leer con seguridad. No se ha cambiado nada.",
-        "generic": "Algo ha ido mal al comprobar el fichero. No se ha cambiado nada. Vuelve a intentarlo."
+        "generic": "Algo ha ido mal al comprobar el fichero. No se ha cambiado nada. Vuelve a intentarlo.",
+        "wrongPassword": "Esa contraseña no abre la copia. Comprueba la contraseña; si estás seguro, el archivo podría estar dañado.",
+        "unavailable": "Este navegador no puede abrir una copia protegida aquí."
       },
-      "announce": "{percent} % comprobado"
+      "announce": "{percent} % comprobado",
+      "checkPrompt": "Comprobar la copia",
+      "decrypting": "Abriendo la copia protegida…",
+      "encryptedOk": "Está protegida con una contraseña y la contraseña la ha abierto."
     },
     "replace": {
       "title": "¿Sustituir tu archivo por esta copia?",
@@ -991,7 +1007,22 @@
       "safety": "Antes de cambiar nada, se ofrece a tu navegador una copia de seguridad de tu archivo actual para descargarla. Comprueba que el fichero está en la carpeta Descargas antes de fiarte de él y guárdalo: es la manera de recuperar tu archivo actual.",
       "file": "Fichero de copia: {fileName}",
       "cancel": "Conservar mi archivo",
-      "confirm": "Sustituir mi archivo"
+      "confirm": "Sustituir mi archivo",
+      "safetyPlain": "La copia de seguridad no tiene contraseña, así que cualquiera que tenga ese fichero puede leerlo.",
+      "encrypted": "Esta copia está protegida con una contraseña. Escríbela para continuar."
+    },
+    "password": {
+      "label": "Contraseña",
+      "confirmLabel": "Repite la contraseña",
+      "showOne": "Mostrar la contraseña",
+      "showMany": "Mostrar las contraseñas",
+      "empty": "Escribe una contraseña.",
+      "mismatch": "Las dos contraseñas no coinciden."
+    },
+    "prompt": {
+      "title": "Esta copia está protegida",
+      "body": "Escribe la contraseña que elegiste al hacer {fileName}.",
+      "cancel": "Cancelar"
     }
   },
   "subpage": {

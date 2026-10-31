@@ -870,12 +870,16 @@
     "progress": {
       "preparing": "Getting ready…",
       "media": "Copying files: {done} of {total}",
-      "finishing": "Finishing…"
+      "finishing": "Finishing…",
+      "encrypting": "Protecting the file with your password…",
+      "decrypting": "Opening the protected backup…"
     },
     "done": {
       "backup": "The backup was saved as a ZIP file.",
       "restore": "The archive is open. Everything is on this device.",
-      "replace": "Your archive was replaced with the backup. Everything is on this device."
+      "replace": "Your archive was replaced with the backup. Everything is on this device.",
+      "backupEncrypted": "The backup was saved as a protected file. You need its password to open it.",
+      "backupPrivate": "It is not protected by a password, so anyone who has the file can read it. Keep it somewhere only you can reach."
     },
     "error": {
       "busy": "Another backup or restore is already running. Wait for it to finish and try again.",
@@ -888,14 +892,17 @@
       "generic": "Something went wrong. Nothing was deleted. Try again.",
       "safetyBackupFailed": "The safety copy of your archive could not be handed to your browser to download, so nothing was replaced. Your archive was not changed.",
       "changedDuringReplace": "Your archive changed while the backup was being prepared, so nothing was replaced. Your archive is as it was. Try again.",
-      "cancelled": "Replacing was stopped. Your archive was not changed."
+      "cancelled": "Replacing was stopped. Your archive was not changed.",
+      "wrongPassword": "That password does not open this backup. Check the password; if you are sure it is right, the file may be damaged. Nothing was changed.",
+      "passwordRequired": "This backup is protected. Enter its password to open it.",
+      "encryptionUnavailable": "This browser cannot protect or open files with a password here. Try again from the installed app or over a secure connection."
     },
     "replace": {
       "stage": {
         "safety-backup": "Safety copy, step 1 of 2.",
         "restoring": "Replacing your archive, step 2 of 2."
       },
-      "safetyKept": "Your browser was offered a safety copy of your archive named {fileName}. Check your Downloads folder to make sure it is there, and keep it."
+      "safetyKept": "Your browser was offered a safety copy of your archive named {fileName}. Check your Downloads folder to make sure it is there, and keep it. That copy is not password-protected, so anyone who has it can read it."
     }
   },
   "backup": {
@@ -920,15 +927,19 @@
     },
     "copy": {
       "title": "Make a backup",
-      "description": "One ZIP file with all your messages and files. You can open it on any device.",
+      "description": "One file with all your messages and files. You can open it on any device.",
       "backup": "Back up the whole archive",
       "progressLabel": "Progress",
       "restoreTitle": "Open a backup",
       "restoreDescription": "Open a backup ZIP on a device that has no archive yet.",
       "restore": "Choose a backup file",
       "replace": "Replace my archive with a backup",
-      "replaceDescription": "Replace the archive on this device with a backup ZIP. You will be asked to confirm, and a safety copy of your current archive is offered to your browser to download first.",
-      "cancel": "Stop"
+      "replaceDescription": "Replace the archive on this device with a backup file. You will be asked to confirm, and a safety copy of your current archive is offered to your browser to download first.",
+      "cancel": "Stop",
+      "protect": "Protect with a password",
+      "protectNote": "Optional. If you forget this password, the backup cannot be opened and we cannot recover it. Use a long phrase you will remember, and keep it somewhere safe.",
+      "privateNote": "Without a password the backup is private: anyone who has the file can read it. Keep it somewhere only you can reach.",
+      "restorePrompt": "Open backup"
     },
     "check": {
       "title": "Check your archive",
@@ -980,9 +991,14 @@
         "damaged": "This backup is incomplete or damaged. Nothing was changed. If you have another backup, use that one.",
         "newer": "This backup was saved by a newer version of Memory Archive. Update the app to check it. Nothing was changed.",
         "limit": "This backup is larger than this app can safely read. Nothing was changed.",
-        "generic": "Something went wrong while checking the file. Nothing was changed. Try again."
+        "generic": "Something went wrong while checking the file. Nothing was changed. Try again.",
+        "wrongPassword": "That password does not open this backup. Check the password; if you are sure it is right, the file may be damaged.",
+        "unavailable": "This browser cannot open a protected backup here."
       },
-      "announce": "{percent}% checked"
+      "announce": "{percent}% checked",
+      "checkPrompt": "Check backup",
+      "decrypting": "Opening the protected backup…",
+      "encryptedOk": "It is protected with a password, and the password opened it."
     },
     "replace": {
       "title": "Replace your archive with this backup?",
@@ -991,7 +1007,22 @@
       "safety": "Before anything changes, your browser is offered a safety copy of your current archive to download. Check that the file is in your Downloads folder before you rely on it, and keep it: it is how you get your current archive back.",
       "file": "Backup file: {fileName}",
       "cancel": "Keep my archive",
-      "confirm": "Replace my archive"
+      "confirm": "Replace my archive",
+      "safetyPlain": "The safety copy is not password-protected, so anyone who has that file can read it.",
+      "encrypted": "This backup is protected with a password. Enter it to continue."
+    },
+    "password": {
+      "label": "Password",
+      "confirmLabel": "Repeat the password",
+      "showOne": "Show password",
+      "showMany": "Show passwords",
+      "empty": "Enter a password.",
+      "mismatch": "The two passwords do not match."
+    },
+    "prompt": {
+      "title": "This backup is protected",
+      "body": "Enter the password you chose when you made {fileName}.",
+      "cancel": "Cancel"
     }
   },
   "subpage": {

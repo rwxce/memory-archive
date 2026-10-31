@@ -870,12 +870,16 @@
     "progress": {
       "preparing": "Preparant…",
       "media": "Copiant fitxers: {done} de {total}",
-      "finishing": "Acabant…"
+      "finishing": "Acabant…",
+      "encrypting": "Protegint el fitxer amb la teva contrasenya…",
+      "decrypting": "Obrint la còpia protegida…"
     },
     "done": {
       "backup": "La còpia s'ha desat com a fitxer ZIP.",
       "restore": "L'arxiu s'ha obert. Tot és en aquest dispositiu.",
-      "replace": "L’arxiu s’ha substituït per la còpia. Tot és en aquest dispositiu."
+      "replace": "L’arxiu s’ha substituït per la còpia. Tot és en aquest dispositiu.",
+      "backupEncrypted": "La còpia s’ha desat com a fitxer protegit. Necessitaràs la contrasenya per obrir-la.",
+      "backupPrivate": "No té contrasenya, així que qualsevol persona que tingui el fitxer el pot llegir. Guarda’l en un lloc on només tu hi puguis accedir."
     },
     "error": {
       "busy": "Ja hi ha una còpia o una obertura en marxa. Espera que acabi i torna-ho a provar.",
@@ -888,14 +892,17 @@
       "generic": "Alguna cosa ha anat malament. No s'ha esborrat res. Torna-ho a provar.",
       "safetyBackupFailed": "No s’ha pogut lliurar al navegador la còpia de seguretat de l’arxiu per baixar-la, així que no s’ha substituït res. El teu arxiu no s’ha canviat.",
       "changedDuringReplace": "El teu arxiu ha canviat mentre es preparava la còpia, així que no s’ha substituït res. El teu arxiu està com estava. Torna-ho a provar.",
-      "cancelled": "S’ha aturat la substitució. El teu arxiu no s’ha canviat."
+      "cancelled": "S’ha aturat la substitució. El teu arxiu no s’ha canviat.",
+      "wrongPassword": "Aquesta contrasenya no obre la còpia. Comprova la contrasenya; si n’estàs segur, el fitxer podria estar malmès. No s’ha canviat res.",
+      "passwordRequired": "Aquesta còpia està protegida. Escriu-ne la contrasenya per obrir-la.",
+      "encryptionUnavailable": "Aquest navegador no pot protegir ni obrir fitxers amb contrasenya aquí. Torna-ho a provar des de l’aplicació instal·lada o amb una connexió segura."
     },
     "replace": {
       "stage": {
         "safety-backup": "Còpia de seguretat, pas 1 de 2.",
         "restoring": "Substituint l’arxiu, pas 2 de 2."
       },
-      "safetyKept": "S’ha ofert al navegador una còpia de seguretat del teu arxiu amb el nom {fileName}. Comprova la carpeta Baixades per assegurar-te que hi és i guarda-la."
+      "safetyKept": "S’ha ofert al navegador una còpia de seguretat del teu arxiu amb el nom {fileName}. Comprova la carpeta Baixades per assegurar-te que hi és i guarda-la. Aquesta còpia no està protegida amb contrasenya, així que qui la tingui la pot llegir."
     }
   },
   "backup": {
@@ -920,15 +927,19 @@
     },
     "copy": {
       "title": "Fes una còpia",
-      "description": "Un sol fitxer ZIP amb tots els teus missatges i fitxers. El pots obrir en qualsevol dispositiu.",
+      "description": "Un sol fitxer amb tots els teus missatges i fitxers. El pots obrir en qualsevol dispositiu.",
       "backup": "Fes una còpia de tot l’arxiu",
       "progressLabel": "Progrés",
       "restoreTitle": "Obre una còpia",
       "restoreDescription": "Obre una còpia ZIP en un dispositiu que encara no tingui cap arxiu.",
       "restore": "Tria un fitxer de còpia",
       "replace": "Substitueix el meu arxiu per una còpia",
-      "replaceDescription": "Substitueix l’arxiu d’aquest dispositiu per una còpia ZIP. Et demanarem que ho confirmis i abans s’oferirà al navegador una còpia de seguretat de l’arxiu actual per baixar-la.",
-      "cancel": "Atura"
+      "replaceDescription": "Substitueix l’arxiu d’aquest dispositiu per un fitxer de còpia. Et demanarem que ho confirmis i abans s’oferirà al navegador una còpia de seguretat de l’arxiu actual per baixar-la.",
+      "cancel": "Atura",
+      "protect": "Protegeix amb una contrasenya",
+      "protectNote": "Opcional. Si oblides aquesta contrasenya, la còpia no es pot obrir i nosaltres no la podem recuperar. Fes servir una frase llarga que recordaràs i guarda-la en un lloc segur.",
+      "privateNote": "Sense contrasenya la còpia és privada: qualsevol persona que tingui el fitxer la pot llegir. Guarda-la en un lloc on només tu hi puguis accedir.",
+      "restorePrompt": "Obre la còpia"
     },
     "check": {
       "title": "Comprova el teu arxiu",
@@ -980,9 +991,14 @@
         "damaged": "Aquesta còpia és incompleta o està malmesa. No s’ha canviat res. Si tens una altra còpia, fes servir aquella.",
         "newer": "Aquesta còpia l’ha desat una versió més nova de Memory Archive. Actualitza l’aplicació per comprovar-la. No s’ha canviat res.",
         "limit": "Aquesta còpia és més gran del que l’aplicació pot llegir amb seguretat. No s’ha canviat res.",
-        "generic": "Alguna cosa ha anat malament en comprovar el fitxer. No s’ha canviat res. Torna-ho a provar."
+        "generic": "Alguna cosa ha anat malament en comprovar el fitxer. No s’ha canviat res. Torna-ho a provar.",
+        "wrongPassword": "Aquesta contrasenya no obre la còpia. Comprova la contrasenya; si n’estàs segur, el fitxer podria estar malmès.",
+        "unavailable": "Aquest navegador no pot obrir una còpia protegida aquí."
       },
-      "announce": "{percent}% comprovat"
+      "announce": "{percent}% comprovat",
+      "checkPrompt": "Comprova la còpia",
+      "decrypting": "Obrint la còpia protegida…",
+      "encryptedOk": "Està protegida amb una contrasenya i la contrasenya l’ha obert."
     },
     "replace": {
       "title": "Vols substituir l’arxiu per aquesta còpia?",
@@ -991,7 +1007,22 @@
       "safety": "Abans de canviar res, s’ofereix al navegador una còpia de seguretat de l’arxiu actual per baixar-la. Comprova que el fitxer és a la carpeta Baixades abans de refiar-te’n i guarda’l: és la manera de recuperar l’arxiu actual.",
       "file": "Fitxer de còpia: {fileName}",
       "cancel": "Conserva el meu arxiu",
-      "confirm": "Substitueix el meu arxiu"
+      "confirm": "Substitueix el meu arxiu",
+      "safetyPlain": "La còpia de seguretat no té contrasenya, així que qualsevol persona que tingui aquest fitxer el pot llegir.",
+      "encrypted": "Aquesta còpia està protegida amb una contrasenya. Escriu-la per continuar."
+    },
+    "password": {
+      "label": "Contrasenya",
+      "confirmLabel": "Repeteix la contrasenya",
+      "showOne": "Mostra la contrasenya",
+      "showMany": "Mostra les contrasenyes",
+      "empty": "Escriu una contrasenya.",
+      "mismatch": "Les dues contrasenyes no coincideixen."
+    },
+    "prompt": {
+      "title": "Aquesta còpia està protegida",
+      "body": "Escriu la contrasenya que vas triar en fer {fileName}.",
+      "cancel": "Cancel·la"
     }
   },
   "subpage": {
