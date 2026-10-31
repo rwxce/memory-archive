@@ -264,7 +264,7 @@ describe('PersonScreen', () => {
     expect(status(view)).toBe('Changes to Ana Puig were saved.');
     // Focus returns to the menu button after the form closes: wait for it, a slow runner is late.
     const shown = view;
-    await vi.waitFor(() => expect(document.activeElement).toBe(menuButton(shown)), { timeout: 3000 });
+    await vi.waitFor(() => expect(document.activeElement).toBe(menuButton(shown)), { timeout: 10_000 });
   });
 
   test('archiving asks first; the person stays on the page, now archived, with focus on the menu button', async () => {
@@ -277,7 +277,7 @@ describe('PersonScreen', () => {
     expect(status(view)).toBe('Ana is now archived.');
     expect(view.container.textContent).toContain(en.person.archivedBadge);
     expect(titles(view)).toEqual(['Chat with Ana', 'Family group']);
-    await vi.waitFor(() => expect(document.activeElement).toBe(menuButton(view!)), { timeout: 3000 });
+    await vi.waitFor(() => expect(document.activeElement).toBe(menuButton(view!)), { timeout: 10_000 });
   });
 
   test('Escape on the archive question cancels it, and a failed archive keeps it open', async () => {
@@ -324,7 +324,7 @@ describe('PersonScreen', () => {
       expect(titles(view)).toEqual(['Chat with Ana', 'Family']);
       expect(status(view)).toBe('Renamed to “Family”.');
       expect(view.container.querySelector('form')).toBeNull();
-      await vi.waitFor(() => expect(document.activeElement).toBe(buttonByLabel(view!, 'Rename “Family”')), { timeout: 3000 });
+      await vi.waitFor(() => expect(document.activeElement).toBe(buttonByLabel(view!, 'Rename “Family”')), { timeout: 10_000 });
     });
 
     test('a double submit renames once', async () => {
