@@ -167,6 +167,13 @@
     "sync": {
       "title": "Sincronitza dispositius",
       "description": "Porta els canvis a un altre dispositiu amb un fitxer i rep els seus."
+    },
+    "reminders": {
+      "title": "Recordatoris",
+      "toggle": "Mostra els recordatoris",
+      "hint": "Una targeta discreta dins l’app. No s’envia res ni es mostren notificacions.",
+      "interval": "Recorda-m’ho després de",
+      "days": "{count} dies"
     }
   },
   "notFound": {
@@ -1226,5 +1233,19 @@
         "failed": "No s’ha pogut desar. No s’ha canviat res. Torna-ho a provar."
       }
     }
+  },
+  "reminders": {
+    "backup": {
+      "title": "Potser val la pena fer una còpia",
+      "body": "Que aquesta app sàpiga, fa almenys {days} dies que no fas cap còpia des d’aquí. Una còpia feta d’una altra manera no compta.",
+      "action": "Ves a Còpia i restauració"
+    },
+    "sync": {
+      "title": "Canvis sense compartir",
+      "body": "Tens canvis que encara no has compartit amb un altre dispositiu.",
+      "action": "Ves a Sincronitza dispositius"
+    },
+    "later": "Recorda-m’ho més tard",
+    "never": "No m’ho recordis"
   }
 }

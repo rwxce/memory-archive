@@ -66,7 +66,7 @@ import { discardSearchIndex, getSearchIndexBytes, getSearchStatus, searchMessage
 import { readBatchMessages, readChangeSet } from './changes';
 import { listConflicts, resolveConflict } from './conflicts';
 import { mergeChangesPack, refusalOf } from './merge';
-import { getDeviceId, getPeer, listPeers, recordReceived, recordSent } from './sync';
+import { countUnsentChanges, getDeviceId, getPeer, listPeers, peekDeviceId, recordReceived, recordSent } from './sync';
 import { transaction } from './sql';
 import { checkSnapshot, exportDatabase, isLibraryEmpty, listBlobs, loadSnapshot } from './snapshot';
 
@@ -185,7 +185,9 @@ const HANDLERS: Handlers = {
   },
   listPersonTimelineDays: ({ db }, p) => listPersonTimelineDays(db, requireParams(p).profileId as string),
   getDeviceId: ({ db }) => getDeviceId(db),
+  peekDeviceId: ({ db }) => peekDeviceId(db),
   listSyncPeers: ({ db }) => listPeers(db),
+  countUnsentChanges: ({ db }) => countUnsentChanges(db),
   getSyncPeer: ({ db }, p) => getPeer(db, requireParams(p).peerId as string),
   recordSyncSent: ({ db }, p) => transaction(db, () => recordSent(db, p)),
   recordSyncReceived: ({ db }, p) => transaction(db, () => recordReceived(db, p)),

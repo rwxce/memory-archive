@@ -1,4 +1,4 @@
-import type { RecordReceivedInput, RecordSentInput, RecordSentResult, SyncPeer } from '../domain/sync';
+import type { RecordReceivedInput, RecordSentInput, RecordSentResult, SyncPeer, UnsentChanges } from '../domain/sync';
 import { DbError } from './errors';
 import type { SqlDb } from './sql';
 
@@ -52,6 +52,11 @@ export function getDeviceId(db: SqlDb): string {
   return db.all<{ id: string }>('SELECT id FROM device WHERE singleton = 1')[0].id;
 }
 
+/** This library's device id WITHOUT creating the row: `null` when there is none yet. For read-only callers (reminders). */
+export function peekDeviceId(db: SqlDb): string | null {
+  return db.all<{ id: string }>('SELECT id FROM device WHERE singleton = 1')[0]?.id ?? null;
+}
+
 /** The counter's current value: the highest `seq` handed out so far (`BASELINE_SEQ` when nothing changed since v8). */
 export function currentChangeSeq(db: SqlDb): number {
   ensureDevice(db);
@@ -67,7 +72,7 @@ export function nextChangeSeq(db: SqlDb): number {
 
 /** Tables whose rows carry `seq` (and `changed_by` where listed in `CHANGED_BY`). */
 export type StampedTable = 'profiles' | 'conversations' | 'import_batches' | 'favorites' | 'notes';
-const CHANGED_BY: ReadonlySet<StampedTable> = new Set(['profiles', 'conversations', 'notes', 'favorites']);
+const CHANGED_BY: ReadonlySet<StampedTable> = new Set(['profiles', 'conversations', 'import_batches', 'notes', 'favorites']);
 
 /**
  * Marks the rows matching `where` as changed here, now: new `seq`, and `changed_by` back to NULL
@@ -82,8 +87,7 @@ export function stampRows(db: SqlDb, table: StampedTable, where: string, params:
 /**
  * Like `stampRows`, for a version merged from `peerId`: it gets a new local `seq` (so it reaches a
  * third device through this one) but `changed_by` names the peer, so it never counts as a local
- * edit against that same peer (a false conflict). Tables without `changed_by` (import batches)
- * only take the `seq`.
+ * edit against that same peer (a false conflict).
  */
 export function stampMergedRows(
   db: SqlDb,
@@ -93,10 +97,6 @@ export function stampMergedRows(
   params: readonly (string | number | null)[],
 ): void {
   const seq = nextChangeSeq(db);
-  if (!CHANGED_BY.has(table)) {
-    db.run(`UPDATE ${table} SET seq = ? WHERE ${where}`, [seq, ...params]);
-    return;
-  }
   db.run(`UPDATE ${table} SET seq = ?, changed_by = ? WHERE ${where}`, [seq, peerId, ...params]);
 }
 
@@ -144,6 +144,28 @@ const PEER_SELECT = `SELECT peer_id AS peerId, last_sent_seq AS lastSentSeq, las
 /** Every known peer, most recently active first (ties by id). */
 export function listPeers(db: SqlDb): SyncPeer[] {
   return db.all<SyncPeer>(`${PEER_SELECT} ORDER BY max(coalesce(last_sent_at, ''), coalesce(last_received_at, '')) DESC, peer_id`);
+}
+
+/**
+ * For every known peer, how many own records `readChangeSet(db, { peerId })` would carry: profiles,
+ * conversations, favorites, notes, tombstones and import batches above its sent watermark that did
+ * not come from that peer (same echo rule as `FRESH` in `changes.ts`). COUNT only. Rows a pack
+ * pulls in only because a carried record references them (a profile or conversation of a batch)
+ * are not counted; they are never the sole reason for a pack, so `count > 0` holds exactly when
+ * the pack would carry any record. Messages and blobs are not counted. `lastSentAt` and
+ * `lastExchangeAt` (the later of sent / received) let a caller judge whether the peer is still in play.
+ */
+export function countUnsentChanges(db: SqlDb): UnsentChanges[] {
+  const fresh = (t: string) => `(SELECT count(*) FROM ${t} WHERE seq > p.last_sent_seq AND (changed_by IS NULL OR changed_by <> p.peer_id))`;
+  return db.all<UnsentChanges>(
+    `SELECT p.peer_id AS peerId,
+            ${['profiles', 'conversations', 'import_batches', 'favorites', 'notes', 'tombstones'].map(fresh).join(' + ')} AS count,
+            p.last_sent_at AS lastSentAt,
+            CASE WHEN p.last_sent_at IS NULL THEN p.last_received_at
+                 WHEN p.last_received_at IS NULL OR p.last_sent_at >= p.last_received_at THEN p.last_sent_at
+                 ELSE p.last_received_at END AS lastExchangeAt
+       FROM sync_peers p ORDER BY p.peer_id`,
+  );
 }
 
 /** The state for one peer; `null` when this device never exchanged anything with it. */

@@ -156,7 +156,7 @@ describe('loadSnapshot', () => {
     v4.run('INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, type) VALUES (?, ?, ?, ?, ?)', [ID2, ID1, 'ab'.repeat(32), '2026-01-01T10:00:00', 'text']);
     const target = (await openMemoryDb()).db;
     expect(await loadSnapshot(target, serializeDb(v4))).toEqual({ from: 4, to: SCHEMA_VERSION });
-    expect(SCHEMA_VERSION).toBe(9);
+    expect(SCHEMA_VERSION).toBe(10);
     expect(target.all('SELECT fingerprint FROM messages')).toEqual([{ fingerprint: 'ab'.repeat(32) }]);
     expect(target.all('SELECT * FROM favorites')).toEqual([]);
     expect(target.all('SELECT * FROM notes')).toEqual([]);

@@ -137,8 +137,7 @@ schema v8 adds the device id, per-peer watermarks, tombstones and per-record cha
 replaced library is a new device; the use cases `lib/usecases/sync-state.ts` exist; a changes pack can be exported (plain or encrypted; watermarks move only
 when the caller confirms delivery); importing a pack is a merge (one transaction, watermarks, conflicts kept beside the active record in the schema v9
 table `sync_conflicts`, undone imports only offered, `resolveSyncConflict` mine / theirs / both). The `/sync` screen (device code and peers, export with a delivery confirmation, import with password and
-result summary, pointers from Backup and the import wizard) is built, and so is the "Items to review" card on it (both versions side by side, keep this device's / take the other's / keep both for notes, offered import undos with a confirmation). Not done: the
-reminders (item 17).**
+result summary, pointers from Backup and the import wizard) is built, and so is the "Items to review" card on it (both versions side by side, keep this device's / take the other's / keep both for notes, offered import undos with a confirmation). Export reminders are done too: a quiet in-app card (People, Sync, Backup) for changes not yet shared with a known device and for no backup in 7 / 14 / 30 days, with "remind me later" (7 days) and "don't remind me", and a Settings section; local only, no notifications. Not done: the manual Safari / Firefox checks.**
 
 - Device id; export a *changes* pack since the last export to that device, or the full
   archive; import = merge (messages by fingerprint, media by hash, profiles / favorites /

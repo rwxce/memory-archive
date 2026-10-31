@@ -31,6 +31,7 @@ import type {
   ResolveConflictInput,
   SyncConflict,
   SyncPeer,
+  UnsentChanges,
 } from '../domain/sync';
 import type { ResolveConflictResult } from './conflicts';
 import type { BlobRow, DatabaseExport } from './snapshot';
@@ -161,6 +162,10 @@ export interface DbOps {
   /** This library's device id (created on first call; new after a restore or replace). */
   getDeviceId: { params: undefined; result: string };
   listSyncPeers: { params: undefined; result: SyncPeer[] };
+  /** This library's device id if it already has one; never creates it (read-only, for reminders). */
+  peekDeviceId: { params: undefined; result: string | null };
+  /** Per known peer, how many records a changes pack for it would carry now, and when it was last exchanged with. Counts only. */
+  countUnsentChanges: { params: undefined; result: UnsentChanges[] };
   getSyncPeer: { params: { peerId: string }; result: SyncPeer | null };
   /** A changes pack for the peer was produced up to `upToSeq`. */
   recordSyncSent: { params: RecordSentInput; result: RecordSentResult };

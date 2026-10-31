@@ -167,6 +167,13 @@
     "sync": {
       "title": "Sincroniza dispositivos",
       "description": "Lleva los cambios a otro dispositivo con un archivo y recibe los suyos."
+    },
+    "reminders": {
+      "title": "Recordatorios",
+      "toggle": "Mostrar recordatorios",
+      "hint": "Una tarjeta discreta dentro de la app. No se envía nada ni se muestran notificaciones.",
+      "interval": "Recordármelo después de",
+      "days": "{count} días"
     }
   },
   "notFound": {
@@ -1226,5 +1233,19 @@
         "failed": "No se ha podido guardar. No se ha cambiado nada. Vuelve a intentarlo."
       }
     }
+  },
+  "reminders": {
+    "backup": {
+      "title": "Quizá convenga hacer una copia",
+      "body": "Que esta app sepa, hace al menos {days} días que no haces una copia desde aquí. Una copia hecha de otra forma no cuenta.",
+      "action": "Ir a Copia y restauración"
+    },
+    "sync": {
+      "title": "Cambios sin compartir",
+      "body": "Tienes cambios que aún no has compartido con otro dispositivo.",
+      "action": "Ir a Sincroniza dispositivos"
+    },
+    "later": "Recuérdamelo más tarde",
+    "never": "No me lo recuerdes"
   }
 }

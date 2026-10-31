@@ -7,6 +7,7 @@ import { ConversationList } from '@/components/conversation-list';
 import { Eyebrow } from '@/components/eyebrow';
 import { LibraryNotice } from '@/components/library-notice';
 import { PageTitle } from '@/components/page-title';
+import { ReminderCard } from '@/components/reminder-card';
 import { ProfileAvatar } from '@/components/profile-avatar';
 import { ProfileForm, type ProfileFormValues } from '@/components/profile-form';
 import { PillButton } from '@/components/pill-button';
@@ -164,6 +165,7 @@ function PeopleContent({ whenNoProfiles, onRetry }: { whenNoProfiles?: ReactNode
         </button>
       </header>
       <p className="text-t2 leading-relaxed">{t('intro')}</p>
+      <ReminderCard kinds={['sync', 'backup']} link />
 
       {active.length > 0 ? (
         <ul className="flex flex-col gap-3.5" aria-label={t('title')}>

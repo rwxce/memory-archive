@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { LibraryNotice } from '@/components/library-notice';
 import { PageTitle } from '@/components/page-title';
 import { Shell } from '@/components/screen-shell';
+import { ReminderCard } from '@/components/reminder-card';
 import { SyncDeviceCard } from '@/components/sync-device-card';
 import { SyncExportCard } from '@/components/sync-export-card';
 import { SyncConflictsCard } from '@/components/sync-conflicts-card';
@@ -43,9 +44,10 @@ function SyncContent() {
   return (
     <Shell back={{ href: '/settings', label: tn('title') }}>
       <div className="flex flex-col gap-1.5">
-        <PageTitle>{t('title')}</PageTitle>
+        <PageTitle tabIndex={-1}>{t('title')}</PageTitle>
         <p className="text-t2 leading-relaxed">{t('intro')}</p>
       </div>
+      <ReminderCard kinds={['sync']} refreshKey={device.state} />
       <SyncDeviceCard state={device.state} />
       <SyncExportCard device={device.state} pack={exported} busy={imported.state.status === 'working'} />
       <SyncInbox pack={imported} busy={exported.state.status === 'working'} />
