@@ -375,6 +375,94 @@ const V10 = `
 ALTER TABLE import_batches ADD COLUMN changed_by TEXT CHECK (changed_by IS NULL OR (length(changed_by) = 36 AND changed_by = lower(changed_by)));
 `;
 
+/**
+ * v11 (expand only): the photo collection (`docs/formats/photo-library.md`). Two new tables, both
+ * empty after migrating; no existing column or row changes, so a v1-v10 backup restores by
+ * migrating. Added with its first entry point, the Google Photos Takeout album import.
+ *
+ * - `photo_batches`: one row per import that added photos (history and undo), like `import_batches`
+ *   but not tied to a conversation.
+ * - `photo_items`: one photo or video of the collection. NOT assigned to any profile (a later
+ *   release adds the link table with its first entry point). The bytes are a content-addressed
+ *   `blobs` row; the same bytes in two albums are two items over one blob. `UNIQUE (sha256,
+ *   source, album)` is the idempotency key: importing the same album again inserts nothing.
+ *   `taken_at` is the UTC instant the source recorded for when the picture was taken
+ *   (`YYYY-MM-DDTHH:MM:SSZ`), NULL when unknown; it is never replaced by an import date.
+ *   `latitude` / `longitude` are both set or both NULL.
+ */
+const V11 = `
+CREATE TABLE photo_batches (
+  id            TEXT PRIMARY KEY CHECK (length(id) = 36 AND id = lower(id)),
+  source        TEXT NOT NULL CHECK (length(source) > 0),
+  -- The name of the file imported (untrusted text, may hold a person's name).
+  source_label  TEXT NOT NULL DEFAULT '',
+  created_at    TEXT NOT NULL,
+  added_count   INTEGER NOT NULL DEFAULT 0 CHECK (added_count >= 0),
+  skipped_count INTEGER NOT NULL DEFAULT 0 CHECK (skipped_count >= 0)
+) STRICT;
+
+CREATE TABLE photo_items (
+  id          INTEGER PRIMARY KEY,
+  batch_id    TEXT NOT NULL REFERENCES photo_batches(id) ON DELETE CASCADE,
+  sha256      TEXT NOT NULL REFERENCES blobs(sha256),
+  kind        TEXT NOT NULL CHECK (kind IN ('photo', 'video')),
+  mime        TEXT,
+  taken_at    TEXT CHECK (taken_at IS NULL OR taken_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+  latitude    REAL CHECK (latitude IS NULL OR (latitude BETWEEN -90 AND 90)),
+  longitude   REAL CHECK (longitude IS NULL OR (longitude BETWEEN -180 AND 180)),
+  description TEXT NOT NULL DEFAULT '',
+  source      TEXT NOT NULL CHECK (length(source) > 0),
+  album       TEXT NOT NULL DEFAULT '',
+  file_name   TEXT NOT NULL,
+  CHECK ((latitude IS NULL) = (longitude IS NULL)),
+  UNIQUE (sha256, source, album)
+) STRICT;
+CREATE INDEX photo_items_by_batch ON photo_items(batch_id);
+CREATE INDEX photo_items_by_taken_at ON photo_items(taken_at, id);
+`;
+
+/**
+ * v12 (expand only): where a photo's date came from and the camera's UTC offset
+ * (`docs/formats/photo-library.md`). Two columns on `photo_items`: `date_source`, so a screen can tell
+ * an original date (sidecar, EXIF) from a guess (the file's last-modified time), and
+ * `taken_offset_minutes`, the camera's UTC offset of an `exif` date, so the wall-clock day at the
+ * place of the photo is not lost to the UTC conversion. Existing rows are Takeout items: `sidecar`
+ * when they have a date, `none` otherwise, with no offset, which is exactly what they meant. The
+ * rule "`none` exactly when `taken_at` is NULL" cannot be a CHECK here (ADD COLUMN validates the
+ * old rows against the default before the backfill, and a snapshot may not carry triggers): the
+ * writer (`lib/db/photos.ts`) keeps it and `loadSnapshot` refuses a snapshot that breaks it. A
+ * v1-v11 backup restores by migrating.
+ */
+const V12 = `
+ALTER TABLE photo_items ADD COLUMN date_source TEXT NOT NULL DEFAULT 'none' CHECK (date_source IN ('sidecar', 'exif', 'exif-local', 'file-modified', 'none'));
+ALTER TABLE photo_items ADD COLUMN taken_offset_minutes INTEGER CHECK (taken_offset_minutes IS NULL OR (date_source = 'exif' AND taken_offset_minutes BETWEEN -840 AND 840 AND taken_offset_minutes % 15 = 0));
+UPDATE photo_items SET date_source = 'sidecar' WHERE taken_at IS NOT NULL;
+`;
+
+/**
+ * v13 (expand only): which profiles a picture is assigned to (`docs/formats/photo-library.md`).
+ * One new table, empty after migrating; no existing column or row changes, so a v1-v12 backup
+ * restores by migrating. Added with its first entry point, `assignPhotos`.
+ *
+ * - The key is the PICTURE (`sha256`), not a `photo_items` row: the same bytes from two albums or
+ *   sources are one tile and one assignment. Deleting a profile removes its links (cascade).
+ * - `sha256` references `blobs`, so the bytes of an assigned picture cannot be dropped while a link
+ *   exists. The rule "a link only exists for a sha256 that has a `photo_items` row" is not
+ *   expressible as a constraint (items are not unique per sha256): the writers keep it (`assignPhotos`
+ *   checks, `undoPhotoBatch` removes the links of a picture that loses its last item) and
+ *   `loadSnapshot` refuses a backup that breaks it.
+ * - Nothing here assigns by date or by anything else: a row exists only because the person chose it.
+ */
+const V13 = `
+CREATE TABLE photo_profiles (
+  sha256     TEXT NOT NULL REFERENCES blobs(sha256),
+  profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (sha256, profile_id)
+) STRICT;
+CREATE INDEX photo_profiles_by_profile ON photo_profiles(profile_id, sha256);
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, sql: V1 },
   { version: 2, sql: V2 },
@@ -386,6 +474,9 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 8, sql: V8 },
   { version: 9, sql: V9 },
   { version: 10, sql: V10 },
+  { version: 11, sql: V11 },
+  { version: 12, sql: V12 },
+  { version: 13, sql: V13 },
 ];
 
 /** Schema version this build produces and understands. */

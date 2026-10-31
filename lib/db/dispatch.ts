@@ -63,6 +63,8 @@ import {
   type HighlightScope,
 } from './highlights';
 import { discardSearchIndex, getSearchIndexBytes, getSearchStatus, searchMessages, stepSearchIndex } from './search';
+import { assignPhotos, countPhotoPictures, getPhotoPicture, listPhotoDates, listPhotoPictures, unassignPhotoLinks, unassignPhotos } from './photo-assign';
+import { countPhotoItems, importPhotoItems, listPhotoBatches, listPhotoItems, undoPhotoBatch } from './photos';
 import { readBatchMessages, readChangeSet } from './changes';
 import { listConflicts, resolveConflict } from './conflicts';
 import { mergeChangesPack, refusalOf } from './merge';
@@ -107,6 +109,18 @@ const HANDLERS: Handlers = {
     discardSearchIndex(db);
     return undoImportBatch(db, batchId);
   },
+  importPhotoItems: ({ db }, p) => importPhotoItems(db, p),
+  undoPhotoBatch: ({ db }, p) => undoPhotoBatch(db, requireParams(p).batchId as string),
+  listPhotoItems: ({ db }, p) => listPhotoItems(db, p),
+  countPhotoItems: ({ db }) => countPhotoItems(db),
+  listPhotoBatches: ({ db }) => listPhotoBatches(db),
+  listPhotoPictures: ({ db }, p) => listPhotoPictures(db, p),
+  listPhotoDates: ({ db }, p) => listPhotoDates(db, p),
+  getPhotoPicture: ({ db }, p) => getPhotoPicture(db, requireParams(p).sha256 as string),
+  countPhotoPictures: ({ db }) => countPhotoPictures(db),
+  assignPhotos: ({ db }, p) => assignPhotos(db, p),
+  unassignPhotos: ({ db }, p) => unassignPhotos(db, p),
+  unassignPhotoLinks: ({ db }, p) => unassignPhotoLinks(db, p),
   listBlobHashes: ({ db }) => listBlobs(db).map((b) => b.sha256),
   getStorageBreakdown: ({ db }) => getStorageBreakdown(db),
   getLibraryStats: ({ db }) => ({ ...getLibraryStats(db), searchIndexBytes: getSearchIndexBytes(db) }),

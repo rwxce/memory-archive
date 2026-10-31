@@ -187,6 +187,58 @@ test type or architecture rule means updating this file **in the same PR**.
     a plain file goes on unchanged. The password is an argument of `backup` / `restore` / `replace` / `useBackupFileCheck().run`
     only: never in state, storage or logs, and cleared from the fields when handed over. The replace dialog states that its
     safety copy is not encrypted. Progress adds `encrypting` / `decrypting`. Tested in `components/backup-encrypted.test.tsx` and `hooks/use-archive-backup.test.tsx`.
+  - **Photos** (`/[locale]/photos/`, queue item 19b; `components/photos-screen.tsx` plus `photos-notes`, `photos-add-cards`,
+    `photos-run-status`, `photos-batches-card`; hooks `use-photo-import`, `use-photo-batches`, reusing `throttle-progress` and
+    `retry-busy`; copy under `photos.*`, Settings row `settings.photos`). Sub-screen with a back pill to Settings. A ZIP is told
+    apart by content with `detectPhotoSource` and sent to `importTakeoutAlbum` / `importGooglePhotosZip`; a WhatsApp chat, a
+    backup or a changes file only gets a pointer to Import / Backup / Sync (nothing is imported); a lone picture handed to the
+    ZIP picker joins the loose choice; anything else is a calm message. Loose files (`accept="image/*,video/*" multiple`) wait in
+    a visible count that can be removed before `importLoosePhotos`, with an optional album name cut by code points (200). One
+    import or undo at a time (busy ref, and the screen disables the other buttons); `retryWhileBusy` covers the open-time cleanup;
+    Stop aborts until the save begins (then it is offered disabled: the save commits whole). The result lists added, already
+    there, skipped, unreadable, too large and estimated dates. `photoFailureOf` maps `TakeoutError` / `ArchiveError` / `DbError`
+    (matched by name and `code`, hooks may not import `lib/importers` or `lib/db`) to eight calm messages; raw error text is never
+    shown. Two notes are always visible: pictures are not assigned to anyone yet, and an estimated date comes from the file.
+    "Added so far" lists `listPhotoBatches` (label or source, source, when, count; names are text, clamped) with Undo behind an
+    inline confirmation that names the import, the number of items and says that pictures also used in a chat, a profile photo
+    or elsewhere stay, and (generic wording, no pre-count use case) that a picture nothing else holds is also taken out of
+    the people it was assigned to; after an undo `removedAssignments` is shown. A card "Choose pictures for people" (`photos-select-link`,
+    `use-photo-counts`) shows how many pictures nobody has and links to `/photos/select`. Tested in `components/photos-screen.test.tsx` (every
+    detect route, loose import, cancel, errors, undo, double click, escaping) and `e2e/photos.spec.ts` (390 and 1440 px).
+  - **Choose pictures for people** (`/[locale]/photos/select/`, queue item 20b; `components/photos-select-screen.tsx` plus
+    `photo-select-toolbar`, `photo-day-grid`, `photo-tile`, `photo-days.ts`, `photo-select-bar` (action bar and result),
+    `photo-assign-dialog`, `photo-detail-dialog`; hooks `use-photo-grid`, `use-photo-selection`, `use-photo-assign`, `use-photo-image`,
+    `use-photo-months`, `viewer-offset`; copy under `photos.select.*`). Calls only `lib/usecases/photo-assign.ts`. Pictures are grouped by
+    DAY of `photoDisplayDate(picture, viewerOffset)` with a sticky heading (a new group whenever the displayed day changes; undated
+    last; a guessed date is marked "Estimated" on the tile, in its name and in the detail), filters Not assigned (default) / Assigned / All
+    with counts, a jump-to-month `<select>` (`listPhotoMonths`, read again after every assignment, undo and take-out; pages are loaded until the month
+    is on screen, at most `JUMP_PAGES_MAX` = 40 pages, then it stops and says so; a failed page read, or a month that is not in the list, also
+    ends the jump with a calm message), paged by cursor, 120 a page, with the next
+    page read when the end comes near (IntersectionObserver) or by "Show more". The list is NOT virtualized and loaded pages are never unloaded
+    (known limit): every loaded tile stays in the DOM (about 4,900 after the longest jump; more if the person keeps scrolling), but a tile far
+    from the screen renders no image (IntersectionObserver margin, shared media queue, object URLs revoked on leaving and unmounting), and a tile
+    reads only a small cached thumbnail: a video, a photo with no thumbnail over 32 KiB (too big to decode, or undecodable) shows a placeholder with
+    its name, never the full file. The detail view's full read goes through the same queue with a high-priority lane (one extra slot,
+    `createQueue(...).enqueue(task, {priority: 'high'})`), so it does not wait behind tile reads. Tiles are memoized with stable callbacks
+    (the grid reads the latest selection through a ref), so choosing a picture re-renders that tile only; a day that appears twice in the
+    list (pictures of two zones interleave) is two groups and "Select day" says it acts on the group shown. Each day is a `listbox` of `option`s (`aria-multiselectable`, `aria-selected`) rather than an ARIA grid:
+    the layout has no fixed rows, and a day heading with its own "Select day" button cannot live inside a grid. One tile is in the tab order;
+    arrows (across days), Home/End, Space (choose), Shift+arrows (range), Ctrl/Cmd+A (everything loaded). Escape does not clear the choice; "Clear" does.
+    Changing the filter clears the choice ("Selection cleared." announced); turning Select off clears up to 20 chosen pictures and keeps a longer choice (and says so). A tap or click opens the
+    detail until "Select" is on (or a long press on a touch screen, or a Shift/Ctrl/Cmd-click); then it chooses. The choice (`usePhotoSelection`,
+    at most `PHOTO_ASSIGN_MAX`, a calm message beyond it) lives outside the grid so it survives paging, filters and the detail. The sticky bar says
+    how many are chosen with "Assign to…" and "Clear". "Assign to…" is a native modal `<dialog>` in two steps: tick people (search above 8, archived last
+    and labelled, a way to People when there is nobody), then a confirmation naming the number of pictures and the people with the line "Nothing is
+    assigned by date; only these pictures." After the call the result card ("N assignments added, M were already there") takes focus, with "Undo this
+    assignment": `assignPhotos` returns `fresh`, exactly the links that call inserted, and Undo sends those to `unassignPhotoLinks` in one
+    transaction (nothing from another tab or an earlier call is touched; a failed undo changes nothing, keeps the card and can be pressed again; no Undo
+    when `fresh` is `null`, over 5,000 new links). If an assignment fails the screen checks the chosen pictures (`getPhotoPicture`), drops those that left
+    the collection from the choice and says how many, so a retry can work. The dialog sends exactly the people it lists and turns "Assign" off if the
+    list of people changed under the choice. In the Not assigned list the assigned pictures
+    leave it with a polite announcement. The detail dialog shows the picture (`readPhotoFile`; a video with controls), its date and where it comes from
+    (sidecar / camera / file estimate / unknown), albums (clamped, `safeName`), sources, and the profiles holding it with "Take out" for each; Previous / Next,
+    Escape and focus back to the tile. Tested in `components/photos-select-screen.test.tsx` (real in-memory library), `components/photo-day-grid.test.tsx` (render counts, repeated days), `components/photo-assign-dialog.test.tsx`, `components/photo-days.test.ts`,
+    `hooks/use-photo-selection.test.tsx`, `components/photos-select-link.test.tsx` and `e2e/photos-select.spec.ts` (390 and 1440 px).
   - **Sync devices** (`/[locale]/sync/`, `components/sync-screen.tsx` plus `sync-device-card`, `sync-export-card`,
     `sync-import-card`, `sync-inbox`, `sync-progress`, `sync-conflicts-card`, `sync-conflict-item`, `sync-batch-offer`; hooks `use-sync-device`, `use-sync-conflicts`, `use-changes-pack-export`, `use-changes-pack-import`,
     `peek-archive-file`, `throttle-progress`; copy under `sync.*`). Sub-screen with a back pill to Settings (a Settings row
@@ -347,7 +399,7 @@ test type or architecture rule means updating this file **in the same PR**.
     plain TS, pinned by NIST vectors; WebCrypto has no incremental digest, so this is how
     media is hashed while it streams, with no dependency).
   - `lib/db/` — the only code that issues SQL. `sql.ts` (`SqlDb`: the narrow sync surface
-    over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1 to v10,
+    over sqlite-wasm's `oo1.DB`, `transaction`), `migrations.ts` (schema v1 to v11,
     `PRAGMA user_version`, forward-only, one transaction per migration, newer DB refused),
     `queries.ts` (profiles: create / update / archive / get / list; conversations: list / rename /
     move / link / unlink; `importMessages` (batch, optional new conversation and "me", all in one transaction), `findImportCandidates`, `findExistingFingerprints`, `undoImportBatch`, `listImportBatches` (read-only history: newest first, keyset `before` cursor, page <= 200, filter by conversation or profile), `listMessages`; the conversation view's reads, all by position on `messages_timeline` with no schema change: `getConversationBounds`, `countMessages`, `getMessageWindow` (limit clamped to 1..500, any offset, window ids from the covering index, then a join of only those rows; carries `isMe`, system flag, media hash/name/mime), `findMessageOffsetByDate` (`null` when every message is earlier), `listConversationDays` (count and first offset per local day), `getMessageSource(conversationId, messageId)` (the first import batch that added the message: source, label, date, batch id; `not-found` unless the pair matches, `invalid` for a malformed id; read-only, no schema change); an unknown conversation is `not-found`; a person's media, also with no schema change: `countPersonMedia` / `listPersonMedia(profileId, kinds, offset, limit)` (messages with a stored file of the asked media types over every conversation linked to the profile, archived or not; total order `(sent_at, ordinal, id)`, limit clamped to 1..500, ids picked first and only that page joined; `invalid` for empty / non-media `kinds`, `not-found` for an unknown profile; ~15 ms first page and count over 15k audio items in a 200k-message archive, guarded by `person-media.perf.test.ts`); a person's combined timeline (schema v4 index `messages_by_time`): `getPersonTimelineBounds`, `getPersonTimelineWindow(profileId, offset, limit)` (every message of every conversation linked to the profile, archived or not, merged in the total order `(sent_at, ordinal, conversation_id, id)`; limit clamped to 1..500; each item is a conversation-view message plus `conversationId` / `conversationTitle`; a conversation linked to two people is in both timelines), `findPersonTimelineOffsetByDate` (`null` when all are earlier), `listPersonTimelineDays`; `not-found` for an unknown profile, `invalid` for a malformed id, offset or date; use cases in `lib/usecases/person-timeline.ts`; guarded by `person-timeline.perf.test.ts`); favorites (schema v5): `setFavorite({ conversationId, messageId, favorite, now })` (the screen passes the local message id; the pair is checked, `not-found` otherwise; resolved to `(conversation, fingerprint)` inside; idempotent), `countFavorites(scope?)` / `listFavorites(scope, offset, limit)` (scope = `{ profileId }`, `{ conversationId }` or none = whole archive, both = `invalid`; timeline-shaped items, oldest first in the timeline order, limit clamped to 1..500; favorites whose message is not in the archive are not returned or counted), and `isFavorite` on every item of `getMessageWindow` / `getPersonTimelineWindow` through a LEFT JOIN on the favorites primary key (page rows only, so no N+1); use cases in `lib/usecases/favorites.ts`; guarded by `favorites.perf.test.ts`); notes (schema v6): `setNote({ target, body, now })` (target = `{ kind: 'profile', profileId }`, `{ kind: 'conversation', conversationId }` or `{ kind: 'message', conversationId, messageId }`, strictly validated; the message pair is checked, `not-found` otherwise, and resolved to `(conversation, fingerprint)` inside; the text is trimmed and bounded by `NOTE_MAX` = 10,000 in `domain/profile.ts` (`invalid` over it, never truncated); creates, edits (keeps `created_at`, moves `updated_at` only when the text changes) or, when empty, deletes and returns `null`), `getNote(target)`, `countNotes(scope?)` / `listNotes(scope, offset, limit)` (scope = `{ profileId }` (the person's own note plus those of their conversations and messages), `{ conversationId }` (its note plus its messages') or none, both = `invalid`; most recently edited first (`updated_at` desc, ties by `created_at` then rowid, so pages tile), limit clamped to 1..500; each item carries kind, text, dates, profile name / conversation title and, for a message note, the message (id, sent_at, type, author, text, file name); notes on a message that is not in the archive are not returned or counted), and `hasNote` on every item of `getMessageWindow` / `getPersonTimelineWindow` / `listFavorites` through a LEFT JOIN on the unique `(conversation_id, fingerprint)` index (page rows only, so no N+1); use cases in `lib/usecases/notes.ts`; guarded by `notes.perf.test.ts`); full-text search (a derived index, no change to the library schema): `getSearchStatus` (`not-built` / `stale` / `ready` plus the message total), `stepSearchIndex({ limit? })` (one chunk of a reconcile pass, default 5,000 messages, clamped to 100..20,000: adds what is missing, removes what is gone or different; `finished` / `verified` end the pass) and `searchMessages({ scope?, query, offset, limit })` (scope = `{ profileId }`, `{ conversationId }` or none, both = `invalid`, unknown = `not-found`; the query is reduced to quoted words with the last one as a prefix from 2 letters, so no FTS5 syntax typed by a person reaches the engine; newest first in the timeline order; limit clamped to 1..500; items are timeline-shaped plus `snippet: { text, ranges }`, plain text with UTF-16 offsets, never HTML; `unavailable` before the first complete pass); use cases in `lib/usecases/search.ts` (`getSearchStatus`, `buildSearchIndex({ onProgress, signal })`, `searchMessages(scope, query, offset, limit)`, which brings a missing or stale index up to date first); guarded by `search.perf.test.ts`),
@@ -458,6 +510,16 @@ test type or architecture rule means updating this file **in the same PR**.
     `Blob.slice`, fflate streaming inflate per entry), `lines.ts` (UTF-8 decoding + line
     splitting), `timestamp.ts`, `message.ts` (state machine), `chat.ts` (transcript entry,
     chat name/slug), `media.ts` (media matching), `import.ts` (`parseWhatsAppZip`).
+  - `lib/importers/takeout/` — Google Photos Takeout ZIP reader (queue item 18): `paths.ts` (entry-name safety, album
+    folder, media types, `TakeoutError`), `sidecar.ts` (bounded, type-checked metadata JSON), `match.ts` (sidecar name
+    variants: classic, supplemental, 46-character cuts, `(1)`, `-edited`, title and live-photo fallbacks), `read.ts`
+    (`readTakeoutZip`: the plan of items with album and metadata). Uses the one ZIP reader from `whatsapp/zip.ts`.
+    Format and supported variants: `docs/formats/photo-library.md`.
+  - `lib/importers/photos/` — loose files and Google Photos web-download ZIPs (queue item 19a): `sniff.ts` (type by
+    magic bytes; `acceptMedia` also checks the extension, never `File.type`), `exif.ts` (hardened in-repo EXIF reader
+    over the first 256 KiB: JPEG APP1 and HEIC/HEIF `Exif` item; DateTimeOriginal + OffsetTimeOriginal, GPS; every
+    offset checked, IFDs visited once, any failure is "no metadata"), `zip-layout.ts` (flat ZIP vs Takeout layout, path
+    checks, `looksLikeMediaDownload`: documents/e-books/APKs that embed pictures are refused). `photoDisplayDate` (`lib/domain/photo.ts`) is the one rule for showing a photo date; schema v12 also holds the camera offset. A loose file that cannot be read is skipped and counted (`unreadableFiles`). Fixtures: `scripts/photo-fixtures.mjs` (synthetic JPEG/HEIC with EXIF, hostile EXIF, a download ZIP).
   - `lib/importers/legacy/` — readers for old outputs back into `Message[]` (`transcript.ts` writes them back as a
     `_chat.txt` for the import wizard):
     `readLegacyJson` (schema 0 and 1, refuses newer), `readLegacyHtml` (the `chat-data`
@@ -600,6 +662,31 @@ test type or architecture rule means updating this file **in the same PR**.
   backups carry `schemaVersion` 7, so an older app refuses them (`newer-schema`). There is no merge of two
   devices' archives in the code yet; when it exists it must treat `highlights` like favorites and notes
   (union by key).
+- **Schema v11 (implemented, expand-only; photo collection, queue item 18)** — `photo_batches` (history and undo of
+  photo imports) and `photo_items` (a picture or video of the library, NOT assigned to any profile; bytes are a
+  `blobs` row; `UNIQUE (sha256, source, album)` is the idempotency key; `taken_at` is a UTC instant kept from the
+  source). Both tables empty after migrating; `formatVersion` stays 1 (the backup layout is unchanged; `schemaVersion` 11, so
+  an older app refuses the file with `newer-schema`). `isReferenced` counts photo items (undo, orphan sweep, merges never
+  delete a file an item uses) and `isLibraryEmpty` treats them as content. The changes pack does not carry them yet
+  (known limit in `docs/formats/changes-pack.md`). Use cases in `lib/usecases/photo-library.ts` (`importTakeoutAlbum`,
+  `undoPhotoImport`, `listPhotoItems`, `countPhotoItems`, `listPhotoBatches`), db ops `importPhotoItems`,
+  `undoPhotoBatch`, `listPhotoItems`, `countPhotoItems`, `listPhotoBatches` in `lib/db/photos.ts`; the Photos screen (`/photos`) imports and undoes.
+  Format: `docs/formats/photo-library.md`.
+- **Schema v12 (implemented, expand-only; photo date source, queue item 19a)** — `photo_items.date_source`
+  (`sidecar`, `exif`, `exif-local`, `file-modified`, `none`; `NOT NULL DEFAULT 'none'` with a CHECK), so a screen can tell an
+  original date from a guess (`file-modified`). Existing rows: `sidecar` when `taken_at` is set, else `none`. The writer
+  keeps "`none` exactly when `taken_at` is NULL". `formatVersion` stays 1, `schemaVersion` 12; v1-v11 backups restore by
+  migrating. New sources `loose` and `google-photos-zip` need no schema change (`source` is a free label). Use cases in
+  `lib/usecases/photo-import.ts` (`importLoosePhotos`, `importGooglePhotosZip`, a Takeout-shaped ZIP is delegated to
+  `importTakeoutAlbum`) and `lib/usecases/photo-source.ts` (`detectPhotoSource`); no screen yet.
+- **Schema v13 (implemented, expand-only; photo assignments, queue item 20a)** — `photo_profiles(sha256, profile_id,
+  created_at)`, keyed by PICTURE (bytes), not by item; `sha256` references `blobs`, `profile_id` cascades on profile
+  deletion. Only an explicit `assignPhotos` writes it (never by date), at most 2000 pictures x 50 profiles per call, one
+  transaction. A link exists only while an item holds the picture: `undoPhotoBatch` removes the links of a picture that
+  loses its last item (reported as `removedAssignments`), and `loadSnapshot` refuses a backup that breaks it. `schemaVersion`
+  13, `formatVersion` 1; v1-v12 backups restore by migrating. Code: `lib/db/photo-assign.ts` (grid listing by cursor, month
+  dates, counts, assign / unassign), `lib/usecases/photo-assign.ts` (the same plus `listProfilePhotos`, `listPhotoMonths`,
+  `readPhotoFile`, `readPhotoTile`), plus `unassignPhotoLinks` (exact-links undo). Not in the changes pack. The selection screen (20b) is the only caller.
 - **Schema v8 (implemented, expand-only; foundation of manual device-to-device sync)** — format and
   rationale in `docs/formats/changes-pack.md`. New: `device(singleton, id, created_at, change_seq)` (this
   library's identity and a monotonic change counter; the migration creates the row with a random id and
@@ -1031,6 +1118,7 @@ test type or architecture rule means updating this file **in the same PR**.
   - Search — `lib/domain/search-query.test.ts` (quoting and prefix rule, operators / `NEAR` / `OR` / `-` / `*` / quotes / column filters are only words, bounds on 1M-character input, snippets cut with ranges, markup and control characters stay text, a cut never splits a surrogate pair, long words are kept whole), `lib/usecases/search.test.ts` (status not-built / stale / ready, progress, abort and continue, shared build, accents and case, prefix, scopes, paging, file names, undo, id reuse never shows another message's text, hostile queries, an export carries no index, restore into an empty library then search rebuilds, restore starts the index over, ids that hold other content never show old text, abort semantics for joined builds, a snapshot with an FTS5 table is refused), `lib/db/search.test.ts` (a write between chunks leaves the pass unverified, a pass resumed after an outside write finds the new message, an undo leaves no table and no free page and costs nothing without an index, damaged / wrong-shaped / cut-short indexes reset and rebuild), the 200k guard `lib/db/search.perf.test.ts` and `e2e/search.spec.ts` (real OPFS: attach / search / detach next to an import, built index survives a reload, undo).
   - Notes — `lib/db/notes.test.ts` (one per target, edit keeps `created_at`, same text is a no-op, empty deletes, bound and control characters, hostile text as data, pair check and unknown targets, scopes and order, tiling pages, `hasNote` in both windows and the favorites list, newer export keeps it, undo leaves it dormant and a re-import revives it, conversation undo cascades), `lib/usecases/notes.test.ts` and the 200k guard `lib/db/notes.perf.test.ts` (plan probes `notes_one_per_message` for the page rows only); schema in `migrations.test.ts` (pinned DDL and indexes, v5 → v6 keeps rows and equals a fresh schema, kind/column CHECKs, uniqueness, cascades, rollback) and `snapshot.test.ts` (v4 and v5 snapshots restore into v6, v6 round-trips all four kinds, orphan / malformed refused).
   - Changes-pack merge (schema v9) — `lib/usecases/changes-pack-import.test.ts` (A to B gives the same archive including media bytes, the same pack twice changes no row, full after changes, incremental, a third device in either order and relayed, a participant link reaches a third device, wrong device / own pack / gap before anything is stored, ack heals a lost pack, a restored device, deletions and add wins, note conflicts both ways, offered batch undo, hostile records and a merge failing half way leave database and media store untouched, size limit, backups and non-ZIPs refused, newer schema, archive guard, encrypted packs and `detectArchiveFile`), `sync-conflicts.test.ts` (mine / theirs / both converge, replay adds nothing, conflict closes when versions agree, too-long `both`, batch offer accepted or dismissed), `lib/domain/changes-pack-parse.test.ts`, `lib/exporters/changes-pack/identify.test.ts`, `migrations.test.ts` (v8 → v9) and `snapshot.test.ts` (conflicts ignored and dropped by a restore).
+  - Photo collection (schema v11) — `lib/importers/takeout/*.test.ts` (path safety, property-like names, code-point limits and NFC, sidecar fields and hostile JSON, name variants, duplicate/claimed/null-title matching, live-photo scope, layouts, limits), `lib/db/photos.test.ts` (validation, idempotency, rollback, undo, paging), `lib/usecases/photo-library.test.ts` (import, same ZIP twice adds nothing, overlap, two albums one file, undo, abort, store and database failures, busy guard, hostile ZIPs, emoji limits, NFC albums, metadata merge, shared blob kept on profile photo replace, sweep, backup round trip), `migrations.test.ts` (v10 → v11) and `snapshot.test.ts` (a v10 backup restores); synthetic fixture `scripts/takeout-fixtures.mjs`.
   - Sync tracking (schema v8) — `lib/db/sync.test.ts` (device id created on first use and stable, counter strictly increasing, every write path stamps and a no-op does not, `changed_by` cleared by a local edit, tombstones for favorites / notes / batches and their clearing, a failed write stamps nothing, peer watermarks forward-only, `ack` moves the sent watermark back, clamping, self-peer refused), `lib/usecases/sync-state.test.ts`; `migrations.test.ts` (v7 → v8 on a populated library: rows kept, deterministic backfill to 1, no device row, fresh schema equals migrated, CHECKs, rollback and retry, older app refuses v8); `snapshot.test.ts` (a restore is a new device with no peers and a counter that continues, two restores of one backup differ, replace renews identity and a failed replace keeps it, a v7 snapshot restores and gets an identity) and `archive.test.ts` (round trip excludes the identity).
   - Person timeline — `lib/db/person-timeline.test.ts` (merge order across conversations, ties, tiling windows, date jump, days, other people's conversations, move / link / unlink, archived person, invalid input), `lib/usecases/person-timeline.test.ts` and the 200k guard `lib/db/person-timeline.perf.test.ts` (plan must be the covering `messages_by_time` walk with no temp b-tree).
   - Database — `lib/db/*.test.ts` run the real sqlite-wasm in memory under Node:
@@ -1088,7 +1176,8 @@ test type or architecture rule means updating this file **in the same PR**.
     `serve-out.test.ts` (base path, 404, no path traversal), `eslint-architecture.test.ts`. The vendored `security-audit` validators have
     their own `node --test` suite.
   - End to end — `e2e/*.spec.ts` (Playwright `@playwright/test`, not part of `pnpm check`):
-    `pnpm build` then `pnpm e2e` drives the built `out/` served by `pnpm preview`, in the
+    `pnpm build` then `pnpm e2e` (which first regenerates the synthetic `fixtures/`, as `pnpm test`
+    does) drives the built `out/` served by `pnpm preview`, in the
     system Google Chrome (`channel: 'chrome'`, no browser download), projects `mobile-390`
     (390x844, touch) and `desktop-1440`. Each test has a fresh context (fresh OPFS); the shared
     fixture in `e2e/fixtures.ts` listens on the browser context (pages, workers, service worker) and fails a test on any request Chrome makes to a non-local origin; `e2e/guard.spec.ts` proves it can fail. It says nothing about traffic outside the browser. Covers
@@ -1236,6 +1325,8 @@ test type or architecture rule means updating this file **in the same PR**.
 - `formats/legacy-json.md` — the versioned `messages.json` envelope and what each legacy output
   can be re-imported from.
 - `formats/changes-pack.md` — the changes pack for manual device-to-device sync: manifest, records, merge and conflict rules, watermarks, device identity (schema v8, pack export and the merge with schema v9 conflicts are implemented; the screens are not)
+- `formats/photo-library.md` — the photo collection (schema v11): Google Photos Takeout album import, data model,
+  supported sidecar variants, idempotency, undo, backup and the sync limit.
 - `formats/encrypted-backup.md` — the optional password-encrypted backup envelope (`.mabackup`)
   that wraps the backup ZIP unchanged.
 - `archive/planning/` — the original GSD planning of the wa-backup CLI (phases 1–3, codebase

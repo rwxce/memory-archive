@@ -432,3 +432,9 @@ and fails with `limit-exceeded` instead of producing a pack its own reader would
 9. **A plain pack is as private as a plain backup**: use the encrypted envelope for anything that
    leaves the device through a service the user does not control.
 10. **Two people editing one library on one device** is not a case: a library is one person's.
+11. **The photo collection is not synced** (schema v11, `docs/formats/photo-library.md`): photo items, their
+    import batches and the media only they use are not in a pack, and undoing a photo import leaves no
+    tombstone. Neither are the assignments of pictures to profiles (schema v13, `photo_profiles`): they are
+    choices about a collection the pack does not carry, so a device that merges a pack never receives or
+    loses one. They travel in a full backup (restore). Carrying them needs a record kind keyed by
+    `(sha256, source, album)`, tombstones and a format decision, and is not half done.

@@ -20,10 +20,23 @@ interface Entry {
   abort(): void;
 }
 
+export interface EnqueueOptions {
+  /**
+   * A read the person is waiting for (the picture they opened) rather than background work (tiles). It goes ahead of
+   * everything waiting and may use one slot beyond `limit`, so it never waits behind a row of tile reads.
+   */
+  priority?: 'high';
+}
+
+/** Extra reads allowed at once, for `priority: 'high'` tasks only. */
+const URGENT_SLOTS = 1;
+
 export function createQueue(limit: number) {
   let running = 0;
   const waiting: Entry[] = [];
+  const urgent: Entry[] = [];
   const pump = () => {
+    while (urgent.length > 0 && running < limit + URGENT_SLOTS) urgent.shift()!.run();
     while (running < limit && waiting.length > 0) waiting.shift()!.run();
   };
   return {
@@ -31,9 +44,10 @@ export function createQueue(limit: number) {
       return running;
     },
     get waiting() {
-      return waiting.length;
+      return waiting.length + urgent.length;
     },
-    enqueue<T>(task: () => Promise<T>): Queued<T> {
+    enqueue<T>(task: () => Promise<T>, options: EnqueueOptions = {}): Queued<T> {
+      const lane = options.priority === 'high' ? urgent : waiting;
       let entry!: Entry;
       const promise = new Promise<T>((resolve, reject) => {
         entry = {
@@ -49,14 +63,14 @@ export function createQueue(limit: number) {
           abort: () => reject(new Cancelled()),
         };
       });
-      waiting.push(entry);
+      lane.push(entry);
       pump();
       return {
         promise,
         cancel() {
-          const at = waiting.indexOf(entry);
+          const at = lane.indexOf(entry);
           if (at === -1) return;
-          waiting.splice(at, 1);
+          lane.splice(at, 1);
           entry.abort();
         },
       };

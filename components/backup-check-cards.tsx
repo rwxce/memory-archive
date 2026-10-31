@@ -15,7 +15,7 @@ import type { BackupVerification, LibraryIntegrity } from '@/lib/usecases/archiv
 import { formatWhen } from './format';
 
 /** The outcome of a check. It takes focus when it appears, so the result is read right away and keyboard users land on it. */
-export function Outcome({ icon, title, children, testId }: { icon: 'ok' | 'attention' | 'quiet'; title?: ReactNode; children: ReactNode; testId: string }) {
+export function Outcome({ icon, title, children, testId, role }: { icon: 'ok' | 'attention' | 'quiet'; title?: ReactNode; children: ReactNode; testId: string; role?: 'status' | 'alert' }) {
   const box = useRef<HTMLDivElement>(null);
   // Take focus only if the person has not moved on: it is still on the button that started the check
   // (or on nothing at all). Never pull it away from something else they chose in the meantime.
@@ -28,6 +28,7 @@ export function Outcome({ icon, title, children, testId }: { icon: 'ok' | 'atten
     <div
       ref={box}
       tabIndex={-1}
+      role={role}
       data-testid={testId}
       className="bg-bg focus-visible:ring-ring/50 flex flex-col gap-2 rounded-[14px] p-3.5 outline-none focus-visible:ring-[3px]"
     >

@@ -174,6 +174,10 @@
       "hint": "A quiet card inside the app. Nothing is sent and no notifications are shown.",
       "interval": "Remind me after",
       "days": "{count} days"
+    },
+    "photos": {
+      "title": "Photos",
+      "description": "Add photos and videos from your phone or Google Photos."
     }
   },
   "notFound": {
@@ -1247,5 +1251,226 @@
     },
     "later": "Remind me later",
     "never": "Don’t remind me"
+  },
+  "photos": {
+    "title": "Photos",
+    "intro": "Bring in photos and videos from your phone or from Google Photos. Everything stays on this device.",
+    "notes": {
+      "title": "Good to know",
+      "unassigned": "Pictures added here are not assigned to anyone yet.",
+      "estimate": "A date marked as an estimate comes from the file, not from the camera."
+    },
+    "zip": {
+      "title": "From Google Photos",
+      "description": "Choose a ZIP file downloaded from Google Photos, or a Google Takeout of an album. The app looks at what is inside before it adds anything.",
+      "pick": "Choose a ZIP file"
+    },
+    "loose": {
+      "title": "From this device",
+      "description": "Choose photos and videos from your gallery or your files.",
+      "pick": "Choose photos and videos",
+      "pickMore": "Choose more",
+      "chosen": "{count, plural, one {# file chosen} other {# files chosen}}",
+      "remove": "Remove choice",
+      "labelLabel": "Album name (optional)",
+      "labelHint": "Keeps these photos together under one name.",
+      "add": "Add to the collection"
+    },
+    "progressLabel": "Adding photos and videos",
+    "checking": "Looking at <name></name>…",
+    "stop": "Stop",
+    "stopped": "Stopped. Nothing was added.",
+    "result": {
+      "title": "Photos added",
+      "titleNone": "Nothing new was added",
+      "another": "Add more",
+      "added": "{count, plural, one {# photo or video added to the collection.} other {# photos and videos added to the collection.}}",
+      "alreadyThere": "{count, plural, one {# was already in the collection and was not added again.} other {# were already in the collection and were not added again.}}",
+      "ignored": "{count, plural, one {# file was not a photo or a video and was skipped.} other {# files were not photos or videos and were skipped.}}",
+      "unreadable": "{count, plural, one {# file could not be read and was skipped.} other {# files could not be read and were skipped.}}",
+      "tooLarge": "{count, plural, one {# file was too large and was skipped.} other {# files were too large and were skipped.}}",
+      "estimates": "{count, plural, one {# date is an estimate, taken from the file.} other {# dates are estimates, taken from the file.}}",
+      "delegated": "This file was laid out as a Google Takeout and was read as one."
+    },
+    "elsewhere": {
+      "chat": "<name></name> is a WhatsApp chat, not a set of photos. Add it from Import.",
+      "chatLink": "Go to Import",
+      "backup": "<name></name> is a backup of this app. Open it from Backup and restore.",
+      "backupLink": "Go to Backup and restore",
+      "sync": "<name></name> is a file of changes from another device. Open it from Sync devices.",
+      "syncLink": "Go to Sync devices"
+    },
+    "error": {
+      "title": "Nothing was added",
+      "invalid": "This file does not look like photos or videos from Google Photos. Nothing was changed.",
+      "unreadable": "None of the chosen files could be read. They may be stored only in the cloud, or have been moved. Nothing was changed.",
+      "limit": "That is more than can be added in one go. Try a smaller selection. Nothing was changed.",
+      "busy": "Something else is using the archive right now. Wait a moment and try again. Nothing was changed.",
+      "closed": "The archive stopped responding. Reload the page and look at the list below to see what is there. Photos are added all together or not at all.",
+      "newer": "This archive was made by a newer version of the app. Update the app to add photos.",
+      "storage": "There is not enough space on this device, or it could not be written to. Try a smaller selection. Photos are added all together or not at all. Look at the list below to check what is there.",
+      "generic": "Something went wrong and the photos may not have been added. Photos are added all together or not at all. Look at the list below to check what is there, then try again if you need to.",
+      "titleUnsure": "Could not confirm the result",
+      "titleWrong": "Something went wrong"
+    },
+    "batches": {
+      "title": "Added so far",
+      "loading": "Loading…",
+      "empty": "Nothing has been added yet.",
+      "failed": "The list could not be read. Nothing was lost.",
+      "source": {
+        "takeout": "Google Takeout",
+        "google-photos-zip": "Google Photos download",
+        "loose": "From this device",
+        "other": "Other source"
+      },
+      "added": "{count, plural, one {# photo or video added} other {# photos and videos added}}",
+      "undo": "Undo import",
+      "undoLabel": "Undo import: {name}",
+      "confirmTitle": "Take back <name></name>?",
+      "confirmBody": "{count, plural, one {The # photo or video it added will be removed from the collection. If it is also used somewhere else, such as in a chat or a profile photo, it stays there.} other {The # photos and videos it added will be removed from the collection. Any that are also used somewhere else, such as in a chat or a profile photo, stay there.}}",
+      "confirmYes": "Undo import",
+      "confirmKeep": "Keep",
+      "working": "Taking the import back…",
+      "undone": "{count, plural, one {# photo or video was removed from the collection.} other {# photos and videos were removed from the collection.}}",
+      "undoneNone": "This import had already been taken back.",
+      "undoFailed": "The import could not be taken back. Try again in a moment; the list shows what is there.",
+      "confirmAssignments": "If a picture was assigned to people and nothing else holds it, it is taken out of those people too.",
+      "undoneAssignments": "{count, plural, one {# assignment to a person was removed with them.} other {# assignments to people were removed with them.}}"
+    },
+    "busyNow": "Another import is still running. Wait for it to finish, then choose again.",
+    "selectLink": {
+      "title": "Choose pictures for people",
+      "body": "{count, plural, =0 {Every picture is assigned to someone.} one {# picture is not assigned to anyone yet.} other {# pictures are not assigned to anyone yet.}}",
+      "open": "Choose pictures"
+    },
+    "select": {
+      "title": "Choose pictures for people",
+      "intro": "Choose the pictures yourself, then say who they are for. Nothing is assigned by date or by album.",
+      "hint": "Choose Select, then tap pictures to pick them. On a keyboard use the arrow keys and Space; hold Shift to pick a range.",
+      "loading": "Loading pictures…",
+      "failed": "The pictures could not be read. Nothing was changed.",
+      "retry": "Try again",
+      "empty": {
+        "unassigned": "Every picture is assigned to someone.",
+        "assigned": "No picture is assigned to anyone yet.",
+        "all": "There are no pictures yet.",
+        "add": "Add pictures"
+      },
+      "filter": {
+        "label": "What to show",
+        "unassigned": "Not assigned",
+        "assigned": "Assigned",
+        "all": "All"
+      },
+      "selectMode": "Select",
+      "jump": {
+        "label": "Go to",
+        "placeholder": "A month…",
+        "option": "{name} ({count})",
+        "undated": "Without a date ({count})",
+        "empty": "No pictures from that month are in this list.",
+        "stopped": "That month is far down the list. Loaded as many pictures as is sensible; use Show more pictures to keep going.",
+        "failed": "The pictures could not be read, so the jump stopped. Nothing was changed."
+      },
+      "day": {
+        "undated": "Without a date",
+        "estimated": "estimated",
+        "select": "Select day",
+        "unselect": "Unselect day",
+        "selectLabel": "Select the {count, plural, one {# picture} other {# pictures}} of {day}",
+        "unselectLabel": "Unselect the {count, plural, one {# picture} other {# pictures}} of {day}",
+        "selectPartLabel": "Select the {count, plural, one {# picture} other {# pictures}} of {day} shown in this group",
+        "unselectPartLabel": "Unselect the {count, plural, one {# picture} other {# pictures}} of {day} shown in this group"
+      },
+      "tile": {
+        "photo": "Photo",
+        "video": "Video",
+        "noDate": "no date",
+        "about": "about {date}, estimated",
+        "assigned": "already assigned",
+        "estimated": "Estimated",
+        "failed": "Cannot be shown"
+      },
+      "count": "{count, plural, one {# picture selected} other {# pictures selected}}",
+      "assignButton": "Assign to…",
+      "clear": "Clear",
+      "cap": "You can choose up to {max} pictures at a time. Assign these first, then choose more.",
+      "left": "{count, plural, one {# picture was assigned and left this list.} other {# pictures were assigned and left this list.}}",
+      "showMore": "Show more pictures",
+      "loadingMore": "Loading more…",
+      "moreFailed": "More pictures could not be read. Nothing was changed.",
+      "result": {
+        "label": "Result",
+        "added": "{count, plural, =0 {Nothing new was assigned.} one {# assignment added.} other {# assignments added.}}",
+        "already": "{count, plural, one {# was already there.} other {# were already there.}}",
+        "undoNote": "Undo takes back only what was just added. Anything that was already assigned stays.",
+        "undo": "Undo this assignment",
+        "undone": "{count, plural, =0 {Nothing needed to be taken back.} one {# assignment was taken back.} other {# assignments were taken back.}}",
+        "failed": "The pictures may not have been assigned. Assigning is all together or nothing. Look at the Assigned list to check, then try again.",
+        "undoFailed": "The assignment could not be taken back. Nothing was changed, so you can try again.",
+        "close": "Done"
+      },
+      "detail": {
+        "label": "Picture",
+        "close": "Close",
+        "previous": "Previous",
+        "next": "Next",
+        "position": "{current} of {total}",
+        "positionMore": "{current} of {total} shown",
+        "loading": "Loading…",
+        "missing": "This picture’s file is not on this device.",
+        "error": "This picture could not be shown.",
+        "too-large": "This file is too large to show here.",
+        "photo": "Photo",
+        "video": "Video",
+        "file": "File",
+        "date": "Date",
+        "dateAbout": "About {date}",
+        "dateUnknown": "Date unknown",
+        "from": {
+          "sidecar": "From the Google Photos record of when it was taken.",
+          "exif": "From the camera, with its own time zone.",
+          "exif-local": "From the camera, as the camera wrote it.",
+          "file-modified": "An estimate: it is when the file was last changed, which may not be when the picture was taken.",
+          "none": "Nothing recorded when it was taken."
+        },
+        "albums": "Albums",
+        "albumsMore": "{count, plural, one {and # more} other {and # more}}",
+        "sources": "Added from",
+        "assignedTo": "Assigned to",
+        "assignedNone": "Not assigned to anyone.",
+        "someone": "someone",
+        "unassign": "Take out",
+        "unassignLabel": "Take this picture out of {name}",
+        "unassignFailed": "The picture could not be taken out. Nothing was changed."
+      },
+      "assign": {
+        "title": "Assign to…",
+        "confirmTitle": "Check before assigning",
+        "intro": "{count, plural, one {Who is this picture for?} other {Who are these # pictures for?}}",
+        "loading": "Loading people…",
+        "loadFailed": "The people could not be read. Nothing was changed.",
+        "nobody": "There is nobody to assign to yet. Add a person in People, then come back.",
+        "nobodyLink": "Go to People",
+        "search": "Search people",
+        "noMatch": "Nobody matches.",
+        "listLabel": "People",
+        "archived": "archived",
+        "limit": "You can choose up to {max} people at once.",
+        "pickOne": "Choose at least one person.",
+        "cancel": "Cancel",
+        "next": "Continue",
+        "back": "Back",
+        "confirmBody": "{count, plural, one {# picture will be assigned to:} other {# pictures will be assigned to:}}",
+        "only": "Nothing is assigned by date; only these pictures.",
+        "confirm": "Assign",
+        "working": "Assigning…",
+        "changed": "The list of people changed. Go back and check who you chose."
+      },
+      "selectionCleared": "Selection cleared.",
+      "selectOffKept": "Select is off. Your {count} chosen pictures are still chosen; press Clear to let them go.",
+      "gone": "{count, plural, one {# of the chosen pictures is no longer in the collection and was taken off your choice. Choose who the others are for and try again.} other {# of the chosen pictures are no longer in the collection and were taken off your choice. Choose who the others are for and try again.}}"
+    }
   }
 }

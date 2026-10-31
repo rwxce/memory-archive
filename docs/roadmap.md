@@ -147,7 +147,17 @@ result summary, pointers from Backup and the import wizard) is built, and so is 
 
 ## Phase 8 — Google Photos and loose files
 
-**Status: not started.**
+**Status: done in code and automated tests. Done: the data layer and use cases for all three ways in: Google Photos Takeout album
+(schema v11, `importTakeoutAlbum`), loose files from the device and a Google Photos web-download ZIP (schema v12 date
+source, `importLoosePhotos`, `importGooglePhotosZip`, `detectPhotoSource`; items 18 and 19a), with undo and backup /
+restore of the collection; format in `docs/formats/photo-library.md`. Item 19 is done: the Photos screen (`/photos`,
+linked from Settings) picks a ZIP (told apart by content) or loose files, shows progress with Stop, the result and past
+imports with Undo. Item 20a is done: the assignment data layer (schema v13 `photo_profiles`, `assignPhotos`,
+`unassignPhotos`, the picture listing, month buckets and the reading of a picture). Item 20b is done: the selection screen
+(`/photos/select`: pictures by day, choose, assign to people with an explicit confirmation, undo, a detail view, and an
+undo-import warning about assignments). Not built (follow-ups): the assigned pictures in the person page (`listProfilePhotos` is ready; it
+needs its own paged section and viewer, more than a small change), and syncing photos or assignments in a
+changes pack (known limit, unchanged). Not yet checked on a real phone gallery picker.**
 
 - Three ways to pick specific photos: Google Photos web download of a selection, Takeout of
   one album (keeps original dates and locations), or the device gallery picker.

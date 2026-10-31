@@ -18,6 +18,9 @@ import type {
   SearchStatus,
   StoredMessage,
 } from '../domain/library';
+import type { PhotoBatch, PhotoCounts, PhotoItem, PhotoPicture, PhotoPicturePage } from '../domain/photo';
+import type { AssignPhotosInput, AssignPhotosResult, ListPhotoPicturesInput, PhotoDateRow, PhotoProfileLinks, UnassignPhotosResult } from './photo-assign';
+import type { ImportPhotoItemsInput, ImportPhotoItemsResult, ListPhotoItemsInput, UndoPhotoBatchResult } from './photos';
 import type { HighlightImportCounts, HighlightCategory, HighlightItem, HighlightMessage } from '../domain/highlights';
 import type { BatchMessagesPage, ChangeSet, ReadBatchMessagesInput, ReadChangeSetInput } from '../domain/changes-pack';
 import type {
@@ -98,6 +101,20 @@ export interface DbOps {
   findExistingFingerprints: { params: FindExistingFingerprintsInput; result: string[] };
   listImportBatches: { params: ListImportBatchesInput | undefined; result: ImportBatchRow[] };
   undoImportBatch: { params: { batchId: string }; result: UndoImportBatchResult };
+  /** Photo collection (`docs/formats/photo-library.md`): one transaction per import; idempotent. */
+  importPhotoItems: { params: ImportPhotoItemsInput; result: ImportPhotoItemsResult };
+  undoPhotoBatch: { params: { batchId: string }; result: UndoPhotoBatchResult };
+  listPhotoItems: { params: ListPhotoItemsInput; result: PhotoItem[] };
+  countPhotoItems: { params: undefined; result: number };
+  listPhotoBatches: { params: undefined; result: PhotoBatch[] };
+  /** Pictures (by bytes) and the profiles the person assigned them to; nothing is ever assigned automatically. */
+  listPhotoPictures: { params: ListPhotoPicturesInput; result: PhotoPicturePage };
+  listPhotoDates: { params: { scope?: ListPhotoPicturesInput['scope']; afterSha256?: string; limit: number }; result: PhotoDateRow[] };
+  getPhotoPicture: { params: { sha256: string }; result: PhotoPicture | null };
+  countPhotoPictures: { params: undefined; result: PhotoCounts };
+  assignPhotos: { params: AssignPhotosInput; result: AssignPhotosResult };
+  unassignPhotos: { params: { sha256s: string[]; profileId: string }; result: UnassignPhotosResult };
+  unassignPhotoLinks: { params: { links: PhotoProfileLinks[] }; result: UnassignPhotosResult };
   listBlobHashes: { params: undefined; result: string[] };
   getStorageBreakdown: { params: undefined; result: StorageBreakdown };
   /** Counts and bytes for the Backup screen; `searchIndexBytes` is 0 until an index exists. Read-only. */

@@ -1,7 +1,7 @@
 {
   "name": "memory-archive",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Privacy-first, fully offline memory archive for WhatsApp conversations, photos, videos and voice messages",
   "type": "module",
   "bin": {
@@ -33,7 +33,7 @@
     "build": "node scripts/build-viewer-script.mjs && tsup && node scripts/build-db-worker.mjs && NEXT_TELEMETRY_DISABLED=1 next build && node scripts/build-sw.mjs",
     "preview": "node scripts/serve-out.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "e2e": "playwright test",
+    "e2e": "node scripts/generate-fixtures.mjs && playwright test",
     "screenshots": "playwright test -c playwright.screenshots.config.ts",
     "i18n:check": "node scripts/check-i18n-parity.mjs",
     "typecheck": "NEXT_TELEMETRY_DISABLED=1 next typegen && tsc --noEmit",

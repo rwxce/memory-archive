@@ -87,7 +87,7 @@ export interface ImportProgress {
 }
 
 /** At most this often within one big file (`media` progress by bytes); file boundaries always report. */
-const BYTES_PROGRESS_INTERVAL_MS = 200;
+export const BYTES_PROGRESS_INTERVAL_MS = 200;
 
 /**
  * Which conversation the messages go to.
@@ -273,7 +273,7 @@ export async function matchConversation(
  * a failure of the ZIP itself (a size bomb, a damaged entry) is recorded in `failure`, so the
  * import can tell "this file is bad" from "the store failed" whatever the store wraps it in.
  */
-function entryStream(
+export function entryStream(
   stream: ReadableStream<Uint8Array>,
   signal: AbortSignal | undefined,
   failure: { error?: unknown },
@@ -322,7 +322,7 @@ export async function deleteBlobs(stores: Pick<ProfileDeps, 'blobStore' | 'thumb
 }
 
 /** A failure after which the database definitely did not commit (not a lost connection). */
-const isDefiniteDbFailure = (error: unknown) =>
+export const isDefiniteDbFailure = (error: unknown) =>
   error instanceof DbError && error.code !== 'unavailable' && error.code !== 'closed';
 
 export function importWhatsAppExport(deps: ProfileDeps, input: ImportWhatsAppInput): Promise<ImportResult> {
