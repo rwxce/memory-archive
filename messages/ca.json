@@ -874,7 +874,8 @@
     },
     "done": {
       "backup": "La còpia s'ha desat com a fitxer ZIP.",
-      "restore": "L'arxiu s'ha obert. Tot és en aquest dispositiu."
+      "restore": "L'arxiu s'ha obert. Tot és en aquest dispositiu.",
+      "replace": "L’arxiu s’ha substituït per la còpia. Tot és en aquest dispositiu."
     },
     "error": {
       "busy": "Ja hi ha una còpia o una obertura en marxa. Espera que acabi i torna-ho a provar.",
@@ -884,7 +885,17 @@
       "limit": "L'arxiu és massa gran per fer-ne una còpia en un sol fitxer.",
       "missingMedia": "Falta algun fitxer de l'arxiu, així que no s'ha pogut fer la còpia. No s'ha canviat res.",
       "storage": "No hi ha prou espai en aquest dispositiu o no s'hi ha pogut escriure. No s'ha canviat res.",
-      "generic": "Alguna cosa ha anat malament. No s'ha esborrat res. Torna-ho a provar."
+      "generic": "Alguna cosa ha anat malament. No s'ha esborrat res. Torna-ho a provar.",
+      "safetyBackupFailed": "No s’ha pogut lliurar al navegador la còpia de seguretat de l’arxiu per baixar-la, així que no s’ha substituït res. El teu arxiu no s’ha canviat.",
+      "changedDuringReplace": "El teu arxiu ha canviat mentre es preparava la còpia, així que no s’ha substituït res. El teu arxiu està com estava. Torna-ho a provar.",
+      "cancelled": "S’ha aturat la substitució. El teu arxiu no s’ha canviat."
+    },
+    "replace": {
+      "stage": {
+        "safety-backup": "Còpia de seguretat, pas 1 de 2.",
+        "restoring": "Substituint l’arxiu, pas 2 de 2."
+      },
+      "safetyKept": "S’ha ofert al navegador una còpia de seguretat del teu arxiu amb el nom {fileName}. Comprova la carpeta Baixades per assegurar-te que hi és i guarda-la."
     }
   },
   "backup": {
@@ -915,7 +926,9 @@
       "restoreTitle": "Obre una còpia",
       "restoreDescription": "Obre una còpia ZIP en un dispositiu que encara no tingui cap arxiu.",
       "restore": "Tria un fitxer de còpia",
-      "restoreNotEmpty": "Aquest dispositiu ja té un arxiu, així que ara per ara no s’hi pot obrir una còpia. El teu arxiu està bé i no s’ha canviat. Substituir-lo per una còpia arribarà més endavant, amb una còpia de seguretat prèvia. Mentrestant pots obrir una còpia en un dispositiu buit."
+      "replace": "Substitueix el meu arxiu per una còpia",
+      "replaceDescription": "Substitueix l’arxiu d’aquest dispositiu per una còpia ZIP. Et demanarem que ho confirmis i abans s’oferirà al navegador una còpia de seguretat de l’arxiu actual per baixar-la.",
+      "cancel": "Atura"
     },
     "check": {
       "title": "Comprova el teu arxiu",
@@ -970,6 +983,15 @@
         "generic": "Alguna cosa ha anat malament en comprovar el fitxer. No s’ha canviat res. Torna-ho a provar."
       },
       "announce": "{percent}% comprovat"
+    },
+    "replace": {
+      "title": "Vols substituir l’arxiu per aquesta còpia?",
+      "body": "Això substitueix tot el que hi ha en aquest dispositiu pel contingut del fitxer de còpia. Es substitueixen les persones, les converses, els missatges, les notes, els preferits, les fotos i els vídeos.",
+      "countsIntro": "Ara el teu arxiu té:",
+      "safety": "Abans de canviar res, s’ofereix al navegador una còpia de seguretat de l’arxiu actual per baixar-la. Comprova que el fitxer és a la carpeta Baixades abans de refiar-te’n i guarda’l: és la manera de recuperar l’arxiu actual.",
+      "file": "Fitxer de còpia: {fileName}",
+      "cancel": "Conserva el meu arxiu",
+      "confirm": "Substitueix el meu arxiu"
     }
   },
   "subpage": {

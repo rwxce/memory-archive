@@ -103,12 +103,16 @@ export type ArchiveErrorCode =
   | 'invalid-database'
   /** Export: a database row points at a blob that is missing or has the wrong size. */
   | 'blob-missing'
+  /** Replace: the safety backup of the current library could not be built or handed over; nothing was changed. */
+  | 'safety-backup-failed'
+  /** Replace: the library was edited (a note, a favorite, a profile) after its safety backup was made; nothing was changed. Try again. */
+  | 'changed-during-replace'
   | 'storage';
 
 /** Messages never contain file names, chat text or author names. */
 export class ArchiveError extends Error {
   readonly code: ArchiveErrorCode;
-  /** Restore: media files a failed restore could not delete; the next restore sweeps them. */
+  /** Restore: media files a failed restore could not delete, or (replace, outcome unknown) deliberately kept; no row points at them, the next library open (`sweepLeftovers`) or replace removes them. */
   leftoverBlobs = 0;
   constructor(code: ArchiveErrorCode, message: string, options?: { cause?: unknown }) {
     super(message, options);

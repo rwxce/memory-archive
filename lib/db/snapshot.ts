@@ -1,3 +1,4 @@
+import { sha256Hex } from '../domain/sha256';
 import { DbError, toDbError } from './errors';
 import { MIGRATIONS, migrate, readUserVersion, type Migration } from './migrations';
 import { loadSqlite } from './open';
@@ -64,7 +65,22 @@ export interface LoadSnapshotOptions {
   migrations?: readonly Migration[];
   /** When given, the snapshot's `blobs` rows must equal this list exactly. */
   expectBlobs?: readonly BlobRow[];
+  /**
+   * `target` may hold data: every row is deleted and the snapshot's rows inserted in the SAME
+   * transaction, so a failure anywhere leaves the old library exactly as it was. Default: the
+   * caller has checked `target` is empty.
+   */
+  replace?: boolean;
+  /**
+   * With `replace`: the `databaseDigest` of the library the caller backed up. If the library has
+   * changed since (a note, a favorite, a profile edit), nothing is touched and it throws `changed`.
+   * Checked in the same synchronous step as the swap, so no write can slip in between.
+   */
+  unchangedSince?: string;
 }
+
+/** SHA-256 (hex) of the database bytes: a cheap "has the library changed?" token. */
+export const databaseDigest = (bytes: Uint8Array): string => sha256Hex(bytes);
 
 const invalid = (message: string) => new DbError('invalid', `invalid database snapshot: ${message}`);
 
@@ -85,18 +101,12 @@ async function openScratch(bytes: Uint8Array): Promise<SqlDb> {
 }
 
 /**
- * Loads a snapshot from another device into `target`, which the caller has
- * already checked is empty. The snapshot is untrusted: it is opened in a
- * scratch in-memory database, checked (`integrity_check`, `foreign_key_check`,
- * newer schema refused, no triggers, views or virtual tables (before migrating), same tables and columns as the
- * current schema after migrating), and only then copied into `target` in one
- * transaction. On any failure `target` is untouched.
+ * Opens an untrusted snapshot in a scratch in-memory database and checks it (`integrity_check`,
+ * `foreign_key_check`, newer schema refused, no triggers, views or virtual tables (before
+ * migrating), same tables and columns as the current schema after migrating). The caller closes
+ * the returned scratch; on failure it is closed here.
  */
-export async function loadSnapshot(
-  target: SqlDb,
-  bytes: Uint8Array,
-  options: LoadSnapshotOptions = {},
-): Promise<{ from: number; to: number }> {
+async function openChecked(target: SqlDb, bytes: Uint8Array, options: LoadSnapshotOptions) {
   const migrations = options.migrations ?? MIGRATIONS;
   const scratch = await openScratch(bytes);
   try {
@@ -138,12 +148,48 @@ export async function loadSnapshot(
       const want = JSON.stringify([...options.expectBlobs].sort((a, b) => (a.sha256 < b.sha256 ? -1 : 1)));
       if (have !== want) throw invalid('media references do not match the archive contents');
     }
+    return { scratch, versions, tables };
+  } catch (error) {
+    scratch.close();
+    throw error;
+  }
+}
+
+/**
+ * Runs every check `loadSnapshot` runs, writes nothing to `target` and returns the schema versions
+ * (`from` the snapshot's, `to` the current one). Lets a caller refuse a bad backup before it does
+ * anything irreversible; `loadSnapshot` still checks again when it loads.
+ */
+export async function checkSnapshot(target: SqlDb, bytes: Uint8Array, options: LoadSnapshotOptions = {}): Promise<{ from: number; to: number }> {
+  const { scratch, versions } = await openChecked(target, bytes, options);
+  scratch.close();
+  return versions;
+}
+
+/**
+ * Loads a snapshot from another device into `target`, which the caller has
+ * already checked is empty (or, with `replace`, may hold data). The snapshot is untrusted: it is
+ * checked in a scratch database (`openChecked`), and only then copied into `target` in one
+ * transaction. On any failure `target` is untouched.
+ */
+export async function loadSnapshot(
+  target: SqlDb,
+  bytes: Uint8Array,
+  options: LoadSnapshotOptions = {},
+): Promise<{ from: number; to: number }> {
+  const { scratch, versions, tables } = await openChecked(target, bytes, options);
+  try {
+    // Everything from here on is synchronous: no other request can write between this check and the swap.
+    if (options.unchangedSince !== undefined && databaseDigest(serializeDb(target)) !== options.unchangedSince) {
+      throw new DbError('changed', 'the library changed since its safety backup was made');
+    }
 
     // The archive is about to change under any search index: drop it (it is rebuilt on the next search).
     discardSearchIndex(target);
     try {
       transaction(target, () => {
         target.exec('PRAGMA defer_foreign_keys = ON');
+        if (options.replace) for (const table of tables) target.run(`DELETE FROM ${quote(table)}`);
         const count = (db: SqlDb, table: string) => db.all<{ n: number }>(`SELECT count(*) AS n FROM ${quote(table)}`)[0].n;
         for (const table of tables) {
           const before = count(target, table);

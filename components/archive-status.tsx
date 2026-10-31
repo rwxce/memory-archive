@@ -29,9 +29,25 @@ export function archiveErrorKey(code: Failed['code']): string {
       return 'missingMedia';
     case 'storage':
       return 'storage';
+    case 'safety-backup-failed':
+      return 'safetyBackupFailed';
+    case 'changed-during-replace':
+      return 'changedDuringReplace';
+    case 'cancelled':
+      return 'cancelled';
     default:
       return 'generic';
   }
+}
+
+/** "Step 1 of 2: saving a safety copy" plus the usual progress sentence, for the bar and the status line. */
+export function archiveProgressText(
+  t: (key: string, values?: Record<string, number | string>) => string,
+  state: Extract<ArchiveBackupState, { status: 'working' }>,
+): string {
+  const p = state.progress;
+  const text = p.phase === 'media' ? t('progress.media', { done: p.done, total: p.total }) : t(`progress.${p.phase}`);
+  return state.stage ? `${t(`replace.stage.${state.stage}`)} ${text}` : text;
 }
 
 /**
@@ -43,10 +59,12 @@ export function ArchiveStatus({ state, className }: { state: ArchiveBackupState;
   const t = useTranslations('archive');
   let text = '';
   if (state.status === 'working') {
-    const p = state.progress;
-    text = p.phase === 'media' ? t('progress.media', { done: p.done, total: p.total }) : t(`progress.${p.phase}`);
+    text = archiveProgressText(t, state);
   } else if (state.status === 'done') text = t(`done.${state.kind}`);
   else if (state.status === 'failed') text = t(`error.${archiveErrorKey(state.code)}`);
+  // A safety copy already handed to the browser: say where it is, on success and on a failure after it.
+  const kept = state.status === 'done' || state.status === 'failed' ? state.safetyBackupFileName : undefined;
+  if (kept) text = `${text} ${t('replace.safetyKept', { fileName: kept })}`;
   const failed = state.status === 'failed';
   return (
     <p role={failed ? 'alert' : 'status'} aria-live={failed ? undefined : 'polite'} className={className ?? 'text-sm break-words empty:hidden'}>

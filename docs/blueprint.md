@@ -170,10 +170,15 @@ test type or architecture rule means updating this file **in the same PR**.
     `backup-copy-card`, `backup-check-cards`, `task-progress`; hooks `use-archive-usage`, `use-archive-checks`,
     `use-archive-backup`). Sub-screen with a back pill to Settings (the Settings row is now a link, not an inline backup).
     Cards: what the archive holds (counts, bytes per kind, device quota and persistence); full backup (progress bar);
-    open a backup, offered only on an empty archive (otherwise a calm note says replacing comes later and nothing was
-    touched); "Check my archive" (`verifyLibraryIntegrity`: progress, Stop, result by kind, never file names or hashes);
+    open a backup (an empty archive opens the chosen ZIP directly; an archive with data offers "Replace my archive with a
+    backup": the picked file waits behind `replace-backup-dialog.tsx`, a native modal `<dialog>` with Cancel focused, Escape
+    cancels, the counts of what is replaced, the safety-copy notice and a destructive confirm button; confirming calls
+    `replaceLibraryFromBackup` through `useArchiveBackup().replace`, which hands the safety copy to `downloadBlob`, shows two
+    stages ("Safety copy, step 1 of 2" / "Replacing your archive, step 2 of 2"), offers Stop until the swap begins
+    (`cancellable`), and reports the safety copy's file name on success and on any failure after it was saved; new error
+    copy for `safety-backup-failed` and `cancelled`); "Check my archive" (`verifyLibraryIntegrity`: progress, Stop, result by kind, never file names or hashes);
     "Check a backup file" (`verifyBackupFile`: complete / damaged parts / refusal copy per `ArchiveErrorCode`). Results take
-    focus when they appear; one archive task at a time. Tested in `components/backup-screen.test.tsx`. Copy under `backup.*`.
+    focus when they appear; one archive task at a time. Tested in `components/backup-screen.test.tsx` (confirm required, cancel/Escape inert, safety copy before the swap, refusal, safety-copy failure, Stop). Copy under `backup.*` and `archive.*`.
   - **Import history** (`/[locale]/import/history/`, optional `?person=<id>`,
     `components/import-history-screen.tsx`, `hooks/use-import-history.ts`): newest-first list of imports
     (file name, relative + absolute date, messages added / already there, conversation title, the
@@ -346,6 +351,24 @@ test type or architecture rule means updating this file **in the same PR**.
   - `lib/usecases/device-storage.ts` — `prepareDeviceStorage`, `getDeviceStorageStatus`,
     `getSharedFiles`, `takeSharedFile`, `discardSharedFile` (called from `hooks/use-device-storage.ts`); `lib/usecases/archive.ts` —
     `exportArchive`, `restoreArchiveIntoEmptyLibrary` (the Backup and restore screen drives the PWA forms in `archive-backup.ts`);
+    `replaceLibraryFromBackup(deps, file, { appVersion, deliverSafetyBackup, onProgress, signal })` (`archive-backup.ts`,
+    one archive guard end to end): verifies the backup fully (refuses with the verification's code, nothing touched);
+    then checks its database in a scratch copy (`checkDatabase` op / `checkSnapshot`: triggers, columns, integrity, media
+    list; an older schema is migrated, a newer one is `newer-schema`) BEFORE the safety copy or any media, so a bad
+    database with valid hashes is `invalid-database` with nothing touched or downloaded; if the library has data builds
+    its safety backup and awaits `deliverSafetyBackup(blob, fileName)` (failure = `safety-backup-failed`, nothing
+    changed), remembering the SHA-256 of the exported database bytes; stores the backup's media beside the current ones,
+    then swaps the database in ONE transaction (`restoreDatabase` with `replace: true, unchangedSince` first checks the
+    library bytes still hash to that digest, in the same synchronous step as the swap: a note, favorite or profile edit
+    made meanwhile -- those do not take the archive guard -- is `changed-during-replace`, nothing replaced, try again;
+    then deletes every row and inserts the snapshot's); only after the commit are unreferenced old media and thumbnails
+    deleted. The library is never erased first, so there is no "erased but not restored" window: a failure or abort
+    before the commit leaves it exactly as it was (only the files this replace added are removed; an abort rejects with
+    the signal's reason); if the worker dies before answering the swap (outcome unknown) the new media are kept and
+    counted in the error's `leftoverBlobs`; a failure after the commit leaves harmless orphans (`leftoverBlobs` in the
+    result), removed by the next library open (`sweepLeftovers`, needs Web Locks) or the next replace. Cost: old and new
+    media coexist on disk for a moment, so a nearly full device fails with `storage` and changes nothing. Not touched:
+    app settings (localStorage), the share inbox, the service worker (unlike `eraseDevice`).
     `lib/usecases/archive-health.ts` — read-only checks for the Backup and restore screen, returning typed
     results with no archive content in them (kinds, counts, hashes, ids): `verifyLibraryIntegrity(deps, { onProgress, signal })`
     (under the archive busy guard; walks `blobs` rows in hash pages, checks store presence, size and streamed SHA-256

@@ -874,7 +874,8 @@
     },
     "done": {
       "backup": "La copia se ha guardado como fichero ZIP.",
-      "restore": "El archivo se ha abierto. Todo está en este dispositivo."
+      "restore": "El archivo se ha abierto. Todo está en este dispositivo.",
+      "replace": "Tu archivo se ha sustituido por la copia. Todo está en este dispositivo."
     },
     "error": {
       "busy": "Ya hay una copia o una apertura en marcha. Espera a que termine y vuelve a intentarlo.",
@@ -884,7 +885,17 @@
       "limit": "El archivo es demasiado grande para copiarlo en un solo fichero.",
       "missingMedia": "Falta algún fichero del archivo, así que no se ha podido hacer la copia. No se ha cambiado nada.",
       "storage": "No hay suficiente espacio en este dispositivo o no se ha podido escribir. No se ha cambiado nada.",
-      "generic": "Algo ha ido mal. No se ha borrado nada. Vuelve a intentarlo."
+      "generic": "Algo ha ido mal. No se ha borrado nada. Vuelve a intentarlo.",
+      "safetyBackupFailed": "No se ha podido entregar al navegador la copia de seguridad de tu archivo para descargarla, así que no se ha sustituido nada. Tu archivo no se ha cambiado.",
+      "changedDuringReplace": "Tu archivo ha cambiado mientras se preparaba la copia, así que no se ha sustituido nada. Tu archivo está como estaba. Inténtalo de nuevo.",
+      "cancelled": "Se ha detenido la sustitución. Tu archivo no se ha cambiado."
+    },
+    "replace": {
+      "stage": {
+        "safety-backup": "Copia de seguridad, paso 1 de 2.",
+        "restoring": "Sustituyendo tu archivo, paso 2 de 2."
+      },
+      "safetyKept": "Se ha ofrecido a tu navegador una copia de seguridad de tu archivo con el nombre {fileName}. Comprueba la carpeta Descargas para asegurarte de que está y guárdala."
     }
   },
   "backup": {
@@ -915,7 +926,9 @@
       "restoreTitle": "Abre una copia",
       "restoreDescription": "Abre una copia ZIP en un dispositivo que todavía no tenga ningún archivo.",
       "restore": "Elige un fichero de copia",
-      "restoreNotEmpty": "Este dispositivo ya tiene un archivo, así que por ahora no se puede abrir una copia aquí. Tu archivo está bien y no se ha cambiado. Sustituirlo por una copia llegará más adelante, con una copia de seguridad previa. Mientras tanto puedes abrir una copia en un dispositivo vacío."
+      "replace": "Sustituir mi archivo por una copia",
+      "replaceDescription": "Sustituye el archivo de este dispositivo por una copia ZIP. Te pediremos que lo confirmes y antes se ofrecerá a tu navegador una copia de seguridad de tu archivo actual para descargarla.",
+      "cancel": "Parar"
     },
     "check": {
       "title": "Comprueba tu archivo",
@@ -970,6 +983,15 @@
         "generic": "Algo ha ido mal al comprobar el fichero. No se ha cambiado nada. Vuelve a intentarlo."
       },
       "announce": "{percent} % comprobado"
+    },
+    "replace": {
+      "title": "¿Sustituir tu archivo por esta copia?",
+      "body": "Esto sustituye todo lo que hay en este dispositivo por el contenido del fichero de copia. Se sustituyen las personas, las conversaciones, los mensajes, las notas, los favoritos, las fotos y los vídeos.",
+      "countsIntro": "Ahora tu archivo tiene:",
+      "safety": "Antes de cambiar nada, se ofrece a tu navegador una copia de seguridad de tu archivo actual para descargarla. Comprueba que el fichero está en la carpeta Descargas antes de fiarte de él y guárdalo: es la manera de recuperar tu archivo actual.",
+      "file": "Fichero de copia: {fileName}",
+      "cancel": "Conservar mi archivo",
+      "confirm": "Sustituir mi archivo"
     }
   },
   "subpage": {

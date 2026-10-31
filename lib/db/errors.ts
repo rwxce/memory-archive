@@ -16,6 +16,8 @@ export type DbErrorCode =
   | 'not-found'
   /** A stored file is too big to load into memory on this path (and cannot be streamed). */
   | 'too-large'
+  /** A replace found the library changed since the caller's snapshot of it; nothing was touched. */
+  | 'changed'
   /** The worker went away before answering. */
   | 'closed'
   | 'internal';

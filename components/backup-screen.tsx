@@ -15,7 +15,7 @@ import { useLibrary } from '@/hooks/use-library';
 
 /**
  * Backup and restore (PRD screen 9): what the archive holds and uses, a full backup, opening a
- * backup into an empty archive, and two read-only checks (the archive on this device, and a backup
+ * backup into an empty archive (or replacing a full one, after a confirmation and a safety copy), and two read-only checks (the archive on this device, and a backup
  * file). The library opens here because all of it needs it, except checking a file. One archive task
  * runs at a time: while a backup, restore or library check runs, the others wait.
  */
@@ -58,7 +58,7 @@ function BackupContent() {
         <p className="text-t2 leading-relaxed">{t('intro')}</p>
       </div>
       <BackupUsageCard state={usage} />
-      <BackupCopyCard backup={backup} canRestore={canRestore} busy={libraryCheck.state.status === 'running'} />
+      <BackupCopyCard backup={backup} canRestore={canRestore} busy={libraryCheck.state.status === 'running'} usage={usage} />
       <LibraryCheckCard check={libraryCheck} busy={backup.state.status === 'working'} />
       <FileCheckCard check={fileCheck} />
     </Shell>

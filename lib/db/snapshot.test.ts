@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { MIGRATIONS, SCHEMA_VERSION, migrate, type Migration } from './migrations';
 import { openMemoryDb } from './open';
 import { createConversation, createProfile } from './queries';
-import { isLibraryEmpty, listBlobs, loadSnapshot, serializeDb } from './snapshot';
+import { checkSnapshot, databaseDigest, isLibraryEmpty, listBlobs, loadSnapshot, serializeDb } from './snapshot';
 import { wrapOo1Db, type SqlDb } from './sql';
 
 const NOW = '2026-02-01T12:00:00Z';
@@ -324,5 +324,61 @@ describe('loadSnapshot', () => {
     expect(await code(loadSnapshot(target, serializeDb(source)))).toBe('constraint');
     expect(target.all('SELECT * FROM blobs')).toEqual([]);
     expect(target.all('SELECT id FROM profiles')).toHaveLength(1);
+  });
+});
+
+describe('loadSnapshot with replace', () => {
+  const names = (db: SqlDb) => db.all<{ display_name: string }>('SELECT display_name FROM profiles ORDER BY id').map((r) => r.display_name);
+
+  test('swaps every row of a library that has data, in one transaction', async () => {
+    const source = (await openMemoryDb()).db;
+    createProfile(source, { id: ID2, displayName: 'Ben', now: NOW });
+    const target = (await openMemoryDb()).db;
+    profile(target, ID1);
+    expect(await loadSnapshot(target, serializeDb(source), { replace: true })).toEqual({ from: SCHEMA_VERSION, to: SCHEMA_VERSION });
+    expect(names(target)).toEqual(['Ben']);
+  });
+
+  test('a snapshot that fails halfway leaves the old library whole', async () => {
+    const source = (await openMemoryDb()).db;
+    createProfile(source, { id: ID2, displayName: 'Ben', now: NOW });
+    source.run('INSERT INTO blobs (sha256, size) VALUES (?, 1)', ['cd'.repeat(32)]);
+    const target = (await openMemoryDb()).db;
+    profile(target, ID1);
+    // The snapshot's media list does not match what the caller expects: refused before anything changes.
+    expect(await code(loadSnapshot(target, serializeDb(source), { replace: true, expectBlobs: [] }))).toBe('invalid');
+    expect(names(target)).toEqual(['Ana']);
+  });
+
+  test('unchangedSince: the swap only happens while the library is exactly what was backed up', async () => {
+    const source = (await openMemoryDb()).db;
+    createProfile(source, { id: ID2, displayName: 'Ben', now: NOW });
+    const target = (await openMemoryDb()).db;
+    profile(target, ID1);
+    const digest = databaseDigest(serializeDb(target));
+    target.run("UPDATE profiles SET description = 'edited later'");
+    expect(await code(loadSnapshot(target, serializeDb(source), { replace: true, unchangedSince: digest }))).toBe('changed');
+    expect(names(target)).toEqual(['Ana']);
+    expect(target.all('SELECT description FROM profiles')).toEqual([{ description: 'edited later' }]);
+    const fresh = databaseDigest(serializeDb(target));
+    await loadSnapshot(target, serializeDb(source), { replace: true, unchangedSince: fresh });
+    expect(names(target)).toEqual(['Ben']);
+  });
+});
+
+describe('checkSnapshot', () => {
+  test('runs the checks and writes nothing', async () => {
+    const source = (await openMemoryDb()).db;
+    profile(source, ID1);
+    const target = (await openMemoryDb()).db;
+    expect(await checkSnapshot(target, serializeDb(source))).toEqual({ from: SCHEMA_VERSION, to: SCHEMA_VERSION });
+    expect(isLibraryEmpty(target)).toBe(true);
+    const older = await bareDb(MIGRATIONS.slice(0, 6));
+    expect(await checkSnapshot(target, serializeDb(older))).toEqual({ from: 6, to: SCHEMA_VERSION });
+    expect(await code(checkSnapshot(target, serializeDb(await bareDb(NEXT))))).toBe('newer-schema');
+    expect(await code(checkSnapshot(target, new Uint8Array(10)))).toBe('invalid');
+    source.exec('CREATE TRIGGER t AFTER INSERT ON profiles BEGIN SELECT 1; END');
+    expect(await code(checkSnapshot(target, serializeDb(source)))).toBe('invalid');
+    expect(await code(checkSnapshot(target, serializeDb(source), { expectBlobs: [] }))).toBe('invalid');
   });
 });
