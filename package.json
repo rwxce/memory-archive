@@ -1,7 +1,7 @@
 {
   "name": "memory-archive",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Privacy-first, fully offline memory archive for WhatsApp conversations, photos, videos and voice messages",
   "type": "module",
   "bin": {
