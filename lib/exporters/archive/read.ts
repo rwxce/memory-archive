@@ -30,6 +30,18 @@ export interface RestoreHooks {
    * is the exact list of media the archive carries, for cross-checking.
    */
   applyDatabase(database: Uint8Array, blobs: ArchiveBlobRef[]): Promise<void>;
+  /**
+   * Called once the database bytes are read and hash-verified, BEFORE any media is stored: the place
+   * to validate the database and do irreversible-looking preparation (replace: the safety backup).
+   * What it throws propagates unchanged and nothing has been written yet.
+   */
+  beforeMedia?(database: Uint8Array, blobs: ArchiveBlobRef[]): Promise<void>;
+  /**
+   * Asked when the restore fails: false keeps the media this restore stored (they may be referenced
+   * by a database swap whose outcome is unknown), counting them in `leftoverBlobs` instead.
+   * Default: true (delete them).
+   */
+  cleanupOnFailure?(): boolean;
   /** Called before the first media file (done 0) and after each one, with the total to store. */
   onProgress?(done: number, total: number): void;
 }
@@ -231,6 +243,10 @@ export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: Re
     // 5. Blobs: streamed through the store, hash-verified on the way.
     const blobs: ArchiveBlobRef[] = [];
     const total = manifest.entries.length - 1;
+    if (hooks.beforeMedia) {
+      const listedBlobs = manifest.entries.filter((e) => e.path !== DB_PATH).map((e) => ({ sha256: e.sha256, size: e.size }));
+      await hooks.beforeMedia(database, listedBlobs);
+    }
     hooks.onProgress?.(0, total);
     for (const item of manifest.entries) {
       if (item.path === DB_PATH) continue;
@@ -263,8 +279,11 @@ export async function restoreArchive(zip: Blob, hooks: RestoreHooks, options: Re
     // A blob that cannot be deleted now is an orphan (no database row points at
     // it): the next restore into the empty library sweeps it. Say so.
     let leftover = 0;
-    for (const sha256 of written) {
-      if (!(await hooks.blobs.delete(sha256).then(() => true, () => false))) leftover++;
+    if (hooks.cleanupOnFailure?.() === false) leftover = written.length;
+    else {
+      for (const sha256 of written) {
+        if (!(await hooks.blobs.delete(sha256).then(() => true, () => false))) leftover++;
+      }
     }
     if (leftover > 0 && error instanceof ArchiveError) error.leftoverBlobs = leftover;
     throw error;

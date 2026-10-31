@@ -12,6 +12,15 @@ import { BackupScreen } from './backup-screen';
 import { shouldDeliverProgress } from '@/hooks/use-archive-checks';
 
 const download = vi.fn();
+// happy-dom has no modal <dialog>: a local stand-in that toggles `open`.
+beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    this.removeAttribute('open');
+  };
+});
 vi.mock('@/hooks/download-blob', () => ({ downloadBlob: (...args: unknown[]) => download(...args) }));
 vi.mock('@/i18n/navigation', () => ({
   Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
@@ -107,17 +116,20 @@ describe('BackupScreen', () => {
     expect(view.container.textContent).toContain(en.archive.done.backup);
   });
 
-  test('opening a backup is offered on an empty archive and explained when the archive is not empty', async () => {
+  test('an empty archive opens a backup directly; a full one offers to replace it instead', async () => {
     view = await renderWithLibrary(<BackupScreen />, { lib: await createTestLibrary() });
     await settle();
     expect(view.container.querySelector('[data-testid="restore-input"]')).not.toBeNull();
-    expect(view.container.querySelector('[data-testid="restore-not-empty"]')).toBeNull();
+    expect(view.container.querySelector('[data-testid="replace-input"]')).toBeNull();
+    expect(button(view, b.copy.restore)).toBeDefined();
     view.unmount();
 
     view = await renderWithLibrary(<BackupScreen />, { lib: await seeded() });
     await settle();
     expect(view.container.querySelector('[data-testid="restore-input"]')).toBeNull();
-    expect(view.container.querySelector('[data-testid="restore-not-empty"]')!.textContent).toBe(b.copy.restoreNotEmpty);
+    expect(view.container.querySelector('[data-testid="replace-input"]')).not.toBeNull();
+    expect(button(view, b.copy.replace)).toBeDefined();
+    expect(view.container.textContent).not.toContain('comes later');
   });
 
   test('restoring a backup into an empty archive fills it and updates the counts', async () => {
@@ -129,9 +141,8 @@ describe('BackupScreen', () => {
     await settle();
     expect(view.container.textContent).toContain(en.archive.done.restore);
     expect(view.container.querySelector('[data-testid="backup-counts"]')!.textContent).toContain('3 messages');
-    expect(view.container.querySelector('[data-testid="restore-not-empty"]')).not.toBeNull();
+    expect(view.container.querySelector('[data-testid="replace-input"]')).not.toBeNull();
   });
-
   test('checking the archive: all files in place', async () => {
     view = await renderWithLibrary(<BackupScreen />, { lib: await seeded() });
     await settle();
@@ -287,12 +298,164 @@ describe('progress and focus rules', () => {
     expect(view.container.querySelector('[data-testid="restore-input"]')).not.toBeNull();
   });
 
-  test('the not-empty note follows the library\'s own emptiness test (any table with a row)', async () => {
+  test('the replace offer follows the library\'s own emptiness test (any table with a row)', async () => {
     const lib = await createTestLibrary();
     // Only a profile: no conversation, no message. The old count-based guess said "empty"; the library does not.
     lib.opened.db.run("INSERT INTO profiles (id, display_name, created_at, updated_at) VALUES (?, 'Ana', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')", [PROFILE]);
     view = await renderWithLibrary(<BackupScreen />, { lib });
     await settle();
-    expect(view.container.querySelector('[data-testid="restore-not-empty"]')).not.toBeNull();
+    expect(view.container.querySelector('[data-testid="replace-input"]')).not.toBeNull();
+  });
+});
+
+describe('Replacing the archive with a backup', () => {
+  const dialog = () => view!.container.querySelector('dialog')!;
+  const counts = (v: Rendered) => v.container.querySelector('[data-testid="backup-counts"]')!.textContent!;
+
+  /** A backup with one message more than the library under test has, so a replace is visible in the counts. */
+  async function biggerBackup(): Promise<File> {
+    const source = await seeded();
+    source.opened.db.run(
+      `INSERT INTO messages (conversation_id, batch_id, fingerprint, sent_at, ordinal, type) VALUES (?, ?, ?, '2026-01-01T10:00:00', 4, 'text')`,
+      [CONVERSATION, BATCH, 'a'.repeat(64)],
+    );
+    const { blob } = await exportArchiveFromLibrary(source.deps, { appVersion: '1.0.0' });
+    return new File([blob], 'their-backup.zip');
+  }
+  const choose = async (file: File) => {
+    await pick(view!.container.querySelector('[data-testid="replace-input"]'), file);
+    await settle();
+  };
+  const confirmButton = () => button(view!, b.replace.confirm);
+
+  test('choosing a file only opens the confirmation: plain words, counts, safety copy; nothing is changed', async () => {
+    view = await renderWithLibrary(<BackupScreen />, { lib: await seeded() });
+    await settle();
+    await choose(await biggerBackup());
+    expect(dialog().open).toBe(true);
+    expect(dialog().getAttribute('aria-labelledby')).toBe('replace-title');
+    expect(dialog().textContent).toContain(b.replace.title);
+    expect(dialog().textContent).toContain(b.replace.safety);
+    expect(dialog().textContent).toContain('their-backup.zip');
+    expect(dialog().querySelector('[data-testid="replace-counts"]')!.textContent).toContain('3 messages');
+    expect(document.activeElement).toBe(button(view, b.replace.cancel));
+    expect(confirmButton()).toBeDefined();
+    expect(download).not.toHaveBeenCalled();
+    expect(counts(view)).toContain('3 messages');
+  });
+
+  test('Cancel and Escape close the confirmation and do nothing', async () => {
+    view = await renderWithLibrary(<BackupScreen />, { lib: await seeded() });
+    await settle();
+    const file = await biggerBackup();
+    await choose(file);
+    await click(button(view, b.replace.cancel));
+    expect(dialog().open).toBe(false);
+
+    await choose(file);
+    expect(dialog().open).toBe(true);
+    await act(async () => {
+      dialog().dispatchEvent(new Event('cancel', { cancelable: true }));
+    });
+    expect(dialog().open).toBe(false);
+    await settle();
+    expect(download).not.toHaveBeenCalled();
+    expect(counts(view)).toContain('3 messages');
+    expect(view.container.textContent).not.toContain(en.archive.done.replace);
+  });
+
+  test('confirming saves the safety copy first, then replaces; the screen shows the new counts and where the copy is', async () => {
+    const order: string[] = [];
+    const lib = await seeded();
+    view = await renderWithLibrary(<BackupScreen />, { lib });
+    await settle();
+    download.mockImplementation(async () => {
+      // The library still holds its old content at the moment the safety copy is handed over.
+      const row = lib.opened.db.all<{ n: number }>('SELECT COUNT(*) AS n FROM messages')[0];
+      order.push(`download:${row.n}`);
+    });
+    await choose(await biggerBackup());
+    await click(confirmButton());
+    await settle();
+    expect(order).toEqual(['download:3']);
+    expect(download).toHaveBeenCalledTimes(1);
+    expect(download.mock.calls[0][0]).toBeInstanceOf(Blob);
+    const fileName = download.mock.calls[0][1] as string;
+    expect(fileName).toMatch(/\.zip$/);
+    expect(dialog().open).toBe(false);
+    const text = view.container.textContent!;
+    expect(text).toContain(en.archive.done.replace);
+    expect(text).toContain(fileName);
+    expect(counts(view)).toContain('4 messages');
+  });
+
+  test('a double press on the confirm button replaces once', async () => {
+    view = await renderWithLibrary(<BackupScreen />, { lib: await seeded() });
+    await settle();
+    await choose(await biggerBackup());
+    const confirm = confirmButton()!;
+    await act(async () => {
+      confirm.click();
+      confirm.click();
+    });
+    await settle();
+    expect(download).toHaveBeenCalledTimes(1);
+    expect(view.container.textContent).toContain(en.archive.done.replace);
+  });
+
+  test('the changed-during-replace failure has its own words in every language', async () => {
+    const { archiveErrorKey } = await import('./archive-status');
+    expect(archiveErrorKey('changed-during-replace' as never)).toBe('changedDuringReplace');
+    expect(en.archive.error.changedDuringReplace).toBeTruthy();
+    expect(ca.archive.error.changedDuringReplace).toBeTruthy();
+  });
+
+  test('a file that is not a backup is refused with the usual words; no safety copy, nothing changed', async () => {
+    view = await renderWithLibrary(<BackupScreen />, { lib: await seeded() });
+    await settle();
+    await choose(new File([new Uint8Array(100).fill(1)], 'notes.zip'));
+    await click(confirmButton());
+    await settle();
+    expect(view.container.querySelector('[role="alert"]')!.textContent).toBe(en.archive.error.invalid);
+    expect(download).not.toHaveBeenCalled();
+    expect(counts(view)).toContain('3 messages');
+  });
+
+  test('when the safety copy cannot be saved nothing is replaced, and the screen says so', async () => {
+    view = await renderWithLibrary(<BackupScreen />, { lib: await seeded() });
+    await settle();
+    download.mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    await choose(await biggerBackup());
+    await click(confirmButton());
+    await settle();
+    expect(view.container.querySelector('[role="alert"]')!.textContent).toBe(en.archive.error.safetyBackupFailed);
+    expect(counts(view)).toContain('3 messages');
+  });
+
+  test('Stop before the swap leaves the archive as it was and says where the safety copy is', async () => {
+    view = await renderWithLibrary(<BackupScreen />, { lib: await seeded() });
+    await settle();
+    download.mockImplementation(() => {
+      // The person presses Stop right after the safety copy was handed over.
+      button(view!, b.copy.cancel)!.click();
+    });
+    await choose(await biggerBackup());
+    await click(confirmButton());
+    await settle();
+    const alert = view.container.querySelector('[role="alert"]')!.textContent!;
+    expect(alert).toContain(en.archive.error.cancelled);
+    expect(alert).toContain(download.mock.calls[0][1] as string);
+    expect(counts(view)).toContain('3 messages');
+    expect(button(view, b.copy.cancel)).toBeUndefined();
+  });
+
+  test('is available in Catalan', async () => {
+    view = await renderWithLibrary(<BackupScreen />, { lib: await seeded(), messages: ca });
+    await settle();
+    await choose(await biggerBackup());
+    expect(dialog().textContent).toContain(ca.backup.replace.title);
+    expect(button(view, ca.backup.replace.confirm)).toBeDefined();
   });
 });

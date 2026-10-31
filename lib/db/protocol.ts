@@ -99,8 +99,17 @@ export interface DbOps {
    * Loads a backup's database into an EMPTY library, all or nothing (`loadSnapshot`): `constraint`
    * when the library has data, `invalid` / `newer-schema` for a bad snapshot. `blobs` must equal the
    * snapshot's own media list. Replaces the search index (rebuilt on the next search).
+   * With `replace: true` a library that has data is accepted: its rows are deleted and the
+   * snapshot's inserted in one transaction (all or nothing; the old library survives a failure).
+   * `unchangedSince` (replace only) is the SHA-256 of the library bytes the caller backed up; if the
+   * library differs now it fails with `changed` and touches nothing.
    */
-  restoreDatabase: { params: { database: Uint8Array; blobs: BlobRow[] }; result: null };
+  restoreDatabase: {
+    params: { database: Uint8Array; blobs: BlobRow[]; replace?: boolean; unchangedSince?: string };
+    result: null;
+  };
+  /** Every check `restoreDatabase` runs on a snapshot, without writing anything: `invalid` / `newer-schema` when it would be refused. */
+  checkDatabase: { params: { database: Uint8Array; blobs: BlobRow[] }; result: null };
   listMessages: {
     params: { conversationId: string; after?: MessageCursor; limit?: number };
     result: StoredMessage[];

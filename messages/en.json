@@ -874,7 +874,8 @@
     },
     "done": {
       "backup": "The backup was saved as a ZIP file.",
-      "restore": "The archive is open. Everything is on this device."
+      "restore": "The archive is open. Everything is on this device.",
+      "replace": "Your archive was replaced with the backup. Everything is on this device."
     },
     "error": {
       "busy": "Another backup or restore is already running. Wait for it to finish and try again.",
@@ -884,7 +885,17 @@
       "limit": "The archive is too large to back up in a single file.",
       "missingMedia": "Some of the archive files are missing, so the backup could not be made. Nothing was changed.",
       "storage": "There is not enough space on this device, or it could not be written to. Nothing was changed.",
-      "generic": "Something went wrong. Nothing was deleted. Try again."
+      "generic": "Something went wrong. Nothing was deleted. Try again.",
+      "safetyBackupFailed": "The safety copy of your archive could not be handed to your browser to download, so nothing was replaced. Your archive was not changed.",
+      "changedDuringReplace": "Your archive changed while the backup was being prepared, so nothing was replaced. Your archive is as it was. Try again.",
+      "cancelled": "Replacing was stopped. Your archive was not changed."
+    },
+    "replace": {
+      "stage": {
+        "safety-backup": "Safety copy, step 1 of 2.",
+        "restoring": "Replacing your archive, step 2 of 2."
+      },
+      "safetyKept": "Your browser was offered a safety copy of your archive named {fileName}. Check your Downloads folder to make sure it is there, and keep it."
     }
   },
   "backup": {
@@ -915,7 +926,9 @@
       "restoreTitle": "Open a backup",
       "restoreDescription": "Open a backup ZIP on a device that has no archive yet.",
       "restore": "Choose a backup file",
-      "restoreNotEmpty": "This device already has an archive, so a backup cannot be opened here for now. Your archive is safe and was not changed. Replacing it with a backup will come later, with a safety copy first. Until then you can open a backup on an empty device."
+      "replace": "Replace my archive with a backup",
+      "replaceDescription": "Replace the archive on this device with a backup ZIP. You will be asked to confirm, and a safety copy of your current archive is offered to your browser to download first.",
+      "cancel": "Stop"
     },
     "check": {
       "title": "Check your archive",
@@ -970,6 +983,15 @@
         "generic": "Something went wrong while checking the file. Nothing was changed. Try again."
       },
       "announce": "{percent}% checked"
+    },
+    "replace": {
+      "title": "Replace your archive with this backup?",
+      "body": "This replaces everything on this device with what is in the backup file. People, conversations, messages, notes, favorites, photos and videos are all replaced.",
+      "countsIntro": "Your archive now has:",
+      "safety": "Before anything changes, your browser is offered a safety copy of your current archive to download. Check that the file is in your Downloads folder before you rely on it, and keep it: it is how you get your current archive back.",
+      "file": "Backup file: {fileName}",
+      "cancel": "Keep my archive",
+      "confirm": "Replace my archive"
     }
   },
   "subpage": {

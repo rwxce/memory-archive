@@ -122,11 +122,11 @@ newer backups.**
 
 ## Phase 6 — Full backup and restore
 
-**Status: partly done.** Done: full ZIP export and restore into an empty library; the Backup and restore screen (`/backup/`: storage usage, full backup, open a backup, integrity check of the library, check of a backup file without restoring). Not done: replace an existing library with an automatic safety backup, encrypted backups, the automated acceptance scenario.
+**Status: partly done.** Done: full ZIP export and restore into an empty library; the Backup and restore screen (`/backup/`: storage usage, full backup, open a backup, integrity check of the library, check of a backup file without restoring). Replacing an existing library with a backup is done too (confirmation dialog, automatic safety copy downloaded first, two-stage progress, Stop until the swap). Not done: encrypted backups, the automated acceptance scenario.
 
 - Backup & restore screen: full export, restore, integrity check, storage usage; replace an
-  existing library with confirmation and an automatic safety backup; optional encrypted
-  backups.
+  existing library with confirmation and an automatic safety backup (done); optional
+  encrypted backups.
 - **Verify:** the PRD acceptance scenario automated (10 profiles → backup → restore on a clean
   browser → identical) across Safari, Chrome and Firefox.
 
