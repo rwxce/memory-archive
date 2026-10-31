@@ -72,7 +72,7 @@ Regenerate them with `pnpm build && pnpm screenshots` (see [docs/blueprint.md](d
 
 * ✅ **One-file backup and restore**: export your whole archive into a single file (optionally password-protected), check it, and restore or replace on any other device.
 
-* ⬜ **Manual device-to-device sync**: export a small *changes* ZIP on one device and merge it on another.
+* ✅ **Manual device-to-device sync**: export a small *changes* file (optionally password-protected) on one device and merge it on another; crossed edits are kept side by side for you to choose, and a quiet in-app reminder says when changes are waiting.
 
 * ⬜ **Portable viewer**: a single HTML file you can send to a relative — it opens with a double-click, no install needed.
 
@@ -255,7 +255,7 @@ cli/                      # same use cases from the terminal
 | 4 | ✅ | Incremental WhatsApp import and import history |
 | 5 | ✅ | Timeline, conversation view, gallery, audio, calendar, search |
 | 6 | ✅ | Full backup and restore |
-| 7 | ⬜ | Manual device-to-device sync with ZIP files |
+| 7 | ✅ | Manual device-to-device sync with ZIP files |
 | 8 | ⬜ | Google Photos (download / Takeout) and loose files |
 | 9 | ⬜ | Portable viewer exports and hardening |
 

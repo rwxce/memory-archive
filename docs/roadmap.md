@@ -132,7 +132,7 @@ newer backups.**
 
 ## Phase 7 — Manual device-to-device sync
 
-**Status: foundation, export, merge, the Sync devices screen and the conflicts card done (queue items 13-16b). The changes-pack format is designed and documented in `docs/formats/changes-pack.md`;
+**Status: done in code and automated tests (queue items 13-17). The changes-pack format is designed and documented in `docs/formats/changes-pack.md`;
 schema v8 adds the device id, per-peer watermarks, tombstones and per-record change numbers (every write path stamps them); a restored or
 replaced library is a new device; the use cases `lib/usecases/sync-state.ts` exist; a changes pack can be exported (plain or encrypted; watermarks move only
 when the caller confirms delivery); importing a pack is a merge (one transaction, watermarks, conflicts kept beside the active record in the schema v9
