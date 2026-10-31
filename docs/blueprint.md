@@ -1132,7 +1132,8 @@ test type or architecture rule means updating this file **in the same PR**.
     `serve-out.test.ts` (base path, 404, no path traversal), `eslint-architecture.test.ts`. The vendored `security-audit` validators have
     their own `node --test` suite.
   - End to end — `e2e/*.spec.ts` (Playwright `@playwright/test`, not part of `pnpm check`):
-    `pnpm build` then `pnpm e2e` drives the built `out/` served by `pnpm preview`, in the
+    `pnpm build` then `pnpm e2e` (which first regenerates the synthetic `fixtures/`, as `pnpm test`
+    does) drives the built `out/` served by `pnpm preview`, in the
     system Google Chrome (`channel: 'chrome'`, no browser download), projects `mobile-390`
     (390x844, touch) and `desktop-1440`. Each test has a fresh context (fresh OPFS); the shared
     fixture in `e2e/fixtures.ts` listens on the browser context (pages, workers, service worker) and fails a test on any request Chrome makes to a non-local origin; `e2e/guard.spec.ts` proves it can fail. It says nothing about traffic outside the browser. Covers
