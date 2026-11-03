@@ -1046,6 +1046,41 @@
     "syncPointer": {
       "text": "{fileName} és un fitxer de canvis d’un altre dispositiu, no una còpia. Obre’l a Sincronitza dispositius.",
       "link": "Ves a Sincronitza dispositius"
+    },
+    "viewer": {
+      "title": "Còpia per llegir en un ordinador",
+      "description": "Crea un ZIP amb una pàgina que s'obre al navegador, i les teves fotos i vídeos al costat. És de només lectura: pots llegir, cercar i recórrer els missatges, res més.",
+      "howTo": "En un ordinador, descomprimeix el fitxer i obre viewer.html en un navegador. Deixa la carpeta media al seu costat.",
+      "phoneNote": "En un mòbil aquesta còpia no s'obre de manera fiable des del gestor de fitxers. Per llegir en un altre mòbil, restaura més aviat la còpia de seguretat completa en aquesta app.",
+      "notBackup": "No és una còpia de seguretat i no es pot restaurar. Per a això, fes servir una còpia completa.",
+      "peopleLegend": "De qui són les converses",
+      "archivedTag": "arxivada",
+      "noPeople": "Encara no hi ha persones a l'arxiu.",
+      "noPeopleSelected": "Tria almenys una persona.",
+      "datesLegend": "Dates (opcional)",
+      "datesHint": "Deixa-les buides per incloure-ho tot.",
+      "from": "Des de",
+      "to": "Fins a",
+      "includeMedia": "Inclou fotos i vídeos",
+      "includeMediaNote": "Sense ells la còpia pesa molt menys i només mostra els noms dels fitxers.",
+      "submit": "Crea la còpia",
+      "progressLabel": "Creant la còpia",
+      "savedTitle": "La còpia està a punt",
+      "saved": "{fileName} s'ha lliurat al navegador perquè el baixis.",
+      "savedMedia": "{count, plural, one {Inclou # foto, vídeo o àudio.} other {Inclou # fotos, vídeos i àudios.}}",
+      "savedNoMedia": "No s'han inclòs fotos ni vídeos.",
+      "savedMissing": "{count, plural, one {# fitxer no s'ha trobat en aquest dispositiu i s'ha deixat fora.} other {# fitxers no s'han trobat en aquest dispositiu i s'han deixat fora.}}",
+      "another": "Crea una altra còpia",
+      "error": {
+        "dates": "Revisa les dates: l'inici no pot ser posterior al final.",
+        "notFound": "Una de les persones ja no és a l'arxiu. Recarrega la llista i torna-ho a provar.",
+        "template": "La pàgina que llegeix la còpia no està disponible. Recarrega l'app i torna-ho a provar.",
+        "missingMedia": "Falta una foto o un vídeo en aquest dispositiu, així que no s'ha creat la còpia. No s'ha canviat res.",
+        "damaged": "Una foto o un vídeo d'aquest dispositiu està malmès, així que no s'ha creat la còpia. No s'ha canviat res.",
+        "limit": "És massa per a un sol fitxer. Tria menys persones, un període més curt o deixa fora les fotos i els vídeos.",
+        "storage": "No hi ha prou espai en aquest dispositiu, o no s'hi ha pogut escriure. No s'ha canviat res.",
+        "generic": "Alguna cosa ha anat malament. No s'ha canviat res. Torna-ho a provar."
+      }
     }
   },
   "subpage": {

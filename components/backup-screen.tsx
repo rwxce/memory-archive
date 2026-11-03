@@ -6,6 +6,7 @@ import { BackupCopyCard } from '@/components/backup-copy-card';
 import { FileCheckCard, LibraryCheckCard } from '@/components/backup-check-cards';
 import { ReminderCard } from '@/components/reminder-card';
 import { BackupUsageCard } from '@/components/backup-usage-card';
+import { ViewerExportCard } from '@/components/viewer-export-card';
 import { LibraryNotice } from '@/components/library-notice';
 import { PageTitle } from '@/components/page-title';
 import { Shell } from '@/components/screen-shell';
@@ -61,6 +62,7 @@ function BackupContent() {
       <ReminderCard kinds={['backup']} refreshKey={backup.state.status} />
       <BackupUsageCard state={usage} />
       <BackupCopyCard backup={backup} canRestore={canRestore} busy={libraryCheck.state.status === 'running'} usage={usage} />
+      <ViewerExportCard />
       <LibraryCheckCard check={libraryCheck} busy={backup.state.status === 'working'} />
       <FileCheckCard check={fileCheck} />
     </Shell>
