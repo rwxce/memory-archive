@@ -257,7 +257,7 @@ cli/                      # same use cases from the terminal
 | 6 | ✅ | Full backup and restore |
 | 7 | ✅ | Manual device-to-device sync with ZIP files |
 | 8 | ✅ | Google Photos (download / Takeout) and loose files |
-| 9 | ⬜ | Portable viewer exports and hardening |
+| 9 | ✅ | Portable viewer exports and hardening |
 
 ✅ done in code and automated tests (manual on-device checks are listed in the roadmap) · 🟡 partly done · ⬜ not started. Details in [`docs/roadmap.md`](docs/roadmap.md).
 
