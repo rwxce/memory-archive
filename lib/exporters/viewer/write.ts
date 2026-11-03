@@ -47,14 +47,24 @@ const MEDIA_ENTRY = /^media\/([0-9a-f]{64})\.[a-z0-9]{1,8}$/;
 const encoder = new TextEncoder();
 const EMPTY = new Uint8Array(0);
 
-export async function writeViewerPackage(source: ViewerPackageSource): Promise<Blob> {
-  const { data } = source;
-  const media = data.media;
-  if (media.length > MAX_ENTRIES) throw new ArchiveError('limit-exceeded', 'too many media files');
+export interface MediaEntryItem {
+  /** Path of the entry inside the ZIP. */
+  path: string;
+  sha256: string;
+  size: number;
+}
+
+/**
+ * Checks the media list before anything is written: every path matches `pattern` (group 1 = the
+ * entry's own hash), is unique, and entry count and sizes stay within the archive limits.
+ * `extraEntries` are the non-media entries that will share the ZIP.
+ */
+export function checkMediaEntries(media: MediaEntryItem[], pattern: RegExp, extraEntries = 0): void {
+  if (media.length + extraEntries > MAX_ENTRIES) throw new ArchiveError('limit-exceeded', 'too many media files');
   const seen = new Set<string>();
   let total = 0;
   for (const m of media) {
-    const match = MEDIA_ENTRY.exec(m.path);
+    const match = pattern.exec(m.path);
     if (!match || match[1] !== m.sha256 || !isSha256Hex(m.sha256) || seen.has(m.path)) {
       throw new ArchiveError('unsafe-path', 'a media path is not valid');
     }
@@ -65,33 +75,37 @@ export async function writeViewerPackage(source: ViewerPackageSource): Promise<B
     total += m.size;
     if (total > MAX_TOTAL_BYTES) throw new ArchiveError('limit-exceeded', 'the media are too large');
   }
+}
 
-  let html: string;
-  try {
-    html = renderViewerHtml(source.template, serializeViewerData(data));
-  } catch (error) {
-    throw new ArchiveError('storage', 'the viewer template could not be filled', { cause: error });
-  }
+type Sink = ReturnType<typeof createZipSink>;
 
-  const { zip, check, finish } = createZipSink();
-  const now = new Date(data.createdAt);
-  const addSmall = (path: string, text: string) => {
-    const file = new ZipDeflate(path, { level: 6 });
-    file.mtime = now;
-    zip.add(file);
-    file.push(encoder.encode(text), true);
-    check();
-  };
-  addSmall(VIEWER_HTML_PATH, html);
-  addSmall(VIEWER_README_PATH, VIEWER_README);
+/** Adds a small text entry (deflated). */
+export function addTextEntry({ zip, check }: Sink, path: string, text: string, mtime: Date): void {
+  const file = new ZipDeflate(path, { level: 6 });
+  file.mtime = mtime;
+  zip.add(file);
+  file.push(encoder.encode(text), true);
+  check();
+}
 
+/**
+ * Streams each media blob into the ZIP (stored, not recompressed), hashing it again on the way: a
+ * missing blob or one that no longer matches its hash aborts (the zip is terminated, the error thrown).
+ */
+export async function addMediaEntries(
+  { zip, check }: Sink,
+  media: MediaEntryItem[],
+  readBlob: (sha256: string) => Promise<ReadableStream<Uint8Array> | undefined>,
+  mtime: Date,
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
   try {
     let done = 0;
     for (const m of media) {
-      const stream = await source.readBlob(m.sha256);
+      const stream = await readBlob(m.sha256);
       if (!stream) throw new ArchiveError('blob-missing', 'a media file is missing');
       const file = new ZipPassThrough(m.path);
-      file.mtime = now;
+      file.mtime = mtime;
       zip.add(file);
       const hasher = createSha256();
       let size = 0;
@@ -114,11 +128,30 @@ export async function writeViewerPackage(source: ViewerPackageSource): Promise<B
       }
       file.push(EMPTY, true);
       check();
-      source.onProgress?.(++done, media.length);
+      onProgress?.(++done, media.length);
     }
   } catch (error) {
     zip.terminate();
     throw error;
   }
-  return finish();
+}
+
+export async function writeViewerPackage(source: ViewerPackageSource): Promise<Blob> {
+  const { data } = source;
+  const media = data.media;
+  checkMediaEntries(media, MEDIA_ENTRY);
+
+  let html: string;
+  try {
+    html = renderViewerHtml(source.template, serializeViewerData(data));
+  } catch (error) {
+    throw new ArchiveError('storage', 'the viewer template could not be filled', { cause: error });
+  }
+
+  const sink = createZipSink();
+  const now = new Date(data.createdAt);
+  addTextEntry(sink, VIEWER_HTML_PATH, html, now);
+  addTextEntry(sink, VIEWER_README_PATH, VIEWER_README, now);
+  await addMediaEntries(sink, media, source.readBlob, now, source.onProgress);
+  return sink.finish();
 }

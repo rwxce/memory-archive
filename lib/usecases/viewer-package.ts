@@ -11,12 +11,12 @@ export type { ViewerSelection } from './viewer-export';
  * The viewer download: reads the library (`buildViewerExport`), fills the viewer template and zips
  * `viewer.html`, `README.txt` and `media/` (docs/formats/viewer-data.md). Read-only on the library.
  *
- * Rejects with `ViewerPackageError` (`no-profiles`, `template-missing`), `DbError` (`invalid` dates,
+ * Rejects with `ViewerPackageError` (`no-profiles`, `template-missing`, `nothing-to-export`), `DbError` (`invalid` dates,
  * `not-found` profile) or `ArchiveError` (`blob-missing` / `integrity` while streaming media,
  * `limit-exceeded`, `storage`).
  */
 
-export type ViewerPackageErrorCode = 'no-profiles' | 'template-missing';
+export type ViewerPackageErrorCode = 'no-profiles' | 'template-missing' | 'nothing-to-export';
 
 export class ViewerPackageError extends Error {
   readonly code: ViewerPackageErrorCode;

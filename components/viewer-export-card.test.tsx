@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { act } from 'react';
 import en from '@/messages/en.json';
 import { createTestLibrary } from '@/lib/usecases/test-client';
-import { ArchiveError, DbError, ViewerPackageError } from '@/lib/usecases/viewer-package';
+import { ArchiveError, DbError, ViewerPackageError } from '@/lib/usecases/export-package';
 import { click, renderWithLibrary, settle, type Rendered } from './test-utils';
 import { useLibrary } from '@/hooks/use-library';
 import { ViewerExportCard } from './viewer-export-card';
@@ -14,12 +14,12 @@ function Screen() {
 }
 
 const download = vi.fn();
-const exportViewerPackage = vi.fn();
+const exportPackage = vi.fn();
 vi.mock('@/hooks/download-blob', () => ({ downloadBlob: (...args: unknown[]) => download(...args) }));
 // The use case is replaced at the boundary; the error classes stay the real ones.
-vi.mock('@/lib/usecases/viewer-package', async (original) => ({
-  ...(await original<typeof import('@/lib/usecases/viewer-package')>()),
-  exportViewerPackage: (...args: unknown[]) => exportViewerPackage(...args),
+vi.mock('@/lib/usecases/export-package', async (original) => ({
+  ...(await original<typeof import('@/lib/usecases/export-package')>()),
+  exportPackage: (...args: unknown[]) => exportPackage(...args),
   fetchViewerTemplate: () => async () => '<html></html>',
 }));
 
@@ -37,12 +37,13 @@ async function seeded() {
 
 const submit = (v: Rendered) => [...v.container.querySelectorAll('button')].find((b) => b.textContent === t.submit)!;
 const boxes = (v: Rendered) => [...v.container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
+const radios = (v: Rendered) => [...v.container.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
 const result = (v: Rendered) => v.container.querySelector<HTMLElement>('[data-testid="viewer-export-result"]');
 
 let view: Rendered | undefined;
 beforeEach(() => {
   download.mockClear();
-  exportViewerPackage.mockReset();
+  exportPackage.mockReset();
 });
 afterEach(() => {
   view?.unmount();
@@ -54,14 +55,15 @@ describe('ViewerExportCard', () => {
     view = await renderWithLibrary(<Screen />, { lib: await seeded() });
     await settle();
     const text = view.container.textContent!;
-    expect(text).toContain(t.howTo);
+    expect(text).toContain(t.formats.viewer.help);
     expect(text).toContain(t.phoneNote);
     expect(text).toContain(t.notBackup);
     expect(boxes(view).map((b) => b.checked)).toEqual([true, true, true]);
+    expect(radios(view).map((r) => r.checked)).toEqual([true, false, false, false]);
   });
 
   test('sends the selection to the use case and hands the file to the browser', async () => {
-    exportViewerPackage.mockImplementation(async (_deps, options) => {
+    exportPackage.mockImplementation(async (_deps, options) => {
       options.onProgress?.({ phase: 'media', done: 1, total: 2 });
       return { blob: new Blob(['zip']), fileName: 'memory-archive-viewer-2026-11-03.zip', mediaCount: 2, missingMedia: 1 };
     });
@@ -78,7 +80,8 @@ describe('ViewerExportCard', () => {
     });
     await click(submit(view));
     await settle();
-    expect(exportViewerPackage.mock.calls[0]![1].selection).toEqual({ profileIds: [expect.any(String)], from: '2026-02-01', to: null, includeMedia: true });
+    expect(exportPackage.mock.calls[0]![1]).toMatchObject({ format: 'viewer', split: 'together', lang: 'en' });
+    expect(exportPackage.mock.calls[0]![1].selection).toEqual({ profileIds: [expect.any(String)], from: '2026-02-01', to: null, includeMedia: true });
     expect(download).toHaveBeenCalledWith(expect.any(Blob), 'memory-archive-viewer-2026-11-03.zip');
     const done = result(view)!;
     expect(done.textContent).toContain('memory-archive-viewer-2026-11-03.zip');
@@ -94,7 +97,7 @@ describe('ViewerExportCard', () => {
     });
     expect(view.container.textContent).toContain(t.noPeopleSelected);
     await click(submit(view));
-    expect(exportViewerPackage).not.toHaveBeenCalled();
+    expect(exportPackage).not.toHaveBeenCalled();
   });
 
   test.each([
@@ -102,14 +105,42 @@ describe('ViewerExportCard', () => {
     [new ArchiveError('limit-exceeded', 'x'), t.error.limit],
     [new DbError('invalid', 'x'), t.error.dates],
     [new ViewerPackageError('template-missing', 'x'), t.error.template],
+    [new ViewerPackageError('nothing-to-export', 'x'), t.error.nothing],
     [new Error('boom'), t.error.generic],
   ])('a failure is explained and nothing is downloaded (%#)', async (error, message) => {
-    exportViewerPackage.mockRejectedValue(error);
+    exportPackage.mockRejectedValue(error);
     view = await renderWithLibrary(<Screen />, { lib: await seeded() });
     await settle();
     await click(submit(view));
     await settle();
     expect(result(view)!.textContent).toBe(message);
     expect(download).not.toHaveBeenCalled();
+  });
+
+  test('another format is passed through, and the split choice appears only when it applies', async () => {
+    exportPackage.mockResolvedValue({ blob: new Blob(['zip']), fileName: 'memory-archive-html-2026-11-03.zip', mediaCount: 0, missingMedia: 0 });
+    view = await renderWithLibrary(<Screen />, { lib: await seeded() });
+    await settle();
+    expect(view.container.textContent).not.toContain(t.splitLegend);
+    await act(async () => radios(view!)[1]!.click());
+    expect(view.container.textContent).toContain(t.splitLegend);
+    await act(async () => radios(view!)[5]!.click());
+    await click(submit(view));
+    await settle();
+    expect(exportPackage.mock.calls[0]![1]).toMatchObject({ format: 'html', split: 'perProfile', lang: 'en' });
+    expect(exportPackage.mock.calls[0]![1].selection.profileIds).toHaveLength(2);
+  });
+
+  test('no split choice with one person selected, and the split is then sent as together', async () => {
+    exportPackage.mockResolvedValue({ blob: new Blob(['zip']), fileName: 'f.zip', mediaCount: 0, missingMedia: 0 });
+    view = await renderWithLibrary(<Screen />, { lib: await seeded() });
+    await settle();
+    await act(async () => radios(view!)[2]!.click());
+    await act(async () => radios(view!)[5]!.click());
+    await act(async () => boxes(view!)[1]!.click());
+    expect(view.container.textContent).not.toContain(t.splitLegend);
+    await click(submit(view));
+    await settle();
+    expect(exportPackage.mock.calls[0]![1]).toMatchObject({ format: 'json', split: 'together' });
   });
 });

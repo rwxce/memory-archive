@@ -1,20 +1,8 @@
 import type { Message } from '../../importers/whatsapp/types';
 import { dayOf, timeOf } from './json';
 import type { MediaEntry, RenderOptions } from './media';
+import { formatDay, labelsFor } from './labels';
 import { linkifyMarkdown, deriveTitle, escapeMd } from './js/linkify.js';
-
-const PT_BR_DATE = new Intl.DateTimeFormat('pt-BR', {
-  day: '2-digit',
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
-
-function fullPtBrDate(day: string): string {
-  // day = yyyy-mm-dd (local ISO). Anchor at noon UTC to avoid TZ/DST drift.
-  const d = new Date(day + 'T12:00:00Z');
-  return PT_BR_DATE.format(d);
-}
 
 const MEDIA_ICON: Record<string, string> = {
   photo: '📷 photo',
@@ -78,7 +66,7 @@ async function mediaMarkdown(
 
 /**
  * Render the chat as a day-sectioned Markdown log (D-45/D-46/D-47).
- * - `## <pt-BR full date>` per day
+ * - `## <full date>` per day (pt-BR unless `opts.lang`)
  * - `**Sender** · HH:mm — text` per message
  * - media -> embedded image `![FILENAME](media/FILENAME)` (photo/sticker) or
  *   a link for video/document; `inline` embeds as a `data:` URI
@@ -103,7 +91,7 @@ export async function renderMarkdown(
   lines.push(`# ${escapeMd(chatName)}`);
   lines.push('');
   for (const day of sortedDays) {
-    lines.push(`## ${fullPtBrDate(day)}`);
+    lines.push(`## ${formatDay(day, labelsFor(opts.lang).locale)}`);
     lines.push('');
     for (const m of groups.get(day)!) {
       if (m.type === 'system' || m.type === 'deleted' || m.type === 'omitted') {
