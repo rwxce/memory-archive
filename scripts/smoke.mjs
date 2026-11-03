@@ -143,3 +143,17 @@ for (const f of ['db/worker.js', 'db/sqlite3.wasm', 'db/import-worker.js']) {
 console.log(
   `[smoke] OK: static export has ${pages.length} pages; ${scanned} HTML/CSS files load nothing remote; manifest + sw.js precache every page`,
 );
+
+// Standalone viewer: one self-contained template (style and script inlined) with the data island
+// placeholder, shipped in out/viewer/ and precached; the remote-resource scan above covered it.
+{
+  const viewer = path.join(OUT, 'viewer', 'viewer-template.html');
+  if (!fs.existsSync(viewer)) fail('out/viewer/viewer-template.html missing — did scripts/build-viewer.mjs run?');
+  const text = fs.readFileSync(viewer, 'utf8');
+  const island = '<script type="application/json" id="viewer-data">__VIEWER_DATA__</script>';
+  if (text.split(island).length !== 2) fail('viewer template must have exactly one data island placeholder');
+  if (/__VIEWER_(STYLE|SCRIPT)__/.test(text)) fail('viewer template still has an un-injected style/script placeholder');
+  if (/<link\b|<script\b[^>]*\bsrc=/i.test(text)) fail('viewer template must not load external files');
+  if (!sw.includes(JSON.stringify('viewer/viewer-template.html'))) fail('out/sw.js does not precache the viewer template');
+  console.log(`[smoke] OK: viewer template is one self-contained file (${(text.length / 1024).toFixed(0)} KB) with a data island`);
+}

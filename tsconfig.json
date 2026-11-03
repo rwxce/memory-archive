@@ -33,6 +33,7 @@
     "i18n",
     "lib",
     "sw",
+    "viewer",
     "cli",
     "scripts",
     "e2e",
