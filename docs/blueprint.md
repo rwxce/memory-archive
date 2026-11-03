@@ -167,7 +167,7 @@ test type or architecture rule means updating this file **in the same PR**.
     (toggle, states, ca), `hooks/use-message-source.test.tsx`, and an e2e flow in
     `e2e/conversation.spec.ts` (keyboard, no jump).
   - **Backup and restore** (`/[locale]/backup/`, PRD screen 9; `components/backup-screen.tsx` plus `backup-usage-card`,
-    `backup-copy-card`, `backup-check-cards`, `task-progress`; hooks `use-archive-usage`, `use-archive-checks`,
+    `backup-copy-card`, `backup-check-cards`, `viewer-export-card`, `task-progress`; hooks `use-archive-usage`, `use-archive-checks`,
     `use-archive-backup`). Sub-screen with a back pill to Settings (the Settings row is now a link, not an inline backup).
     Cards: what the archive holds (counts, bytes per kind, device quota and persistence); full backup (progress bar);
     open a backup (an empty archive opens the chosen ZIP directly; an archive with data offers "Replace my archive with a
@@ -333,7 +333,7 @@ test type or architecture rule means updating this file **in the same PR**.
     missing id is a calm not-found with the way back. Focus returns to the opener, or to the
     section heading when the chat left the list; results are announced in the status region;
     wrapped in `Suspense` because of `useSearchParams`), `/[locale]/welcome/` (always reachable; *Start* asks for persistent storage and
-    goes to People), `/[locale]/settings/` (language, appearance, app version + archive format version), `/[locale]/backup/` (backup and restore), `/[locale]/sync/` (sync devices),
+    goes to People), `/[locale]/settings/` (space, appearance, language; rows grouped Archive = import history, photos, and Copies and sync = backup and restore, export a copy (deep link `/backup#viewer-export`), backup password info, sync; reminders, erase, app version + archive format version; `components/settings-screen.test.tsx`), `/[locale]/backup/` (backup and restore), `/[locale]/sync/` (sync devices),
     `not-found` → `out/404.html`.
   - Next.js telemetry disabled (`NEXT_TELEMETRY_DISABLED` in scripts, CI and
     `next.config.ts`; `.npmrc` `shell-emulator=true` makes the env prefix work on Windows).
@@ -496,6 +496,39 @@ test type or architecture rule means updating this file **in the same PR**.
   - `lib/db/snapshot.ts` — `serializeDb`, `loadSnapshot`, `listBlobs`, `isLibraryEmpty`.
   - `lib/exporters/archive/` — `format.ts` (manifest, limits, `ArchiveError`, path validation),
     `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`openArchive`, `restoreArchive`), `verify.ts` (`verifyArchive`).
+  - `lib/exporters/viewer/` — the standalone viewer's data (`docs/formats/viewer-data.md`): `format.ts`
+    (envelope, `viewerMediaPath`, `serializeViewerData` safe for a `<script type="application/json">`
+    island, `parseViewerData` refusing a newer `schemaVersion`), `build.ts` (pure assembly, deterministic);
+    `lib/usecases/viewer-export.ts` (`buildViewerExport`: profiles, optional date range, media on/off; reads
+    through the existing use cases, returns the data plus the files to copy); `html.ts` (`renderViewerHtml(template,
+    data)`: pure, splices the serialized data into the template's island; refuses a template without the island).
+    The export screen is the "Export a copy" card on the backup screen (`components/viewer-export-card.tsx`, hook `use-viewer-export`, which calls `exportPackage`: format radio group viewer / HTML / Markdown / JSON with a one-line purpose each, people, a `together` / `perProfile` choice shown only for text formats with 2+ people, optional dates, media toggle, progress, per-error messages incl. `nothing-to-export`; the app locale is passed as `lang`; copy `backup.viewer.*`; `viewer-export-card.test.tsx` mocks the use case; `e2e/viewer-export.spec.ts` covers the viewer and a per-person HTML ZIP). Tests `format.test.ts`, `html.test.ts` and
+    `write.ts` (`writeViewerPackage`: ZIP with `viewer.html`, en/ca/es `README.txt` and stored `media/<sha256>.<ext>`, media rehashed while streamed, hostile paths and limits refused; shares `archive/zip-sink.ts` with the backup writer) and `lib/usecases/viewer-package.ts` (`exportViewerPackage`, `fetchViewerTemplate`, `ViewerPackageError`), tested by `write.test.ts` and `viewer-package.test.ts`; `viewer-export.test.ts` (filters, media on/off / missing, hostile strings kept as data and read back
+    unchanged from the island, newer schema refused, determinism).
+  - `lib/exporters/export/` + `lib/usecases/export-package.ts` — HTML / JSON / Markdown export ZIPs (`docs/formats/export-package.md`): `exportPackage` (`viewer` delegates to `exportViewerPackage`; others: `files.ts` lays out one page / file per conversation or one JSON envelope, `perProfile` folders, `names.ts` slugs, `messages.ts` adapts viewer data to the legacy `renderHtml` / `renderMarkdown` (`lang` ca/es/en via `legacy/labels.ts`; no `lang` = legacy pt-BR CLI output), `write.ts` zips with the helpers shared from `viewer/write.ts`); tests `export.test.ts`, `export-package.test.ts`, `legacy/labels.test.ts`.
+  - `viewer/` — the standalone read-only viewer UI (desktop first, usable at 375 px; opens from `file://`; plain
+    TypeScript + CSS, no framework, no new dependency): `template.html` (shell with style / script / data
+    placeholders, a CSP meta that allows no network), `viewer.css` (system fonts, light and dark,
+    `prefers-reduced-motion`, 44 px controls), `src/` — `strings.ts` (own ca / es / en table picked from
+    `navigator.languages`, English default), `text.ts` (accent- and case-insensitive folding with offsets back
+    to the text for highlights, link splitting reusing `lib/exporters/legacy/js/linkify.js`: http(s) only),
+    `model.ts` (conversation list per profile and date range, timeline by month, chunked cancellable
+    full-text search; no DOM), `render.ts` (one message: text nodes only, media by relative path, a missing
+    file shows its name), `app.ts` (profile switcher, conversation list, search with results, date filter,
+    timeline selects and position slider, a bounded window of the thread: 150 messages per step, at most
+    450 in the DOM, earlier / later by button or scroll with scroll anchoring), `boot.ts` (reads the island,
+    `parseViewerData`; a newer schema or damaged data shows a clear message, never archive text), `dom.ts`
+    (element builder; ESLint forbids `innerHTML`, `insertAdjacentHTML`, `document.write`, `fetch` and friends
+    under `viewer/`). `scripts/build-viewer.mjs` (esbuild IIFE + inlined CSS) writes the git-ignored
+    `public/viewer/viewer-template.html` on every `pnpm build`; `next build` ships it in `out/viewer/`, where
+    the service worker precaches it for a later in-app export. Nothing generated is committed. Tests next to the
+    code (`viewer/src/*.test.ts`, happy-dom project: hostile strings inert, media kinds, bounded DOM, timeline
+    jump, search with highlights and next / previous, date filter, profile switcher, boot errors, string table
+    parity), `scripts/build-viewer.test.ts` (one file, no remote resource, no HTML parsing / network / eval in
+    the bundle), `e2e/viewer.spec.ts` (built template with a synthetic data island opened from `file://` at
+    390, 375 and 1440 px: no console error, no non-file request, image from `media/`, hostile text,
+    keyboard focus, 44 px targets, no sideways scroll; screenshots in `.context/`) and a template check in
+    `pnpm smoke`.
   - `lib/exporters/changes-pack/` — the changes pack for manual sync (see "Phase 7" notes above and
     `docs/formats/changes-pack.md`): `format.ts`, `write.ts`, `read.ts`, tests `format|write|read.test.ts`;
     `lib/db/changes.test.ts` and `lib/usecases/changes-pack-export.test.ts` cover the queries and the
@@ -1085,8 +1118,8 @@ test type or architecture rule means updating this file **in the same PR**.
     idempotent second run), `csv`, `media`, `html-media`, `render` (XSS stays inert),
     `theme`, `titles` (mocked `fetch`), `titles-guard` (SSRF guard, redirects, kept titles),
     `regressions` (one block per fixed known bug).
-  - Packaging — `scripts/build-viewer-script.test.ts` (bundle fresh and self-contained) and
-    `pnpm smoke` (built CLI).
+  - Packaging — `scripts/build-viewer-script.test.ts` (bundle fresh and self-contained),
+    `scripts/build-viewer.test.ts` (standalone viewer template) and `pnpm smoke` (built CLI, viewer template).
   - Thumbnails — `lib/storage/opfs-thumb-store.test.ts` (hash/size validation, get/put/delete/clear, cap and LRU eviction, partial write never served, failed write, no-`move()`, tmp sweep, separate from blobs), `thumbnail.test.ts` (fake `createImageBitmap` / `OffscreenCanvas`: orientation, webp / jpeg fallback, undecodable, closing), `lib/usecases/tile-image.test.ts`, `hooks/use-tile-image.test.tsx`, and in `import.test.ts` / `archive.test.ts` (thumbs deleted with their blob, not in the exported ZIP, restore from an empty or stale cache).
   - UI — `components/person-timeline-screen.test.tsx` and `hooks/use-person-timeline.test.tsx` (merge order across two conversations, label only where the conversation changes with hrefs, hostile title as text, "me" alignment, date jump, saved position, empty / not-found / error + retry, start at date / saved position / end, Catalan); e2e `e2e/person-timeline.spec.ts` (two chats imported into one person, order, labels, date jump, calendar, Back, small DOM at 390 and 1440).
   - UI — `components/person-gallery-screen.test.tsx` (kinds, month groups, near-screen reads and URL revoke with a driven IntersectionObserver, video reads nothing, missing and undecodable, Show more, empty / not-found / error + retry, Catalan), `components/person-gallery-lightbox.test.tsx` (dialog stub for happy-dom: open, arrows, ends, missing, read-ahead and revoke, focus return, next page and its failure), `hooks/use-near-viewport.test.tsx`, `e2e/person-gallery.spec.ts` (real PNGs and a video, lazy loading on scroll, keyboard, lightbox open / arrows / Escape / next page / open in the conversation, at 390 and 1440 px);
@@ -1321,9 +1354,11 @@ test type or architecture rule means updating this file **in the same PR**.
 
 - `roadmap.md` — phases 0–9 with scope, PR breakdown and verification.
 - `branching-and-releases.md` — branch and release procedure.
+- `testing-robustness.md` — matrix of volume / full-storage / failed-import / corrupted-backup / clean-device scenarios and the tests that guard each (`lib/usecases/robustness*.test.ts`; `ROBUSTNESS_MESSAGES` scales the volume test).
 - `ai-tooling.md` — rulesync layout and how to add rules, skills and commands.
 - `formats/legacy-json.md` — the versioned `messages.json` envelope and what each legacy output
   can be re-imported from.
+- `formats/viewer-data.md` — the versioned JSON the standalone read-only viewer reads (an export, not the storage format)
 - `formats/changes-pack.md` — the changes pack for manual device-to-device sync: manifest, records, merge and conflict rules, watermarks, device identity (schema v8, pack export and the merge with schema v9 conflicts are implemented; the screens are not)
 - `formats/photo-library.md` — the photo collection (schema v11): Google Photos Takeout album import, data model,
   supported sidecar variants, idempotency, undo, backup and the sync limit.

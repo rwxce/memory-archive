@@ -38,6 +38,7 @@ export default defineConfig({
             'app/**/*.test.{ts,tsx}',
             'components/**/*.test.{ts,tsx}',
             'hooks/**/*.test.{ts,tsx}',
+            'viewer/**/*.test.ts',
           ],
         },
       },

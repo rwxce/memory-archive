@@ -66,6 +66,7 @@ const ELEMENTS = [
   { type: 'exporters', pattern: 'lib/exporters' },
   { type: 'cli', pattern: 'cli' },
   { type: 'sw', pattern: 'sw' },
+  { type: 'viewer', pattern: 'viewer' },
   // Files directly in lib/ (lib/log.ts): shared by every layer. Last, so the
   // lib/<layer> folders above win.
   { type: 'shared', pattern: 'lib' },
@@ -90,6 +91,8 @@ const LAYER_POLICIES = [
   allow('domain', ['domain']),
   // The service worker shares the share-inbox store with the pages.
   allow('sw', ['sw', 'storage', 'domain', 'shared']),
+  // The standalone viewer reads the exported data format and shares the legacy link helpers.
+  allow('viewer', ['viewer', 'exporters', 'shared']),
   allow('cli', ['cli', 'usecases', 'domain', 'db', 'storage', 'importers', 'exporters', 'shared']),
 ];
 
@@ -223,6 +226,20 @@ export default tseslint.config(
         'error',
         { patterns: [{ group: ['@/*', '**/lib/*', '**/components/*', '**/hooks/*'], message: 'e2e tests drive the built app through the browser; do not import app code.' }] },
       ],
+    },
+  },
+  {
+    // The standalone viewer renders untrusted text: only text nodes and setAttribute, never HTML strings.
+    files: ['viewer/**/*.ts'],
+    ignores: ['viewer/**/*.test.ts'],
+    languageOptions: { globals: { ...globals.browser } },
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        ...['innerHTML', 'outerHTML', 'insertAdjacentHTML'].map((property) => ({ property, message: 'The viewer must not parse HTML: use text nodes (viewer/src/dom.ts).' })),
+        { object: 'document', property: 'write', message: 'The viewer must not parse HTML.' },
+      ],
+      'no-restricted-globals': ['error', ...['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'eval'].map((name) => ({ name, message: 'The viewer makes no network calls.' }))],
     },
   },
   {

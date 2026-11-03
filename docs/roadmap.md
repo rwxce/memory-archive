@@ -167,7 +167,7 @@ changes pack (known limit, unchanged). Not yet checked on a real phone gallery p
 
 ## Phase 9 — Portable exports and hardening
 
-**Status: not started.**
+**Status: done in code and automated tests. Done: the viewer's data format and use case, the viewer itself (`viewer/`, opens from `file://`), its ZIP writer, the HTML / JSON / Markdown exports and the export configuration card on the backup screen (format, people, folders, dates, media), the robustness tests (`docs/testing-robustness.md`) and the complete Settings. Not done: checking the viewer's network-blocking policy and images in Safari and Firefox, trying the exports with real media, and a check on a real phone; these stay manual checks. The viewer is for a computer; on a phone the way to read a copy is the app.**
 
 - Single-file read-only viewer (`viewer/`) that opens via `file://` with search and timeline;
   one, several or all profiles; date filters. Per-profile HTML / JSON / Markdown / ZIP.

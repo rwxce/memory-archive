@@ -178,6 +178,18 @@
     "photos": {
       "title": "Photos",
       "description": "Add photos and videos from your phone or Google Photos."
+    },
+    "groups": {
+      "archive": "Archive",
+      "copies": "Copies and sync"
+    },
+    "portability": {
+      "title": "Export a copy to read elsewhere",
+      "description": "A ZIP in a viewer, web pages, Markdown or JSON, to read on a computer. It is not a backup."
+    },
+    "security": {
+      "title": "Password for backups",
+      "description": "You can protect a backup with a password. It is never saved and cannot be recovered, so keep it safe."
     }
   },
   "notFound": {
@@ -1046,6 +1058,65 @@
     "syncPointer": {
       "text": "{fileName} is a file of changes from another device, not a backup. Open it in Sync devices.",
       "link": "Go to Sync devices"
+    },
+    "viewer": {
+      "title": "Export a copy",
+      "description": "Makes a ZIP to read your conversations outside this app, with your photos and videos beside them. Choose the format that suits what you want to do. It is read-only: nothing here changes your archive.",
+      "phoneNote": "On a phone these copies do not open reliably from the file manager. To read on another phone, restore the full backup in this app instead.",
+      "notBackup": "None of these is a backup and none can be restored. For that, use a full backup.",
+      "formatLegend": "Format",
+      "formats": {
+        "viewer": {
+          "label": "Viewer to open on a computer",
+          "help": "One page to read, search and browse on a computer. Unzip it and open viewer.html in a browser, keeping the media folder beside it."
+        },
+        "html": {
+          "label": "Web pages (HTML)",
+          "help": "One page for each conversation, to open in any browser or keep as a document."
+        },
+        "markdown": {
+          "label": "Markdown",
+          "help": "One plain text file for each conversation, easy to open in any notes app or editor."
+        },
+        "json": {
+          "label": "Data (JSON)",
+          "help": "All messages in one file, for other programs or for keeping the raw data."
+        }
+      },
+      "splitLegend": "Folders",
+      "split": {
+        "together": "One set of files for everyone",
+        "perProfile": "One folder for each person"
+      },
+      "peopleLegend": "Whose conversations",
+      "archivedTag": "archived",
+      "noPeople": "There are no people in the archive yet.",
+      "noPeopleSelected": "Choose at least one person.",
+      "datesLegend": "Dates (optional)",
+      "datesHint": "Leave them empty to include everything.",
+      "from": "From",
+      "to": "To",
+      "includeMedia": "Include photos and videos",
+      "includeMediaNote": "Without them the copy is much smaller and shows only the file names.",
+      "submit": "Make the copy",
+      "progressLabel": "Making the copy",
+      "savedTitle": "The copy is ready",
+      "saved": "{fileName} was handed to your browser to download.",
+      "savedMedia": "{count, plural, one {# photo, video or audio file included.} other {# photos, videos and audio files included.}}",
+      "savedNoMedia": "No photos or videos were included.",
+      "savedMissing": "{count, plural, one {# file could not be found on this device and was left out.} other {# files could not be found on this device and were left out.}}",
+      "another": "Make another copy",
+      "error": {
+        "dates": "Check the dates: the start must not be after the end.",
+        "notFound": "One of the people is no longer in the archive. Reload the list and try again.",
+        "template": "The page that reads the copy is not available. Reload the app and try again.",
+        "missingMedia": "A photo or video is missing from this device, so the copy was not made. Nothing was changed.",
+        "damaged": "A photo or video on this device is damaged, so the copy was not made. Nothing was changed.",
+        "limit": "This is too much for a single file. Choose fewer people, a shorter period, or leave out photos and videos.",
+        "storage": "There is not enough space on this device, or it could not be written to. Nothing was changed.",
+        "generic": "Something went wrong. Nothing was changed. Try again.",
+        "nothing": "There are no messages for this choice. Try other people or a wider period."
+      }
     }
   },
   "subpage": {

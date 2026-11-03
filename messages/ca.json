@@ -178,6 +178,18 @@
     "photos": {
       "title": "Fotos",
       "description": "Afegeix fotos i vídeos del telèfon o de Google Fotos."
+    },
+    "groups": {
+      "archive": "Arxiu",
+      "copies": "Còpies i sincronització"
+    },
+    "portability": {
+      "title": "Exporta una còpia per llegir en un altre lloc",
+      "description": "Un ZIP amb visor, pàgines web, Markdown o JSON, per llegir en un ordinador. No és una còpia de seguretat."
+    },
+    "security": {
+      "title": "Contrasenya de les còpies",
+      "description": "Pots protegir una còpia amb contrasenya. No es desa ni es pot recuperar, així que guarda-la bé."
     }
   },
   "notFound": {
@@ -1046,6 +1058,65 @@
     "syncPointer": {
       "text": "{fileName} és un fitxer de canvis d’un altre dispositiu, no una còpia. Obre’l a Sincronitza dispositius.",
       "link": "Ves a Sincronitza dispositius"
+    },
+    "viewer": {
+      "title": "Exporta una còpia",
+      "description": "Crea un ZIP per llegir les teves converses fora d'aquesta app, amb les fotos i els vídeos al costat. Tria el format que et vagi millor. És de només lectura: res d'això canvia el teu arxiu.",
+      "phoneNote": "En un mòbil aquestes còpies no s'obren de manera fiable des del gestor de fitxers. Per llegir en un altre mòbil, restaura més aviat la còpia de seguretat completa en aquesta app.",
+      "notBackup": "Cap d'elles és una còpia de seguretat ni es pot restaurar. Per a això, fes servir una còpia completa.",
+      "formatLegend": "Format",
+      "formats": {
+        "viewer": {
+          "label": "Visor per obrir en un ordinador",
+          "help": "Una pàgina per llegir, cercar i recórrer els missatges en un ordinador. Descomprimeix-la i obre viewer.html en un navegador, amb la carpeta media al costat."
+        },
+        "html": {
+          "label": "Pàgines web (HTML)",
+          "help": "Una pàgina per conversa, per obrir en qualsevol navegador o guardar com a document."
+        },
+        "markdown": {
+          "label": "Markdown",
+          "help": "Un fitxer de text senzill per conversa, fàcil d'obrir en qualsevol app de notes o editor."
+        },
+        "json": {
+          "label": "Dades (JSON)",
+          "help": "Tots els missatges en un sol fitxer, per a altres programes o per conservar les dades tal qual."
+        }
+      },
+      "splitLegend": "Carpetes",
+      "split": {
+        "together": "Un sol conjunt de fitxers per a tothom",
+        "perProfile": "Una carpeta per a cada persona"
+      },
+      "peopleLegend": "De qui són les converses",
+      "archivedTag": "arxivada",
+      "noPeople": "Encara no hi ha persones a l'arxiu.",
+      "noPeopleSelected": "Tria almenys una persona.",
+      "datesLegend": "Dates (opcional)",
+      "datesHint": "Deixa-les buides per incloure-ho tot.",
+      "from": "Des de",
+      "to": "Fins a",
+      "includeMedia": "Inclou fotos i vídeos",
+      "includeMediaNote": "Sense ells la còpia pesa molt menys i només mostra els noms dels fitxers.",
+      "submit": "Crea la còpia",
+      "progressLabel": "Creant la còpia",
+      "savedTitle": "La còpia està a punt",
+      "saved": "{fileName} s'ha lliurat al navegador perquè el baixis.",
+      "savedMedia": "{count, plural, one {Inclou # foto, vídeo o àudio.} other {Inclou # fotos, vídeos i àudios.}}",
+      "savedNoMedia": "No s'han inclòs fotos ni vídeos.",
+      "savedMissing": "{count, plural, one {# fitxer no s'ha trobat en aquest dispositiu i s'ha deixat fora.} other {# fitxers no s'han trobat en aquest dispositiu i s'han deixat fora.}}",
+      "another": "Crea una altra còpia",
+      "error": {
+        "dates": "Revisa les dates: l'inici no pot ser posterior al final.",
+        "notFound": "Una de les persones ja no és a l'arxiu. Recarrega la llista i torna-ho a provar.",
+        "template": "La pàgina que llegeix la còpia no està disponible. Recarrega l'app i torna-ho a provar.",
+        "missingMedia": "Falta una foto o un vídeo en aquest dispositiu, així que no s'ha creat la còpia. No s'ha canviat res.",
+        "damaged": "Una foto o un vídeo d'aquest dispositiu està malmès, així que no s'ha creat la còpia. No s'ha canviat res.",
+        "limit": "És massa per a un sol fitxer. Tria menys persones, un període més curt o deixa fora les fotos i els vídeos.",
+        "storage": "No hi ha prou espai en aquest dispositiu, o no s'hi ha pogut escriure. No s'ha canviat res.",
+        "generic": "Alguna cosa ha anat malament. No s'ha canviat res. Torna-ho a provar.",
+        "nothing": "No hi ha missatges amb aquesta tria. Prova amb altres persones o un període més ampli."
+      }
     }
   },
   "subpage": {
