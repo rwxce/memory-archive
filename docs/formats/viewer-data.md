@@ -52,6 +52,23 @@ selected profiles appears once. Empty `profileIds`, a malformed or reversed date
 `invalid`; an unknown profile: `not-found`. The output depends only on the library and the
 selection (and the injected clock), not on the order of `profileIds`.
 
+## Package layout
+
+`exportViewerPackage` (`lib/usecases/viewer-package.ts`) returns the download, a ZIP written by
+`lib/exporters/viewer/write.ts` with the archive writer's streaming sink (`archive/zip-sink.ts`):
+
+```
+viewer.html          template with the data inlined (exactly one data island)
+README.txt           en / ca / es: open viewer.html on a desktop, keep media/ next to it, use the app on a phone
+media/<sha256>.<ext> one stored (not recompressed) entry per `media` item; absent when includeMedia is false
+```
+
+Each media entry is rehashed while it streams out; a blob that is missing or no longer matches its
+hash aborts the export (`ArchiveError` `blob-missing` / `integrity`). Paths must be exactly
+`media/<sha256>.<ext>` for the entry's own hash, unique, and entry count and sizes stay within the
+archive limits (`unsafe-path`, `limit-exceeded`). The template is the app's own static asset
+(`/viewer/viewer-template.html`, same origin, no other network call).
+
 ## Known limits
 
 The whole data object is built in memory (text only; media are copied by the writer, streamed).

@@ -1046,6 +1046,41 @@
     "syncPointer": {
       "text": "{fileName} es un archivo de cambios de otro dispositivo, no una copia. Ábrelo en Sincroniza dispositivos.",
       "link": "Ir a Sincroniza dispositivos"
+    },
+    "viewer": {
+      "title": "Copia para leer en un ordenador",
+      "description": "Crea un ZIP con una página que se abre en el navegador, y tus fotos y vídeos a su lado. Es de solo lectura: puedes leer, buscar y recorrer los mensajes, nada más.",
+      "howTo": "En un ordenador, descomprime el archivo y abre viewer.html en un navegador. Deja la carpeta media junto a él.",
+      "phoneNote": "En un móvil esta copia no se abre de forma fiable desde el gestor de archivos. Para leer en otro móvil, restaura mejor la copia de seguridad completa en esta app.",
+      "notBackup": "No es una copia de seguridad y no se puede restaurar. Para eso, usa una copia completa.",
+      "peopleLegend": "De quién son las conversaciones",
+      "archivedTag": "archivada",
+      "noPeople": "Todavía no hay personas en el archivo.",
+      "noPeopleSelected": "Elige al menos una persona.",
+      "datesLegend": "Fechas (opcional)",
+      "datesHint": "Déjalas vacías para incluirlo todo.",
+      "from": "Desde",
+      "to": "Hasta",
+      "includeMedia": "Incluir fotos y vídeos",
+      "includeMediaNote": "Sin ellos la copia pesa mucho menos y solo muestra los nombres de los archivos.",
+      "submit": "Crear la copia",
+      "progressLabel": "Creando la copia",
+      "savedTitle": "La copia está lista",
+      "saved": "{fileName} se ha entregado a tu navegador para descargarlo.",
+      "savedMedia": "{count, plural, one {Incluye # foto, vídeo o audio.} other {Incluye # fotos, vídeos y audios.}}",
+      "savedNoMedia": "No se han incluido fotos ni vídeos.",
+      "savedMissing": "{count, plural, one {# archivo no se ha encontrado en este dispositivo y se ha dejado fuera.} other {# archivos no se han encontrado en este dispositivo y se han dejado fuera.}}",
+      "another": "Crear otra copia",
+      "error": {
+        "dates": "Revisa las fechas: el inicio no puede ser posterior al final.",
+        "notFound": "Una de las personas ya no está en el archivo. Recarga la lista e inténtalo de nuevo.",
+        "template": "La página que lee la copia no está disponible. Recarga la app e inténtalo de nuevo.",
+        "missingMedia": "Falta una foto o un vídeo en este dispositivo, así que no se ha creado la copia. No se ha cambiado nada.",
+        "damaged": "Una foto o un vídeo de este dispositivo está dañado, así que no se ha creado la copia. No se ha cambiado nada.",
+        "limit": "Es demasiado para un solo archivo. Elige menos personas, un periodo más corto o deja fuera las fotos y los vídeos.",
+        "storage": "No hay espacio suficiente en este dispositivo, o no se ha podido escribir en él. No se ha cambiado nada.",
+        "generic": "Algo ha ido mal. No se ha cambiado nada. Inténtalo de nuevo."
+      }
     }
   },
   "subpage": {

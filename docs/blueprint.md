@@ -167,7 +167,7 @@ test type or architecture rule means updating this file **in the same PR**.
     (toggle, states, ca), `hooks/use-message-source.test.tsx`, and an e2e flow in
     `e2e/conversation.spec.ts` (keyboard, no jump).
   - **Backup and restore** (`/[locale]/backup/`, PRD screen 9; `components/backup-screen.tsx` plus `backup-usage-card`,
-    `backup-copy-card`, `backup-check-cards`, `task-progress`; hooks `use-archive-usage`, `use-archive-checks`,
+    `backup-copy-card`, `backup-check-cards`, `viewer-export-card`, `task-progress`; hooks `use-archive-usage`, `use-archive-checks`,
     `use-archive-backup`). Sub-screen with a back pill to Settings (the Settings row is now a link, not an inline backup).
     Cards: what the archive holds (counts, bytes per kind, device quota and persistence); full backup (progress bar);
     open a backup (an empty archive opens the chosen ZIP directly; an archive with data offers "Replace my archive with a
@@ -502,8 +502,8 @@ test type or architecture rule means updating this file **in the same PR**.
     `lib/usecases/viewer-export.ts` (`buildViewerExport`: profiles, optional date range, media on/off; reads
     through the existing use cases, returns the data plus the files to copy); `html.ts` (`renderViewerHtml(template,
     data)`: pure, splices the serialized data into the template's island; refuses a template without the island).
-    The export screens and the file writer are not built yet. Tests `format.test.ts`, `html.test.ts` and
-    `viewer-export.test.ts` (filters, media on/off / missing, hostile strings kept as data and read back
+    The export screen is a card on the backup screen (`components/viewer-export-card.tsx`, hook `use-viewer-export`; people, optional dates, media toggle, progress, per-error messages; copy `backup.viewer.*`; `viewer-export-card.test.tsx` mocks the use case). Tests `format.test.ts`, `html.test.ts` and
+    `write.ts` (`writeViewerPackage`: ZIP with `viewer.html`, en/ca/es `README.txt` and stored `media/<sha256>.<ext>`, media rehashed while streamed, hostile paths and limits refused; shares `archive/zip-sink.ts` with the backup writer) and `lib/usecases/viewer-package.ts` (`exportViewerPackage`, `fetchViewerTemplate`, `ViewerPackageError`), tested by `write.test.ts` and `viewer-package.test.ts`; `viewer-export.test.ts` (filters, media on/off / missing, hostile strings kept as data and read back
     unchanged from the island, newer schema refused, determinism).
   - `viewer/` — the standalone read-only viewer UI (desktop first, usable at 375 px; opens from `file://`; plain
     TypeScript + CSS, no framework, no new dependency): `template.html` (shell with style / script / data

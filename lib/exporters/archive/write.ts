@@ -1,4 +1,4 @@
-import { Zip, ZipDeflate, ZipPassThrough } from 'fflate';
+import { ZipDeflate, ZipPassThrough } from 'fflate';
 import { ARCHIVE_FORMAT_NAME, ARCHIVE_FORMAT_VERSION } from '../../domain/archive';
 import { createSha256, sha256Hex } from '../../domain/sha256';
 import {
@@ -10,6 +10,7 @@ import {
   type ArchiveManifest,
   type ManifestEntry,
 } from './format';
+import { createZipSink } from './zip-sink';
 
 export interface ArchiveBlobRef {
   sha256: string;
@@ -31,9 +32,6 @@ export interface ArchiveSource {
   /** Called after each media file has been written, with how many are done out of the total. */
   onProgress?(done: number, total: number): void;
 }
-
-/** Produced bytes are folded into a `Blob` (which the browser may keep outside the JS heap) this often. */
-const FLUSH_BYTES = 16 * 1024 * 1024;
 
 const encoder = new TextEncoder();
 const EMPTY = new Uint8Array(0);
@@ -71,26 +69,7 @@ export async function writeArchive(source: ArchiveSource): Promise<Blob> {
     entries,
   };
 
-  const folded: Blob[] = [];
-  let parts: Uint8Array[] = [];
-  let pending = 0;
-  let failure: unknown;
-  const zip = new Zip((error, chunk) => {
-    if (error) {
-      failure = error;
-      return;
-    }
-    parts.push(chunk);
-    pending += chunk.length;
-    if (pending >= FLUSH_BYTES) {
-      folded.push(new Blob(parts as BlobPart[]));
-      parts = [];
-      pending = 0;
-    }
-  });
-  const check = () => {
-    if (failure) throw new ArchiveError('storage', 'could not assemble the archive', { cause: failure });
-  };
+  const { zip, check, finish } = createZipSink();
 
   const addSmall = (data: Uint8Array, file: ZipDeflate | ZipPassThrough) => {
     file.mtime = source.createdAt;
@@ -137,7 +116,5 @@ export async function writeArchive(source: ArchiveSource): Promise<Blob> {
     zip.terminate();
     throw error;
   }
-  zip.end();
-  check();
-  return new Blob([...folded, ...(parts as BlobPart[])], { type: 'application/zip' });
+  return finish();
 }

@@ -167,7 +167,7 @@ changes pack (known limit, unchanged). Not yet checked on a real phone gallery p
 
 ## Phase 9 — Portable exports and hardening
 
-**Status: in progress. The viewer's data format and its use case, and the viewer itself (`viewer/`: profiles, conversations, thread, search, timeline, date filter; opens from `file://`) are done; the export screens and the file writer (HTML + `media/` folder, JSON / Markdown / ZIP) are not.**
+**Status: in progress. The viewer's data format and its use case, and the viewer itself (`viewer/`: profiles, conversations, thread, search, timeline, date filter; opens from `file://`) are done; the viewer ZIP writer (`viewer.html` + `media/`) and its export card on the backup screen are done; the JSON / Markdown / per-profile exports are not.**
 
 - Single-file read-only viewer (`viewer/`) that opens via `file://` with search and timeline;
   one, several or all profiles; date filters. Per-profile HTML / JSON / Markdown / ZIP.
