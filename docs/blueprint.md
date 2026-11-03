@@ -496,6 +496,13 @@ test type or architecture rule means updating this file **in the same PR**.
   - `lib/db/snapshot.ts` — `serializeDb`, `loadSnapshot`, `listBlobs`, `isLibraryEmpty`.
   - `lib/exporters/archive/` — `format.ts` (manifest, limits, `ArchiveError`, path validation),
     `write.ts` (`writeArchive`, fflate streaming `Zip`), `read.ts` (`openArchive`, `restoreArchive`), `verify.ts` (`verifyArchive`).
+  - `lib/exporters/viewer/` — the standalone viewer's data (`docs/formats/viewer-data.md`): `format.ts`
+    (envelope, `viewerMediaPath`, `serializeViewerData` safe for a `<script type="application/json">`
+    island, `parseViewerData` refusing a newer `schemaVersion`), `build.ts` (pure assembly, deterministic);
+    `lib/usecases/viewer-export.ts` (`buildViewerExport`: profiles, optional date range, media on/off; reads
+    through the existing use cases, returns the data plus the files to copy). Data only so far: no viewer HTML
+    or writer yet. Tests `format.test.ts` and `viewer-export.test.ts` (filters, media on/off / missing,
+    hostile strings kept as data, newer schema refused, determinism).
   - `lib/exporters/changes-pack/` — the changes pack for manual sync (see "Phase 7" notes above and
     `docs/formats/changes-pack.md`): `format.ts`, `write.ts`, `read.ts`, tests `format|write|read.test.ts`;
     `lib/db/changes.test.ts` and `lib/usecases/changes-pack-export.test.ts` cover the queries and the
@@ -1324,6 +1331,7 @@ test type or architecture rule means updating this file **in the same PR**.
 - `ai-tooling.md` — rulesync layout and how to add rules, skills and commands.
 - `formats/legacy-json.md` — the versioned `messages.json` envelope and what each legacy output
   can be re-imported from.
+- `formats/viewer-data.md` — the versioned JSON the standalone read-only viewer reads (an export, not the storage format)
 - `formats/changes-pack.md` — the changes pack for manual device-to-device sync: manifest, records, merge and conflict rules, watermarks, device identity (schema v8, pack export and the merge with schema v9 conflicts are implemented; the screens are not)
 - `formats/photo-library.md` — the photo collection (schema v11): Google Photos Takeout album import, data model,
   supported sidecar variants, idempotency, undo, backup and the sync limit.
