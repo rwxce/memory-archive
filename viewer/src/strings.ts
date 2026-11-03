@@ -1,0 +1,181 @@
+/**
+ * UI copy of the standalone viewer. The viewer is one file with no access to the app's
+ * messages/ catalogs, so it carries its own small table in ca / es / en (tone: docs/tone.md).
+ * The language comes from the browser; English is the default.
+ */
+
+export type Locale = 'ca' | 'es' | 'en';
+
+const en = {
+  appTitle: 'Memory Archive',
+  readOnly: 'Read-only copy. Exported on {date}.',
+  skip: 'Skip to the messages',
+  profile: 'Profile',
+  allProfiles: 'All profiles',
+  search: 'Search messages',
+  searchPlaceholder: 'Search',
+  searchOnlyHere: 'Only in this conversation',
+  searchClear: 'Clear search',
+  searching: 'Searching…',
+  resultsFound: '{count} messages found.',
+  resultsFoundOne: '1 message found.',
+  resultsMore: 'Showing the first {count}. Narrow the search or the dates to see the rest.',
+  resultsNone: 'No messages match.',
+  resultsShowMore: 'Show more results',
+  resultsLabel: 'Search results',
+  matchOf: 'Match {n} of {total}',
+  matchPrev: 'Previous match',
+  matchNext: 'Next match',
+  dates: 'Dates',
+  from: 'From',
+  to: 'To',
+  datesClear: 'Clear dates',
+  datesReversed: 'The start date is after the end date.',
+  conversations: 'Conversations',
+  conversationsNone: 'No conversations in this selection.',
+  conversationsMore: 'Show all conversations',
+  untitled: 'Untitled conversation',
+  messageOne: '1 message',
+  messageMany: '{count} messages',
+  chooseConversation: 'Choose a conversation to read it.',
+  noMessagesInDates: 'No messages in these dates.',
+  backToList: 'Back to conversations',
+  backToResults: 'Back to results',
+  messages: 'Messages',
+  earlier: 'Show earlier messages',
+  later: 'Show later messages',
+  timeline: 'Timeline',
+  year: 'Year',
+  month: 'Month',
+  position: 'Position in the conversation',
+  fileMissing: 'File not included in this copy',
+  openFile: 'Open file',
+  attachment: 'Attachment',
+  errorTitle: 'This file cannot be opened',
+  errorInvalid: 'The data in this file is damaged, or it was not made by Memory Archive.',
+  errorNewer: 'This file was made with a newer version of Memory Archive. Open it with an up-to-date version.',
+  errorNoData: 'This file has no archive data.',
+} as const;
+
+export type StringKey = keyof typeof en;
+type Table = Record<StringKey, string>;
+
+const ca: Table = {
+  appTitle: 'Memory Archive',
+  readOnly: 'Còpia de només lectura. Exportada el {date}.',
+  skip: 'Salta als missatges',
+  profile: 'Perfil',
+  allProfiles: 'Tots els perfils',
+  search: 'Cerca als missatges',
+  searchPlaceholder: 'Cerca',
+  searchOnlyHere: 'Només en aquesta conversa',
+  searchClear: 'Esborra la cerca',
+  searching: 'Cercant…',
+  resultsFound: "S'han trobat {count} missatges.",
+  resultsFoundOne: "S'ha trobat 1 missatge.",
+  resultsMore: 'Es mostren els primers {count}. Afina la cerca o les dates per veure la resta.',
+  resultsNone: 'Cap missatge coincideix.',
+  resultsShowMore: 'Mostra més resultats',
+  resultsLabel: 'Resultats de la cerca',
+  matchOf: 'Coincidència {n} de {total}',
+  matchPrev: 'Coincidència anterior',
+  matchNext: 'Coincidència següent',
+  dates: 'Dates',
+  from: 'Des de',
+  to: 'Fins a',
+  datesClear: 'Esborra les dates',
+  datesReversed: 'La data d’inici és posterior a la data final.',
+  conversations: 'Converses',
+  conversationsNone: 'No hi ha converses en aquesta selecció.',
+  conversationsMore: 'Mostra totes les converses',
+  untitled: 'Conversa sense títol',
+  messageOne: '1 missatge',
+  messageMany: '{count} missatges',
+  chooseConversation: 'Tria una conversa per llegir-la.',
+  noMessagesInDates: 'No hi ha missatges en aquestes dates.',
+  backToList: 'Torna a les converses',
+  backToResults: 'Torna als resultats',
+  messages: 'Missatges',
+  earlier: 'Mostra missatges anteriors',
+  later: 'Mostra missatges posteriors',
+  timeline: 'Cronologia',
+  year: 'Any',
+  month: 'Mes',
+  position: 'Posició a la conversa',
+  fileMissing: 'Fitxer no inclòs en aquesta còpia',
+  openFile: 'Obre el fitxer',
+  attachment: 'Adjunt',
+  errorTitle: 'Aquest fitxer no es pot obrir',
+  errorInvalid: 'Les dades d’aquest fitxer estan malmeses, o no les ha fet Memory Archive.',
+  errorNewer: 'Aquest fitxer s’ha fet amb una versió més nova de Memory Archive. Obre’l amb una versió actualitzada.',
+  errorNoData: 'Aquest fitxer no conté dades de l’arxiu.',
+};
+
+const es: Table = {
+  appTitle: 'Memory Archive',
+  readOnly: 'Copia de solo lectura. Exportada el {date}.',
+  skip: 'Saltar a los mensajes',
+  profile: 'Perfil',
+  allProfiles: 'Todos los perfiles',
+  search: 'Buscar en los mensajes',
+  searchPlaceholder: 'Buscar',
+  searchOnlyHere: 'Solo en esta conversación',
+  searchClear: 'Borrar la búsqueda',
+  searching: 'Buscando…',
+  resultsFound: 'Se han encontrado {count} mensajes.',
+  resultsFoundOne: 'Se ha encontrado 1 mensaje.',
+  resultsMore: 'Se muestran los primeros {count}. Afina la búsqueda o las fechas para ver el resto.',
+  resultsNone: 'Ningún mensaje coincide.',
+  resultsShowMore: 'Mostrar más resultados',
+  resultsLabel: 'Resultados de la búsqueda',
+  matchOf: 'Coincidencia {n} de {total}',
+  matchPrev: 'Coincidencia anterior',
+  matchNext: 'Coincidencia siguiente',
+  dates: 'Fechas',
+  from: 'Desde',
+  to: 'Hasta',
+  datesClear: 'Borrar las fechas',
+  datesReversed: 'La fecha de inicio es posterior a la fecha final.',
+  conversations: 'Conversaciones',
+  conversationsNone: 'No hay conversaciones en esta selección.',
+  conversationsMore: 'Mostrar todas las conversaciones',
+  untitled: 'Conversación sin título',
+  messageOne: '1 mensaje',
+  messageMany: '{count} mensajes',
+  chooseConversation: 'Elige una conversación para leerla.',
+  noMessagesInDates: 'No hay mensajes en estas fechas.',
+  backToList: 'Volver a las conversaciones',
+  backToResults: 'Volver a los resultados',
+  messages: 'Mensajes',
+  earlier: 'Mostrar mensajes anteriores',
+  later: 'Mostrar mensajes posteriores',
+  timeline: 'Cronología',
+  year: 'Año',
+  month: 'Mes',
+  position: 'Posición en la conversación',
+  fileMissing: 'Archivo no incluido en esta copia',
+  openFile: 'Abrir el archivo',
+  attachment: 'Adjunto',
+  errorTitle: 'Este archivo no se puede abrir',
+  errorInvalid: 'Los datos de este archivo están dañados, o no los ha creado Memory Archive.',
+  errorNewer: 'Este archivo se hizo con una versión más nueva de Memory Archive. Ábrelo con una versión actualizada.',
+  errorNoData: 'Este archivo no contiene datos del archivo.',
+};
+
+export const TABLES: Record<Locale, Table> = { en, ca, es };
+
+/** First supported language of the browser's list ('ca-ES' counts as 'ca'); English otherwise. */
+export function pickLocale(languages: readonly string[] | undefined): Locale {
+  for (const lang of languages ?? []) {
+    const base = lang.toLowerCase().split('-')[0];
+    if (base === 'ca' || base === 'es' || base === 'en') return base;
+  }
+  return 'en';
+}
+
+export type Translate = (key: StringKey, params?: Record<string, string | number>) => string;
+
+export function makeTranslate(locale: Locale): Translate {
+  const table = TABLES[locale];
+  return (key, params) => table[key].replace(/\{(\w+)\}/g, (m, name: string) => (params && name in params ? String(params[name]) : m));
+}
