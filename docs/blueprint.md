@@ -1354,6 +1354,7 @@ test type or architecture rule means updating this file **in the same PR**.
 
 - `roadmap.md` — phases 0–9 with scope, PR breakdown and verification.
 - `branching-and-releases.md` — branch and release procedure.
+- `testing-robustness.md` — matrix of volume / full-storage / failed-import / corrupted-backup / clean-device scenarios and the tests that guard each (`lib/usecases/robustness*.test.ts`; `ROBUSTNESS_MESSAGES` scales the volume test).
 - `ai-tooling.md` — rulesync layout and how to add rules, skills and commands.
 - `formats/legacy-json.md` — the versioned `messages.json` envelope and what each legacy output
   can be re-imported from.
