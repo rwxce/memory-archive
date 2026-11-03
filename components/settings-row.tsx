@@ -20,6 +20,10 @@ export function SettingsRowContent({ title, hint, value }: { title: ReactNode; h
 }
 
 /** A flat card holding a list of rows. */
-export function SettingsRows({ children, className }: { children: ReactNode; className?: string }) {
-  return <section className={cn('bg-sf flex flex-col overflow-hidden rounded-3xl lg:in-data-panel:bg-bg', className)}>{children}</section>;
+export function SettingsRows({ children, className, labelledBy }: { children: ReactNode; className?: string; labelledBy?: string }) {
+  return (
+    <section aria-labelledby={labelledBy} className={cn('bg-sf flex flex-col overflow-hidden rounded-3xl lg:in-data-panel:bg-bg', className)}>
+      {children}
+    </section>
+  );
 }

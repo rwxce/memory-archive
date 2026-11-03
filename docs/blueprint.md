@@ -333,7 +333,7 @@ test type or architecture rule means updating this file **in the same PR**.
     missing id is a calm not-found with the way back. Focus returns to the opener, or to the
     section heading when the chat left the list; results are announced in the status region;
     wrapped in `Suspense` because of `useSearchParams`), `/[locale]/welcome/` (always reachable; *Start* asks for persistent storage and
-    goes to People), `/[locale]/settings/` (language, appearance, app version + archive format version), `/[locale]/backup/` (backup and restore), `/[locale]/sync/` (sync devices),
+    goes to People), `/[locale]/settings/` (space, appearance, language; rows grouped Archive = import history, photos, and Copies and sync = backup and restore, export a copy (deep link `/backup#viewer-export`), backup password info, sync; reminders, erase, app version + archive format version; `components/settings-screen.test.tsx`), `/[locale]/backup/` (backup and restore), `/[locale]/sync/` (sync devices),
     `not-found` → `out/404.html`.
   - Next.js telemetry disabled (`NEXT_TELEMETRY_DISABLED` in scripts, CI and
     `next.config.ts`; `.npmrc` `shell-emulator=true` makes the env prefix work on Windows).

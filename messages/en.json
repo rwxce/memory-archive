@@ -178,6 +178,18 @@
     "photos": {
       "title": "Photos",
       "description": "Add photos and videos from your phone or Google Photos."
+    },
+    "groups": {
+      "archive": "Archive",
+      "copies": "Copies and sync"
+    },
+    "portability": {
+      "title": "Export a copy to read elsewhere",
+      "description": "A ZIP in a viewer, web pages, Markdown or JSON, to read on a computer. It is not a backup."
+    },
+    "security": {
+      "title": "Password for backups",
+      "description": "You can protect a backup with a password. It is never saved and cannot be recovered, so keep it safe."
     }
   },
   "notFound": {

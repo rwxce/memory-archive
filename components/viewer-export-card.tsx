@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Outcome } from '@/components/backup-check-cards';
 import { Eyebrow } from '@/components/eyebrow';
@@ -35,6 +35,11 @@ export function ViewerExportCard() {
   const [split, setSplit] = useState<ExportSplit>('together');
   const lang = useLocale() as ExportLang;
 
+  // Arriving from Settings (`/backup#viewer-export`): bring the card into view once, without animation.
+  useEffect(() => {
+    if (window.location.hash === '#viewer-export') document.getElementById('viewer-export')?.scrollIntoView({ block: 'start' });
+  }, []);
+
   const everyone = people.status === 'ready' ? [...people.people.active, ...people.people.archived] : [];
   const chosen = everyone.filter((person) => !excluded.has(person.id));
   const working = viewer.state.status === 'working';
@@ -50,7 +55,7 @@ export function ViewerExportCard() {
     });
 
   return (
-    <SectionCard className="gap-4 p-[18px]" aria-labelledby="viewer-export-title" data-testid="viewer-export">
+    <SectionCard id="viewer-export" className="scroll-mt-4 gap-4 p-[18px]" aria-labelledby="viewer-export-title" data-testid="viewer-export">
       <div className="flex flex-col gap-1.5">
         <Eyebrow as="h2" id="viewer-export-title" tone="muted" className="tracking-widest">
           {t('title')}

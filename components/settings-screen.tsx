@@ -22,8 +22,8 @@ import { ARCHIVE_FORMAT_VERSION } from '@/lib/domain/archive';
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0';
 
 /**
- * Settings: space, appearance, then rows for language (drills into a small language view in the
- * same screen), import history and Backup and restore (its own screen); the erase card; the footer
+ * Settings: space, appearance, language (drills into a small language view in the same screen), then
+ * rows grouped as Archive (import history, photos) and Copies and sync (backup, export a copy, security, sync); reminders; the erase card; the footer
  * with the privacy note and versions. The library opens here because the space split needs it.
  */
 export function SettingsScreen() {
@@ -74,17 +74,35 @@ export function SettingsScreen() {
         <button type="button" onClick={() => setView('language')} className={settingsRowClass}>
           <SettingsRowContent title={t('language.title')} hint={t('language.description')} value={localeNames[locale]} />
         </button>
+      </SettingsRows>
+
+      <Eyebrow as="h2" id="group-archive" tone="muted" className="-mb-2 px-1 tracking-widest">
+        {t('groups.archive')}
+      </Eyebrow>
+      <SettingsRows labelledBy="group-archive">
         <Link href="/import/history" className={settingsRowClass}>
           <SettingsRowContent title={t('history.title')} hint={t('history.description')} />
         </Link>
+        <Link href="/photos" className={settingsRowClass}>
+          <SettingsRowContent title={t('photos.title')} hint={t('photos.description')} />
+        </Link>
+      </SettingsRows>
+
+      <Eyebrow as="h2" id="group-copies" tone="muted" className="-mb-2 px-1 tracking-widest">
+        {t('groups.copies')}
+      </Eyebrow>
+      <SettingsRows labelledBy="group-copies">
         <Link href="/backup" className={settingsRowClass}>
           <SettingsRowContent title={t('backup.title')} hint={t('backup.description')} />
         </Link>
+        <Link href="/backup#viewer-export" className={settingsRowClass}>
+          <SettingsRowContent title={t('portability.title')} hint={t('portability.description')} />
+        </Link>
+        <Link href="/backup" className={settingsRowClass}>
+          <SettingsRowContent title={t('security.title')} hint={t('security.description')} />
+        </Link>
         <Link href="/sync" className={settingsRowClass}>
           <SettingsRowContent title={t('sync.title')} hint={t('sync.description')} />
-        </Link>
-        <Link href="/photos" className={settingsRowClass}>
-          <SettingsRowContent title={t('photos.title')} hint={t('photos.description')} />
         </Link>
       </SettingsRows>
 
