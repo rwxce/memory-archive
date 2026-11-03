@@ -66,6 +66,15 @@ and every file under `.rulesync/` are always in English.
 - `main` only receives `release: vX.Y.Z` PRs from `dev`. Merge PRs only when the user
   explicitly asks; squash-merge into `dev`, and merge stacked PRs in order (retarget the
   next one to `dev` first).
+- Conductor worktrees: Conductor deletes a workspace when its checked-out branch is deleted.
+  Before any `gh pr merge` (always in loops and autopilot runs, and always with
+  `--delete-branch`), switch this worktree off the PR's branch first, e.g.
+  `git switch -C loop/next origin/dev`. Never merge while the PR's branch is checked out, and
+  never rename the workspace's placeholder branch.
+- Conductor may also archive a workspace when a PR created from it is merged, even off its
+  branch (it happened with a `dev` → `main` release PR). In a loop, open the release PR from
+  a separate workspace, or warn the user before merging it that this workspace may be
+  archived.
 - Setting work aside: use a WIP commit or `git stash push -u -m <unique-tag>` and apply by
   SHA. The stash is shared across worktrees; never bare `git stash` / `git stash pop`.
 
