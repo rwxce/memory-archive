@@ -178,6 +178,18 @@
     "photos": {
       "title": "Fotos",
       "description": "Afegeix fotos i vídeos del telèfon o de Google Fotos."
+    },
+    "groups": {
+      "archive": "Arxiu",
+      "copies": "Còpies i sincronització"
+    },
+    "portability": {
+      "title": "Exporta una còpia per llegir en un altre lloc",
+      "description": "Un ZIP amb visor, pàgines web, Markdown o JSON, per llegir en un ordinador. No és una còpia de seguretat."
+    },
+    "security": {
+      "title": "Contrasenya de les còpies",
+      "description": "Pots protegir una còpia amb contrasenya. No es desa ni es pot recuperar, així que guarda-la bé."
     }
   },
   "notFound": {
