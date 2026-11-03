@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Outcome } from '@/components/backup-check-cards';
 import { Eyebrow } from '@/components/eyebrow';
 import { PillButton } from '@/components/pill-button';
@@ -9,14 +9,15 @@ import { SectionCard } from '@/components/section-card';
 import { PackProgressBar } from '@/components/sync-progress';
 import { usePeople } from '@/hooks/use-people';
 import { useViewerExport } from '@/hooks/use-viewer-export';
+import { EXPORT_FORMATS, type ExportFormat, type ExportLang, type ExportSplit } from '@/lib/usecases/export-package';
 
 const checkClass = 'accent-primary focus-visible:ring-ring/50 mt-0.5 size-5 shrink-0 outline-none focus-visible:ring-[3px]';
 const inputClass =
   'bg-bg border-input h-11 min-w-0 rounded-xl border px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]';
 
 /**
- * "Copy to read on a computer": choose whose conversations, an optional period and whether photos and videos go in,
- * then make a ZIP with the standalone viewer. It reads the archive and changes nothing, so it can run beside other
+ * "Export a copy": choose a format (viewer, web pages, Markdown, JSON), whose conversations, an optional period and
+ * whether photos and videos go in, then make a ZIP. It reads the archive and changes nothing, so it can run beside other
  * archive tasks. The browser is handed the file from the click.
  */
 export function ViewerExportCard() {
@@ -24,15 +25,21 @@ export function ViewerExportCard() {
   const people = usePeople();
   const viewer = useViewerExport();
   const noteId = useId();
+  const formatName = useId();
+  const splitName = useId();
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [includeMedia, setIncludeMedia] = useState(true);
+  const [format, setFormat] = useState<ExportFormat>('viewer');
+  const [split, setSplit] = useState<ExportSplit>('together');
+  const lang = useLocale() as ExportLang;
 
   const everyone = people.status === 'ready' ? [...people.people.active, ...people.people.archived] : [];
   const chosen = everyone.filter((person) => !excluded.has(person.id));
   const working = viewer.state.status === 'working';
   const none = people.status === 'ready' && chosen.length === 0;
+  const canSplit = format !== 'viewer' && chosen.length > 1;
   const unavailable = people.status !== 'ready' || none || working;
   const toggle = (id: string, on: boolean) =>
     setExcluded((current) => {
@@ -49,10 +56,22 @@ export function ViewerExportCard() {
           {t('title')}
         </Eyebrow>
         <p className="text-t2 leading-relaxed">{t('description')}</p>
-        <p className="leading-relaxed">{t('howTo')}</p>
         <p className="text-t2 leading-relaxed">{t('phoneNote')}</p>
         <p className="text-t2 leading-relaxed">{t('notBackup')}</p>
       </div>
+
+      <fieldset className="flex flex-col gap-1" disabled={working}>
+        <legend className="mb-1 text-[15px] font-medium">{t('formatLegend')}</legend>
+        {EXPORT_FORMATS.map((option) => (
+          <label key={option} className="flex min-h-11 cursor-pointer items-start gap-3 py-1.5 text-[15px]">
+            <input type="radio" name={formatName} className={checkClass} value={option} checked={format === option} onChange={() => setFormat(option)} />
+            <span className="flex min-w-0 flex-col">
+              <span className="font-medium">{t(`formats.${option}.label`)}</span>
+              <span className="text-t2 text-sm leading-relaxed">{t(`formats.${option}.help`)}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
 
       <fieldset className="flex flex-col gap-1" aria-describedby={none ? noteId : undefined}>
         <legend className="mb-1 text-[15px] font-medium">{t('peopleLegend')}</legend>
@@ -72,6 +91,18 @@ export function ViewerExportCard() {
           </p>
         )}
       </fieldset>
+
+      {canSplit && (
+        <fieldset className="flex flex-col gap-1" disabled={working}>
+          <legend className="mb-1 text-[15px] font-medium">{t('splitLegend')}</legend>
+          {(['together', 'perProfile'] as const).map((option) => (
+            <label key={option} className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px]">
+              <input type="radio" name={splitName} className={checkClass} value={option} checked={split === option} onChange={() => setSplit(option)} />
+              {t(`split.${option}`)}
+            </label>
+          ))}
+        </fieldset>
+      )}
 
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 text-[15px] font-medium">{t('datesLegend')}</legend>
@@ -102,7 +133,12 @@ export function ViewerExportCard() {
           className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
           onClick={() => {
             if (unavailable) return;
-            void viewer.exportViewer({ profileIds: chosen.map((person) => person.id), from: from || null, to: to || null, includeMedia });
+            void viewer.exportCopy({
+              format,
+              selection: { profileIds: chosen.map((person) => person.id), from: from || null, to: to || null, includeMedia },
+              split: canSplit ? split : 'together',
+              lang,
+            });
           }}
         >
           {t('submit')}

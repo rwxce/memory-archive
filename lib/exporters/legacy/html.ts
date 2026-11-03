@@ -3,6 +3,7 @@ import type { MediaEntry, RenderOptions } from './media';
 import { buildEnvelope, dayOf, timeOf } from './json';
 import { getAccentColor, initials } from './colors';
 import { linkifyHtml, deriveTitle } from './js/linkify.js';
+import { formatDay, labelsFor } from './labels';
 import { sha256 } from './sha256';
 import { VIEWER_SCRIPT } from './js/viewer-script.generated';
 
@@ -167,15 +168,8 @@ function renderBubble(
   );
 }
 
-function renderDayPill(day: string): string {
-  const d = new Date(day + 'T12:00:00Z');
-  const label = new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(d);
-  return `<div class="day-pill">${escapeHtml(label)}</div>`;
+function renderDayPill(day: string, locale: string): string {
+  return `<div class="day-pill">${escapeHtml(formatDay(day, locale))}</div>`;
 }
 
 /** One transcript item: a day separator or a group of same-sender messages. */
@@ -236,7 +230,7 @@ async function renderTranscript(
   const html = await Promise.all(
     transcriptItems(messages).map((item) =>
       item.kind === 'day'
-        ? renderDayPill(item.day)
+        ? renderDayPill(item.day, labelsFor(opts.lang).locale)
         : renderBubble(item.messages, self, media, opts),
     ),
   );
@@ -386,6 +380,7 @@ export async function renderHtml(
   chatName: string,
   opts: HtmlRenderOptions = {},
 ): Promise<string> {
+  const labels = labelsFor(opts.lang);
   const media = opts.media ?? new Map<string, MediaEntry>();
   const envelope = buildEnvelope(messages, chatName, media);
   const self = resolveSelfAuthor(messages, opts.me);
@@ -410,23 +405,23 @@ export async function renderHtml(
     .join('');
 
   const html = `<!DOCTYPE html>
-<html lang="pt-BR" data-theme="light">
+<html lang="${labels.locale}" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="${csp}">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(chatName)} — WhatsApp Backup</title>
+<title>${escapeHtml(chatName)}${escapeHtml(labels.titleSuffix)}</title>
 <style>${CSS}</style>
 </head>
 <body>
 <div id="toolbar">
   <div class="chat-title" id="chat-title">${escapeHtml(chatName)}</div>
-  <input id="search" type="search" placeholder="Buscar…" aria-label="Buscar mensagens">
-  <select id="sender-filter" aria-label="Filtrar por remetente">
-    <option value="">Todos os contatos</option>
+  <input id="search" type="search" placeholder="${escapeHtml(labels.searchPlaceholder)}" aria-label="${escapeHtml(labels.searchLabel)}">
+  <select id="sender-filter" aria-label="${escapeHtml(labels.senderLabel)}">
+    <option value="">${escapeHtml(labels.allSenders)}</option>
     ${authorOptions}
   </select>
-  <button id="theme-toggle" type="button">🌓 Tema</button>
+  <button id="theme-toggle" type="button">${escapeHtml(labels.theme)}</button>
 </div>
 <div id="transcript" data-me="${escapeHtml(self)}">
 ${transcript}

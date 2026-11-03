@@ -1,5 +1,6 @@
 import { normalizeMediaName } from '../../importers/whatsapp/media';
 import type { Message } from '../../importers/whatsapp/types';
+import type { ExportLang } from './labels';
 
 /**
  * Maximum byte size for a media file to be eligible for `--inline` base64
@@ -93,6 +94,8 @@ export interface RenderOptions {
   /** Embed inlineable media as `data:` URIs (requires `loadDataUri`). */
   inline?: boolean;
   loadDataUri?: DataUriLoader;
+  /** Language of headings and toolbar labels. Omitted: the legacy pt-BR output. */
+  lang?: ExportLang;
 }
 
 /** Base64-encode bytes without Node's `Buffer` (chunked to bound call args). */

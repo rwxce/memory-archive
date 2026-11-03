@@ -1048,11 +1048,34 @@
       "link": "Go to Sync devices"
     },
     "viewer": {
-      "title": "Copy to read on a computer",
-      "description": "Makes a ZIP with a page you open in a web browser, and your photos and videos beside it. It is read-only: you can read, search and browse, nothing more.",
-      "howTo": "On a computer, unzip the file and open viewer.html in a browser. Keep the media folder next to it.",
-      "phoneNote": "On a phone this copy does not open reliably from the file manager. To read on another phone, restore the full backup in this app instead.",
-      "notBackup": "It is not a backup and cannot be restored. For that, use a full backup.",
+      "title": "Export a copy",
+      "description": "Makes a ZIP to read your conversations outside this app, with your photos and videos beside them. Choose the format that suits what you want to do. It is read-only: nothing here changes your archive.",
+      "phoneNote": "On a phone these copies do not open reliably from the file manager. To read on another phone, restore the full backup in this app instead.",
+      "notBackup": "None of these is a backup and none can be restored. For that, use a full backup.",
+      "formatLegend": "Format",
+      "formats": {
+        "viewer": {
+          "label": "Viewer to open on a computer",
+          "help": "One page to read, search and browse on a computer. Unzip it and open viewer.html in a browser, keeping the media folder beside it."
+        },
+        "html": {
+          "label": "Web pages (HTML)",
+          "help": "One page for each conversation, to open in any browser or keep as a document."
+        },
+        "markdown": {
+          "label": "Markdown",
+          "help": "One plain text file for each conversation, easy to open in any notes app or editor."
+        },
+        "json": {
+          "label": "Data (JSON)",
+          "help": "All messages in one file, for other programs or for keeping the raw data."
+        }
+      },
+      "splitLegend": "Folders",
+      "split": {
+        "together": "One set of files for everyone",
+        "perProfile": "One folder for each person"
+      },
       "peopleLegend": "Whose conversations",
       "archivedTag": "archived",
       "noPeople": "There are no people in the archive yet.",
@@ -1079,7 +1102,8 @@
         "damaged": "A photo or video on this device is damaged, so the copy was not made. Nothing was changed.",
         "limit": "This is too much for a single file. Choose fewer people, a shorter period, or leave out photos and videos.",
         "storage": "There is not enough space on this device, or it could not be written to. Nothing was changed.",
-        "generic": "Something went wrong. Nothing was changed. Try again."
+        "generic": "Something went wrong. Nothing was changed. Try again.",
+        "nothing": "There are no messages for this choice. Try other people or a wider period."
       }
     }
   },

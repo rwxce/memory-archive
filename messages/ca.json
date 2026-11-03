@@ -1048,11 +1048,34 @@
       "link": "Ves a Sincronitza dispositius"
     },
     "viewer": {
-      "title": "Còpia per llegir en un ordinador",
-      "description": "Crea un ZIP amb una pàgina que s'obre al navegador, i les teves fotos i vídeos al costat. És de només lectura: pots llegir, cercar i recórrer els missatges, res més.",
-      "howTo": "En un ordinador, descomprimeix el fitxer i obre viewer.html en un navegador. Deixa la carpeta media al seu costat.",
-      "phoneNote": "En un mòbil aquesta còpia no s'obre de manera fiable des del gestor de fitxers. Per llegir en un altre mòbil, restaura més aviat la còpia de seguretat completa en aquesta app.",
-      "notBackup": "No és una còpia de seguretat i no es pot restaurar. Per a això, fes servir una còpia completa.",
+      "title": "Exporta una còpia",
+      "description": "Crea un ZIP per llegir les teves converses fora d'aquesta app, amb les fotos i els vídeos al costat. Tria el format que et vagi millor. És de només lectura: res d'això canvia el teu arxiu.",
+      "phoneNote": "En un mòbil aquestes còpies no s'obren de manera fiable des del gestor de fitxers. Per llegir en un altre mòbil, restaura més aviat la còpia de seguretat completa en aquesta app.",
+      "notBackup": "Cap d'elles és una còpia de seguretat ni es pot restaurar. Per a això, fes servir una còpia completa.",
+      "formatLegend": "Format",
+      "formats": {
+        "viewer": {
+          "label": "Visor per obrir en un ordinador",
+          "help": "Una pàgina per llegir, cercar i recórrer els missatges en un ordinador. Descomprimeix-la i obre viewer.html en un navegador, amb la carpeta media al costat."
+        },
+        "html": {
+          "label": "Pàgines web (HTML)",
+          "help": "Una pàgina per conversa, per obrir en qualsevol navegador o guardar com a document."
+        },
+        "markdown": {
+          "label": "Markdown",
+          "help": "Un fitxer de text senzill per conversa, fàcil d'obrir en qualsevol app de notes o editor."
+        },
+        "json": {
+          "label": "Dades (JSON)",
+          "help": "Tots els missatges en un sol fitxer, per a altres programes o per conservar les dades tal qual."
+        }
+      },
+      "splitLegend": "Carpetes",
+      "split": {
+        "together": "Un sol conjunt de fitxers per a tothom",
+        "perProfile": "Una carpeta per a cada persona"
+      },
       "peopleLegend": "De qui són les converses",
       "archivedTag": "arxivada",
       "noPeople": "Encara no hi ha persones a l'arxiu.",
@@ -1079,7 +1102,8 @@
         "damaged": "Una foto o un vídeo d'aquest dispositiu està malmès, així que no s'ha creat la còpia. No s'ha canviat res.",
         "limit": "És massa per a un sol fitxer. Tria menys persones, un període més curt o deixa fora les fotos i els vídeos.",
         "storage": "No hi ha prou espai en aquest dispositiu, o no s'hi ha pogut escriure. No s'ha canviat res.",
-        "generic": "Alguna cosa ha anat malament. No s'ha canviat res. Torna-ho a provar."
+        "generic": "Alguna cosa ha anat malament. No s'ha canviat res. Torna-ho a provar.",
+        "nothing": "No hi ha missatges amb aquesta tria. Prova amb altres persones o un període més ampli."
       }
     }
   },

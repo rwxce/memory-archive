@@ -5,20 +5,23 @@ import {
   ArchiveError,
   DbError,
   ViewerPackageError,
-  exportViewerPackage,
+  exportPackage,
   fetchViewerTemplate,
-  type ViewerPackageResult,
+  type ExportFormat,
+  type ExportLang,
+  type ExportPackageResult,
+  type ExportSplit,
   type ViewerSelection,
-} from '@/lib/usecases/viewer-package';
+} from '@/lib/usecases/export-package';
 import { downloadBlob } from './download-blob';
 import { throttleProgress, type PackProgress } from './throttle-progress';
 import { useLibraryInternals } from './use-library';
 
 /** Which `backup.viewer.error.*` message explains a failure. */
-export type ViewerExportErrorKey = 'dates' | 'notFound' | 'template' | 'missingMedia' | 'damaged' | 'limit' | 'storage' | 'generic';
+export type ViewerExportErrorKey = 'dates' | 'nothing' | 'notFound' | 'template' | 'missingMedia' | 'damaged' | 'limit' | 'storage' | 'generic';
 
 /** What the screen keeps of a finished copy: never the file itself. */
-export type SavedViewerCopy = Pick<ViewerPackageResult, 'fileName' | 'mediaCount' | 'missingMedia'> & { includeMedia: boolean };
+export type SavedViewerCopy = Pick<ExportPackageResult, 'fileName' | 'mediaCount' | 'missingMedia'> & { includeMedia: boolean };
 
 export type ViewerExportState =
   | { status: 'idle' }
@@ -26,16 +29,25 @@ export type ViewerExportState =
   | { status: 'done'; copy: SavedViewerCopy }
   | { status: 'failed'; error: ViewerExportErrorKey };
 
+/** What the person chose on the card. */
+export interface ExportChoice {
+  format: ExportFormat;
+  selection: ViewerSelection;
+  /** Only meaningful for `html`, `json` and `markdown`. */
+  split: ExportSplit;
+  lang: ExportLang;
+}
+
 export interface ViewerExport {
   state: ViewerExportState;
   /** Builds the package and hands it to the browser; call it from a click. */
-  exportViewer(selection: ViewerSelection): Promise<void>;
+  exportCopy(choice: ExportChoice): Promise<void>;
   reset(): void;
 }
 
 /** Maps any failure of the export to the message that explains it. */
 export function viewerExportErrorKey(error: unknown): ViewerExportErrorKey {
-  if (error instanceof ViewerPackageError) return error.code === 'template-missing' ? 'template' : 'generic';
+  if (error instanceof ViewerPackageError) return error.code === 'template-missing' ? 'template' : error.code === 'nothing-to-export' ? 'nothing' : 'generic';
   if (error instanceof DbError) return error.code === 'invalid' ? 'dates' : error.code === 'not-found' ? 'notFound' : 'generic';
   if (error instanceof ArchiveError) {
     switch (error.code) {
@@ -56,21 +68,24 @@ export function viewerExportErrorKey(error: unknown): ViewerExportErrorKey {
   return 'generic';
 }
 
-/** "Copy to read on a computer": one at a time, with progress; read-only, so it needs no archive lock. */
+/** "Export a copy": one at a time, with progress; read-only, so it needs no archive lock. */
 export function useViewerExport(): ViewerExport {
   const { state: library } = useLibraryInternals();
   const [state, setState] = useState<ViewerExportState>({ status: 'idle' });
   const busy = useRef(false);
 
-  const exportViewer = useCallback(
-    async (selection: ViewerSelection) => {
+  const exportCopy = useCallback(
+    async ({ format, selection, split, lang }: ExportChoice) => {
       if (library.status !== 'ready' || busy.current) return;
       busy.current = true;
       setState({ status: 'working', progress: { phase: 'preparing' } });
       const progress = throttleProgress((p) => setState({ status: 'working', progress: p }));
       try {
-        const result = await exportViewerPackage(library.deps, {
+        const result = await exportPackage(library.deps, {
+          format,
           selection,
+          split,
+          lang,
           loadTemplate: fetchViewerTemplate(process.env.NEXT_PUBLIC_BASE_PATH ?? ''),
           onProgress: (p) => progress(p.phase === 'reading' ? { phase: 'preparing' } : p),
         });
@@ -93,5 +108,5 @@ export function useViewerExport(): ViewerExport {
     if (!busy.current) setState({ status: 'idle' });
   }, []);
 
-  return { state, exportViewer, reset };
+  return { state, exportCopy, reset };
 }

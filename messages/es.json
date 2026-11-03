@@ -1048,11 +1048,34 @@
       "link": "Ir a Sincroniza dispositivos"
     },
     "viewer": {
-      "title": "Copia para leer en un ordenador",
-      "description": "Crea un ZIP con una página que se abre en el navegador, y tus fotos y vídeos a su lado. Es de solo lectura: puedes leer, buscar y recorrer los mensajes, nada más.",
-      "howTo": "En un ordenador, descomprime el archivo y abre viewer.html en un navegador. Deja la carpeta media junto a él.",
-      "phoneNote": "En un móvil esta copia no se abre de forma fiable desde el gestor de archivos. Para leer en otro móvil, restaura mejor la copia de seguridad completa en esta app.",
-      "notBackup": "No es una copia de seguridad y no se puede restaurar. Para eso, usa una copia completa.",
+      "title": "Exportar una copia",
+      "description": "Crea un ZIP para leer tus conversaciones fuera de esta app, con tus fotos y vídeos a su lado. Elige el formato que mejor te sirva. Es de solo lectura: nada de esto cambia tu archivo.",
+      "phoneNote": "En un móvil estas copias no se abren de forma fiable desde el gestor de archivos. Para leer en otro móvil, restaura mejor la copia de seguridad completa en esta app.",
+      "notBackup": "Ninguna de ellas es una copia de seguridad ni se puede restaurar. Para eso, usa una copia completa.",
+      "formatLegend": "Formato",
+      "formats": {
+        "viewer": {
+          "label": "Visor para abrir en un ordenador",
+          "help": "Una página para leer, buscar y recorrer los mensajes en un ordenador. Descomprímela y abre viewer.html en un navegador, con la carpeta media a su lado."
+        },
+        "html": {
+          "label": "Páginas web (HTML)",
+          "help": "Una página por conversación, para abrir en cualquier navegador o guardar como documento."
+        },
+        "markdown": {
+          "label": "Markdown",
+          "help": "Un archivo de texto sencillo por conversación, fácil de abrir en cualquier app de notas o editor."
+        },
+        "json": {
+          "label": "Datos (JSON)",
+          "help": "Todos los mensajes en un solo archivo, para otros programas o para conservar los datos tal cual."
+        }
+      },
+      "splitLegend": "Carpetas",
+      "split": {
+        "together": "Un solo conjunto de archivos para todos",
+        "perProfile": "Una carpeta para cada persona"
+      },
       "peopleLegend": "De quién son las conversaciones",
       "archivedTag": "archivada",
       "noPeople": "Todavía no hay personas en el archivo.",
@@ -1079,7 +1102,8 @@
         "damaged": "Una foto o un vídeo de este dispositivo está dañado, así que no se ha creado la copia. No se ha cambiado nada.",
         "limit": "Es demasiado para un solo archivo. Elige menos personas, un periodo más corto o deja fuera las fotos y los vídeos.",
         "storage": "No hay espacio suficiente en este dispositivo, o no se ha podido escribir en él. No se ha cambiado nada.",
-        "generic": "Algo ha ido mal. No se ha cambiado nada. Inténtalo de nuevo."
+        "generic": "Algo ha ido mal. No se ha cambiado nada. Inténtalo de nuevo.",
+        "nothing": "No hay mensajes con esta elección. Prueba con otras personas o un periodo más amplio."
       }
     }
   },
