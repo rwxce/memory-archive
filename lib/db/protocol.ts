@@ -22,7 +22,7 @@ import type { PhotoBatch, PhotoCounts, PhotoItem, PhotoPicture, PhotoPicturePage
 import type { AssignPhotosInput, AssignPhotosResult, ListPhotoPicturesInput, PhotoDateRow, PhotoProfileLinks, UnassignPhotosResult } from './photo-assign';
 import type { ImportPhotoItemsInput, ImportPhotoItemsResult, ListPhotoItemsInput, UndoPhotoBatchResult } from './photos';
 import type { HighlightImportCounts, HighlightCategory, HighlightItem, HighlightMessage } from '../domain/highlights';
-import type { BatchMessagesPage, ChangeSet, ReadBatchMessagesInput, ReadChangeSetInput } from '../domain/changes-pack';
+import type { BatchMessagesPage, ChangeSet, PhotoItemsPage, ReadBatchMessagesInput, ReadChangeSetInput, ReadPhotoItemsInput } from '../domain/changes-pack';
 import type {
   MergeChangesPackInput,
   MergeChangesPackResult,
@@ -194,6 +194,8 @@ export interface DbOps {
   readChangeSet: { params: ReadChangeSetInput; result: ChangeSet };
   /** One page of an import batch's messages for a changes pack. */
   readBatchMessages: { params: ReadBatchMessagesInput; result: BatchMessagesPage };
+  /** One page of a photo batch's items for a changes pack. */
+  readPhotoBatchItems: { params: ReadPhotoItemsInput; result: PhotoItemsPage };
   /** Whether this device would refuse a pack with this address (`null` = it would not). Reads only. */
   checkChangesPack: { params: PackAddress; result: MergeRefusal | null };
   /** Merges a validated pack in ONE transaction (all or nothing, watermark included). */

@@ -905,6 +905,7 @@ const UPTO_9 = MIGRATIONS.slice(0, 9);
 const UPTO_10 = MIGRATIONS.slice(0, 10);
 const UPTO_11 = MIGRATIONS.slice(0, 11);
 const UPTO_12 = MIGRATIONS.slice(0, 12);
+const UPTO_13 = MIGRATIONS.slice(0, 13);
 
 describe('migration v8 to v9 (changes-pack conflicts)', () => {
   const PEER = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
@@ -1174,20 +1175,20 @@ describe('migration v12 to v13 (photo assignments)', () => {
 
   test('adds one empty table and changes no row; the schema matches a fresh database', async () => {
     const db = await v12WithPhotos();
-    expect(migrate(db)).toEqual({ from: 12, to: 13 });
+    expect(migrate(db, UPTO_13)).toEqual({ from: 12, to: 13 });
     expect(readUserVersion(db)).toBe(13);
     expect(db.all('SELECT * FROM photo_profiles')).toEqual([]);
     expect(db.all('SELECT sha256, album FROM photo_items')).toEqual([{ sha256: HASH, album: '' }]);
     expect(db.all('SELECT id FROM profiles')).toEqual([{ id: PROFILE }]);
     const fresh = await emptyDb();
-    migrate(fresh);
+    migrate(fresh, UPTO_13);
     const sql = (d: typeof db) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name");
     expect(sql(db)).toEqual(sql(fresh));
   });
 
   test('a link needs a stored picture and a profile; deleting the profile removes its links; a pair is unique', async () => {
     const db = await v12WithPhotos();
-    migrate(db);
+    migrate(db, UPTO_13);
     const link = (sha: string, profile: string) => db.run("INSERT INTO photo_profiles (sha256, profile_id, created_at) VALUES (?, ?, 't')", [sha, profile]);
     expect(link(HASH, PROFILE)).toBe(1);
     expect(() => link(HASH, PROFILE)).toThrow(/UNIQUE|PRIMARY/);
@@ -1204,12 +1205,98 @@ describe('migration v12 to v13 (photo assignments)', () => {
     expect(() => migrate(db, broken)).toThrow();
     expect(readUserVersion(db)).toBe(12);
     expect(db.all("SELECT name FROM sqlite_master WHERE name = 'photo_profiles'")).toEqual([]);
-    expect(migrate(db)).toEqual({ from: 12, to: 13 });
+    expect(migrate(db, UPTO_13)).toEqual({ from: 12, to: 13 });
   });
 
   test('an older app refuses a v13 database', async () => {
     const db = await v12WithPhotos();
-    migrate(db);
+    migrate(db, UPTO_13);
     expect(() => migrate(db, UPTO_12)).toThrow(/newer than this app understands/);
+  });
+});
+
+describe('migration v13 to v14 (photos in the changes pack)', () => {
+  const PEER = '00000000-0000-4000-8000-0000000000e1';
+  const B = '00000000-0000-4000-8000-0000000000b4';
+  const P = '00000000-0000-4000-8000-0000000000c4';
+
+  async function v13(options: { photos: boolean }) {
+    const db = await emptyDb();
+    db.exec('PRAGMA foreign_keys = ON');
+    migrate(db, UPTO_13);
+    // The device has been through some sync already: counter 40, a peer, a tombstone of each old kind, one open conflict.
+    db.run('UPDATE device SET change_seq = 40 WHERE singleton = 1');
+    db.run("INSERT INTO sync_peers (peer_id, last_sent_seq, last_received_seq) VALUES (?, 30, 20)", [PEER]);
+    db.run("INSERT INTO tombstones (kind, scope, key, deleted_at, seq, changed_by) VALUES ('favorite', ?, ?, 't', 7, NULL), ('batch', ?, ?, 't', 9, ?)", [
+      CONVERSATION, HASH, CONVERSATION, BATCH, PEER,
+    ]);
+    db.run("INSERT INTO sync_conflicts (peer_id, kind, scope, key, incoming, incoming_deleted, detected_at) VALUES (?, 'batch', ?, ?, '{}', 1, 'd')", [PEER, CONVERSATION, BATCH]);
+    db.run("INSERT INTO profiles (id, display_name, created_at, updated_at) VALUES (?, 'Ana', 't', 't')", [P]);
+    if (options.photos) {
+      db.run('INSERT INTO blobs (sha256, size, mime) VALUES (?, 1, NULL)', [HASH]);
+      db.run("INSERT INTO photo_batches (id, source, created_at) VALUES (?, 'takeout', 't')", [B]);
+      db.run("INSERT INTO photo_items (batch_id, sha256, kind, source, album, file_name) VALUES (?, ?, 'photo', 'takeout', '', 'a.jpg')", [B, HASH]);
+      db.run("INSERT INTO photo_profiles (sha256, profile_id, created_at) VALUES (?, ?, 't')", [HASH, P]);
+    }
+    return db;
+  }
+
+  test('keeps every tombstone and conflict, and the schema matches a fresh database', async () => {
+    const db = await v13({ photos: true });
+    expect(migrate(db)).toEqual({ from: 13, to: 14 });
+    expect(db.all('SELECT kind, scope, key, seq, changed_by AS changedBy FROM tombstones ORDER BY seq')).toEqual([
+      { kind: 'favorite', scope: CONVERSATION, key: HASH, seq: 7, changedBy: null },
+      { kind: 'batch', scope: CONVERSATION, key: BATCH, seq: 9, changedBy: PEER },
+    ]);
+    expect(db.all('SELECT kind, scope, key, incoming_deleted AS d FROM sync_conflicts')).toEqual([{ kind: 'batch', scope: CONVERSATION, key: BATCH, d: 1 }]);
+    expect(db.all('SELECT peer_id AS p FROM sync_peers')).toEqual([{ p: PEER }]);
+    const fresh = await emptyDb();
+    migrate(fresh);
+    const sql = (d: SqlDb) => d.all("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' AND name NOT LIKE '%_parked' ORDER BY type, name");
+    expect(sql(db)).toEqual(sql(fresh));
+    expect(db.all("SELECT name FROM sqlite_master WHERE name LIKE '%_parked'")).toEqual([]);
+  });
+
+  test('the widened kinds are accepted, an unknown one is not', async () => {
+    const db = await v13({ photos: false });
+    migrate(db);
+    const tomb = (kind: string) => db.run("INSERT INTO tombstones (kind, scope, key, deleted_at, seq) VALUES (?, '', ?, 't', 50)", [kind, kind]);
+    expect(tomb('photo-batch')).toBe(1);
+    expect(tomb('photo-link')).toBe(1);
+    expect(() => tomb('album')).toThrow(/CHECK/);
+    const conflict = (kind: string) => db.run("INSERT INTO sync_conflicts (peer_id, kind, scope, key, incoming, detected_at) VALUES (?, ?, '', ?, '{}', 'd')", [PEER, kind, kind]);
+    expect(conflict('photo-batch')).toBe(1);
+    expect(() => conflict('photo-link')).toThrow(/CHECK/);
+  });
+
+  test('existing photo rows get ONE number above the counter, so a peer already at 30 receives them', async () => {
+    const db = await v13({ photos: true });
+    migrate(db);
+    expect(db.all('SELECT change_seq AS n FROM device')).toEqual([{ n: 41 }]);
+    expect(db.all('SELECT seq, changed_by AS c FROM photo_batches')).toEqual([{ seq: 41, c: null }]);
+    expect(db.all('SELECT seq, changed_by AS c FROM photo_profiles')).toEqual([{ seq: 41, c: null }]);
+  });
+
+  test('a library with no photo rows keeps its counter exactly', async () => {
+    const db = await v13({ photos: false });
+    migrate(db);
+    expect(db.all('SELECT change_seq AS n FROM device')).toEqual([{ n: 40 }]);
+  });
+
+  test('a failure in v14 leaves the v13 database as it was, and a retry succeeds', async () => {
+    const db = await v13({ photos: true });
+    const broken: Migration[] = [...UPTO_13, { version: 14, sql: `${MIGRATIONS[13].sql} INSERT INTO missing_table VALUES (1);` }];
+    expect(() => migrate(db, broken)).toThrow();
+    expect(readUserVersion(db)).toBe(13);
+    expect(db.all("SELECT name FROM pragma_table_info('photo_batches') WHERE name = 'seq'")).toEqual([]);
+    expect(db.all('SELECT kind FROM tombstones ORDER BY seq')).toEqual([{ kind: 'favorite' }, { kind: 'batch' }]);
+    expect(db.all('SELECT change_seq AS n FROM device')).toEqual([{ n: 40 }]);
+    expect(migrate(db)).toEqual({ from: 13, to: 14 });
+  });
+
+  test('an older app refuses a v14 database', async () => {
+    const db = await v13({ photos: false });
+    migrate(db);
+    expect(() => migrate(db, UPTO_13)).toThrow(/newer than this app understands/);
   });
 });

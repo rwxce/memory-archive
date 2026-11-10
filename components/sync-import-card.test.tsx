@@ -22,6 +22,9 @@ const counts = {
   messages: { added: 0, skipped: 0 },
   favorites: { added: 0, removed: 0 },
   notes: { added: 0, updated: 0, removed: 0 },
+  photoBatches: 0,
+  photoItems: { added: 0, skipped: 0 },
+  photoLinks: { added: 0, removed: 0, dropped: 0 },
 };
 const done = (patch: Partial<ImportChangesPackResult>, c = counts): ImportChangesPackResult => ({
   kind: 'changes',
@@ -70,6 +73,18 @@ describe('SyncImportCard result', () => {
   test('a file with nothing new says so', async () => {
     view = await render(<SyncImportCard pack={packWith({ status: 'done', result: done({}) })} busy={false} />);
     expect(view.container.textContent).toContain(s.nothingNew);
+  });
+
+  test('photos and their assignments are listed only when there are some', async () => {
+    const withPhotos = { ...counts, photoItems: { added: 3, skipped: 0 }, photoLinks: { added: 1, removed: 0, dropped: 0 } };
+    view = await render(<SyncImportCard pack={packWith({ status: 'done', result: done({}, withPhotos) })} busy={false} />);
+    const text = view.container.textContent!;
+    expect(text).toContain('3 new photos added.');
+    expect(text).toContain('1 photo assigned to a person.');
+    expect(text).not.toContain(s.nothingNew);
+    view.unmount();
+    view = await render(<SyncImportCard pack={packWith({ status: 'done', result: done({}) })} busy={false} />);
+    expect(view.container.textContent).not.toContain('photo');
   });
 
   test('every refusal code has its own calm words, never "sent" or a raw code', async () => {

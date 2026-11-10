@@ -3,7 +3,8 @@ import { readChangeSet } from '../db/changes';
 import { setFavorite, setNote, undoImportBatch } from '../db/queries';
 import { countUnsentChanges, currentChangeSeq, getDeviceId, recordReceived, recordSent } from '../db/sync';
 import { createTestLibrary } from './test-client';
-import { ANA, B1, C1, messageId, NOW, populated, send, uuid, type Lib } from './test-sync';
+import { unassignPhotos } from '../db/photo-assign';
+import { ANA, B1, BEN, C1, addPhotos, assign, messageId, NOW, populated, send, uuid, type Lib } from './test-sync';
 
 const THIRD = uuid(950);
 
@@ -15,7 +16,7 @@ const THIRD = uuid(950);
 function packRecords(lib: Lib, peerId: string): number {
   const s = readChangeSet(lib.opened.db, { peerId });
   const own = (rows: { seq: number }[]) => rows.filter((r) => r.seq > s.since).length;
-  return own(s.profiles) + own(s.conversations) + own(s.favorites) + own(s.notes) + own(s.tombstones) + own(s.batches);
+  return own(s.profiles) + own(s.conversations) + own(s.favorites) + own(s.notes) + own(s.tombstones) + own(s.batches) + own(s.photoBatches) + own(s.photoLinks);
 }
 const unsent = (lib: Lib, peerId: string) => countUnsentChanges(lib.opened.db).find((p) => p.peerId === peerId)?.count;
 
@@ -57,6 +58,24 @@ describe('countUnsentChanges equals the records readChangeSet would carry for th
     setNote(b.opened.db, { target: { kind: 'profile', profileId: ANA }, body: 'from b', now: NOW });
     expect(unsent(b, aId)).toBe(1);
     expect(packRecords(b, aId)).toBe(1);
+  });
+
+  test('photo batches, links and their tombstones are counted like everything else, and not echoed to the peer they came from', async () => {
+    const a = await populated();
+    const b = await createTestLibrary();
+    recordSent(a.opened.db, { peerId: THIRD, upToSeq: currentChangeSeq(a.opened.db), now: NOW });
+    const [x, y] = await addPhotos(a, [31, 32]);
+    assign(a, [x, y], [ANA, BEN]);
+    expect(unsent(a, THIRD)).toBe(packRecords(a, THIRD));
+    expect(unsent(a, THIRD)).toBe(5); // 1 batch + 4 links
+    unassignPhotos(a.opened.db, { sha256s: [x], profileId: BEN });
+    expect(unsent(a, THIRD)).toBe(packRecords(a, THIRD));
+    await send(a, b);
+    const aId = getDeviceId(a.opened.db);
+    expect(unsent(b, aId)).toBe(0);
+    expect(packRecords(b, aId)).toBe(0);
+    recordReceived(b.opened.db, { peerId: THIRD, upToSeq: 1, ackedSeq: null, now: NOW });
+    expect(unsent(b, THIRD)).toBe(packRecords(b, THIRD));
   });
 
   test('records the pack pulls in only as references are not counted', async () => {

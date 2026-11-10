@@ -1226,6 +1226,8 @@
       "conversations": "{count, plural, one {Se ha añadido o actualizado # conversación.} other {Se han añadido o actualizado # conversaciones.}}",
       "notes": "{count, plural, one {Se ha añadido o actualizado # nota.} other {Se han añadido o actualizado # notas.}}",
       "favorites": "{count, plural, one {Se ha añadido # favorito.} other {Se han añadido # favoritos.}}",
+      "photosAdded": "{count, plural, one {Se ha añadido # foto nueva.} other {Se han añadido # fotos nuevas.}}",
+      "photoLinksAdded": "{count, plural, one {# foto asignada a una persona.} other {# fotos asignadas a personas.}}",
       "removed": "{count, plural, one {Se ha quitado # favorito o nota, porque se borró en el otro dispositivo.} other {Se han quitado # favoritos o notas, porque se borraron en el otro dispositivo.}}",
       "nothingNew": "Todo lo que había en este archivo ya estaba en el archivo. No ha cambiado nada.",
       "conflicts": "{count, plural, one {# elemento se cambió en los dos dispositivos. Se guardan las dos versiones y no se ha sobrescrito nada.} other {# elementos se cambiaron en los dos dispositivos. Se guardan las dos versiones y no se ha sobrescrito nada.}}",
@@ -1263,7 +1265,8 @@
         "conversation": "Conversación: {name}",
         "note": "Nota",
         "noteOn": "Nota: {name}",
-        "batch": "Se deshizo una importación en el dispositivo {code}"
+        "batch": "Se deshizo una importación en el dispositivo {code}",
+        "photoBatch": "Se ha deshecho una importación de fotos en el dispositivo {code}"
       },
       "untitled": "(sin nombre)",
       "field": {
@@ -1305,6 +1308,20 @@
         "confirmBodyMaybeCreated": "{count, plural, one {El # mensaje añadido} other {Los # mensajes añadidos}} por esa importación se eliminarán de «{title}». Si no queda nada más en esa conversación, la conversación también se elimina, con sus notas y favoritos. Las fotos y los ficheros que ninguna otra conversación use también se eliminarán. Todo lo que ya estaba en tu archivo antes se queda.",
         "confirmBodyUnknown": "Los mensajes añadidos por esa importación se eliminarán. Las fotos y los ficheros que ninguna otra conversación use también se eliminarán. Los mensajes que ya estaban en tu archivo se quedan.",
         "confirm": "Deshacer la importación",
+        "cancel": "Volver",
+        "unmatched": "Este dispositivo no tiene esa importación, así que no hay nada que eliminar.",
+        "close": "Cerrar esta nota"
+      },
+      "photoBatch": {
+        "offer": "El dispositivo {code} ha deshecho una importación de fotos («{title}»).",
+        "offerCount": "{count, plural, one {# foto de esa importación sigue aquí.} other {# fotos de esa importación siguen aquí.}} No se ha eliminado nada.",
+        "offerUnknown": "El dispositivo {code} ha deshecho una importación de fotos que este dispositivo también tiene. No se ha eliminado nada.",
+        "undo": "Deshacer esa importación aquí",
+        "keep": "Conservarla",
+        "confirmTitle": "¿Deshacer esta importación aquí?",
+        "confirmBody": "{count, plural, one {La # foto añadida} other {Las # fotos añadidas}} por esa importación se eliminarán. Las fotos y los vídeos que ninguna otra importación use también se eliminarán de este dispositivo, y también sus asignaciones a personas. Las fotos que ya estaban en tu colección se quedan.",
+        "confirmBodyUnknown": "Las fotos añadidas por esa importación se eliminarán. Las fotos y los vídeos que ninguna otra importación use también se eliminarán de este dispositivo, y también sus asignaciones a personas. Las fotos que ya estaban en tu colección se quedan.",
+        "confirm": "Deshacer importación",
         "cancel": "Volver",
         "unmatched": "Este dispositivo no tiene esa importación, así que no hay nada que eliminar.",
         "close": "Cerrar esta nota"

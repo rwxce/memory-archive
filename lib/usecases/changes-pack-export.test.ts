@@ -62,9 +62,9 @@ describe('exportChangesPack', () => {
     const deviceId = dbDeviceId(lib.opened.db);
     expect(pack).toMatchObject({ kind: 'full', encrypted: false, peerId: null, sourceDeviceId: deviceId, fileName: `memory-archive-changes-2026-05-06-${deviceId.slice(0, 8)}.zip` });
     const { manifest, records, batches, blobHashes } = await unpack(pack.blob);
-    expect(manifest).toMatchObject({ format: 'memory-archive-changes', formatVersion: 1, kind: 'full', since: 0, ack: null, schemaVersion: SCHEMA_VERSION, source: { deviceId }, target: { deviceId: null } });
+    expect(manifest).toMatchObject({ format: 'memory-archive-changes', formatVersion: 2, kind: 'full', since: 0, ack: null, schemaVersion: SCHEMA_VERSION, source: { deviceId }, target: { deviceId: null } });
     expect(manifest.upTo).toBe(pack.upTo);
-    expect(manifest.counts).toEqual({ profiles: 2, conversations: 2, batches: 2, messages: 3, favorites: 1, notes: 1, tombstones: 0, blobs: 2 });
+    expect(manifest.counts).toEqual({ profiles: 2, conversations: 2, batches: 2, messages: 3, favorites: 1, notes: 1, tombstones: 0, blobs: 2, photoBatches: 0, photoItems: 0, photoLinks: 0 });
     expect(records.profiles.map((p) => p.id)).toEqual([ANA, BEN]);
     expect(records.conversations[0]).toMatchObject({ id: C1, profileIds: [ANA], participants: [{ displayName: 'Ben', profileId: null, isMe: true }] });
     expect(records.notes[0]).toMatchObject({ target: { kind: 'profile', profileId: ANA }, body: 'synthetic note' });
@@ -82,7 +82,7 @@ describe('exportChangesPack', () => {
     expect(Object.values(manifest.counts).every((n) => n === 0)).toBe(true);
     expect(Object.values(records).every((r) => r.length === 0)).toBe(true);
     expect(batches.size).toBe(0);
-    expect(manifest.entries).toHaveLength(6);
+    expect(manifest.entries).toHaveLength(7);
     expect(await verifyChangesPack(pack.blob, { supportedSchemaVersion: SCHEMA_VERSION })).toMatchObject({ ok: true });
   });
 

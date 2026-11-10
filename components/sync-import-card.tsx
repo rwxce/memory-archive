@@ -135,6 +135,8 @@ function MergeResult({ result, openItems, onAnother }: { result: ImportChangesPa
     ['conversations', c.conversations.added + c.conversations.updated],
     ['notes', c.notes.added + c.notes.updated],
     ['favorites', c.favorites.added],
+    ['photosAdded', c.photoItems.added],
+    ['photoLinksAdded', c.photoLinks.added],
     ['removed', c.favorites.removed + c.notes.removed],
   ];
   const shown = lines.filter(([, count]) => count > 0);

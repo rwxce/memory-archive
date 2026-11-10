@@ -65,7 +65,7 @@ import {
 import { discardSearchIndex, getSearchIndexBytes, getSearchStatus, searchMessages, stepSearchIndex } from './search';
 import { assignPhotos, countPhotoPictures, countProfilePhotos, getPhotoPicture, listPhotoDates, listPhotoPictures, unassignPhotoLinks, unassignPhotos } from './photo-assign';
 import { countPhotoItems, importPhotoItems, listPhotoBatches, listPhotoItems, undoPhotoBatch } from './photos';
-import { readBatchMessages, readChangeSet } from './changes';
+import { readBatchMessages, readChangeSet, readPhotoBatchItems } from './changes';
 import { listConflicts, resolveConflict } from './conflicts';
 import { mergeChangesPack, refusalOf } from './merge';
 import { countUnsentChanges, getDeviceId, getPeer, listPeers, peekDeviceId, recordReceived, recordSent } from './sync';
@@ -208,6 +208,7 @@ const HANDLERS: Handlers = {
   recordSyncReceived: ({ db }, p) => transaction(db, () => recordReceived(db, p)),
   readChangeSet: ({ db }, p) => readChangeSet(db, requireParams(p) as unknown as DbOps['readChangeSet']['params']),
   readBatchMessages: ({ db }, p) => readBatchMessages(db, requireParams(p) as unknown as DbOps['readBatchMessages']['params']),
+  readPhotoBatchItems: ({ db }, p) => readPhotoBatchItems(db, requireParams(p) as unknown as DbOps['readPhotoBatchItems']['params']),
   checkChangesPack: ({ db }, p) => refusalOf(db, requireParams(p) as unknown as DbOps['checkChangesPack']['params']),
   mergeChangesPack: ({ db }, p) => mergeChangesPack(db, requireParams(p)),
   listSyncConflicts: ({ db }) => listConflicts(db),

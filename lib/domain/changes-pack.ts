@@ -1,3 +1,5 @@
+import type { NewPhotoItem } from './photo';
+
 /**
  * The records of a changes pack (`docs/formats/changes-pack.md`, "Records"): plain, serializable
  * data keyed by the library's stable ids (UUIDs, fingerprints, SHA-256 hashes), never local row
@@ -11,8 +13,13 @@ export const CHANGES_PACK_FORMAT_NAME = 'memory-archive-changes';
 /**
  * Version of the changes-pack format: manifest, entry layout and record shapes. Bumped only when an
  * older reader could misread a newer pack; readers accept every version they ever shipped.
+ *
+ * - 1: profiles, conversations, import batches (with messages), favorites, notes, tombstones, media.
+ * - 2: adds the photo collection: `photos/<batch id>.jsonl`, `records/photo-links.jsonl` and the
+ *   tombstone kinds `photo-batch` and `photo-link`. A version-1 reader would drop all of it, so it
+ *   must refuse the pack (`newer-format`).
  */
-export const CHANGES_PACK_FORMAT_VERSION = 1;
+export const CHANGES_PACK_FORMAT_VERSION = 2;
 
 export interface PackProfile {
   id: string;
@@ -71,8 +78,10 @@ export interface PackNote {
   seq: number;
 }
 
+export type PackTombstoneKind = 'favorite' | 'note' | 'batch' | 'photo-batch' | 'photo-link';
+
 export interface PackTombstone {
-  kind: 'favorite' | 'note' | 'batch';
+  kind: PackTombstoneKind;
   scope: string;
   key: string;
   deletedAt: string;
@@ -87,6 +96,35 @@ export interface PackBatchHeader {
   sourceLabel: string;
   createdAt: string;
   createdConversation: boolean;
+  seq: number;
+}
+
+/**
+ * First line of a `photos/<id>.jsonl` entry (format version 2); the lines after it are the batch's
+ * items. `addedCount` / `skippedCount` are the SOURCE's own history numbers (display only: the
+ * receiver counts what it really added).
+ */
+export interface PackPhotoBatchHeader {
+  id: string;
+  source: string;
+  sourceLabel: string;
+  createdAt: string;
+  addedCount: number;
+  skippedCount: number;
+  seq: number;
+}
+
+/**
+ * One picture of a photo batch. Its source is the batch's, so an item is keyed
+ * `(sha256, header.source, album)`, the schema's idempotency key.
+ */
+export type PackPhotoItem = NewPhotoItem;
+
+/** A picture (by its bytes) assigned to a profile (`records/photo-links.jsonl`, format version 2). */
+export interface PackPhotoLink {
+  sha256: string;
+  profileId: string;
+  createdAt: string;
   seq: number;
 }
 
@@ -126,6 +164,8 @@ export interface ChangeSet {
   notes: PackNote[];
   tombstones: PackTombstone[];
   batches: PackBatchHeader[];
+  photoBatches: PackPhotoBatchHeader[];
+  photoLinks: PackPhotoLink[];
 }
 
 export interface ReadChangeSetInput {
@@ -140,6 +180,19 @@ export interface ReadBatchMessagesInput {
   /** Local row id after which to continue (0 to start). */
   after: number;
   limit: number;
+}
+
+export interface ReadPhotoItemsInput {
+  batchId: string;
+  /** Local row id after which to continue (0 to start). */
+  after: number;
+  limit: number;
+}
+
+export interface PhotoItemsPage {
+  items: PackPhotoItem[];
+  /** Pass as `after` for the next page; unchanged when the page is empty. */
+  last: number;
 }
 
 export interface BatchMessagesPage {

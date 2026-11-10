@@ -33,7 +33,7 @@ async function repack(edit: (files: Record<string, Uint8Array>) => void, manifes
 describe('verifyChangesPack', () => {
   test('a pack the writer made verifies, with the counts it found', async () => {
     const result = await verify(await good());
-    expect(result).toMatchObject({ ok: true, problems: [], found: { profiles: 1, conversations: 1, batches: 1, messages: 2, favorites: 1, notes: 1, tombstones: 1, blobs: 1 } });
+    expect(result).toMatchObject({ ok: true, problems: [], found: { profiles: 1, conversations: 1, batches: 1, messages: 2, favorites: 1, notes: 1, tombstones: 1, blobs: 1, photoBatches: 1, photoItems: 1, photoLinks: 1 } });
     expect(result.manifest?.kind).toBe('changes');
   });
 
@@ -51,8 +51,21 @@ describe('verifyChangesPack', () => {
   });
 
   test('newer format and newer schema are refused', async () => {
-    expect(await verify(await repack(() => undefined, { formatVersion: 2 }))).toMatchObject({ refusal: 'newer-format' });
+    expect(await verify(await repack(() => undefined, { formatVersion: 3 }))).toMatchObject({ refusal: 'newer-format' });
     expect(await verify(await repack(() => undefined, { schemaVersion: SUPPORTED + 1 }))).toMatchObject({ refusal: 'newer-schema' });
+  });
+
+  test('an app whose newest format is 1 refuses a version-2 pack with newer-format', async () => {
+    const result = await verifyChangesPack(await good(), { supportedSchemaVersion: SUPPORTED, maxFormatVersion: 1 });
+    expect(result).toMatchObject({ ok: false, refusal: 'newer-format' });
+  });
+
+  test('a photo file that names another batch, or an empty one, is a problem on that entry', async () => {
+    const path = `photos/${IDS.photoBatch}.jsonl`;
+    const other = await repack((f) => { f[path] = strToU8(`${JSON.stringify({ id: IDS.target })}\n`); });
+    expect((await verify(other)).problems).toContainEqual({ entry: path, code: 'integrity' });
+    const empty = await repack((f) => { f[path] = new Uint8Array(0); });
+    expect((await verify(empty)).problems).toContainEqual({ entry: path, code: 'integrity' });
   });
 
   test('hostile entry names are refused before anything is read', async () => {
@@ -85,7 +98,7 @@ describe('verifyChangesPack', () => {
   });
 
   test('counts that disagree with the lines found are reported', async () => {
-    const lying = await repack(() => undefined, { counts: { profiles: 0, conversations: 1, batches: 1, messages: 2, favorites: 1, notes: 1, tombstones: 1, blobs: 1 } });
+    const lying = await repack(() => undefined, { counts: { profiles: 0, conversations: 1, batches: 1, messages: 2, favorites: 1, notes: 1, tombstones: 1, blobs: 1, photoBatches: 1, photoItems: 1, photoLinks: 1 } });
     const result = await verify(lying);
     expect(result.ok).toBe(false);
     expect(result.problems).toEqual([{ entry: 'manifest', code: 'count-mismatch' }]);

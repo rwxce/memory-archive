@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { MAX_BATCH_PAGE, readBatchMessages, readChangeSet } from './changes';
+import { MAX_BATCH_PAGE, readBatchMessages, readChangeSet, readPhotoBatchItems } from './changes';
+import { assignPhotos } from './photo-assign';
+import { importPhotoItems } from './photos';
 import { openMemoryDb } from './open';
 import { createProfile, importMessages, linkConversationProfile, setProfilePhoto, updateProfile } from './queries';
 import { currentChangeSeq, getDeviceId, recordReceived, recordSent } from './sync';
@@ -85,6 +87,66 @@ describe('readChangeSet', () => {
     expect(() => readChangeSet(db, { peerId: 'nope' })).toThrow(expect.objectContaining({ code: 'invalid' }));
     expect(() => readChangeSet(db, { peerId: null, full: 'yes' as never })).toThrow(expect.objectContaining({ code: 'invalid' }));
     expect(() => readChangeSet(db, { peerId: getDeviceId(db) })).toThrow(expect.objectContaining({ code: 'invalid' }));
+  });
+});
+
+describe('readChangeSet and the photo collection', () => {
+  const PB = uuid(300);
+  const shaOf = (n: number) => n.toString(16).padStart(2, '0').repeat(32);
+  const item = (n: number, album = 'Trip') => ({
+    sha256: shaOf(n), kind: 'photo' as const, mime: 'image/jpeg', takenAt: '2019-07-01T10:00:00Z', takenOffsetMinutes: null, dateSource: 'sidecar' as const,
+    latitude: null, longitude: null, description: `d${n}`, album, fileName: `${n}.jpg`,
+  });
+  const addPhotos = (db: Awaited<ReturnType<typeof library>>, ns: number[], batchId = PB) =>
+    importPhotoItems(db, { batchId, source: 'takeout', sourceLabel: 'f.zip', now: NOW, blobs: ns.map((n) => ({ sha256: shaOf(n), size: 1, mime: null })), items: ns.map((n) => item(n)) });
+
+  test('a photo batch travels with the bytes of its items; its header carries the source numbers', async () => {
+    const db = await library();
+    recordSent(db, { peerId: PEER, upToSeq: currentChangeSeq(db), now: NOW });
+    addPhotos(db, [1, 2]);
+    const set = readChangeSet(db, { peerId: PEER });
+    expect(set.photoBatches).toEqual([{ id: PB, source: 'takeout', sourceLabel: 'f.zip', createdAt: NOW, addedCount: 2, skippedCount: 0, seq: currentChangeSeq(db) }]);
+    expect(set.blobs.map((b) => b.sha256)).toEqual([shaOf(1), shaOf(2)]);
+    expect(set.photoLinks).toEqual([]);
+    expect(set.conversations).toEqual([]);
+  });
+
+  test('a link travels with its profile (changed or not) but not with the bytes or items of an older batch', async () => {
+    const db = await library();
+    addPhotos(db, [1]);
+    recordSent(db, { peerId: PEER, upToSeq: currentChangeSeq(db), now: NOW });
+    assignPhotos(db, { sha256s: [shaOf(1)], profileIds: [CAL], now: NOW });
+    const set = readChangeSet(db, { peerId: PEER });
+    expect(set.photoLinks).toMatchObject([{ sha256: shaOf(1), profileId: CAL, createdAt: NOW }]);
+    expect(set.profiles.map((p) => p.id)).toEqual([CAL]);
+    expect(set.photoBatches).toEqual([]);
+    expect(set.blobs).toEqual([]);
+  });
+
+  test('a full pack carries every batch, link and item blob, whatever the peer already has; what came from the peer is not echoed', async () => {
+    const db = await library();
+    addPhotos(db, [1, 2]);
+    assignPhotos(db, { sha256s: [shaOf(1)], profileIds: [ANA], now: NOW });
+    expect(readChangeSet(db, { peerId: null })).toMatchObject({ kind: 'full', photoBatches: [{ id: PB }], photoLinks: [{ profileId: ANA }] });
+    db.run('UPDATE photo_batches SET changed_by = ?', [PEER]);
+    db.run('UPDATE photo_profiles SET changed_by = ?', [PEER]);
+    const toPeer = readChangeSet(db, { peerId: PEER });
+    expect([toPeer.photoBatches, toPeer.photoLinks, toPeer.blobs.filter((b) => b.sha256 === shaOf(1))].map((r) => r.length)).toEqual([0, 0, 0]);
+    expect(readChangeSet(db, { peerId: null, full: true }).photoBatches).toHaveLength(1);
+  });
+
+  test('readPhotoBatchItems pages in insertion order and stops with an empty page; bad input is refused', async () => {
+    const db = await library();
+    addPhotos(db, [1, 2, 3]);
+    const first = readPhotoBatchItems(db, { batchId: PB, after: 0, limit: 2 });
+    expect(first.items.map((i) => i.fileName)).toEqual(['1.jpg', '2.jpg']);
+    expect(first.items[0]).toEqual(item(1));
+    const second = readPhotoBatchItems(db, { batchId: PB, after: first.last, limit: 2 });
+    expect(second.items.map((i) => i.fileName)).toEqual(['3.jpg']);
+    expect(readPhotoBatchItems(db, { batchId: PB, after: second.last, limit: 2 })).toEqual({ items: [], last: second.last });
+    for (const input of [{ batchId: 'x', after: 0, limit: 1 }, { batchId: PB, after: -1, limit: 1 }, { batchId: PB, after: 0, limit: MAX_BATCH_PAGE + 1 }]) {
+      expect(() => readPhotoBatchItems(db, input)).toThrow(expect.objectContaining({ code: 'invalid' }));
+    }
   });
 });
 

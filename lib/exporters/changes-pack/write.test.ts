@@ -2,8 +2,8 @@ import { unzipSync } from 'fflate';
 import { describe, expect, test } from 'vitest';
 import { sha256Hex } from '../../domain/sha256';
 import { ArchiveError, DEFAULT_LIMITS, blobPath } from '../archive/format';
-import { MAX_RECORD_LINE_BYTES, batchPath, recordPath } from './format';
-import { IDS, MEDIA, MEDIA_SHA, MESSAGES, syntheticChangeSet, syntheticSource, unpack } from './test-pack';
+import { MAX_RECORD_LINE_BYTES, batchPath, photoBatchPath, recordPath } from './format';
+import { IDS, MEDIA, MEDIA_SHA, MESSAGES, PHOTO_ITEMS, syntheticChangeSet, syntheticSource, unpack } from './test-pack';
 import { writeChangesPack } from './write';
 
 const bytesOf = async (blob: Blob) => new Uint8Array(await blob.arrayBuffer());
@@ -14,13 +14,14 @@ const codeOf = async (promise: Promise<unknown>) => {
 };
 
 describe('writeChangesPack', () => {
-  test('layout: manifest first, six record files, batches, then blobs; the manifest lists size and hash of each', async () => {
+  test('layout: manifest first, seven record files, batches, photo batches, then blobs; the manifest lists size and hash of each', async () => {
     const { blob, manifest } = await writeChangesPack(syntheticSource());
     const files = unzipSync(await bytesOf(blob));
     expect(Object.keys(files)).toEqual([
       'manifest.json',
-      ...['profiles', 'conversations', 'blobs', 'favorites', 'notes', 'tombstones'].map((n) => `records/${n}.jsonl`),
+      ...['profiles', 'conversations', 'blobs', 'favorites', 'notes', 'tombstones', 'photo-links'].map((n) => `records/${n}.jsonl`),
       batchPath(IDS.batch),
+      photoBatchPath(IDS.photoBatch),
       blobPath(MEDIA_SHA),
     ]);
     expect(JSON.parse(new TextDecoder().decode(files['manifest.json']))).toEqual(manifest);
@@ -29,14 +30,16 @@ describe('writeChangesPack', () => {
       expect(sha256Hex(files[item.path])).toBe(item.sha256);
     }
     expect(manifest).toMatchObject({
-      kind: 'changes', since: 4, upTo: 9, ack: 3, source: { deviceId: IDS.source }, target: { deviceId: IDS.target },
-      counts: { profiles: 1, conversations: 1, batches: 1, messages: 2, favorites: 1, notes: 1, tombstones: 1, blobs: 1 },
+      formatVersion: 2, kind: 'changes', since: 4, upTo: 9, ack: 3, source: { deviceId: IDS.source }, target: { deviceId: IDS.target },
+      counts: { profiles: 1, conversations: 1, batches: 1, messages: 2, favorites: 1, notes: 1, tombstones: 1, blobs: 1, photoBatches: 1, photoItems: 1, photoLinks: 1 },
     });
   });
 
   test('records are one JSON object per line, and messages follow the batch header', async () => {
     const { blob } = await writeChangesPack(syntheticSource());
-    const { records, batches } = await unpack(blob);
+    const { records, batches, photoBatches } = await unpack(blob);
+    expect(records['photo-links']).toEqual([{ sha256: MEDIA_SHA, profileId: IDS.profile, createdAt: '2026-01-02T00:00:00Z', seq: 8 }]);
+    expect(photoBatches.get(IDS.photoBatch)).toEqual([expect.objectContaining({ id: IDS.photoBatch, source: 'takeout', seq: 7 }), ...PHOTO_ITEMS]);
     expect(records.blobs).toEqual([{ sha256: MEDIA_SHA, size: MEDIA.length, mime: 'image/jpeg' }]);
     expect(batches.get(IDS.batch)).toEqual([expect.objectContaining({ id: IDS.batch, conversationId: IDS.conversation }), ...MESSAGES]);
     const files = unzipSync(await bytesOf(blob));
@@ -44,11 +47,11 @@ describe('writeChangesPack', () => {
   });
 
   test('an empty change set still writes every record file', async () => {
-    const empty = syntheticChangeSet({ profiles: [], conversations: [], blobs: [], favorites: [], notes: [], tombstones: [], batches: [] });
+    const empty = syntheticChangeSet({ profiles: [], conversations: [], blobs: [], favorites: [], notes: [], tombstones: [], batches: [], photoBatches: [], photoLinks: [] });
     const { blob, manifest } = await writeChangesPack(syntheticSource(empty));
-    expect(manifest.entries).toHaveLength(6);
+    expect(manifest.entries).toHaveLength(7);
     expect(manifest.entries.every((e) => e.size === 0)).toBe(true);
-    expect(Object.keys(unzipSync(await bytesOf(blob)))).toHaveLength(7);
+    expect(Object.keys(unzipSync(await bytesOf(blob)))).toHaveLength(8);
   });
 
   test('determinism: the same input gives the same bytes, whatever order the lists come in', async () => {
@@ -68,6 +71,9 @@ describe('writeChangesPack', () => {
     const photo = syntheticChangeSet();
     photo.profiles[0].photoSha256 = 'f'.repeat(64);
     expect(await codeOf(writeChangesPack(syntheticSource(photo)))).toBe('blob-missing');
+    // A photo item of a carried batch whose bytes are not among the media is refused too.
+    const items = syntheticChangeSet({ batches: [] });
+    expect(await codeOf(writeChangesPack(syntheticSource(items, { photoBatchItems: async function* () { yield [{ ...PHOTO_ITEMS[0], sha256: 'e'.repeat(64) }]; } })))).toBe('blob-missing');
     expect(await codeOf(writeChangesPack(syntheticSource(syntheticChangeSet({ blobs: [{ sha256: 'nope', size: 1, mime: null }] }))))).toBe('blob-missing');
   });
 

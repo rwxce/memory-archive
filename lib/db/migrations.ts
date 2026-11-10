@@ -463,6 +463,72 @@ CREATE TABLE photo_profiles (
 CREATE INDEX photo_profiles_by_profile ON photo_profiles(profile_id, sha256);
 `;
 
+/**
+ * v14 (expand, with two table rebuilds): the photo collection and its assignments join the changes
+ * pack (`docs/formats/changes-pack.md`, format version 2). A v1-v13 backup restores by migrating.
+ *
+ * - `seq` + `changed_by` on `photo_batches` and `photo_profiles`, like the other synced tables.
+ *   Photo items have no `seq`: they are immutable and travel with their batch, like messages.
+ * - Backfill: existing rows get ONE fresh change number above the device counter (which is bumped
+ *   by one, only when there is something to number). Unlike v8, peers may already exist with a
+ *   sent watermark, so baseline 1 would hide these rows from them forever; a number above the
+ *   counter makes the first pack to every peer carry them. A database with no photo rows is left
+ *   exactly as it was (counter included).
+ * - `tombstones.kind` and `sync_conflicts.kind` are widened by a rebuild (SQLite cannot alter a
+ *   CHECK): `tombstones` gets `photo-batch` (an undone photo import) and `photo-link` (an
+ *   unassigned picture); `sync_conflicts` gets `photo-batch` (the offer to undo a photo import
+ *   here too). Park every row, drop, create the final table, copy the rows back, recreate the index:
+ *   nothing is lost, ids and keys are kept, and the whole migration runs in one transaction with the
+ *   version bump. (No `ALTER TABLE ... RENAME`: it opens SQLite's temp schema.)
+ */
+const V14 = `
+ALTER TABLE photo_batches ADD COLUMN seq INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE photo_batches ADD COLUMN changed_by TEXT CHECK (changed_by IS NULL OR (length(changed_by) = 36 AND changed_by = lower(changed_by)));
+ALTER TABLE photo_profiles ADD COLUMN seq INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE photo_profiles ADD COLUMN changed_by TEXT CHECK (changed_by IS NULL OR (length(changed_by) = 36 AND changed_by = lower(changed_by)));
+
+UPDATE device SET change_seq = change_seq + 1
+ WHERE singleton = 1 AND (EXISTS (SELECT 1 FROM photo_batches) OR EXISTS (SELECT 1 FROM photo_profiles));
+UPDATE photo_batches SET seq = COALESCE((SELECT change_seq FROM device WHERE singleton = 1), 1);
+UPDATE photo_profiles SET seq = COALESCE((SELECT change_seq FROM device WHERE singleton = 1), 1);
+CREATE INDEX photo_profiles_by_seq ON photo_profiles(seq);
+
+-- Rebuild without ALTER TABLE ... RENAME (which opens SQLite's temp schema; a library with no search
+-- index must show only 'main' in database_list): park the rows, drop, create the final table, copy back.
+CREATE TABLE tombstones_parked AS SELECT kind, scope, key, deleted_at, seq, changed_by FROM tombstones;
+DROP TABLE tombstones;
+CREATE TABLE tombstones (
+  kind       TEXT NOT NULL CHECK (kind IN ('favorite', 'note', 'batch', 'photo-batch', 'photo-link')),
+  scope      TEXT NOT NULL,
+  key        TEXT NOT NULL,
+  deleted_at TEXT NOT NULL,
+  seq        INTEGER NOT NULL CHECK (seq >= 1),
+  changed_by TEXT CHECK (changed_by IS NULL OR (length(changed_by) = 36 AND changed_by = lower(changed_by))),
+  PRIMARY KEY (kind, scope, key)
+) STRICT;
+INSERT INTO tombstones (kind, scope, key, deleted_at, seq, changed_by)
+  SELECT kind, scope, key, deleted_at, seq, changed_by FROM tombstones_parked;
+DROP TABLE tombstones_parked;
+CREATE INDEX tombstones_by_seq ON tombstones(seq);
+
+CREATE TABLE sync_conflicts_parked AS SELECT id, peer_id, kind, scope, key, incoming, incoming_deleted, detected_at FROM sync_conflicts;
+DROP TABLE sync_conflicts;
+CREATE TABLE sync_conflicts (
+  id               INTEGER PRIMARY KEY,
+  peer_id          TEXT NOT NULL CHECK (length(peer_id) = 36 AND peer_id = lower(peer_id)),
+  kind             TEXT NOT NULL CHECK (kind IN ('profile', 'conversation', 'note', 'batch', 'photo-batch')),
+  scope            TEXT NOT NULL,
+  key              TEXT NOT NULL,
+  incoming         TEXT NOT NULL,
+  incoming_deleted INTEGER NOT NULL DEFAULT 0 CHECK (incoming_deleted IN (0, 1)),
+  detected_at      TEXT NOT NULL,
+  UNIQUE (peer_id, kind, scope, key)
+) STRICT;
+INSERT INTO sync_conflicts (id, peer_id, kind, scope, key, incoming, incoming_deleted, detected_at)
+  SELECT id, peer_id, kind, scope, key, incoming, incoming_deleted, detected_at FROM sync_conflicts_parked;
+DROP TABLE sync_conflicts_parked;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, sql: V1 },
   { version: 2, sql: V2 },
@@ -477,6 +543,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 11, sql: V11 },
   { version: 12, sql: V12 },
   { version: 13, sql: V13 },
+  { version: 14, sql: V14 },
 ];
 
 /** Schema version this build produces and understands. */

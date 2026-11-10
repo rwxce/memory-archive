@@ -1,4 +1,6 @@
-import { readBatchMessages, readChangeSet } from '../db/changes';
+import { readBatchMessages, readChangeSet, readPhotoBatchItems } from '../db/changes';
+import { assignPhotos } from '../db/photo-assign';
+import { importPhotoItems } from '../db/photos';
 import { createProfile, importMessages, setFavorite, setNote } from '../db/queries';
 import type { SqlDb } from '../db/sql';
 import { getDeviceId } from '../db/sync';
@@ -20,6 +22,27 @@ export async function putMedia(lib: Lib, seed: number) {
   const { sha256, size } = await lib.deps.blobStore.put(bytesOf(seed));
   return { sha256, size, mime: 'image/jpeg' };
 }
+
+export const [PB1, PB2, PB3] = [200, 201, 202].map(uuid);
+
+/**
+ * Stores the bytes of each seed (hashing them for real) and imports them as one photo batch. Returns the hashes, in
+ * seed order. `album` and `source` are part of an item's identity, so the same seeds in another album are other items.
+ */
+export async function addPhotos(lib: Lib, seeds: number[], options: { batchId?: string; source?: string; album?: string } = {}): Promise<string[]> {
+  const media = await Promise.all(seeds.map((seed) => putMedia(lib, seed)));
+  const { batchId = PB1, source = 'takeout', album = 'Trip' } = options;
+  importPhotoItems(lib.opened.db, {
+    batchId, source, sourceLabel: 'album.zip', now: NOW, blobs: media,
+    items: media.map((m, i) => ({
+      sha256: m.sha256, kind: 'photo', mime: 'image/jpeg', takenAt: `2019-07-0${i + 1}T10:00:00Z`, takenOffsetMinutes: null, dateSource: 'sidecar',
+      latitude: null, longitude: null, description: `d${seeds[i]}`, album, fileName: `${seeds[i]}.jpg`,
+    })),
+  });
+  return media.map((m) => m.sha256);
+}
+
+export const assign = (lib: Lib, sha256s: string[], profileIds: string[], now = NOW) => assignPhotos(lib.opened.db, { sha256s, profileIds, now });
 
 export const msg = (n: number, author: string | null, body: string, mediaSha256: string | null = null): NewMessage => ({
   fingerprint: fp(n), sentAt: `2026-01-0${n}T10:00:00`, ordinal: 0, type: mediaSha256 ? 'photo' : 'text', participantName: author, body, mediaSha256, mediaName: mediaSha256 ? 'IMG.jpg' : '',
@@ -86,11 +109,17 @@ export async function canon(lib: Lib) {
     const messages = readBatchMessages(db, { batchId: b.id, after: 0, limit: 5000 }).messages.sort((x, y) => (x.fingerprint < y.fingerprint ? -1 : 1));
     return { header, messages };
   });
+  const photoBatches = cs.photoBatches.map((b) => {
+    const { seq: _seq, ...header } = b;
+    const items = readPhotoBatchItems(db, { batchId: b.id, after: 0, limit: 5000 }).items.sort((x, y) => (`${x.sha256}/${x.album}` < `${y.sha256}/${y.album}` ? -1 : 1));
+    return { header, items };
+  });
   const bytes: Record<string, number> = {};
   for (const blob of cs.blobs) bytes[blob.sha256] = (await lib.deps.blobStore.size(blob.sha256)) ?? -1;
   return {
     profiles: strip(cs.profiles), conversations: strip(cs.conversations), blobs: cs.blobs, bytes,
     favorites: strip(cs.favorites), notes: strip(cs.notes), tombstones: strip(cs.tombstones), batches,
+    photoBatches, photoLinks: strip(cs.photoLinks),
   };
 }
 

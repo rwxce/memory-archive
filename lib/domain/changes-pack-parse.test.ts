@@ -8,10 +8,13 @@ import {
   parsePackFavorite,
   parsePackMessage,
   parsePackNote,
+  parsePackPhotoBatchHeader,
+  parsePackPhotoItem,
+  parsePackPhotoLink,
   parsePackProfile,
   parsePackTombstone,
 } from './changes-pack-parse';
-import { IDS, MESSAGES, syntheticChangeSet } from '../exporters/changes-pack/test-pack';
+import { IDS, MESSAGES, PHOTO_ITEMS, syntheticChangeSet } from '../exporters/changes-pack/test-pack';
 
 const set = syntheticChangeSet();
 const rejects = (parse: (raw: unknown) => unknown, raw: unknown) => expect(() => parse(raw)).toThrow(PackRecordError);
@@ -77,11 +80,43 @@ describe('parsing the records of a changes pack', () => {
     expect(parsePackTombstone(ok('note', IDS.conversation, 'conversation'))).toBeTruthy();
     expect(parsePackTombstone(ok('note', IDS.conversation, `message:${fp}`))).toBeTruthy();
     expect(parsePackTombstone(ok('batch', IDS.conversation, IDS.batch))).toBeTruthy();
+    expect(parsePackTombstone(ok('photo-batch', '', IDS.photoBatch))).toBeTruthy();
+    expect(parsePackTombstone(ok('photo-link', IDS.profile, fp))).toBeTruthy();
     for (const bad of [
+      ok('photo-batch', IDS.conversation, IDS.photoBatch), ok('photo-batch', '', 'x'), ok('photo-batch', '', fp),
+      ok('photo-link', '', fp), ok('photo-link', IDS.profile, IDS.photoBatch), ok('photo-link', 'x', fp), ok('photos', '', IDS.photoBatch),
       ok('note', '', 'conversation'), ok('note', '', 'profile:x'), ok('note', 'x', 'conversation'), ok('note', IDS.conversation, 'message:zz'),
       ok('favorite', IDS.conversation, 'short'), ok('favorite', '', fp), ok('batch', IDS.conversation, 'x'), ok('conversation', IDS.conversation, fp),
       { ...ok('batch', IDS.conversation, IDS.batch), seq: 0 },
     ]) rejects(parsePackTombstone, bad);
+  });
+
+  test('photo batch headers, items and links: every field is checked, and an offered shape is exactly what the exporter writes', () => {
+    const header = set.photoBatches[0];
+    expect(parsePackPhotoBatchHeader(header)).toEqual(header);
+    for (const bad of [
+      { ...header, id: 'x' }, { ...header, source: '' }, { ...header, source: 'x'.repeat(41) }, { ...header, createdAt: 'never' },
+      { ...header, addedCount: -1 }, { ...header, skippedCount: 1.5 }, { ...header, seq: 'a' },
+    ]) rejects(parsePackPhotoBatchHeader, bad);
+
+    const item = PHOTO_ITEMS[0];
+    expect(parsePackPhotoItem(item)).toEqual(item);
+    expect(parsePackPhotoItem({ ...item, dateSource: 'exif', takenOffsetMinutes: 120, latitude: 41.4, longitude: 2.2 })).toBeTruthy();
+    expect(parsePackPhotoItem({ ...item, takenAt: null, dateSource: 'none', mime: null, album: '' })).toBeTruthy();
+    for (const bad of [
+      { ...item, sha256: 'ab' }, { ...item, kind: 'audio' }, { ...item, mime: 'text/html; x=y' }, { ...item, takenAt: '2019-07-01' },
+      { ...item, takenAt: '2019-02-31T10:00:00Z' }, { ...item, dateSource: 'guess' }, { ...item, dateSource: 'none' }, { ...item, takenAt: null },
+      { ...item, takenOffsetMinutes: 120 }, { ...item, dateSource: 'exif', takenOffsetMinutes: 7 },
+      { ...item, latitude: 10, longitude: null }, { ...item, latitude: 91, longitude: 0 }, { ...item, latitude: 0, longitude: 181 },
+      { ...item, latitude: Number.NaN, longitude: 0 }, { ...item, fileName: '' }, { ...item, fileName: 'x'.repeat(256) },
+      { ...item, album: 'x'.repeat(201) }, { ...item, description: 'x'.repeat(4001) }, { ...item, description: null },
+    ]) rejects(parsePackPhotoItem, bad);
+    // length is counted in code points, not UTF-16 units
+    expect(parsePackPhotoItem({ ...item, album: '\u{1F600}'.repeat(200) })).toBeTruthy();
+
+    const link = set.photoLinks[0];
+    expect(parsePackPhotoLink(link)).toEqual(link);
+    for (const bad of [{ ...link, sha256: 'x' }, { ...link, profileId: 'x' }, { ...link, createdAt: 'x' }, { ...link, seq: -1 }]) rejects(parsePackPhotoLink, bad);
   });
 
   test('a note and its tombstone are named the same way', () => {

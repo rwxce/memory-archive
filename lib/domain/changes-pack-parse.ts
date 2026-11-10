@@ -5,11 +5,24 @@ import type {
   PackFavorite,
   PackMessage,
   PackNote,
+  PackPhotoBatchHeader,
+  PackPhotoItem,
+  PackPhotoLink,
   PackNoteTarget,
   PackParticipant,
   PackProfile,
   PackTombstone,
 } from './changes-pack';
+import {
+  PHOTO_ALBUM_MAX,
+  PHOTO_DESCRIPTION_MAX,
+  PHOTO_FILE_NAME_MAX,
+  codePointLength,
+  isPhotoDateSource,
+  isPhotoKind,
+  isPhotoOffset,
+  isTakenAt,
+} from './photo';
 import { isLocalTimestamp, isMessageType, isSha256Hex, isUuid } from './library';
 import {
   FieldError,
@@ -206,16 +219,23 @@ function checkNoteKey(scope: string, key: string): void {
   if (!key.startsWith('message:') || !isSha256Hex(key.slice(8))) bad('note tombstone key');
 }
 
+const TOMBSTONE_KINDS: ReadonlySet<string> = new Set(['favorite', 'note', 'batch', 'photo-batch', 'photo-link']);
+
 export function parsePackTombstone(raw: unknown): PackTombstone {
   const r = record(raw, 'tombstone');
-  if (r.kind !== 'favorite' && r.kind !== 'note' && r.kind !== 'batch') bad('tombstone kind');
+  if (typeof r.kind !== 'string' || !TOMBSTONE_KINDS.has(r.kind)) bad('tombstone kind');
   const kind = r.kind as PackTombstone['kind'];
   const scope = str(r.scope, 'tombstone scope', 36);
   const key = str(r.key, 'tombstone key', 80, 1);
   if (kind === 'note') checkNoteKey(scope, key);
-  else {
+  else if (kind === 'photo-batch') {
+    // A photo import belongs to no conversation: scope is empty, the key is the batch id.
+    if (scope !== '') bad('photo-batch tombstone scope');
+    uuid(key, 'tombstone key');
+  } else {
+    // favorite: (conversation id, fingerprint); photo-link: (profile id, picture hash); batch: (conversation id, batch id).
     uuid(scope, 'tombstone scope');
-    if (kind === 'favorite') sha(key, 'tombstone key');
+    if (kind === 'favorite' || kind === 'photo-link') sha(key, 'tombstone key');
     else uuid(key, 'tombstone key');
   }
   return { kind, scope, key, deletedAt: instant(r.deletedAt, 'tombstone deletedAt'), seq: seq(r.seq, 'tombstone seq', 1) };
@@ -249,5 +269,69 @@ export function parsePackMessage(raw: unknown): PackMessage {
     body: r.body as string,
     mediaSha256: r.mediaSha256 === null ? null : sha(r.mediaSha256, 'message media hash'),
     mediaName: str(r.mediaName, 'message mediaName', MAX_NAME),
+  };
+}
+
+export function parsePackPhotoBatchHeader(raw: unknown): PackPhotoBatchHeader {
+  const r = record(raw, 'photo batch');
+  const count = (v: unknown, what: string): number => {
+    if (typeof v !== 'number' || !Number.isSafeInteger(v) || v < 0) bad(what);
+    return v as number;
+  };
+  return {
+    id: uuid(r.id, 'photo batch id'),
+    source: str(r.source, 'photo batch source', 40, 1),
+    sourceLabel: str(r.sourceLabel, 'photo batch label', MAX_LABEL),
+    createdAt: instant(r.createdAt, 'photo batch createdAt'),
+    addedCount: count(r.addedCount, 'photo batch addedCount'),
+    skippedCount: count(r.skippedCount, 'photo batch skippedCount'),
+    seq: seq(r.seq, 'photo batch seq'),
+  };
+}
+
+/** The same rules the importer applies to an item (`lib/db/photos.ts`), on the wire shape. */
+export function parsePackPhotoItem(raw: unknown): PackPhotoItem {
+  const r = record(raw, 'photo item');
+  if (!isPhotoKind(r.kind)) bad('photo item kind');
+  if (r.mime !== null && !isMimeType(r.mime)) bad('photo item mime');
+  if (r.takenAt !== null && !isTakenAt(r.takenAt)) bad('photo item takenAt');
+  if (!isPhotoDateSource(r.dateSource)) bad('photo item dateSource');
+  if ((r.takenAt === null) !== (r.dateSource === 'none')) bad('photo item dateSource does not match takenAt');
+  if (r.takenOffsetMinutes !== null && (!isPhotoOffset(r.takenOffsetMinutes) || r.dateSource !== 'exif')) bad('photo item takenOffsetMinutes');
+  const place = (v: unknown, limit: number, what: string): number | null => {
+    if (v === null) return null;
+    if (typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v) > limit) bad(what);
+    return v as number;
+  };
+  const latitude = place(r.latitude, 90, 'photo item latitude');
+  const longitude = place(r.longitude, 180, 'photo item longitude');
+  if ((latitude === null) !== (longitude === null)) bad('photo item latitude and longitude go together');
+  const bounded = (v: unknown, what: string, max: number, nonEmpty: boolean): string => {
+    // Code points, like the importer's own truncation.
+    if (typeof v !== 'string' || v.length > max * 2 || codePointLength(v) > max || (nonEmpty && v.length === 0)) bad(what);
+    return v as string;
+  };
+  return {
+    sha256: sha(r.sha256, 'photo item hash'),
+    kind: r.kind as PackPhotoItem['kind'],
+    mime: r.mime as string | null,
+    takenAt: r.takenAt as string | null,
+    takenOffsetMinutes: r.takenOffsetMinutes as number | null,
+    dateSource: r.dateSource as PackPhotoItem['dateSource'],
+    latitude,
+    longitude,
+    description: bounded(r.description, 'photo item description', PHOTO_DESCRIPTION_MAX, false),
+    album: bounded(r.album, 'photo item album', PHOTO_ALBUM_MAX, false),
+    fileName: bounded(r.fileName, 'photo item fileName', PHOTO_FILE_NAME_MAX, true),
+  };
+}
+
+export function parsePackPhotoLink(raw: unknown): PackPhotoLink {
+  const r = record(raw, 'photo link');
+  return {
+    sha256: sha(r.sha256, 'photo link hash'),
+    profileId: uuid(r.profileId, 'photo link profile id'),
+    createdAt: instant(r.createdAt, 'photo link createdAt'),
+    seq: seq(r.seq, 'photo link seq'),
   };
 }
