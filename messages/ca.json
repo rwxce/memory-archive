@@ -430,6 +430,7 @@
     "sectionsLabel": "Seccions",
     "sectionAudio": "Àudio",
     "sectionGallery": "Galeria",
+    "sectionPhotos": "Fotos",
     "sectionTimeline": "Cronologia",
     "sectionFavorites": "Preferits",
     "sectionNotes": "Notes",
@@ -446,7 +447,22 @@
     "galleryCount": "{count, plural, one {# foto o vídeo} other {# fotos i vídeos}}",
     "audioCount": "{count, plural, one {# missatge de veu} other {# missatges de veu}}",
     "favoritesTitle": "Preferits",
-    "showFavorites": "Mostra {count, plural, one {el # preferit} other {els # preferits}}"
+    "showFavorites": "Mostra {count, plural, one {el # preferit} other {els # preferits}}",
+    "photos": {
+      "title": "Fotos",
+      "intro": "Fotos de la teva col·lecció que has assignat a {name}.",
+      "loading": "Carregant les fotos…",
+      "loadFailed": "No s’han pogut llegir les fotos. No s’ha esborrat res.",
+      "count": "{count, plural, one {# foto assignada} other {# fotos assignades}}",
+      "none": "Encara no hi ha cap foto assignada",
+      "empty": "Encara no hi ha cap foto assignada a {name}. Tria fotos de la teva col·lecció i assigna-les a {name}; apareixeran aquí.",
+      "choose": "Tria fotos",
+      "shown": "Mostrant {shown} de {total}",
+      "showMore": "Mostra’n més",
+      "loadingMore": "Carregant-ne més…",
+      "moreFailed": "No s’han pogut llegir algunes fotos. No s’ha esborrat res.",
+      "takenOut": "Foto treta de les fotos de {name}. Continua a la teva col·lecció."
+    }
   },
   "personAudio": {
     "title": "Àudio",

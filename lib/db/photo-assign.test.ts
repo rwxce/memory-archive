@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { PHOTO_ASSIGN_MAX, betterDate, type NewPhotoItem } from '../domain/photo';
 import { DbError } from './errors';
 import { openMemoryDb } from './open';
-import { assignPhotos, countPhotoPictures, getPhotoPicture, listPhotoDates, listPhotoPictures, PHOTO_UNDO_MAX, unassignPhotoLinks, unassignPhotos } from './photo-assign';
+import { assignPhotos, countPhotoPictures, countProfilePhotos, getPhotoPicture, listPhotoDates, listPhotoPictures, PHOTO_UNDO_MAX, unassignPhotoLinks, unassignPhotos } from './photo-assign';
 import { importPhotoItems, undoPhotoBatch } from './photos';
 import type { SqlDb } from './sql';
 
@@ -189,6 +189,34 @@ describe('getPhotoPicture and counts', () => {
     assignPhotos(d, { sha256s: [hash(1)], profileIds: [P1, P2], now: NOW });
     expect(countPhotoPictures(d)).toEqual({ pictures: 2, unassigned: 1, items: 3 });
     expect(countPhotoPictures((await openMemoryDb()).db)).toEqual({ pictures: 0, unassigned: 0, items: 0 });
+  });
+});
+
+describe('countProfilePhotos', () => {
+  test('0 for none and for an unknown profile; distinct pictures once; other profiles excluded; matches the listing', async () => {
+    const d = await db();
+    expect(countProfilePhotos(d, { profileId: P1 })).toBe(0);
+    add(d, [item(1, { album: 'A' }), item(1, { album: 'B' }), item(2), item(3)]);
+    assignPhotos(d, { sha256s: [hash(1), hash(2)], profileIds: [P1], now: NOW });
+    assignPhotos(d, { sha256s: [hash(3)], profileIds: [P2], now: NOW });
+    expect(countProfilePhotos(d, { profileId: P1 })).toBe(2);
+    expect(countProfilePhotos(d, { profileId: P2 })).toBe(1);
+    expect(countProfilePhotos(d, { profileId: '00000000-0000-4000-8000-0000000000ff' })).toBe(0);
+    expect(countProfilePhotos(d, { profileId: P1 })).toBe(page(d, { scope: { show: 'assigned', profileId: P1 } }).pictures.length);
+  });
+
+  test('drops after unassign and after undoing the batch; refuses a bad id', async () => {
+    const d = await db();
+    add(d, [item(1)]);
+    add(d, [item(2)], 'loose');
+    assignPhotos(d, { sha256s: [hash(1), hash(2)], profileIds: [P1], now: NOW });
+    unassignPhotos(d, { sha256s: [hash(1)], profileId: P1 });
+    expect(countProfilePhotos(d, { profileId: P1 })).toBe(1);
+    undoPhotoBatch(d, batch(batchNo));
+    expect(countProfilePhotos(d, { profileId: P1 })).toBe(0);
+    expect(page(d, { scope: { show: 'assigned', profileId: P1 } }).pictures).toHaveLength(0);
+    expect(() => countProfilePhotos(d, { profileId: 'x' })).toThrow(DbError);
+    expect(() => countProfilePhotos(d, null as never)).toThrow(DbError);
   });
 });
 

@@ -430,6 +430,7 @@
     "sectionsLabel": "Secciones",
     "sectionAudio": "Audio",
     "sectionGallery": "Galería",
+    "sectionPhotos": "Fotos",
     "sectionTimeline": "Cronología",
     "sectionFavorites": "Favoritos",
     "sectionNotes": "Notas",
@@ -446,7 +447,22 @@
     "galleryCount": "{count, plural, one {# foto o vídeo} other {# fotos y vídeos}}",
     "audioCount": "{count, plural, one {# mensaje de voz} other {# mensajes de voz}}",
     "favoritesTitle": "Favoritos",
-    "showFavorites": "Mostrar {count, plural, one {el # favorito} other {los # favoritos}}"
+    "showFavorites": "Mostrar {count, plural, one {el # favorito} other {los # favoritos}}",
+    "photos": {
+      "title": "Fotos",
+      "intro": "Fotos de tu colección que has asignado a {name}.",
+      "loading": "Cargando las fotos…",
+      "loadFailed": "No se han podido leer las fotos. No se ha borrado nada.",
+      "count": "{count, plural, one {# foto asignada} other {# fotos asignadas}}",
+      "none": "Ninguna foto asignada todavía",
+      "empty": "Todavía no hay ninguna foto asignada a {name}. Elige fotos de tu colección y asígnalas a {name}; aparecerán aquí.",
+      "choose": "Elegir fotos",
+      "shown": "Mostrando {shown} de {total}",
+      "showMore": "Mostrar más",
+      "loadingMore": "Cargando más…",
+      "moreFailed": "No se han podido leer algunas fotos. No se ha borrado nada.",
+      "takenOut": "Foto quitada de las fotos de {name}. Sigue en tu colección."
+    }
   },
   "personAudio": {
     "title": "Audio",
