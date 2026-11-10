@@ -1,4 +1,5 @@
-import type { ViewerData } from '../../lib/exporters/viewer/format';
+import { photoDisplayDate } from '../../lib/domain/photo';
+import type { ViewerData, ViewerPhoto } from '../../lib/exporters/viewer/format';
 import { fold } from './text';
 
 /**
@@ -166,6 +167,32 @@ export class ViewerModel {
       }
     }
     return out;
+  }
+
+  /**
+   * Photos assigned to the profile (every profile for null), without repeats, newest first and
+   * undated last. With a date range only the pictures whose day is inside it (undated ones are
+   * hidden then), the same rule as the export.
+   */
+  photos(profileId: string | null, range: DateRange): ViewerPhoto[] {
+    const seen = new Set<string>();
+    const dated: { key: string; photo: ViewerPhoto }[] = [];
+    const undated: ViewerPhoto[] = [];
+    for (const profile of this.data.profiles) {
+      if (profileId !== null && profile.id !== profileId) continue;
+      for (const photo of profile.photos ?? []) {
+        if (seen.has(photo.sha256)) continue;
+        seen.add(photo.sha256);
+        const shown = photoDisplayDate(photo);
+        if (shown === null) {
+          if (isOpen(range)) undated.push(photo);
+        } else if (inRange(shown.day, range)) {
+          dated.push({ key: `${shown.day}T${shown.time}`, photo });
+        }
+      }
+    }
+    dated.sort((a, b) => (a.key < b.key ? 1 : a.key > b.key ? -1 : a.photo.sha256 < b.photo.sha256 ? -1 : 1));
+    return [...dated.map((d) => d.photo), ...undated];
   }
 
   private foldedText(conv: number, msg: number): string {

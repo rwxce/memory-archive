@@ -181,6 +181,75 @@ describe('viewer app', () => {
   });
 });
 
+describe('assigned photos', () => {
+  const evil = '"><img src=x onerror="window.__pwned=1">';
+  const photo = (sha: string, over: Record<string, unknown> = {}) => ({
+    sha256: sha.repeat(64),
+    path: `media/${sha.repeat(64)}.jpg`,
+    kind: 'photo' as const,
+    mime: 'image/jpeg',
+    takenAt: '2024-03-01T10:00:00Z',
+    takenOffsetMinutes: null,
+    dateSource: 'sidecar' as const,
+    fileName: 'one.jpg',
+    albums: [],
+    ...over,
+  });
+  const mount = (profile: Record<string, unknown> = {}) =>
+    mountViewer(
+      root,
+      viewerData({
+        profiles: [
+          {
+            id: 'p1',
+            displayName: 'Ada',
+            relationship: '',
+            description: '',
+            photos: [photo('a', { fileName: evil }), photo('b', { kind: 'video', fileName: 'clip.mp4', path: `media/${'b'.repeat(64)}.mp4`, mime: 'video/mp4' })],
+            ...profile,
+          },
+        ],
+      }),
+      { locale: 'en' },
+    );
+
+  test('no photos entry without photos; with them a grid opens from the sidebar, names stay text', () => {
+    mount({ photos: undefined });
+    expect(q('.photos-btn').hidden).toBe(true);
+    document.body.replaceChildren();
+    root = document.createElement('div');
+    document.body.append(root);
+    mount();
+    const btn = q<HTMLButtonElement>('.photos-btn');
+    expect(btn.hidden).toBe(false);
+    expect(btn.textContent).toBe('Photos (2)');
+    btn.click();
+    expect(q('.photos-pane').hidden).toBe(false);
+    expect(qa('.photo-grid > li')).toHaveLength(2);
+    expect(q('.photo img').getAttribute('alt')).toBe(evil);
+    expect(q('.photo a').getAttribute('href')).toBe(`media/${'a'.repeat(64)}.jpg`);
+    expect(q('.photo video').getAttribute('src')).toBe(`media/${'b'.repeat(64)}.mp4`);
+    expect(root.querySelector('[onerror]')).toBeNull();
+    expect((window as unknown as { __pwned?: number }).__pwned).toBeUndefined();
+    expect(q('.photos-pane').textContent).toContain('2 photos and videos');
+  });
+
+  test('opening a conversation closes the grid; the date filter narrows it', () => {
+    mount();
+    q<HTMLButtonElement>('.photos-btn').click();
+    const from = q<HTMLInputElement>('input[type=date]');
+    from.value = '2025-01-01';
+    from.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(qa('.photo-grid > li')).toHaveLength(0);
+    expect(q('.photos-pane .muted:not(.small)').hidden).toBe(false);
+    from.value = '';
+    from.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(qa('.photo-grid > li')).toHaveLength(2);
+    q('button[data-conv]').click();
+    expect(q('.photos-pane').hidden).toBe(true);
+  });
+});
+
 describe('boot', () => {
   const island = (json: string) => {
     const s = document.createElement('script');

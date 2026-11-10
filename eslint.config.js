@@ -91,8 +91,8 @@ const LAYER_POLICIES = [
   allow('domain', ['domain']),
   // The service worker shares the share-inbox store with the pages.
   allow('sw', ['sw', 'storage', 'domain', 'shared']),
-  // The standalone viewer reads the exported data format and shares the legacy link helpers.
-  allow('viewer', ['viewer', 'exporters', 'shared']),
+  // The standalone viewer reads the exported data format, shares the legacy link helpers and the pure photo date rule (domain).
+  allow('viewer', ['viewer', 'exporters', 'domain', 'shared']),
   allow('cli', ['cli', 'usecases', 'domain', 'db', 'storage', 'importers', 'exporters', 'shared']),
 ];
 

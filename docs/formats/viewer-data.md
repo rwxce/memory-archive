@@ -20,7 +20,7 @@ inlined in the HTML as `<script type="application/json">`. `serializeViewerData`
 | `generator` | `{ name, version }`, same constants as the legacy JSON (`lib/exporters/legacy/version.ts`) |
 | `createdAt` | UTC instant of the export |
 | `selection` | `{ from, to, includeMedia }`; `from` / `to` are local dates `YYYY-MM-DD`, inclusive, `null` = open |
-| `profiles` | Selected profiles: `id, displayName, relationship, description`, sorted by name then id |
+| `profiles` | Selected profiles: `id, displayName, relationship, description` and, when the export has media, `photos` (see Photos), sorted by name then id |
 | `conversations` | See below; sorted by first message, then id. Conversations with no message in the range are left out |
 | `media` | Files included: `{ sha256, path, size, mime }`, sorted by `sha256` |
 
@@ -40,10 +40,39 @@ not in this format. Favorites and notes are not exported.
 - A file the message refers to but the blob store lacks is left out (`media: null`, `mediaName`
   kept) and counted in `missingMedia` of the use case result; it is not an error.
 
+## Photos
+
+The pictures and videos the person assigned to a profile from the photo collection
+(`photo_profiles`; `docs/formats/photo-library.md`) travel with that profile, not with a
+conversation. `ViewerProfile.photos` is an optional list; each item:
+
+| Field | Meaning |
+|-------|---------|
+| `sha256`, `path` | the bytes; `path` is `media/<sha256>.<ext>` (same rules as message media) and is also an entry of `media` |
+| `kind`, `mime` | `photo` / `video`; media type or null |
+| `takenAt`, `takenOffsetMinutes`, `dateSource` | as stored in the collection. Show a date only through `photoDisplayDate` |
+| `fileName` | untrusted, display only (never part of a path) |
+| `albums` | album names (untrusted, at most 5) |
+
+- Order: the grid's order, newest first by display date, undated last.
+- `includeMedia: false`: `photos` is absent on every profile and no picture is exported (like message
+  media, pictures are bytes). With media on, `photos` is present (possibly empty).
+- Date range: a picture is kept when its `photoDisplayDate` day (UTC for `sidecar` and
+  `file-modified` dates, the camera's own clock for `exif` / `exif-local`; not the exporting
+  device's zone, so the output does not depend on where it is made) is within `from`..`to`. A picture with no
+  date is kept only when no range is set.
+- A picture whose bytes the blob store lacks is left out and counted in `missingMedia`. A picture
+  that is also chat media is one `media` entry (content addressed). Pictures are read in pages of
+  500; only metadata is in memory, the bytes are streamed by the writer.
+- Same picture assigned to several selected profiles: listed under each, one file.
+- Additive: `schemaVersion` stays `1`. A reader that predates it ignores the field; `parseViewerData`
+  accepts data without it and checks every photo `path` like a media path.
+
 ## Untrusted data
 
-Titles, authors, text and file names are kept verbatim as plain data. The renderer escapes them.
-`parseViewerData` checks structure and that every media path stays inside `media/`.
+Titles, authors, text, file names and album names are kept verbatim as plain data. The renderer
+escapes them. `parseViewerData` checks structure and that every media (and photo) path stays inside
+`media/`.
 
 ## Selection
 
@@ -69,6 +98,12 @@ hash aborts the export (`ArchiveError` `blob-missing` / `integrity`). Paths must
 archive limits (`unsafe-path`, `limit-exceeded`). The template is the app's own static asset
 (`/viewer/viewer-template.html`, same origin, no other network call).
 
+The viewer shows a "Photos (N)" entry in the sidebar (for the selected profile, or all) when there
+are photos; it opens a grid (120 at a time) of the pictures, narrowed by the viewer's date filter
+by the same rule as the export. Names go in as text only.
+
 ## Known limits
 
-The whole data object is built in memory (text only; media are copied by the writer, streamed).
+The whole data object is built in memory (text and photo metadata only; media are copied by the
+writer, streamed). Exports carry full-size pictures, no thumbnails: a large collection makes a
+heavy page (images load lazily).

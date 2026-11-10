@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Archive, ArchiveRestore, History, NotebookPen, Pencil, Search } from 'lucide-react';
+import { Archive, ArchiveRestore, Download, History, NotebookPen, Pencil, Search } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { BackPill } from '@/components/back-pill';
@@ -213,6 +213,7 @@ function PersonContent({ onRetry }: { onRetry: () => void }) {
       onSelect: () => setNoteOpen((open) => !open),
     },
     { id: `${person.id}-search`, label: t('menuSearch', { name: person.displayName }), icon: <Search aria-hidden />, href: `/search?person=${encodeURIComponent(person.id)}` },
+    { id: `${person.id}-export`, label: t('menuExport'), icon: <Download aria-hidden />, href: `/backup?person=${encodeURIComponent(person.id)}#viewer-export` },
   ];
   if (conversations.length > 0) {
     items.push({

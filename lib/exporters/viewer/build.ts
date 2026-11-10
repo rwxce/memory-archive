@@ -1,5 +1,5 @@
 import { GENERATOR_NAME, GENERATOR_VERSION } from '../legacy/version';
-import { VIEWER_DATA_FORMAT, VIEWER_SCHEMA_VERSION, type ViewerConversation, type ViewerData, type ViewerMedia, type ViewerMessage, type ViewerProfile, viewerMediaPath } from './format';
+import { VIEWER_DATA_FORMAT, VIEWER_SCHEMA_VERSION, type ViewerConversation, type ViewerData, type ViewerMedia, type ViewerMessage, type ViewerPhoto, type ViewerProfile, viewerMediaPath } from './format';
 
 /**
  * Assembles `ViewerData` from already-read rows. Pure: the use case reads the library and decides
@@ -27,6 +27,9 @@ export interface ViewerSourceConversation {
   messages: ViewerSourceMessage[];
 }
 
+/** A picture assigned to a profile, before its bytes are known to be available. */
+export type ViewerSourcePhoto = Omit<ViewerPhoto, 'path'>;
+
 export interface BuildViewerInput {
   now: string;
   from: string | null;
@@ -36,6 +39,11 @@ export interface BuildViewerInput {
   conversations: ViewerSourceConversation[];
   /** Hashes whose bytes are in the blob store, with their size; others count as missing. */
   availableMedia: ReadonlyMap<string, number>;
+  /**
+   * Pictures per profile id (already filtered by the use case). Present only when the export has
+   * media: a profile then gets `photos`, with the pictures whose bytes are available.
+   */
+  photos?: ReadonlyMap<string, ViewerSourcePhoto[]>;
 }
 
 export function buildViewerData(input: BuildViewerInput): ViewerData {
@@ -58,13 +66,27 @@ export function buildViewerData(input: BuildViewerInput): ViewerData {
       return { sentAt: m.sentAt, type: m.type, author: m.participantName, isMe: m.isMe, text: m.body, media: path, mediaName: m.mediaName };
     }),
   }));
+  const profiles = input.photos
+    ? input.profiles.map((p): ViewerProfile => {
+        const photos: ViewerPhoto[] = [];
+        for (const ph of input.photos?.get(p.id) ?? []) {
+          const size = input.availableMedia.get(ph.sha256);
+          if (size === undefined) continue;
+          const known = media.get(ph.sha256);
+          const path = known?.path ?? viewerMediaPath(ph.sha256, { name: ph.fileName, mime: ph.mime });
+          if (!known) media.set(ph.sha256, { sha256: ph.sha256, path, size, mime: ph.mime });
+          photos.push({ ...ph, path });
+        }
+        return { ...p, photos };
+      })
+    : input.profiles;
   return {
     format: VIEWER_DATA_FORMAT,
     schemaVersion: VIEWER_SCHEMA_VERSION,
     generator: { name: GENERATOR_NAME, version: GENERATOR_VERSION },
     createdAt: input.now,
     selection: { from: input.from, to: input.to, includeMedia: input.includeMedia },
-    profiles: input.profiles,
+    profiles,
     conversations,
     media: [...media.values()].sort((a, b) => (a.sha256 < b.sha256 ? -1 : 1)),
   };

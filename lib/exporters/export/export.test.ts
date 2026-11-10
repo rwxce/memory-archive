@@ -49,6 +49,48 @@ describe('names', () => {
   });
 });
 
+describe('layoutExport photos', () => {
+  const photoData = (name: string, profileName = 'Ana') => {
+    const data = dataFor('Chat');
+    data.profiles[0].displayName = profileName;
+    data.profiles[0].photos = [
+      { sha256: HASH, path: `media/${HASH}.jpg`, kind: 'photo', mime: 'image/jpeg', takenAt: '2024-05-10T10:00:00Z', takenOffsetMinutes: null, dateSource: 'sidecar', fileName: name, albums: ['<i>Trip</i>'] },
+    ];
+    return data;
+  };
+
+  test('html and markdown get a photos page per profile with photos, named from the slug only', async () => {
+    for (const [format, ext] of [['html', 'html'], ['markdown', 'md']] as const) {
+      const { files } = await layoutExport(format, 'together', [{ name: '', data: photoData('x.jpg', '../../<b>Ana</b>') }]);
+      expect(files.map((f) => f.path)).toEqual([`001-chat.${ext}`, `photos-b-ana-b.${ext}`]);
+    }
+    const split = await layoutExport('html', 'perProfile', [{ name: 'Ana', data: photoData('x.jpg') }]);
+    expect(split.files.map((f) => f.path)).toEqual(['ana/001-chat.html', 'ana/photos-ana.html']);
+  });
+
+  test('json carries the list inside the envelope and writes no extra file', async () => {
+    const { files } = await layoutExport('json', 'together', [{ name: '', data: photoData('x.jpg') }]);
+    expect(files.map((f) => f.path)).toEqual(['memory-archive.json']);
+    expect(parseViewerData(files[0].text).profiles[0].photos).toHaveLength(1);
+  });
+
+  test('hostile file and album names are escaped in the html page and in the markdown page', async () => {
+    const hostile = '"><script>alert(1)</script>[x](javascript:alert(2))\n# h.jpg';
+    const html = (await layoutExport('html', 'together', [{ name: '', data: photoData(hostile) }])).files[1].text;
+    expect(html).not.toContain('<script>');
+    expect(html).not.toContain('<i>Trip</i>');
+    expect(html).toContain(`href="media/${HASH}.jpg"`);
+    expect(html).toContain("default-src 'none'");
+    expect(html).not.toMatch(/<script/i);
+    const md = (await layoutExport('markdown', 'together', [{ name: '', data: photoData(hostile) }])).files[1].text;
+    expect(md).not.toContain('<script>');
+    expect(md).not.toContain('<i>');
+    expect(md).not.toMatch(/\n# h/);
+    expect(md).not.toContain('[x](javascript');
+    expect(md).toContain(`(media/${HASH}.jpg)`);
+  });
+});
+
 describe('layoutExport', () => {
   test('json: the viewer envelope, parseable, media paths prefixed per folder', async () => {
     const together = await layoutExport('json', 'together', [{ name: 'x', data: dataFor('Chat') }]);

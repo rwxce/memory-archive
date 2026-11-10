@@ -439,6 +439,7 @@
     "menuLabel": "More options for {name}",
     "menuNote": "Note about this person",
     "menuSearch": "Search in {name}",
+    "menuExport": "Export a copy",
     "since": "since {year}",
     "statMessages": "messages",
     "statPictures": "photos and videos",
@@ -1105,6 +1106,8 @@
         "perProfile": "One folder for each person"
       },
       "peopleLegend": "Whose conversations",
+      "selectAll": "Select all",
+      "selectNone": "Select none",
       "archivedTag": "archived",
       "noPeople": "There are no people in the archive yet.",
       "noPeopleSelected": "Choose at least one person.",

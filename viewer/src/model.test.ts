@@ -86,3 +86,40 @@ describe('ViewerModel', () => {
     expect(cancelled).toBeNull();
   });
 });
+
+describe('assigned photos', () => {
+  const photo = (sha: string, takenAt: string | null) => ({
+    sha256: sha.repeat(64),
+    path: `media/${sha.repeat(64)}.jpg`,
+    kind: 'photo' as const,
+    mime: 'image/jpeg',
+    takenAt,
+    takenOffsetMinutes: null,
+    dateSource: takenAt === null ? ('none' as const) : ('sidecar' as const),
+    fileName: `${sha}.jpg`,
+    albums: [],
+  });
+  const withPhotos = () =>
+    new ViewerModel(
+      viewerData({
+        profiles: [
+          { id: 'p1', displayName: 'Ada', relationship: '', description: '', photos: [photo('a', '2024-03-01T10:00:00Z'), photo('b', null), photo('c', '2022-01-01T10:00:00Z')] },
+          { id: 'p2', displayName: 'Bo', relationship: '', description: '', photos: [photo('a', '2024-03-01T10:00:00Z'), photo('d', '2023-06-01T10:00:00Z')] },
+          { id: 'p3', displayName: 'No photos', relationship: '', description: '' },
+        ],
+      }),
+    );
+
+  test('newest first, undated last, no repeats across profiles', () => {
+    const m = withPhotos();
+    expect(m.photos(null, NO_RANGE).map((p) => p.sha256[0])).toEqual(['a', 'd', 'c', 'b']);
+    expect(m.photos('p1', NO_RANGE).map((p) => p.sha256[0])).toEqual(['a', 'c', 'b']);
+    expect(m.photos('p3', NO_RANGE)).toEqual([]);
+  });
+
+  test('a date range keeps the pictures of those days and hides the undated', () => {
+    const m = withPhotos();
+    expect(m.photos(null, { from: '2023-01-01', to: '2023-12-31' }).map((p) => p.sha256[0])).toEqual(['d']);
+    expect(m.photos('p1', { from: '2022-01-01', to: null }).map((p) => p.sha256[0])).toEqual(['a', 'c']);
+  });
+});

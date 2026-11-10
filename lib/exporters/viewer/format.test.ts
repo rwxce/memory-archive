@@ -71,6 +71,18 @@ describe('viewer data format', () => {
     expect(viewerMediaPath(HASH, { name: 'a.verylongextension' })).toBe(`media/${HASH}.bin`);
   });
 
+  test('profile photos are optional: older data without them parses; a hostile photo path is refused', () => {
+    const old = sample();
+    expect(old.profiles[0].photos).toBeUndefined();
+    expect(parseViewerData(JSON.stringify(old)).profiles[0]).not.toHaveProperty('photos');
+    const withPhoto = { ...old, profiles: [{ ...old.profiles[0], photos: [{ sha256: HASH, path: `media/${HASH}.jpg`, kind: 'photo' }] }] };
+    expect(parseViewerData(JSON.stringify(withPhoto)).profiles[0].photos).toHaveLength(1);
+    for (const photos of [[{ path: '../x' }], [{ path: `media/${HASH}.jpg/..` }], [null], 'nope']) {
+      const bad = JSON.stringify({ ...old, profiles: [{ ...old.profiles[0], photos }] });
+      expect(rejection(() => parseViewerData(bad))).toMatchObject({ code: 'invalid' });
+    }
+  });
+
   test('a newer schemaVersion is refused with its own code', () => {
     const newer = JSON.stringify({ ...sample(), schemaVersion: VIEWER_SCHEMA_VERSION + 1 });
     expect(rejection(() => parseViewerData(newer))).toMatchObject({ code: 'newer-schema' });

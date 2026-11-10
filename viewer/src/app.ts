@@ -1,7 +1,8 @@
+import { photoDisplayDate } from '../../lib/domain/photo';
 import type { ViewerData } from '../../lib/exporters/viewer/format';
 import { h } from './dom';
 import { type ConversationSummary, type DateRange, NO_RANGE, type SearchHit, type TimelineMonth, ViewerModel } from './model';
-import { appendHighlighted, renderMessage, type RenderContext } from './render';
+import { appendHighlighted, renderMessage, renderPhotoTile, type RenderContext } from './render';
 import { type Locale, makeTranslate } from './strings';
 import { findRanges, queryTerms, snippet } from './text';
 
@@ -26,6 +27,7 @@ const PAGE = 150;
 const MAX = 450;
 const CONVERSATIONS_SHOWN = 300;
 const RESULTS_STEP = 200;
+const PHOTOS_STEP = 120;
 
 export function mountViewer(root: HTMLElement, data: ViewerData, options: MountOptions): ViewerApp {
   const doc = root.ownerDocument;
@@ -61,6 +63,8 @@ export function mountViewer(root: HTMLElement, data: ViewerData, options: MountO
   let hits: SearchHit[] = [];
   let hitsTruncated = false;
   let showAllConversations = false;
+  let photosOpen = false;
+  let photosShown = PHOTOS_STEP;
   /** Opened at the end and not scrolled by the reader yet: images that load keep the end in view. */
   let pinBottom = false;
   let timer: number | undefined;
@@ -103,6 +107,7 @@ export function mountViewer(root: HTMLElement, data: ViewerData, options: MountO
   const convMore = h(doc, 'button', { class: 'btn', text: t('conversationsMore'), attrs: { type: 'button', hidden: true } });
   const convNone = h(doc, 'p', { class: 'muted', text: t('conversationsNone'), attrs: { hidden: true } });
   const convNav = h(doc, 'nav', { attrs: { 'aria-labelledby': id('convs') } }, [convHeading, convList, convNone, convMore]);
+  const photosBtn = h(doc, 'button', { class: 'btn photos-btn', attrs: { type: 'button', hidden: true } });
   const resultsSummary = h(doc, 'p', { class: 'muted' });
   const resultsList = h(doc, 'ul', { class: 'resultlist' });
   const resultsMore = h(doc, 'button', { class: 'btn', text: t('resultsShowMore'), attrs: { type: 'button', hidden: true } });
@@ -114,6 +119,7 @@ export function mountViewer(root: HTMLElement, data: ViewerData, options: MountO
     searchForm,
     filters,
     convNav,
+    photosBtn,
     resultsEl,
     footer,
   ]);
@@ -145,8 +151,19 @@ export function mountViewer(root: HTMLElement, data: ViewerData, options: MountO
   const laterBtn = h(doc, 'button', { class: 'btn wide', text: t('later'), attrs: { type: 'button', hidden: true } });
   const items = h(doc, 'ol', { class: 'items' });
   const emptyNote = h(doc, 'p', { class: 'muted empty', text: t('chooseConversation') });
+  const photosBack = h(doc, 'button', { class: 'btn back', text: t('backToList'), attrs: { type: 'button' } });
+  const photosTitle = h(doc, 'h2', { class: 'title', text: t('photos'), attrs: { tabindex: -1 } });
+  const photosMeta = h(doc, 'p', { class: 'muted small' });
+  const photosGrid = h(doc, 'ul', { class: 'photo-grid' });
+  const photosNone = h(doc, 'p', { class: 'muted', text: t('photosNone'), attrs: { hidden: true } });
+  const photosMore = h(doc, 'button', { class: 'btn wide', text: t('photosMore'), attrs: { type: 'button', hidden: true } });
+  const photosPane = h(doc, 'section', { class: 'photos-pane', attrs: { 'aria-labelledby': id('photos-title'), hidden: true } }, [
+    h(doc, 'header', { class: 'thread-head' }, [h(doc, 'div', { class: 'row top' }, [photosBack, h(doc, 'div', { class: 'grow' }, [photosTitle, photosMeta])])]),
+    h(doc, 'div', { class: 'photos-body' }, [photosNone, photosGrid, photosMore]),
+  ]);
+  photosTitle.id = id('photos-title');
   const thread = h(doc, 'div', { class: 'thread', attrs: { id: 'thread', role: 'region', 'aria-label': t('messages'), tabindex: 0, hidden: true } }, [earlierBtn, items, laterBtn]);
-  const main = h(doc, 'main', { class: 'main' }, [head, emptyNote, thread]);
+  const main = h(doc, 'main', { class: 'main' }, [head, emptyNote, thread, photosPane]);
   const skip = h(doc, 'a', { class: 'skip', text: t('skip'), attrs: { href: '#thread' } });
   const app = h(doc, 'div', { class: 'app', attrs: { 'data-view': 'list' } }, [sidebar, main]);
   root.replaceChildren(skip, app, status);
@@ -348,6 +365,8 @@ export function mountViewer(root: HTMLElement, data: ViewerData, options: MountO
     // First: on a phone the thread pane is display:none until the view changes, and a hidden
     // element cannot be scrolled.
     setView('thread');
+    photosOpen = false;
+    photosPane.hidden = true;
     conv = index;
     const c = data.conversations[index];
     vis = model.visible(index, range);
@@ -381,6 +400,8 @@ export function mountViewer(root: HTMLElement, data: ViewerData, options: MountO
   }
 
   function closeConversation() {
+    photosOpen = false;
+    photosPane.hidden = true;
     conv = null;
     focusMsg = -1;
     head.hidden = true;
@@ -396,10 +417,49 @@ export function mountViewer(root: HTMLElement, data: ViewerData, options: MountO
   }
 
   function markCurrent() {
+    if (photosOpen) photosBtn.setAttribute('aria-current', 'true');
+    else photosBtn.removeAttribute('aria-current');
     for (const btn of convList.querySelectorAll('button')) {
       if (btn.getAttribute('data-conv') === String(conv)) btn.setAttribute('aria-current', 'true');
       else btn.removeAttribute('aria-current');
     }
+  }
+
+  // ---- photos assigned to the profile ----
+  const photoDate = (photo: Parameters<typeof photoDisplayDate>[0]) => {
+    const shown = photoDisplayDate(photo);
+    return shown === null ? '' : `${shown.approximate ? '≈ ' : ''}${dateOf(shown.day, shortDate)}`;
+  };
+  const photoCount = (n: number) => (n === 1 ? t('photosCountOne') : t('photosCount', { count: number.format(n) }));
+
+  /** The entry in the sidebar: there when the profile has photos at all, whatever the dates. */
+  function updatePhotosEntry() {
+    const total = model.photos(profileId, NO_RANGE).length;
+    photosBtn.hidden = total === 0;
+    photosBtn.textContent = `${t('photos')} (${number.format(total)})`;
+    if (total === 0 && photosOpen) closeConversation();
+    else if (photosOpen) renderPhotos();
+  }
+
+  function renderPhotos() {
+    const list = model.photos(profileId, range);
+    const shown = list.slice(0, photosShown);
+    photosGrid.replaceChildren(...shown.map((p) => renderPhotoTile(doc, t, p, photoDate(p))));
+    photosMeta.textContent = photoCount(list.length);
+    photosNone.hidden = list.length > 0;
+    photosMore.hidden = list.length <= photosShown;
+  }
+
+  function openPhotos() {
+    closeConversation();
+    photosOpen = true;
+    photosShown = PHOTOS_STEP;
+    emptyNote.hidden = true;
+    photosPane.hidden = false;
+    setView('thread');
+    renderPhotos();
+    markCurrent();
+    photosTitle.focus({ preventScroll: true });
   }
 
   // ---- conversation list ----
@@ -419,6 +479,7 @@ export function mountViewer(root: HTMLElement, data: ViewerData, options: MountO
     );
     convNone.hidden = summaries.length > 0;
     convMore.hidden = showAllConversations || summaries.length <= CONVERSATIONS_SHOWN;
+    updatePhotosEntry();
   }
 
   // ---- search ----
@@ -532,6 +593,15 @@ export function mountViewer(root: HTMLElement, data: ViewerData, options: MountO
   convList.addEventListener('click', (e) => {
     const btn = (e.target as Element).closest('button[data-conv]');
     if (btn) openConversation(Number(btn.getAttribute('data-conv')));
+  });
+  photosBtn.addEventListener('click', openPhotos);
+  photosMore.addEventListener('click', () => {
+    photosShown += PHOTOS_STEP;
+    renderPhotos();
+  });
+  photosBack.addEventListener('click', () => {
+    setView('list');
+    photosBtn.focus();
   });
   convMore.addEventListener('click', () => {
     showAllConversations = true;
