@@ -430,6 +430,7 @@
     "sectionsLabel": "Sections",
     "sectionAudio": "Audio",
     "sectionGallery": "Gallery",
+    "sectionPhotos": "Photos",
     "sectionTimeline": "Timeline",
     "sectionFavorites": "Favorites",
     "sectionNotes": "Notes",
@@ -446,7 +447,22 @@
     "galleryCount": "{count, plural, one {# photo or video} other {# photos and videos}}",
     "audioCount": "{count, plural, one {# voice message} other {# voice messages}}",
     "favoritesTitle": "Favorites",
-    "showFavorites": "Show all {count, plural, one {# favorite} other {# favorites}}"
+    "showFavorites": "Show all {count, plural, one {# favorite} other {# favorites}}",
+    "photos": {
+      "title": "Photos",
+      "intro": "Pictures from your photo collection that you assigned to {name}.",
+      "loading": "Loading photos…",
+      "loadFailed": "The photos could not be read. Nothing was deleted.",
+      "count": "{count, plural, one {# picture assigned} other {# pictures assigned}}",
+      "none": "No pictures assigned yet",
+      "empty": "No pictures are assigned to {name} yet. Choose pictures from your collection and assign them to {name}; they will appear here.",
+      "choose": "Choose pictures",
+      "shown": "Showing {shown} of {total}",
+      "showMore": "Show more",
+      "loadingMore": "Loading more…",
+      "moreFailed": "Some photos could not be read. Nothing was deleted.",
+      "takenOut": "Picture taken out of {name}’s photos. It is still in your collection."
+    }
   },
   "personAudio": {
     "title": "Audio",

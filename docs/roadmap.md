@@ -155,9 +155,9 @@ linked from Settings) picks a ZIP (told apart by content) or loose files, shows 
 imports with Undo. Item 20a is done: the assignment data layer (schema v13 `photo_profiles`, `assignPhotos`,
 `unassignPhotos`, the picture listing, month buckets and the reading of a picture). Item 20b is done: the selection screen
 (`/photos/select`: pictures by day, choose, assign to people with an explicit confirmation, undo, a detail view, and an
-undo-import warning about assignments). Not built (follow-ups): the assigned pictures in the person page (`listProfilePhotos` is ready; it
-needs its own paged section and viewer, more than a small change), and syncing photos or assignments in a
-changes pack (known limit, unchanged). Not yet checked on a real phone gallery picker.**
+undo-import warning about assignments). The assigned pictures show on the person's page (a Photos card and `/person/photos`: paged grid by day, the same
+detail view with "Take out"). Not built (follow-up): syncing photos or assignments in a changes pack (known limit,
+unchanged). Not yet checked on a real phone gallery picker.**
 
 - Three ways to pick specific photos: Google Photos web download of a selection, Takeout of
   one album (keeps original dates and locations), or the device gallery picker.

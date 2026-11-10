@@ -231,6 +231,18 @@ export function countPhotoPictures(db: SqlDb): PhotoCounts {
   return row;
 }
 
+/** Distinct pictures assigned to one profile that are still in the collection; equals what `listPhotoPictures` returns for that scope. */
+export function countProfilePhotos(db: SqlDb, input: { profileId: string }): number {
+  const profileId = record(input, 'params').profileId;
+  if (!isUuid(profileId)) return invalid('profileId must be a UUID');
+  const [row] = db.all<{ n: number }>(
+    `SELECT count(DISTINCT sha256) AS n FROM photo_items
+      WHERE EXISTS (SELECT 1 FROM photo_profiles a WHERE a.sha256 = photo_items.sha256 AND a.profile_id = ?)`,
+    [profileId as string],
+  );
+  return row.n;
+}
+
 function hashList(value: unknown, what: string, max: number): string[] {
   if (!Array.isArray(value) || value.length === 0) return invalid(`${what} must be a non-empty list`);
   if (value.length > max) return invalid(`${what} has too many entries (at most ${max})`);

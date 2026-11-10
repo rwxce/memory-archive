@@ -26,7 +26,7 @@ export function useWhen() {
   };
 }
 
-function Face({ picture, near }: { picture: PhotoPicture; near: boolean }) {
+export function Face({ picture, near }: { picture: PhotoPicture; near: boolean }) {
   const t = useTranslations('photos.select.tile');
   const image = usePhotoImage(picture, 'tile', near);
   const [broken, setBroken] = useState<string>();

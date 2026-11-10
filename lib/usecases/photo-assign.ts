@@ -36,6 +36,9 @@ export const listProfilePhotos = (deps: Client, profileId: string, page: Omit<Ph
 /** Total pictures, how many are assigned to nobody, and the item count. */
 export const countPhotoPictures = (deps: Client): Promise<PhotoCounts> => deps.client.call('countPhotoPictures');
 
+/** How many pictures one profile has been given. */
+export const countProfilePhotos = (deps: Client, profileId: string): Promise<number> => deps.client.call('countProfilePhotos', { profileId });
+
 export const getPhotoPicture = (deps: Client, sha256: string): Promise<PhotoPicture | null> => deps.client.call('getPhotoPicture', { sha256 });
 
 /**

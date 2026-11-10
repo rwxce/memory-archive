@@ -112,6 +112,8 @@ export interface DbOps {
   listPhotoDates: { params: { scope?: ListPhotoPicturesInput['scope']; afterSha256?: string; limit: number }; result: PhotoDateRow[] };
   getPhotoPicture: { params: { sha256: string }; result: PhotoPicture | null };
   countPhotoPictures: { params: undefined; result: PhotoCounts };
+  /** Distinct pictures assigned to one profile (the total behind its photo list). */
+  countProfilePhotos: { params: { profileId: string }; result: number };
   assignPhotos: { params: AssignPhotosInput; result: AssignPhotosResult };
   unassignPhotos: { params: { sha256s: string[]; profileId: string }; result: UnassignPhotosResult };
   unassignPhotoLinks: { params: { links: PhotoProfileLinks[] }; result: UnassignPhotosResult };
