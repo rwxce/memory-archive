@@ -1,8 +1,8 @@
-import type { ChangeSet, PackMessage } from '../../domain/changes-pack';
+import type { ChangeSet, PackMessage, PackPhotoItem } from '../../domain/changes-pack';
 import { sha256Hex } from '../../domain/sha256';
 import type { ChangesPackSource } from './write';
 import { openChangesPack, readPackLines, type OpenedChangesPack } from './read';
-import { RECORD_FILES, batchPath, recordPath, type RecordFileName } from './format';
+import { batchPath, photoBatchPath, recordFilesOf, recordPath, type RecordFileName } from './format';
 
 /** Test helper: a whole pack in memory (synthetic data only). */
 export interface UnpackedPack {
@@ -11,6 +11,8 @@ export interface UnpackedPack {
   records: Record<RecordFileName, Record<string, unknown>[]>;
   /** Batch id -> [header, ...messages]. */
   batches: Map<string, Record<string, unknown>[]>;
+  /** Photo batch id -> [header, ...items]. */
+  photoBatches: Map<string, Record<string, unknown>[]>;
   /** Hashes of the files under blobs/. */
   blobHashes: string[];
 }
@@ -18,7 +20,7 @@ export interface UnpackedPack {
 export async function unpack(zip: Blob): Promise<UnpackedPack> {
   const opened = await openChangesPack(zip, { supportedSchemaVersion: 1_000 });
   const records = {} as UnpackedPack['records'];
-  for (const name of RECORD_FILES) {
+  for (const name of recordFilesOf(opened.manifest.formatVersion)) {
     records[name] = [];
     for await (const line of readPackLines(zip, opened, recordPath(name))) records[name].push(line);
   }
@@ -30,13 +32,21 @@ export async function unpack(zip: Blob): Promise<UnpackedPack> {
     for await (const line of readPackLines(zip, opened, batchPath(match[1]))) lines.push(line);
     batches.set(match[1], lines);
   }
+  const photoBatches = new Map<string, Record<string, unknown>[]>();
+  for (const entry of opened.manifest.entries) {
+    const match = /^photos\/(.+)\.jsonl$/.exec(entry.path);
+    if (!match) continue;
+    const lines: Record<string, unknown>[] = [];
+    for await (const line of readPackLines(zip, opened, photoBatchPath(match[1]))) lines.push(line);
+    photoBatches.set(match[1], lines);
+  }
   const blobHashes = opened.manifest.entries.filter((e) => e.path.startsWith('blobs/')).map((e) => e.sha256);
-  return { opened, manifest: opened.manifest, records, batches, blobHashes };
+  return { opened, manifest: opened.manifest, records, batches, photoBatches, blobHashes };
 }
 
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
-export const IDS = { source: uuid(500), target: uuid(501), profile: uuid(1), conversation: uuid(10), batch: uuid(100) };
+export const IDS = { source: uuid(500), target: uuid(501), profile: uuid(1), conversation: uuid(10), batch: uuid(100), photoBatch: uuid(101) };
 export const MEDIA = new TextEncoder().encode('synthetic media bytes '.repeat(20));
 export const MEDIA_SHA = sha256Hex(MEDIA);
 const fp = (n: number) => n.toString(16).padStart(64, '0');
@@ -44,6 +54,13 @@ const fp = (n: number) => n.toString(16).padStart(64, '0');
 export const MESSAGES: PackMessage[] = [
   { fingerprint: fp(1), sentAt: '2026-01-01T10:00:00', ordinal: 0, type: 'text', author: 'Ana', body: 'synthetic hello', mediaSha256: null, mediaName: '' },
   { fingerprint: fp(2), sentAt: '2026-01-01T10:01:00', ordinal: 0, type: 'photo', author: null, body: '', mediaSha256: MEDIA_SHA, mediaName: 'IMG.jpg' },
+];
+
+export const PHOTO_ITEMS: PackPhotoItem[] = [
+  {
+    sha256: MEDIA_SHA, kind: 'photo', mime: 'image/jpeg', takenAt: '2019-07-01T10:00:00Z', takenOffsetMinutes: null, dateSource: 'sidecar',
+    latitude: null, longitude: null, description: '', album: 'Trip', fileName: 'IMG.jpg',
+  },
 ];
 
 /** Test helper: a small, valid change set (one of every record) for the writer. */
@@ -63,6 +80,8 @@ export function syntheticChangeSet(overrides: Partial<ChangeSet> = {}): ChangeSe
     notes: [{ target: { kind: 'conversation', conversationId: IDS.conversation }, body: 'synthetic note', createdAt: '2026-01-02T00:00:00Z', updatedAt: '2026-01-02T00:00:00Z', seq: 8 }],
     tombstones: [{ kind: 'favorite', scope: IDS.conversation, key: fp(9), deletedAt: '2026-01-03T00:00:00Z', seq: 9 }],
     batches: [{ id: IDS.batch, conversationId: IDS.conversation, source: 'whatsapp', sourceLabel: 'a.zip', createdAt: '2026-01-01T00:00:00Z', createdConversation: true, seq: 6 }],
+    photoBatches: [{ id: IDS.photoBatch, source: 'takeout', sourceLabel: 'album.zip', createdAt: '2026-01-01T00:00:00Z', addedCount: 1, skippedCount: 0, seq: 7 }],
+    photoLinks: [{ sha256: MEDIA_SHA, profileId: IDS.profile, createdAt: '2026-01-02T00:00:00Z', seq: 8 }],
     ...overrides,
   };
 }
@@ -76,6 +95,9 @@ export function syntheticSource(changes: ChangeSet = syntheticChangeSet(), extra
     batchMessages: async function* () {
       yield MESSAGES.slice(0, 1);
       yield MESSAGES.slice(1);
+    },
+    photoBatchItems: async function* () {
+      yield PHOTO_ITEMS;
     },
     openBlob: async (sha256) => (sha256 === MEDIA_SHA ? new Blob([MEDIA as BlobPart]).stream() : undefined),
     ...extra,

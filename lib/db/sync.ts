@@ -11,7 +11,7 @@ import type { SqlDb } from './sql';
  *   row; a restore replaces the id (`renewDevice`), so a backup never clones another device's id.
  * - Every write to a synced record stamps it with `nextChangeSeq` (`seq`); a changes pack for a
  *   peer is "records with `seq` above the watermark last sent to that peer".
- * - Deleting a favorite, a note or an import batch leaves a `tombstones` row so the deletion can
+ * - Deleting a favorite, a note, an import batch, a photo import or a photo assignment leaves a `tombstones` row so the deletion can
  *   travel. Recreating the target removes the tombstone.
  * - `sync_peers` keeps, per peer, the watermarks exchanged with it.
  *
@@ -71,8 +71,8 @@ export function nextChangeSeq(db: SqlDb): number {
 }
 
 /** Tables whose rows carry `seq` (and `changed_by` where listed in `CHANGED_BY`). */
-export type StampedTable = 'profiles' | 'conversations' | 'import_batches' | 'favorites' | 'notes';
-const CHANGED_BY: ReadonlySet<StampedTable> = new Set(['profiles', 'conversations', 'import_batches', 'notes', 'favorites']);
+export type StampedTable = 'profiles' | 'conversations' | 'import_batches' | 'favorites' | 'notes' | 'photo_batches' | 'photo_profiles';
+const CHANGED_BY: ReadonlySet<StampedTable> = new Set(['profiles', 'conversations', 'import_batches', 'notes', 'favorites', 'photo_batches', 'photo_profiles']);
 
 /**
  * Marks the rows matching `where` as changed here, now: new `seq`, and `changed_by` back to NULL
@@ -113,11 +113,12 @@ export function recordMergedTombstone(db: SqlDb, peerId: string, kind: Tombstone
   ]);
 }
 
-export type TombstoneKind = 'favorite' | 'note' | 'batch';
+export type TombstoneKind = 'favorite' | 'note' | 'batch' | 'photo-batch' | 'photo-link';
 
 /**
- * Records that a favorite, note or import batch was deleted here. `scope` is the conversation id
- * ('' for a person's note), `key` the fingerprint / note target / batch id (see the format doc).
+ * Records that something was deleted here. `scope` is the conversation id ('' for a person's note
+ * and for a photo batch; the profile id for a photo link), `key` the fingerprint / note target /
+ * batch id / picture hash (see the format doc).
  * `now` defaults to the current UTC instant. Replaces an older tombstone of the same target.
  */
 export function recordTombstone(db: SqlDb, kind: TombstoneKind, scope: string, key: string, now?: string): void {
@@ -129,6 +130,21 @@ export function recordTombstone(db: SqlDb, kind: TombstoneKind, scope: string, k
     now ?? null,
     seq,
   ]);
+}
+
+/** Like `recordTombstone` for several targets of one kind that went in one write: they share one change number. */
+export function recordTombstones(db: SqlDb, kind: TombstoneKind, targets: readonly { scope: string; key: string }[], now?: string): void {
+  if (targets.length === 0) return;
+  const seq = nextChangeSeq(db);
+  for (const t of targets) {
+    db.run(`INSERT OR REPLACE INTO tombstones (kind, scope, key, deleted_at, seq) VALUES (?, ?, ?, COALESCE(?, ${NOW_SQL}), ?)`, [
+      kind,
+      t.scope,
+      t.key,
+      now ?? null,
+      seq,
+    ]);
+  }
 }
 
 /** Forgets a tombstone because its target exists again. */
@@ -148,7 +164,7 @@ export function listPeers(db: SqlDb): SyncPeer[] {
 
 /**
  * For every known peer, how many own records `readChangeSet(db, { peerId })` would carry: profiles,
- * conversations, favorites, notes, tombstones and import batches above its sent watermark that did
+ * conversations, favorites, notes, tombstones, import batches, photo batches and photo links above its sent watermark that did
  * not come from that peer (same echo rule as `FRESH` in `changes.ts`). COUNT only. Rows a pack
  * pulls in only because a carried record references them (a profile or conversation of a batch)
  * are not counted; they are never the sole reason for a pack, so `count > 0` holds exactly when
@@ -159,7 +175,7 @@ export function countUnsentChanges(db: SqlDb): UnsentChanges[] {
   const fresh = (t: string) => `(SELECT count(*) FROM ${t} WHERE seq > p.last_sent_seq AND (changed_by IS NULL OR changed_by <> p.peer_id))`;
   return db.all<UnsentChanges>(
     `SELECT p.peer_id AS peerId,
-            ${['profiles', 'conversations', 'import_batches', 'favorites', 'notes', 'tombstones'].map(fresh).join(' + ')} AS count,
+            ${['profiles', 'conversations', 'import_batches', 'favorites', 'notes', 'tombstones', 'photo_batches', 'photo_profiles'].map(fresh).join(' + ')} AS count,
             p.last_sent_at AS lastSentAt,
             CASE WHEN p.last_sent_at IS NULL THEN p.last_received_at
                  WHEN p.last_received_at IS NULL OR p.last_sent_at >= p.last_received_at THEN p.last_sent_at

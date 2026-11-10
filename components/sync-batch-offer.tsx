@@ -13,6 +13,8 @@ const busyClass = 'aria-disabled:pointer-events-none aria-disabled:opacity-50';
  * Another device undid an import this device may also have. Nothing was removed: the person can undo it here (after a
  * question that names the conversation and the number of messages, and says what happens to media), keep it, or, when
  * this device does not have that import, close the note. The names are text from the archive and are only rendered as text.
+ * A photo import is offered the same way (`kind: 'photo-batch'`): the question names the number of photos and says what
+ * happens to their assignments to people.
  */
 export function SyncBatchOffer({
   conflict,
@@ -23,7 +25,8 @@ export function SyncBatchOffer({
   working: boolean;
   onResolve: (choice: 'mine' | 'theirs') => void;
 }) {
-  const tb = useTranslations('sync.conflicts.batch');
+  const photo = conflict.kind === 'photo-batch';
+  const tb = useTranslations(photo ? 'sync.conflicts.photoBatch' : 'sync.conflicts.batch');
   const [asking, setAsking] = useState(false);
   const titleId = useId();
   const undoButton = useRef<HTMLButtonElement>(null);
@@ -53,9 +56,14 @@ export function SyncBatchOffer({
     );
   }
 
+  const photoBatch = conflict.photoBatch;
   // The conversation goes only when the undo leaves it empty: say so as a fact only when every message in it is from this import.
   const removesConversation = batch?.createdConversation === true && batch.conversationMessages === batch.messages;
-  const body = !batch
+  const body = photo
+    ? photoBatch
+      ? tb('confirmBody', { count: photoBatch.items })
+      : tb('confirmBodyUnknown')
+    : !batch
     ? tb('confirmBodyUnknown')
     : removesConversation
       ? tb('confirmBodyCreated', { count: batch.messages, title: name })
@@ -66,8 +74,18 @@ export function SyncBatchOffer({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1 leading-relaxed">
-        <p className="break-words">{batch ? tb('offer', { code, title: name }) : tb('offerUnknown', { code })}</p>
-        {batch && <p className="text-t2 text-sm">{tb('offerCount', { count: batch.messages })}</p>}
+        <p className="break-words">
+          {photo
+            ? photoBatch
+              ? tb('offer', { code, title: photoBatch.sourceLabel })
+              : tb('offerUnknown', { code })
+            : batch
+              ? tb('offer', { code, title: name })
+              : tb('offerUnknown', { code })}
+        </p>
+        {photo
+          ? photoBatch && <p className="text-t2 text-sm">{tb('offerCount', { count: photoBatch.items })}</p>
+          : batch && <p className="text-t2 text-sm">{tb('offerCount', { count: batch.messages })}</p>}
       </div>
       {asking ? (
         <div

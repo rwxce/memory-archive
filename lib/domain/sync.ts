@@ -5,6 +5,9 @@ import type {
   PackFavorite,
   PackMessage,
   PackNote,
+  PackPhotoBatchHeader,
+  PackPhotoItem,
+  PackPhotoLink,
   PackProfile,
   PackTombstone,
 } from './changes-pack';
@@ -85,6 +88,9 @@ export interface MergeChangesPackInput extends PackAddress {
   favorites: PackFavorite[];
   notes: PackNote[];
   tombstones: PackTombstone[];
+  /** Photo imports with their items (format version 2); empty for a version-1 pack. */
+  photoBatches: { header: PackPhotoBatchHeader; items: PackPhotoItem[] }[];
+  photoLinks: PackPhotoLink[];
 }
 
 export interface MergeCounts {
@@ -95,6 +101,10 @@ export interface MergeCounts {
   messages: { added: number; skipped: number };
   favorites: { added: number; removed: number };
   notes: { added: number; updated: number; removed: number };
+  photoBatches: number;
+  photoItems: { added: number; skipped: number };
+  /** `dropped`: links whose picture is not in the collection here (a link never exists without an item). */
+  photoLinks: { added: number; removed: number; dropped: number };
 }
 
 export type MergeChangesPackResult =
@@ -104,7 +114,7 @@ export type MergeChangesPackResult =
       counts: MergeCounts;
       /** Crossed edits kept beside the active record (see `SyncConflict`). */
       conflicts: number;
-      /** Undone imports offered for review (nothing was removed). */
+      /** Undone imports (messages or photos) offered for review (nothing was removed). */
       batchOffers: number;
       /**
        * Media rows this merge added that nothing refers to (a batch that was skipped): the rows are
@@ -114,7 +124,7 @@ export type MergeChangesPackResult =
       peer: SyncPeer;
     };
 
-export type ConflictKind = 'profile' | 'conversation' | 'note' | 'batch';
+export type ConflictKind = 'profile' | 'conversation' | 'note' | 'batch' | 'photo-batch';
 
 /** The version of a profile or conversation that is active on this device, in the pack's own shape (without `seq`). */
 export type LocalProfileVersion = Omit<PackProfile, 'seq'>;
@@ -125,7 +135,8 @@ export type LocalNoteVersion = Omit<PackNote, 'seq'>;
  * A crossed edit, or an offered deletion, waiting for the user. The active record on this device is
  * `local` and has not been touched; `incoming` is what `peerId` sent. `kind: 'batch'` is not a
  * conflict but the offer to remove an import the peer undid (`incoming` is its tombstone;
- * `matched` says whether this device has a batch with that id).
+ * `matched` says whether this device has a batch with that id). `kind: 'photo-batch'` is the same offer for a photo
+ * import (`matched`: this device has a photo batch with that id; `photoBatch`: what it still holds).
  */
 export interface SyncConflict {
   id: number;
@@ -140,6 +151,8 @@ export interface SyncConflict {
   /** The active version here; `null` when there is none (a note deleted here, edited there; a batch that is not here). */
   local: LocalProfileVersion | LocalConversationVersion | LocalNoteVersion | null;
   matched?: boolean;
+  /** For an offered photo import that is here: its label and how many pictures it still holds. */
+  photoBatch?: { sourceLabel: string; items: number };
 }
 
 export type ConflictChoice = 'mine' | 'theirs' | 'both';

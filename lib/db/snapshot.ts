@@ -100,7 +100,9 @@ export const databaseDigest = (bytes: Uint8Array): string => sha256Hex(bytes);
 
 const invalid = (message: string) => new DbError('invalid', `invalid database snapshot: ${message}`);
 
-const COUNTED_TABLES = ['profiles', 'conversations', 'import_batches', 'favorites', 'notes', 'tombstones', 'device'] as const;
+const COUNTED_TABLES = [
+  'profiles', 'conversations', 'import_batches', 'favorites', 'notes', 'tombstones', 'photo_batches', 'photo_profiles', 'device',
+] as const;
 
 /**
  * The change counter a restored library continues from: the highest change number anywhere in the

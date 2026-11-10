@@ -68,6 +68,7 @@ function noteTargetOf(scope: string, key: string): PackNote['target'] {
 function toConflict(db: SqlDb, row: Row): SyncConflict {
   let local: SyncConflict['local'] = null;
   let matched: boolean | undefined;
+  let photoBatch: SyncConflict['photoBatch'];
   if (row.kind === 'profile') {
     const l = readLocalProfile(db, row.key);
     local = l && stripLocal(l);
@@ -77,6 +78,14 @@ function toConflict(db: SqlDb, row: Row): SyncConflict {
   } else if (row.kind === 'note') {
     const l = readLocalNote(db, noteTargetOf(row.scope, row.key));
     local = l && stripLocal(l);
+  } else if (row.kind === 'photo-batch') {
+    const [batch] = db.all<{ sourceLabel: string; items: number }>(
+      `SELECT source_label AS sourceLabel, (SELECT count(*) FROM photo_items WHERE batch_id = photo_batches.id) AS items
+         FROM photo_batches WHERE id = ?`,
+      [row.key],
+    );
+    matched = batch !== undefined;
+    photoBatch = batch;
   } else {
     matched = db.all('SELECT 1 FROM import_batches WHERE id = ?', [row.key]).length > 0;
   }
@@ -84,6 +93,7 @@ function toConflict(db: SqlDb, row: Row): SyncConflict {
     id: row.id, peerId: row.peerId, kind: row.kind, scope: row.scope, key: row.key,
     incoming: parseIncoming(row), incomingDeleted: row.incomingDeleted === 1, detectedAt: row.detectedAt, local,
     ...(matched === undefined ? {} : { matched }),
+    ...(photoBatch === undefined ? {} : { photoBatch }),
   };
 }
 
@@ -120,7 +130,7 @@ export interface ResolveConflictResult {
  *   `mine` closes the conflict and `theirs` recreates the record when it can (`recordGone` when not).
  * - note: `mine`, `theirs`, or `both` (the peer's text appended below ours, refused when the result
  *   would be longer than a note may be).
- * - batch (an undone import offered for removal): only `mine` (dismiss) is handled here; accepting
+ * - batch / photo-batch (an undone import offered for removal): only `mine` (dismiss) is handled here; accepting
  *   runs the ordinary undo (a use case, because media bytes must be deleted too) and then dismisses.
  * `not-found` when the conflict is gone (resolved meanwhile); `invalid` for a choice that does not fit.
  */
@@ -141,7 +151,7 @@ export function resolveConflict(db: SqlDb, input: ResolveConflictInput): Resolve
     let recordGone = false;
     let localMissing = false;
     const choice: ConflictChoice = input.choice;
-    if (row.kind === 'batch') {
+    if (row.kind === 'batch' || row.kind === 'photo-batch') {
       if (choice !== 'mine') throw invalid('an undone import is accepted by undoing it, or dismissed with mine');
     } else if (row.kind === 'note') {
       localMissing = resolveNote(db, row, choice, input.now);

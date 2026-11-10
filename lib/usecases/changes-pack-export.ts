@@ -1,5 +1,5 @@
 import { DbError } from '../db/errors';
-import type { PackMessage } from '../domain/changes-pack';
+import type { PackMessage, PackPhotoItem } from '../domain/changes-pack';
 import type { SyncPeer } from '../domain/sync';
 import { assertCanEncrypt, encryptBackup, type CryptoProgress } from '../exporters/archive/encrypt';
 import { APP_NAME, ArchiveError, DEFAULT_LIMITS, blobPath, type ArchiveLimits } from '../exporters/archive/format';
@@ -79,7 +79,7 @@ async function exportUnguarded(deps: ProfileDeps, options: ExportChangesPackOpti
   options.onProgress?.({ phase: 'preparing' });
   // Records and `upTo` come from ONE synchronous step in the worker; media checks come after.
   const changes = await deps.client.call('readChangeSet', { peerId: options.peerId ?? null, full: options.full });
-  assertSendable(changes.batches.length + changes.blobs.length, changes.blobs, limits);
+  assertSendable(changes.batches.length + changes.photoBatches.length + changes.blobs.length, changes.blobs, limits);
   for (const blob of changes.blobs) {
     if ((await deps.blobStore.size(blob.sha256)) !== blob.size) {
       throw new ArchiveError('blob-missing', 'a media file referenced by the library is missing or has the wrong size');
@@ -93,12 +93,21 @@ async function exportUnguarded(deps: ProfileDeps, options: ExportChangesPackOpti
       after = page.last;
     }
   }
+  async function* photoPages(batchId: string): AsyncGenerator<PackPhotoItem[]> {
+    for (let after = 0; ; ) {
+      const page = await deps.client.call('readPhotoBatchItems', { batchId, after, limit: PAGE });
+      if (page.items.length === 0) return;
+      yield page.items;
+      after = page.last;
+    }
+  }
   const { blob: zip, manifest } = await writeChangesPack({
     app: { name: APP_NAME, version: options.appVersion },
     createdAt: now,
     changes,
     limits,
     batchMessages: pages,
+    photoBatchItems: photoPages,
     openBlob: (sha256) => deps.blobStore.open(sha256),
     onProgress: (done, total) => options.onProgress?.({ phase: 'media', done, total }),
   });
@@ -118,17 +127,20 @@ async function exportUnguarded(deps: ProfileDeps, options: ExportChangesPackOpti
   return { ...common, blob: sealed, fileName: encryptedChangesPackFileName(now, changes.sourceDeviceId), encrypted: true };
 }
 
+/** The manifest and the seven record files of format version 2: every pack has them. */
+const FIXED_ENTRIES = 8;
+
 /** A pack must never be written that its own reader would refuse for size: same bounds, from known sizes. */
 function assertSendable(entriesBeyondFixed: number, blobs: readonly { size: number }[], limits: ArchiveLimits): void {
   const tooBig = (what: string) => new ArchiveError('limit-exceeded', `the changes are too large for one pack (${what})`);
-  if (entriesBeyondFixed + 7 > limits.maxEntries) throw tooBig('too many files');
+  if (entriesBeyondFixed + FIXED_ENTRIES > limits.maxEntries) throw tooBig('too many files');
   let total = 0;
   for (const blob of blobs) {
     if (blob.size > limits.maxEntryBytes) throw tooBig('a media file');
     total += blob.size;
   }
   if (total > limits.maxTotalBytes) throw tooBig('total size');
-  const directory = 46 * (entriesBeyondFixed + 7) + blobs.length * blobPath('0'.repeat(64)).length;
+  const directory = 46 * (entriesBeyondFixed + FIXED_ENTRIES) + blobs.length * blobPath('0'.repeat(64)).length;
   if (directory > limits.maxCentralDirectoryBytes) throw tooBig('too many files');
 }
 

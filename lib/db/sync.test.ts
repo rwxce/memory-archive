@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { openMemoryDb } from './open';
+import { assignPhotos, unassignPhotoLinks, unassignPhotos } from './photo-assign';
+import { importPhotoItems, undoPhotoBatch } from './photos';
 import {
   createConversation,
   createProfile,
@@ -15,7 +17,7 @@ import {
   unlinkConversationProfile,
   updateProfile,
 } from './queries';
-import { BASELINE_SEQ, currentChangeSeq, getDeviceId, getPeer, listPeers, nextChangeSeq, recordReceived, recordSent, stampRows } from './sync';
+import { BASELINE_SEQ, countUnsentChanges, currentChangeSeq, getDeviceId, getPeer, listPeers, nextChangeSeq, recordReceived, recordSent, stampRows } from './sync';
 import type { SqlDb } from './sql';
 
 const NOW = '2026-02-01T12:00:00Z';
@@ -251,6 +253,115 @@ describe('every write to a synced record is stamped above what was already expor
     const before = currentChangeSeq(db);
     expect(() => createProfile(db, { id: ANA, displayName: 'Duplicate', now: NOW })).toThrow();
     expect(currentChangeSeq(db)).toBe(before);
+  });
+});
+
+describe('the photo collection and its assignments are stamped like everything else', () => {
+  const hash = (n: number) => n.toString(16).padStart(2, '0').repeat(32);
+  const PB = uuid(300);
+  const photoItem = (n: number) => ({
+    sha256: hash(n), kind: 'photo' as const, mime: 'image/jpeg', takenAt: '2019-07-01T10:00:00Z', takenOffsetMinutes: null, dateSource: 'sidecar' as const,
+    latitude: null, longitude: null, description: '', album: 'Trip', fileName: `${n}.jpg`,
+  });
+  const addPhotos = (db: SqlDb, ns: number[], batchId = PB) =>
+    importPhotoItems(db, { batchId, source: 'takeout', sourceLabel: 'f.zip', now: NOW, blobs: ns.map((n) => ({ sha256: hash(n), size: 1, mime: null })), items: ns.map(photoItem) });
+
+  test('an import that adds pictures stamps its batch; one that adds nothing writes nothing', async () => {
+    const { db } = await library();
+    const before = currentChangeSeq(db);
+    expect(addPhotos(db, [1, 2]).added).toBe(2);
+    expect(db.all('SELECT seq, changed_by AS c FROM photo_batches')).toEqual([{ seq: before + 1, c: null }]);
+    const after = currentChangeSeq(db);
+    expect(addPhotos(db, [1, 2], uuid(301)).added).toBe(0);
+    expect(currentChangeSeq(db)).toBe(after);
+    expect(db.all('SELECT id FROM photo_batches')).toEqual([{ id: PB }]);
+  });
+
+  test('assigning stamps the new links with one number; repeating it, or assigning nothing new, does not', async () => {
+    const { db } = await library();
+    addPhotos(db, [1, 2]);
+    const before = currentChangeSeq(db);
+    expect(assignPhotos(db, { sha256s: [hash(1), hash(2)], profileIds: [ANA, BEN], now: NOW }).added).toBe(4);
+    expect(new Set(seqs(db, 'photo_profiles'))).toEqual(new Set([before + 1]));
+    expect(db.all('SELECT DISTINCT changed_by AS c FROM photo_profiles')).toEqual([{ c: null }]);
+    const after = currentChangeSeq(db);
+    expect(assignPhotos(db, { sha256s: [hash(1)], profileIds: [ANA], now: LATER })).toMatchObject({ added: 0, alreadyThere: 1 });
+    expect(currentChangeSeq(db)).toBe(after);
+    // a partial repeat stamps only what it added
+    addPhotos(db, [3], uuid(302));
+    assignPhotos(db, { sha256s: [hash(1), hash(3)], profileIds: [ANA], now: LATER });
+    expect(db.all('SELECT sha256, seq FROM photo_profiles WHERE profile_id = ? ORDER BY sha256', [ANA])).toEqual([
+      { sha256: hash(1), seq: before + 1 }, { sha256: hash(2), seq: before + 1 }, { sha256: hash(3), seq: after + 2 }, // after the batch of picture 3 (after + 1)
+    ]);
+  });
+
+  test('a failed assignment stamps nothing', async () => {
+    const { db } = await library();
+    addPhotos(db, [1]);
+    const before = currentChangeSeq(db);
+    expect(() => assignPhotos(db, { sha256s: [hash(1), hash(9)], profileIds: [ANA], now: NOW })).toThrow(/not in the photo collection/);
+    expect(currentChangeSeq(db)).toBe(before);
+    expect(db.all('SELECT * FROM photo_profiles')).toEqual([]);
+  });
+
+  test('unassigning leaves one tombstone per link taken out (scope = profile, key = picture); a no-op leaves none; assigning again clears it', async () => {
+    const { db } = await library();
+    addPhotos(db, [1, 2]);
+    assignPhotos(db, { sha256s: [hash(1), hash(2)], profileIds: [ANA], now: NOW });
+    const before = currentChangeSeq(db);
+    expect(unassignPhotos(db, { sha256s: [hash(1), hash(2), hash(7)], profileId: ANA }).removed).toBe(2);
+    const tombs = db.all<{ kind: string; scope: string; key: string; seq: number; changed_by: string | null }>('SELECT kind, scope, key, seq, changed_by FROM tombstones ORDER BY key');
+    expect(tombs).toEqual([
+      { kind: 'photo-link', scope: ANA, key: hash(1), seq: before + 1, changed_by: null },
+      { kind: 'photo-link', scope: ANA, key: hash(2), seq: before + 1, changed_by: null },
+    ]);
+    expect(unassignPhotos(db, { sha256s: [hash(1)], profileId: ANA }).removed).toBe(0);
+    expect(currentChangeSeq(db)).toBe(before + 1);
+    assignPhotos(db, { sha256s: [hash(1)], profileIds: [ANA], now: LATER });
+    expect(db.all('SELECT key FROM tombstones')).toEqual([{ key: hash(2) }]);
+    expect(seqs(db, 'photo_profiles')[0]).toBeGreaterThan(before + 1);
+  });
+
+  test('unassignPhotoLinks (the undo of an assignment) leaves the same tombstones', async () => {
+    const { db } = await library();
+    addPhotos(db, [1, 2]);
+    const { fresh } = assignPhotos(db, { sha256s: [hash(1), hash(2)], profileIds: [ANA, BEN], now: NOW });
+    const before = currentChangeSeq(db);
+    expect(unassignPhotoLinks(db, { links: fresh! }).removed).toBe(4);
+    expect(db.all('SELECT kind, scope, key FROM tombstones ORDER BY scope, key')).toEqual([
+      { kind: 'photo-link', scope: ANA, key: hash(1) }, { kind: 'photo-link', scope: ANA, key: hash(2) },
+      { kind: 'photo-link', scope: BEN, key: hash(1) }, { kind: 'photo-link', scope: BEN, key: hash(2) },
+    ]);
+    expect(currentChangeSeq(db)).toBe(before + 1);
+    expect(unassignPhotoLinks(db, { links: fresh! }).removed).toBe(0);
+    expect(currentChangeSeq(db)).toBe(before + 1);
+  });
+
+  test('undoing a photo import leaves ONE photo-batch tombstone (scope empty, key = batch); the assignments it drops are implied, not tombstoned', async () => {
+    const { db } = await library();
+    addPhotos(db, [1, 2]);
+    assignPhotos(db, { sha256s: [hash(1)], profileIds: [ANA], now: NOW });
+    db.run("INSERT INTO sync_conflicts (peer_id, kind, scope, key, incoming, incoming_deleted, detected_at) VALUES (?, 'photo-batch', '', ?, '{}', 1, 'd')", [PEER, PB]);
+    const before = currentChangeSeq(db);
+    expect(undoPhotoBatch(db, PB)).toMatchObject({ found: true, removedItems: 2, removedAssignments: 1 });
+    expect(db.all('SELECT kind, scope, key, seq, changed_by AS c FROM tombstones')).toEqual([{ kind: 'photo-batch', scope: '', key: PB, seq: before + 1, c: null }]);
+    expect(db.all('SELECT * FROM sync_conflicts')).toEqual([]); // the offer is settled by doing it
+    expect(undoPhotoBatch(db, PB).found).toBe(false);
+    expect(currentChangeSeq(db)).toBe(before + 1);
+  });
+
+  test('countUnsentChanges counts photo batches and links above the watermark, and not those that came from the peer itself', async () => {
+    const { db } = await library();
+    recordSent(db, { peerId: PEER, upToSeq: currentChangeSeq(db), now: NOW });
+    expect(countUnsentChanges(db)).toMatchObject([{ peerId: PEER, count: 0 }]);
+    addPhotos(db, [1]);
+    assignPhotos(db, { sha256s: [hash(1)], profileIds: [ANA, BEN], now: NOW });
+    expect(countUnsentChanges(db)).toMatchObject([{ peerId: PEER, count: 3 }]); // 1 batch + 2 links
+    db.run('UPDATE photo_profiles SET changed_by = ? WHERE profile_id = ?', [PEER, BEN]);
+    db.run('UPDATE photo_batches SET changed_by = ?', [PEER]);
+    expect(countUnsentChanges(db)).toMatchObject([{ peerId: PEER, count: 1 }]);
+    unassignPhotos(db, { sha256s: [hash(1)], profileId: ANA });
+    expect(countUnsentChanges(db)).toMatchObject([{ peerId: PEER, count: 1 }]); // the removed link is now a tombstone
   });
 });
 

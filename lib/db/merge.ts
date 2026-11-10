@@ -1,4 +1,15 @@
-import type { PackBatchHeader, PackConversation, PackMessage, PackNote, PackNoteTarget, PackProfile, PackTombstone } from '../domain/changes-pack';
+import type {
+  PackBatchHeader,
+  PackConversation,
+  PackMessage,
+  PackNote,
+  PackNoteTarget,
+  PackPhotoBatchHeader,
+  PackPhotoItem,
+  PackPhotoLink,
+  PackProfile,
+  PackTombstone,
+} from '../domain/changes-pack';
 import {
   PackRecordError,
   noteTombstoneKey,
@@ -8,6 +19,9 @@ import {
   parsePackFavorite,
   parsePackMessage,
   parsePackNote,
+  parsePackPhotoBatchHeader,
+  parsePackPhotoItem,
+  parsePackPhotoLink,
   parsePackProfile,
   parsePackTombstone,
 } from '../domain/changes-pack-parse';
@@ -71,6 +85,11 @@ function validate(raw: unknown): MergeChangesPackInput {
       const o = b as { header?: unknown; messages?: unknown };
       return { header: parsePackBatchHeader(o?.header), messages: list(o?.messages, 'messages').map(parsePackMessage) };
     });
+    // A version-1 pack has no photo records: the use case passes empty lists, and an absent field means the same.
+    const photoBatches = list(r.photoBatches ?? [], 'photoBatches').map((b) => {
+      const o = b as { header?: unknown; items?: unknown };
+      return { header: parsePackPhotoBatchHeader(o?.header), items: list(o?.items, 'items').map(parsePackPhotoItem) };
+    });
     return {
       kind: r.kind,
       sourceDeviceId: r.sourceDeviceId,
@@ -86,6 +105,8 @@ function validate(raw: unknown): MergeChangesPackInput {
       favorites: unique(list(r.favorites, 'favorites').map(parsePackFavorite), (f) => `${f.conversationId}/${f.fingerprint}`, 'a favorite'),
       notes: unique(list(r.notes, 'notes').map(parsePackNote), (n) => JSON.stringify(noteTombstoneKey(n.target)), 'a note'),
       tombstones: unique(list(r.tombstones, 'tombstones').map(parsePackTombstone), (t) => `${t.kind}/${t.scope}/${t.key}`, 'a deletion'),
+      photoBatches: unique(photoBatches, (b) => b.header.id, 'a photo import'),
+      photoLinks: unique(list(r.photoLinks ?? [], 'photoLinks').map(parsePackPhotoLink), (l) => `${l.profileId}/${l.sha256}`, 'a photo assignment'),
     };
   } catch (error) {
     if (error instanceof PackRecordError) throw invalid(error.message);
@@ -264,7 +285,7 @@ export function insertNote(db: SqlDb, target: PackNoteTarget, body: string, crea
 export function storeConflict(
   db: SqlDb,
   peerId: string,
-  kind: 'profile' | 'conversation' | 'note' | 'batch',
+  kind: 'profile' | 'conversation' | 'note' | 'batch' | 'photo-batch',
   scope: string,
   key: string,
   incoming: PackProfile | PackConversation | PackNote | PackTombstone,
@@ -304,6 +325,9 @@ const emptyCounts = (): MergeCounts => ({
   messages: { added: 0, skipped: 0 },
   favorites: { added: 0, removed: 0 },
   notes: { added: 0, updated: 0, removed: 0 },
+  photoBatches: 0,
+  photoItems: { added: 0, skipped: 0 },
+  photoLinks: { added: 0, removed: 0, dropped: 0 },
 });
 
 interface Ctx {
@@ -371,7 +395,9 @@ export function mergeChangesPack(db: SqlDb, raw: unknown): MergeChangesPackResul
       // Add wins: the favorite exists now, so a deletion of ours (if any) is superseded.
       clearTombstone(db, 'favorite', f.conversationId, f.fingerprint);
     }
+    for (const b of input.photoBatches) mergePhotoBatch(ctx, b.header, b.items);
     for (const n of input.notes) mergeNote(ctx, n);
+    for (const l of input.photoLinks) mergePhotoLink(ctx, l);
     for (const t of input.tombstones) mergeTombstone(ctx, t);
 
     // The watermark moves with the data, or not at all. A pack older than what was merged leaves it
@@ -499,6 +525,65 @@ function mergeBatch(ctx: Ctx, header: PackBatchHeader, messages: PackMessage[]):
   ctx.counts.batches++;
 }
 
+function mergePhotoBatch(ctx: Ctx, header: PackPhotoBatchHeader, items: PackPhotoItem[]): void {
+  const { db } = ctx;
+  if (db.all('SELECT 1 FROM photo_batches WHERE id = ?', [header.id]).length > 0) return;
+  // We undid this import ourselves: it stays undone.
+  if (db.all("SELECT 1 FROM tombstones WHERE kind = 'photo-batch' AND key = ?", [header.id]).length > 0) return;
+  db.run('INSERT INTO photo_batches (id, source, source_label, created_at) VALUES (?, ?, ?, ?)', [
+    header.id, header.source, header.sourceLabel, header.createdAt,
+  ]);
+  const checkedMedia = new Set<string>();
+  let added = 0;
+  for (const it of items) {
+    if (!checkedMedia.has(it.sha256)) {
+      need(blobExists(db, it.sha256), 'a media file');
+      checkedMedia.add(it.sha256);
+    }
+    // The idempotency key of the schema: the same picture in the same album of the same source is one item.
+    added += db.run(
+      `INSERT OR IGNORE INTO photo_items
+         (batch_id, sha256, kind, mime, taken_at, taken_offset_minutes, date_source, latitude, longitude, description, source, album, file_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        header.id, it.sha256, it.kind, it.mime, it.takenAt, it.takenOffsetMinutes, it.dateSource, it.latitude, it.longitude,
+        it.description, header.source, it.album, it.fileName,
+      ],
+    );
+  }
+  ctx.counts.photoItems.skipped += items.length - added;
+  if (added === 0) {
+    // Nothing new: no empty history entry (and running it again is still a no-op).
+    db.run('DELETE FROM photo_batches WHERE id = ?', [header.id]);
+    return;
+  }
+  db.run('UPDATE photo_batches SET added_count = ?, skipped_count = ? WHERE id = ?', [added, items.length - added, header.id]);
+  stampMergedRows(db, 'photo_batches', ctx.peer, 'id = ?', [header.id]);
+  ctx.counts.photoItems.added += added;
+  ctx.counts.photoBatches++;
+}
+
+/** A set, add wins (like favorites): a picture assigned there is assigned here, whatever we removed meanwhile. */
+function mergePhotoLink(ctx: Ctx, incoming: PackPhotoLink): void {
+  const { db } = ctx;
+  if (!sChanged(ctx, incoming.seq)) return;
+  need(profileExists(db, incoming.profileId), 'a profile');
+  // A link never exists without an item: a picture this device does not hold cannot be assigned here.
+  if (db.all('SELECT 1 FROM photo_items WHERE sha256 = ? LIMIT 1', [incoming.sha256]).length === 0) {
+    ctx.counts.photoLinks.dropped++;
+    return;
+  }
+  const added = db.run('INSERT OR IGNORE INTO photo_profiles (sha256, profile_id, created_at) VALUES (?, ?, ?)', [
+    incoming.sha256, incoming.profileId, incoming.createdAt,
+  ]);
+  if (added > 0) {
+    stampMergedRows(db, 'photo_profiles', ctx.peer, 'sha256 = ? AND profile_id = ?', [incoming.sha256, incoming.profileId]);
+    ctx.counts.photoLinks.added++;
+  }
+  // Add wins: the link exists now, so a deletion of ours (if any) is superseded.
+  clearTombstone(db, 'photo-link', incoming.profileId, incoming.sha256);
+}
+
 function mergeNote(ctx: Ctx, incoming: PackNote): void {
   const { db } = ctx;
   const { scope, key } = noteTombstoneKey(incoming.target);
@@ -584,8 +669,23 @@ function mergeTombstone(ctx: Ctx, t: PackTombstone): void {
     return;
   }
 
-  // An undone import is only offered; nothing here is removed. If we undid it too, there is nothing to offer.
+  if (t.kind === 'photo-link') {
+    const [local] = db.all<{ seq: number; changedBy: string | null }>(
+      'SELECT seq, changed_by AS changedBy FROM photo_profiles WHERE profile_id = ? AND sha256 = ?',
+      [t.scope, t.key],
+    );
+    if (local) {
+      // Assigned here since the source last saw our data: add wins, nothing is lost.
+      if (weChanged(ctx, local)) return;
+      db.run('DELETE FROM photo_profiles WHERE profile_id = ? AND sha256 = ?', [t.scope, t.key]);
+      ctx.counts.photoLinks.removed++;
+    } else if (hasTombstone()) return;
+    recordMergedTombstone(db, ctx.peer, 'photo-link', t.scope, t.key, t.deletedAt);
+    return;
+  }
+
+  // An undone import (messages or photos) is only offered; nothing here is removed. If we undid it too, there is nothing to offer.
   if (hasTombstone()) return;
-  storeConflict(db, ctx.peer, 'batch', t.scope, t.key, t, true, ctx.now);
+  storeConflict(db, ctx.peer, t.kind === 'photo-batch' ? 'photo-batch' : 'batch', t.scope, t.key, t, true, ctx.now);
   ctx.batchOffers++;
 }

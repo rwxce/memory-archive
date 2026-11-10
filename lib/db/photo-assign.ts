@@ -12,6 +12,7 @@ import {
 import { DbError } from './errors';
 import { PHOTO_PAGE_MAX } from './photos';
 import { transaction, type SqlDb, type SqlValue } from './sql';
+import { clearTombstone, recordTombstones, stampRows } from './sync';
 
 /**
  * Pictures and the profiles the person assigned them to (`docs/formats/photo-library.md`).
@@ -314,11 +315,18 @@ export function assignPhotos(db: SqlDb, input: AssignPhotosInput): AssignPhotosR
     for (const profileId of profileIds) {
       const inserted: string[] = [];
       for (const sha256 of sha256s) {
-        if (db.run('INSERT OR IGNORE INTO photo_profiles (sha256, profile_id, created_at) VALUES (?, ?, ?)', [sha256, profileId, params.now as string]) > 0) inserted.push(sha256);
+        // New rows start at seq 0 (the column default) and are stamped together below.
+        if (db.run('INSERT OR IGNORE INTO photo_profiles (sha256, profile_id, created_at) VALUES (?, ?, ?)', [sha256, profileId, params.now as string]) > 0) {
+          inserted.push(sha256);
+          clearTombstone(db, 'photo-link', profileId, sha256);
+        }
       }
       added += inserted.length;
       if (inserted.length > 0) fresh.push({ profileId, sha256s: inserted });
     }
+    // Only a link that was really inserted is a change: a repeat writes nothing and takes no change number.
+    // Every persisted row has seq >= 1, so seq 0 is exactly this call's inserts.
+    if (added > 0) stampRows(db, 'photo_profiles', 'seq = 0', []);
     return { added, alreadyThere: sha256s.length * profileIds.length - added, fresh: added > PHOTO_UNDO_MAX ? null : fresh };
   });
 }
@@ -336,11 +344,15 @@ export function unassignPhotos(db: SqlDb, input: { sha256s: string[]; profileId:
   if (!isUuid(params.profileId)) invalid('profile id must be a UUID');
   return transaction(db, () => {
     if (db.all('SELECT 1 FROM profiles WHERE id = ?', [params.profileId as string]).length === 0) throw new DbError('not-found', 'a profile does not exist');
-    let removed = 0;
+    const gone: { scope: string; key: string }[] = [];
     for (const sha256 of sha256s) {
-      removed += db.run('DELETE FROM photo_profiles WHERE sha256 = ? AND profile_id = ?', [sha256, params.profileId as string]);
+      if (db.run('DELETE FROM photo_profiles WHERE sha256 = ? AND profile_id = ?', [sha256, params.profileId as string]) > 0) {
+        gone.push({ scope: params.profileId as string, key: sha256 });
+      }
     }
-    return { removed };
+    // Each link taken out leaves a tombstone so the removal can travel; a link that was not there leaves none.
+    recordTombstones(db, 'photo-link', gone);
+    return { removed: gone.length };
   });
 }
 
@@ -363,10 +375,13 @@ export function unassignPhotoLinks(db: SqlDb, input: { links: PhotoProfileLinks[
     return { profileId: link.profileId as string, sha256s };
   });
   return transaction(db, () => {
-    let removed = 0;
+    const gone: { scope: string; key: string }[] = [];
     for (const { profileId, sha256s } of checked) {
-      for (const sha256 of sha256s) removed += db.run('DELETE FROM photo_profiles WHERE sha256 = ? AND profile_id = ?', [sha256, profileId]);
+      for (const sha256 of sha256s) {
+        if (db.run('DELETE FROM photo_profiles WHERE sha256 = ? AND profile_id = ?', [sha256, profileId]) > 0) gone.push({ scope: profileId, key: sha256 });
+      }
     }
-    return { removed };
+    recordTombstones(db, 'photo-link', gone);
+    return { removed: gone.length };
   });
 }

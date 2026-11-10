@@ -83,8 +83,8 @@ export function SyncConflictItem({
   const hintId = useId();
   const headingId = `sync-conflict-${conflict.id}`;
   const code = shortDeviceId(conflict.peerId);
-  const batch = conflict.kind === 'batch';
-  const heading = batch ? t('heading.batch', { code }) : conflict.kind === 'note' ? (conflict.noteOn ? t('heading.noteOn', { name: conflict.noteOn }) : t('heading.note')) : t(`heading.${conflict.kind}`, { name: nameOf(conflict) || t('untitled') });
+  const batch = conflict.kind === 'batch' || conflict.kind === 'photo-batch';
+  const heading = conflict.kind === 'photo-batch' ? t('heading.photoBatch', { code }) : batch ? t('heading.batch', { code }) : conflict.kind === 'note' ? (conflict.noteOn ? t('heading.noteOn', { name: conflict.noteOn }) : t('heading.note')) : t(`heading.${conflict.kind}`, { name: nameOf(conflict) || t('untitled') });
 
   const deleted = conflict.incomingDeleted;
   const noLocal = conflict.local === null;
