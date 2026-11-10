@@ -4,6 +4,7 @@ import { renderConversationHtml } from './html';
 import { renderExportJson } from './json';
 import { renderConversationMarkdown } from './markdown';
 import { folderNames, numberedName } from './names';
+import { renderPhotosHtml, renderPhotosMarkdown } from './photos';
 
 /**
  * Lays out the ZIP of a non-viewer export (docs/formats/export-package.md): which text files exist,
@@ -57,6 +58,15 @@ export async function layoutExport(format: TextExportFormat, split: ExportSplit,
         const text =
           format === 'html' ? await renderConversationHtml(conversation, group.data, lang) : await renderConversationMarkdown(conversation, group.data, lang);
         files.push({ path, text });
+      }
+      // One photos page per profile that has assigned photos: `photos-<slug>.<ext>`. Conversation
+      // names start with a digit, so the two sets cannot collide.
+      const withPhotos = group.data.profiles.filter((p) => (p.photos?.length ?? 0) > 0);
+      const slugs = folderNames(withPhotos.map((p) => p.displayName));
+      for (const [n, profile] of withPhotos.entries()) {
+        const photos = profile.photos ?? [];
+        const path = `${prefix}photos-${slugs[n]}.${EXTENSION[format]}`;
+        files.push({ path, text: format === 'html' ? renderPhotosHtml(profile, photos, lang) : renderPhotosMarkdown(profile, photos, lang) });
       }
     }
     for (const m of group.data.media) media.push({ path: `${prefix}${m.path}`, sha256: m.sha256, size: m.size });

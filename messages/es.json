@@ -439,6 +439,7 @@
     "menuLabel": "Más opciones para {name}",
     "menuNote": "Nota sobre esta persona",
     "menuSearch": "Buscar en {name}",
+    "menuExport": "Exportar una copia",
     "since": "desde {year}",
     "statMessages": "mensajes",
     "statPictures": "fotos y vídeos",
@@ -1105,6 +1106,8 @@
         "perProfile": "Una carpeta para cada persona"
       },
       "peopleLegend": "De quién son las conversaciones",
+      "selectAll": "Seleccionar todos",
+      "selectNone": "Quitar la selección",
       "archivedTag": "archivada",
       "noPeople": "Todavía no hay personas en el archivo.",
       "noPeopleSelected": "Elige al menos una persona.",

@@ -149,7 +149,8 @@ describe('PersonScreen', () => {
     expect(menuItems(view)).toHaveLength(0);
     await click(menuButton(view));
     expect(menuButton(view).getAttribute('aria-expanded')).toBe('true');
-    expect(menuItems(view).map((i) => i.textContent?.trim())).toEqual(['Edit Ana', 'Archive Ana', en.person.menuNote, 'Search in Ana', en.person.importsLink]);
+    expect(menuItems(view).map((i) => i.textContent?.trim())).toEqual(['Edit Ana', 'Archive Ana', en.person.menuNote, 'Search in Ana', en.person.menuExport, en.person.importsLink]);
+    expect(menuItems(view).find((i) => i.textContent?.trim() === en.person.menuExport)!.getAttribute('href')).toMatch(/^\/backup\?person=[0-9a-f-]{36}#viewer-export$/);
     expect(menuItems(view).at(-1)!.getAttribute('href')).toMatch(/^\/import\/history\?person=/);
   });
 

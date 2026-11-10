@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Outcome } from '@/components/backup-check-cards';
 import { Eyebrow } from '@/components/eyebrow';
@@ -27,7 +28,9 @@ export function ViewerExportCard() {
   const noteId = useId();
   const formatName = useId();
   const splitName = useId();
-  const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
+  const personParam = useSearchParams()?.get('person') ?? null;
+  // `null` = the default choice; once the person touches the list it holds exactly the ids that are ticked.
+  const [picked, setPicked] = useState<ReadonlySet<string> | null>(null);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [includeMedia, setIncludeMedia] = useState(true);
@@ -41,18 +44,22 @@ export function ViewerExportCard() {
   }, []);
 
   const everyone = people.status === 'ready' ? [...people.people.active, ...people.people.archived] : [];
-  const chosen = everyone.filter((person) => !excluded.has(person.id));
+  // Arriving from a person's menu (`?person=<id>`) starts with only that person; an unknown id changes nothing.
+  const preselected = personParam && everyone.some((person) => person.id === personParam) ? new Set([personParam]) : null;
+  const ticked = picked ?? preselected;
+  const chosen = ticked ? everyone.filter((person) => ticked.has(person.id)) : everyone;
+  const allChosen = chosen.length === everyone.length;
   const working = viewer.state.status === 'working';
   const none = people.status === 'ready' && chosen.length === 0;
   const canSplit = format !== 'viewer' && chosen.length > 1;
   const unavailable = people.status !== 'ready' || none || working;
-  const toggle = (id: string, on: boolean) =>
-    setExcluded((current) => {
-      const next = new Set(current);
-      if (on) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggle = (id: string, on: boolean) => {
+    const next = new Set(chosen.map((person) => person.id));
+    if (on) next.add(id);
+    else next.delete(id);
+    setPicked(next);
+  };
+  const toggleAll = () => setPicked(allChosen ? new Set() : new Set(everyone.map((person) => person.id)));
 
   return (
     <SectionCard id="viewer-export" className="scroll-mt-4 gap-4 p-[18px]" aria-labelledby="viewer-export-title" data-testid="viewer-export">
@@ -80,10 +87,23 @@ export function ViewerExportCard() {
 
       <fieldset className="flex flex-col gap-1" aria-describedby={none ? noteId : undefined}>
         <legend className="mb-1 text-[15px] font-medium">{t('peopleLegend')}</legend>
+        {everyone.length > 1 && (
+          <div>
+            <button
+              type="button"
+              data-testid="viewer-export-select-all"
+              disabled={working}
+              onClick={toggleAll}
+              className="text-primary focus-visible:ring-ring/50 inline-flex min-h-11 items-center rounded-xl px-1 text-sm font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-[3px] disabled:opacity-50"
+            >
+              {allChosen ? t('selectNone') : t('selectAll')}
+            </button>
+          </div>
+        )}
         {people.status === 'ready' && everyone.length === 0 && <p className="text-t2 text-sm">{t('noPeople')}</p>}
         {everyone.map((person) => (
           <label key={person.id} className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px]">
-            <input type="checkbox" className={checkClass} disabled={working} checked={!excluded.has(person.id)} onChange={(event) => toggle(person.id, event.target.checked)} />
+            <input type="checkbox" className={checkClass} disabled={working} checked={chosen.some((c) => c.id === person.id)} onChange={(event) => toggle(person.id, event.target.checked)} />
             <span className="min-w-0 break-words">
               {person.displayName}
               {person.archivedAt ? <span className="text-t2"> ({t('archivedTag')})</span> : null}

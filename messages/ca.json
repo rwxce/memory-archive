@@ -439,6 +439,7 @@
     "menuLabel": "Més opcions per a {name}",
     "menuNote": "Nota sobre aquesta persona",
     "menuSearch": "Cerca a {name}",
+    "menuExport": "Exporta una còpia",
     "since": "des del {year}",
     "statMessages": "missatges",
     "statPictures": "fotos i vídeos",
@@ -1105,6 +1106,8 @@
         "perProfile": "Una carpeta per a cada persona"
       },
       "peopleLegend": "De qui són les converses",
+      "selectAll": "Selecciona-ho tot",
+      "selectNone": "Treu la selecció",
       "archivedTag": "arxivada",
       "noPeople": "Encara no hi ha persones a l'arxiu.",
       "noPeopleSelected": "Tria almenys una persona.",

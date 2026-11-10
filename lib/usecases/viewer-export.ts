@@ -1,9 +1,11 @@
 import { DbError } from '../db/errors';
-import { buildViewerData, type ViewerSourceConversation } from '../exporters/viewer/build';
+import { photoDisplayDate, type PhotoCursor } from '../domain/photo';
+import { buildViewerData, type ViewerSourceConversation, type ViewerSourcePhoto } from '../exporters/viewer/build';
 import type { ViewerData, ViewerMedia, ViewerProfile } from '../exporters/viewer/format';
 import type { BlobStore } from '../storage/blob-store';
 import { blobSize } from './conversation-media';
 import { WINDOW_SIZE } from './conversation-view';
+import { listProfilePhotos } from './photo-assign';
 import { nowOf, type LibraryDeps } from './profiles';
 
 /**
@@ -22,7 +24,10 @@ export interface ViewerSelection {
   /** Local dates `YYYY-MM-DD`, inclusive; absent or null = open. */
   from?: string | null;
   to?: string | null;
-  /** Include the media files; without it the messages keep their file names only. */
+  /**
+   * Include the media files; without it the messages keep their file names only and the profiles'
+   * assigned photos are left out.
+   */
   includeMedia: boolean;
 }
 
@@ -30,7 +35,7 @@ export interface ViewerExport {
   data: ViewerData;
   /** Files to copy, from the blob store by `sha256` to `path` (same list as `data.media`). */
   media: ViewerMedia[];
-  /** Distinct files the messages refer to that are not in the blob store (left out, never an error). */
+  /** Distinct files the messages and the assigned photos refer to that are not in the blob store (left out, never an error). */
   missingMedia: number;
 }
 
@@ -83,6 +88,17 @@ export async function buildViewerExport(
     });
   }
 
+  // The pictures the person assigned to each selected profile (docs/formats/viewer-data.md).
+  let photos: Map<string, ViewerSourcePhoto[]> | undefined;
+  if (selection.includeMedia) {
+    photos = new Map();
+    for (const p of profiles) {
+      const list = await readProfilePhotos(deps, p.id, from, to);
+      for (const ph of list) hashes.add(ph.sha256);
+      photos.set(p.id, list);
+    }
+  }
+
   const availableMedia = new Map<string, number>();
   let missingMedia = 0;
   if (selection.includeMedia) {
@@ -93,7 +109,7 @@ export async function buildViewerExport(
     }
   }
 
-  const data = buildViewerData({ now: nowOf(deps), from, to, includeMedia: selection.includeMedia, profiles, conversations, availableMedia });
+  const data = buildViewerData({ now: nowOf(deps), from, to, includeMedia: selection.includeMedia, profiles, conversations, availableMedia, photos });
   return { data, media: data.media, missingMedia };
 }
 
@@ -121,4 +137,39 @@ async function readMessages(deps: LibraryDeps, conversationId: string, from: str
     if (window.length < WINDOW_SIZE) return out;
     offset += window.length;
   }
+}
+
+/** Pictures per page when reading a profile's photos (the most `listPhotoPictures` allows). */
+const PHOTO_PAGE = 500;
+
+/**
+ * The profile's assigned pictures within `from`..`to`, in the grid's order (newest first, undated
+ * last). The day is `photoDisplayDate`'s, read in UTC unless the picture carries the camera's own
+ * clock, so the result does not depend on the exporting device's time zone. A picture with no date
+ * is kept only when no range is set. Only metadata is held; the bytes are streamed by the writer.
+ */
+async function readProfilePhotos(deps: LibraryDeps, profileId: string, from: string | null, to: string | null): Promise<ViewerSourcePhoto[]> {
+  const out: ViewerSourcePhoto[] = [];
+  let cursor: PhotoCursor | null = null;
+  do {
+    const page = await listProfilePhotos(deps, profileId, { cursor, limit: PHOTO_PAGE });
+    for (const pic of page.pictures) {
+      if (from !== null || to !== null) {
+        const day = photoDisplayDate(pic)?.day;
+        if (day === undefined || (from !== null && day < from) || (to !== null && day > to)) continue;
+      }
+      out.push({
+        sha256: pic.sha256,
+        kind: pic.kind,
+        mime: pic.mime,
+        takenAt: pic.takenAt,
+        takenOffsetMinutes: pic.takenOffsetMinutes,
+        dateSource: pic.dateSource,
+        fileName: pic.fileName,
+        albums: pic.albums,
+      });
+    }
+    cursor = page.nextCursor;
+  } while (cursor !== null);
+  return out;
 }
