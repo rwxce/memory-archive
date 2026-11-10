@@ -21,6 +21,7 @@ The same `ViewerSelection` as the viewer (`profileIds`, `from`, `to`, `includeMe
 
 ```
 <name>.html | <name>.md        one per conversation (html, markdown)
+photos-<profile-slug>.html | .md  one per profile with assigned photos (html, markdown)
 memory-archive.json            the whole group (json)
 media/<sha256>.<ext>           stored entries; absent when includeMedia is false
 ```
@@ -33,6 +34,8 @@ With `perProfile` every path above is prefixed by `<profile-slug>/`.
 - Names are built only from fixed words, positions and `slug`: lower-case `[a-z0-9-]`, accents
   folded, at most 40 characters, with a fallback (`chat`, `profile`). A title or profile name never
   contributes a separator, `..`, a drive letter or markup. Equal profile slugs get `-2`, `-3`, ...
+- `photos-<slug>`: the slug of the profile name, unique per export (`-2`, `-3`, ...); conversation
+  names start with a digit, so they cannot collide. A profile with only photos still exports.
 - A profile or conversation with no message in the range gets no files, except `json`, which always
   writes the envelope. If an `html` / `markdown` export would be empty, it fails with
   `ViewerPackageError` `nothing-to-export` instead of an empty ZIP.
@@ -47,6 +50,14 @@ With `perProfile` every path above is prefixed by `<profile-slug>/`.
 - **markdown**: one file per conversation from the legacy renderer (`legacy/md.ts`): day sections;
   headings, lists, brackets, `*`, `_`, backticks, `<` and `>` in chat text are escaped; the title is
   forced onto one line; link targets are `http(s)` or `media/<name>` only.
+
+- **Assigned photos** (`viewer-data.md`, Photos; same selection rules: media on, date range, undated
+  only without a range): `json` has them in the envelope; `html` / `markdown` write the
+  per-person photos page (`export/photos.ts`): a grid of `<img>` / `<video>` (html, same CSP as the
+  transcripts minus scripts) or a list of links with `![]()` for photos (markdown), each with its file
+  name, date (`≈` when the date is a guess) and albums, all escaped, linking `media/<sha256>.<ext>`
+  only. Their bytes are `media/` entries like chat media; with `perProfile` each folder has its own
+  photos page and copies.
 
 Both renderers receive the conversation through `export/messages.ts`, which maps viewer data to the
 legacy `Message[]` and media map. Their labels (day headings, `<html lang>`, search placeholder,

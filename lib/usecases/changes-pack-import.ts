@@ -8,10 +8,13 @@ import {
   parsePackFavorite,
   parsePackMessage,
   parsePackNote,
+  parsePackPhotoBatchHeader,
+  parsePackPhotoItem,
+  parsePackPhotoLink,
   parsePackProfile,
   parsePackTombstone,
 } from '../domain/changes-pack-parse';
-import type { PackBlob, PackMessage } from '../domain/changes-pack';
+import type { PackBlob, PackMessage, PackPhotoItem } from '../domain/changes-pack';
 import type { MergeChangesPackInput, MergeCounts, MergeRefusal, SyncPeer } from '../domain/sync';
 import { isEncryptedBackup, openBackupBlob, type CryptoProgress } from '../exporters/archive/encrypt';
 import { ArchiveError, DEFAULT_LIMITS, type ArchiveLimits } from '../exporters/archive/format';
@@ -151,6 +154,8 @@ async function importUnguarded(deps: ProfileDeps, file: Blob, options: ImportCha
   const favorites = await readRecords(zip, opened, 'favorites', parsePackFavorite, options.signal);
   const notes = await readRecords(zip, opened, 'notes', parsePackNote, options.signal);
   const tombstones = await readRecords(zip, opened, 'tombstones', parsePackTombstone, options.signal);
+  // A version-1 pack has no photo-links file (and no photo batches): nothing to read, nothing to merge.
+  const photoLinks = opened.manifest.formatVersion >= 2 ? await readRecords(zip, opened, 'photo-links', parsePackPhotoLink, options.signal) : [];
   const batches: MergeChangesPackInput['batches'] = [];
   let messageCount = 0;
   for (const item of manifest.entries) {
@@ -172,15 +177,40 @@ async function importUnguarded(deps: ProfileDeps, file: Blob, options: ImportCha
     messageCount += messages.length;
     batches.push({ header, messages });
   }
+  const photoBatches: MergeChangesPackInput['photoBatches'] = [];
+  let photoItemCount = 0;
+  for (const item of manifest.entries) {
+    const shape = classifyPackPath(item.path)!;
+    if (shape.kind !== 'photo') continue;
+    let header: ReturnType<typeof parsePackPhotoBatchHeader> | undefined;
+    const items: PackPhotoItem[] = [];
+    try {
+      for await (const line of readPackLines(zip, opened, item.path, options.signal)) {
+        if (header === undefined) {
+          header = parsePackPhotoBatchHeader(line);
+          if (header.id !== shape.id) throw new PackRecordError('invalid changes pack record: a photo file names another batch');
+        } else items.push(parsePackPhotoItem(line));
+      }
+    } catch (error) {
+      broken(error);
+    }
+    if (header === undefined) throw new ArchiveError('integrity', 'a changes pack photo file is empty');
+    photoItemCount += items.length;
+    photoBatches.push({ header, items });
+  }
   const found: ChangesPackCounts = {
     profiles: profiles.length, conversations: conversations.length, batches: batches.length, messages: messageCount,
     favorites: favorites.length, notes: notes.length, tombstones: tombstones.length, blobs: blobs.length,
+    photoBatches: photoBatches.length, photoItems: photoItemCount, photoLinks: photoLinks.length,
   };
   for (const name of Object.keys(found) as (keyof ChangesPackCounts)[]) {
     if (found[name] !== manifest.counts[name]) throw new ArchiveError('integrity', 'the changes pack does not hold what its manifest counts');
   }
   // A record cut after `upTo` cannot be in a pack that says it ends there: the watermark would be a lie.
-  const seqs = [...profiles, ...conversations, ...favorites, ...notes, ...tombstones, ...batches.map((b) => b.header)].map((r) => r.seq);
+  const seqs = [
+    ...profiles, ...conversations, ...favorites, ...notes, ...tombstones, ...photoLinks,
+    ...batches.map((b) => b.header), ...photoBatches.map((b) => b.header),
+  ].map((r) => r.seq);
   if (seqs.some((seq) => seq > manifest.upTo)) throw new ArchiveError('integrity', 'the changes pack holds changes newer than it says it covers');
   // The blob records and the files under blobs/ are the same set, with the sizes the records name.
   const listed = new Map<string, PackBlob>(blobs.map((b) => [b.sha256, b]));
@@ -223,7 +253,7 @@ async function importUnguarded(deps: ProfileDeps, file: Blob, options: ImportCha
     aborted();
     options.onProgress?.({ phase: 'finishing' });
     const result = await deps.client.call('mergeChangesPack', {
-      ...address, now: nowOf(deps), blobs, profiles, conversations, batches, favorites, notes, tombstones,
+      ...address, now: nowOf(deps), blobs, profiles, conversations, batches, favorites, notes, tombstones, photoBatches, photoLinks,
     });
     // Raced with another change of identity or watermark since the early check; the catch removes the files.
     if (result.refused !== null) throw new ChangesPackMergeError(result.refused, REFUSALS[result.refused]);

@@ -3,6 +3,7 @@ import { DbError } from '../db/errors';
 import { withArchiveGuard } from './archive-guard';
 import { listConversations } from './conversations';
 import { deleteBlobs, undoImportBatch } from './import';
+import { undoPhotoImport } from './photo-library';
 import { listProfiles, nowOf, type LibraryDeps, type ProfileDeps } from './profiles';
 
 /*
@@ -29,7 +30,7 @@ export interface ResolveSyncConflictResult {
  * Settles a conflict as an ordinary local edit (it travels to the other device as a normal change):
  * `mine` keeps the active record, `theirs` takes the other device's, `both` (notes only) keeps both
  * texts. An offered import undo is accepted with `theirs`, which runs the normal undo here (removing
- * those messages, and the media nothing else uses) and then closes the offer, or dismissed with
+ * those messages, or those pictures and their assignments, and the media nothing else uses) and then closes the offer, or dismissed with
  * `mine`; if the import is no longer here there is nothing to remove and the offer just closes (`undone: false`).
  * `recordGone`: `theirs` for a person or conversation that was removed here meanwhile and could not be
  * brought back; the conflict is closed and nothing was applied.
@@ -46,8 +47,9 @@ export async function resolveSyncConflict(
 ): Promise<ResolveSyncConflictResult> {
   const conflict = (await listSyncConflicts(deps)).find((c) => c.id === id);
   if (conflict && (conflict.key !== expected.key || conflict.detectedAt !== expected.detectedAt)) throw new DbError('not-found', 'conflict not found');
-  if (conflict?.kind === 'batch' && choice === 'theirs') {
-    const undone = conflict.matched ? (await undoImportBatch(deps, conflict.key)).found : false;
+  if ((conflict?.kind === 'batch' || conflict?.kind === 'photo-batch') && choice === 'theirs') {
+    const undo = conflict.kind === 'batch' ? undoImportBatch : undoPhotoImport;
+    const undone = conflict.matched ? (await undo(deps, conflict.key)).found : false;
     // The undo already closed the offer; closing it again is only for an offer whose import is gone.
     await deps.client.call('resolveSyncConflict', { id, choice: 'mine', now: nowOf(deps), expected }).catch((error: unknown) => {
       if (!(error instanceof DbError && error.code === 'not-found')) throw error;

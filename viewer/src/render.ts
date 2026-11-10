@@ -1,5 +1,5 @@
 import { h } from './dom';
-import type { ViewerMessage } from '../../lib/exporters/viewer/format';
+import type { ViewerMessage, ViewerPhoto } from '../../lib/exporters/viewer/format';
 import type { Translate } from './strings';
 import { type Range, findRanges, splitLinks } from './text';
 
@@ -134,4 +134,26 @@ export function renderMessage(ctx: RenderContext, message: ViewerMessage, index:
     el.append(h(doc, 'time', { class: 'time', text: timeOf(message.sentAt), attrs: { datetime: message.sentAt } }));
   }
   return el;
+}
+
+/**
+ * One tile of a person's photo grid. File name and albums are untrusted: only `alt`, `title`,
+ * `aria-label` and text nodes. A picture the browser cannot show (HEIC, ...) becomes a link with the
+ * file name; a video loads nothing until it is played.
+ */
+export function renderPhotoTile(doc: Document, t: Translate, photo: ViewerPhoto, dateLabel: string): HTMLElement {
+  const label = photo.fileName || t('attachment');
+  const title = dateLabel ? `${label} · ${dateLabel}` : label;
+  const li = h(doc, 'li', { class: `photo photo-${photo.kind}` });
+  if (photo.kind === 'video') {
+    li.append(h(doc, 'video', { attrs: { src: photo.path, controls: true, preload: 'none', 'aria-label': label } }));
+    li.append(h(doc, 'a', { class: 'file', text: `${t('photoVideo')}: ${label}`, attrs: { href: photo.path, target: '_blank', rel: 'noopener noreferrer', title: t('openFile') } }));
+  } else {
+    const img = h(doc, 'img', { attrs: { src: photo.path, alt: label, loading: 'lazy', decoding: 'async' } });
+    const a = h(doc, 'a', { attrs: { href: photo.path, target: '_blank', rel: 'noopener noreferrer', title } }, [img]);
+    img.addEventListener('error', () => a.replaceChildren(h(doc, 'span', { class: 'file', text: label })));
+    li.append(a);
+  }
+  if (dateLabel) li.append(h(doc, 'p', { class: 'muted small', text: dateLabel }));
+  return li;
 }

@@ -7,6 +7,7 @@ import { exportArchive, restoreArchiveIntoEmptyLibrary } from './archive';
 import {
   assignPhotos,
   countPhotoPictures,
+  countProfilePhotos,
   listPhotoMonths,
   listPhotoPictures,
   listProfilePhotos,
@@ -118,6 +119,8 @@ describe('assigning through the use cases', () => {
       fresh: [{ profileId: bru, sha256s: [hash(2)] }],
     });
     expect(await countPhotoPictures(lib.deps)).toEqual({ pictures: 3, unassigned: 1, items: 3 });
+    expect(await countProfilePhotos(lib.deps, ana)).toBe(2);
+    expect(await countProfilePhotos(lib.deps, bru)).toBe(1);
     expect((await listProfilePhotos(lib.deps, ana, { limit: 10 })).pictures.map((p) => p.sha256)).toEqual([hash(1), hash(2)]);
     expect((await listProfilePhotos(lib.deps, bru, { limit: 10 })).pictures.map((p) => p.sha256)).toEqual([hash(2)]);
     expect((await listPhotoPictures(lib.deps, { limit: 10, scope: { show: 'unassigned' } })).pictures.map((p) => p.sha256)).toEqual([hash(3)]);

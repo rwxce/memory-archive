@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PhotoCounts, PhotoCursor, PhotoPicture, PhotoScope } from '@/lib/domain/photo';
-import { countPhotoPictures, listPhotoPictures } from '@/lib/usecases/photo-assign';
+import { countPhotoPictures, countProfilePhotos, listPhotoPictures } from '@/lib/usecases/photo-assign';
 import { useLibraryInternals } from './use-library';
 
 export const PHOTO_FILTERS = ['unassigned', 'assigned', 'all'] as const;
@@ -11,7 +11,8 @@ export type PhotoFilter = (typeof PHOTO_FILTERS)[number];
 /** Pictures read per page. */
 export const PHOTO_PAGE_SIZE = 120;
 
-export const scopeOf = (filter: PhotoFilter): PhotoScope => ({ show: filter });
+/** `profileId` narrows `assigned` to the pictures of one profile (a person's own page). */
+export const scopeOf = (filter: PhotoFilter, profileId?: string): PhotoScope => (profileId ? { show: 'assigned', profileId } : { show: filter });
 
 export interface PhotoGrid {
   status: 'loading' | 'error' | 'ready';
@@ -20,6 +21,8 @@ export interface PhotoGrid {
   loadingMore: boolean;
   moreFailed: boolean;
   counts: PhotoCounts | undefined;
+  /** With a `profileId`: how many pictures that profile has (the whole of it, not only what is loaded). */
+  profileTotal: number | undefined;
   loadMore(): Promise<void>;
   /** Reads the first page again (after an undo): the list is rebuilt from the database. */
   reload(): Promise<void>;
@@ -34,7 +37,7 @@ export interface PhotoGrid {
  * answer worthless; nothing is read before the library is open. `patch` keeps the list honest after a local
  * change without re-reading it: a picture that no longer matches the filter leaves.
  */
-export function usePhotoGrid(filter: PhotoFilter): PhotoGrid {
+export function usePhotoGrid(filter: PhotoFilter, profileId?: string): PhotoGrid {
   const { state } = useLibraryInternals();
   const deps = state.status === 'ready' ? state.deps : undefined;
   const [status, setStatus] = useState<PhotoGrid['status']>('loading');
@@ -43,6 +46,7 @@ export function usePhotoGrid(filter: PhotoFilter): PhotoGrid {
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
   const [counts, setCounts] = useState<PhotoCounts>();
+  const [profileTotal, setProfileTotal] = useState<number>();
   const latest = useRef(0);
   const busy = useRef(false);
   const cursorRef = useRef<PhotoCursor | null>(null);
@@ -50,12 +54,16 @@ export function usePhotoGrid(filter: PhotoFilter): PhotoGrid {
 
   const recount = useCallback(async () => {
     if (!deps) return;
+    const mine = latest.current;
     try {
-      setCounts(await countPhotoPictures(deps));
+      if (profileId) {
+        const total = await countProfilePhotos(deps, profileId);
+        if (mine === latest.current) setProfileTotal(total);
+      } else setCounts(await countPhotoPictures(deps));
     } catch {
       // The counts are a convenience; the list is what matters.
     }
-  }, [deps]);
+  }, [deps, profileId]);
 
   const reload = useCallback(async () => {
     if (!deps) return;
@@ -65,7 +73,7 @@ export function usePhotoGrid(filter: PhotoFilter): PhotoGrid {
     setLoadingMore(false);
     setMoreFailed(false);
     try {
-      const page = await listPhotoPictures(deps, { scope: scopeOf(filter), limit: PHOTO_PAGE_SIZE });
+      const page = await listPhotoPictures(deps, { scope: scopeOf(filter, profileId), limit: PHOTO_PAGE_SIZE });
       if (mine !== latest.current) return;
       setPictures(page.pictures);
       setCursor(page.nextCursor);
@@ -74,7 +82,7 @@ export function usePhotoGrid(filter: PhotoFilter): PhotoGrid {
       if (mine === latest.current) setStatus('error');
     }
     void recount();
-  }, [deps, filter, recount]);
+  }, [deps, filter, profileId, recount]);
 
   useEffect(() => {
     void reload();
@@ -91,7 +99,7 @@ export function usePhotoGrid(filter: PhotoFilter): PhotoGrid {
     setLoadingMore(true);
     setMoreFailed(false);
     try {
-      const page = await listPhotoPictures(deps, { scope: scopeOf(filter), cursor: next, limit: PHOTO_PAGE_SIZE });
+      const page = await listPhotoPictures(deps, { scope: scopeOf(filter, profileId), cursor: next, limit: PHOTO_PAGE_SIZE });
       if (mine !== latest.current) return;
       setPictures((now) => {
         const have = new Set(now.map((p) => p.sha256));
@@ -106,15 +114,15 @@ export function usePhotoGrid(filter: PhotoFilter): PhotoGrid {
         setLoadingMore(false);
       }
     }
-  }, [deps, filter]);
+  }, [deps, filter, profileId]);
 
   const patch = useCallback(
     (update: (picture: PhotoPicture) => PhotoPicture) => {
-      const matches = (p: PhotoPicture) => filter === 'all' || (filter === 'assigned' ? p.assignedProfileIds.length > 0 : p.assignedProfileIds.length === 0);
+      const matches = (p: PhotoPicture) => (profileId ? p.assignedProfileIds.includes(profileId) : filter === 'all' || (filter === 'assigned' ? p.assignedProfileIds.length > 0 : p.assignedProfileIds.length === 0));
       setPictures((now) => now.map(update).filter(matches));
     },
-    [filter],
+    [filter, profileId],
   );
 
-  return { status: deps ? status : 'loading', pictures, hasMore: cursor !== null, loadingMore, moreFailed, counts, loadMore, reload, patch, recount };
+  return { status: deps ? status : 'loading', pictures, hasMore: cursor !== null, loadingMore, moreFailed, counts, profileTotal, loadMore, reload, patch, recount };
 }

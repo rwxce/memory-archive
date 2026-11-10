@@ -13,6 +13,9 @@ function Screen() {
   return <ViewerExportCard />;
 }
 
+let search = '';
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(search) }));
+
 const download = vi.fn();
 const exportPackage = vi.fn();
 vi.mock('@/hooks/download-blob', () => ({ downloadBlob: (...args: unknown[]) => download(...args) }));
@@ -42,6 +45,7 @@ const result = (v: Rendered) => v.container.querySelector<HTMLElement>('[data-te
 
 let view: Rendered | undefined;
 beforeEach(() => {
+  search = '';
   download.mockClear();
   exportPackage.mockReset();
 });
@@ -49,6 +53,9 @@ afterEach(() => {
   view?.unmount();
   view = undefined;
 });
+
+const people = (v: Rendered) => boxes(v).slice(0, 2).map((b) => b.checked);
+const toggleAll = (v: Rendered) => v.container.querySelector<HTMLButtonElement>('[data-testid="viewer-export-select-all"]')!;
 
 describe('ViewerExportCard', () => {
   test('explains the copy and selects everyone and the media by default', async () => {
@@ -142,5 +149,37 @@ describe('ViewerExportCard', () => {
     await click(submit(view));
     await settle();
     expect(exportPackage.mock.calls[0]![1]).toMatchObject({ format: 'json', split: 'together' });
+  });
+  test('?person= starts with only that person ticked, and the choice stays editable', async () => {
+    search = `person=${LUIS}`;
+    view = await renderWithLibrary(<Screen />, { lib: await seeded() });
+    await settle();
+    expect(boxes(view).slice(0, 2).map((b) => b.parentElement!.textContent)).toEqual(['Ana', 'Luis']);
+    expect(people(view)).toEqual([false, true]);
+    await act(async () => {
+      boxes(view!)[0]!.click();
+    });
+    expect(people(view)).toEqual([true, true]);
+  });
+
+  test('an unknown ?person= is ignored and everyone stays ticked', async () => {
+    search = 'person=not-a-profile';
+    view = await renderWithLibrary(<Screen />, { lib: await seeded() });
+    await settle();
+    expect(people(view)).toEqual([true, true]);
+  });
+
+  test('one button flips between selecting everyone and no one', async () => {
+    search = `person=${ANA}`;
+    view = await renderWithLibrary(<Screen />, { lib: await seeded() });
+    await settle();
+    expect(toggleAll(view).textContent).toBe(t.selectAll);
+    await click(toggleAll(view));
+    expect(people(view)).toEqual([true, true]);
+    expect(toggleAll(view).textContent).toBe(t.selectNone);
+    await click(toggleAll(view));
+    expect(people(view)).toEqual([false, false]);
+    expect(view.container.textContent).toContain(t.noPeopleSelected);
+    expect(toggleAll(view).textContent).toBe(t.selectAll);
   });
 });

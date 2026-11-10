@@ -8,9 +8,13 @@ import type {
   PackNote,
   PackNoteTarget,
   PackParticipant,
+  PackPhotoBatchHeader,
+  PackPhotoLink,
   PackProfile,
   PackTombstone,
+  PhotoItemsPage,
   ReadBatchMessagesInput,
+  ReadPhotoItemsInput,
   ReadChangeSetInput,
 } from '../domain/changes-pack';
 import { DbError } from './errors';
@@ -38,16 +42,17 @@ const CONVERSATIONS = `(SELECT id FROM conversations WHERE ${FRESH}
   UNION SELECT conversation_id FROM favorites WHERE ${FRESH}
   UNION SELECT conversation_id FROM notes WHERE ${FRESH} AND conversation_id IS NOT NULL)`;
 
-/** Profiles the pack touches: changed ones, plus those a carried conversation or note refers to. */
+/** Profiles the pack touches: changed ones, plus those a carried conversation, note or photo link refers to. */
 const PROFILES = `(SELECT id FROM profiles WHERE ${FRESH}
   UNION SELECT profile_id FROM conversation_profiles WHERE conversation_id IN ${CONVERSATIONS}
   UNION SELECT profile_id FROM participants WHERE profile_id IS NOT NULL AND conversation_id IN ${CONVERSATIONS}
-  UNION SELECT profile_id FROM notes WHERE ${FRESH} AND profile_id IS NOT NULL)`;
+  UNION SELECT profile_id FROM notes WHERE ${FRESH} AND profile_id IS NOT NULL
+  UNION SELECT profile_id FROM photo_profiles WHERE ${FRESH})`;
 
 /** Bind values of `CONVERSATIONS`, in order of appearance. `peer` is never a real id when there is no target. */
 const convParams = (since: number, peer: string): SqlValue[] => [since, peer, since, peer, since, peer, since, peer];
 const profileParams = (since: number, peer: string): SqlValue[] => [
-  since, peer, ...convParams(since, peer), ...convParams(since, peer), since, peer,
+  since, peer, ...convParams(since, peer), ...convParams(since, peer), since, peer, since, peer,
 ];
 
 /**
@@ -129,13 +134,29 @@ export function readChangeSet(db: SqlDb, input: ReadChangeSetInput): ChangeSet {
       createdConversation: b.createdConversation === 1, seq: b.seq,
     }));
 
-  // Media bytes only for what the carried messages and profile photos reference.
+  const photoBatches: PackPhotoBatchHeader[] = db.all<PackPhotoBatchHeader>(
+    `SELECT id, source, source_label AS sourceLabel, created_at AS createdAt, added_count AS addedCount, skipped_count AS skippedCount, seq
+       FROM photo_batches WHERE ${FRESH} ORDER BY id`,
+    [since, notPeer],
+  ).map((b) => ({
+    id: b.id, source: b.source, sourceLabel: b.sourceLabel, createdAt: b.createdAt, addedCount: b.addedCount, skippedCount: b.skippedCount, seq: b.seq,
+  }));
+
+  // A link travels alone when its picture's items are not in this pack: the peer most likely has them, and a
+  // merge that finds none drops the link (a link never exists without an item).
+  const photoLinks: PackPhotoLink[] = db.all<PackPhotoLink>(
+    `SELECT sha256, profile_id AS profileId, created_at AS createdAt, seq FROM photo_profiles WHERE ${FRESH} ORDER BY profile_id, sha256`,
+    [since, notPeer],
+  ).map((l) => ({ sha256: l.sha256, profileId: l.profileId, createdAt: l.createdAt, seq: l.seq }));
+
+  // Media bytes only for what the carried messages, photo items and profile photos reference.
   const blobs = db.all<PackBlob>(
     `SELECT sha256, size, mime FROM blobs WHERE sha256 IN (
        SELECT photo_sha256 FROM profiles WHERE photo_sha256 IS NOT NULL AND id IN ${PROFILES}
        UNION SELECT media_sha256 FROM messages WHERE media_sha256 IS NOT NULL AND batch_id IN (SELECT id FROM import_batches WHERE ${FRESH})
+       UNION SELECT sha256 FROM photo_items WHERE batch_id IN (SELECT id FROM photo_batches WHERE ${FRESH})
      ) ORDER BY sha256`,
-    [...profileParams(since, notPeer), since, notPeer],
+    [...profileParams(since, notPeer), since, notPeer, since, notPeer],
   ).map((b) => ({ sha256: b.sha256, size: b.size, mime: b.mime }));
 
   const favorites: PackFavorite[] = db
@@ -173,7 +194,7 @@ export function readChangeSet(db: SqlDb, input: ReadChangeSetInput): ChangeSet {
     since,
     upTo,
     ack,
-    profiles, conversations, blobs, favorites, notes, tombstones, batches,
+    profiles, conversations, blobs, favorites, notes, tombstones, batches, photoBatches, photoLinks,
   };
 }
 
@@ -209,6 +230,29 @@ export function readBatchMessages(db: SqlDb, input: ReadBatchMessagesInput): Bat
     messages: rows.map((r) => ({
       fingerprint: r.fingerprint, sentAt: r.sentAt, ordinal: r.ordinal, type: r.type, author: r.author, body: r.body,
       mediaSha256: r.mediaSha256, mediaName: r.mediaName,
+    })),
+    last: rows.length > 0 ? rows[rows.length - 1].id : input.after,
+  };
+}
+
+/**
+ * One page of a photo batch's items in insertion order, after the local row id `after`. Items never
+ * change; like messages they are paged under the archive guard, which keeps an undo out.
+ */
+export function readPhotoBatchItems(db: SqlDb, input: ReadPhotoItemsInput): PhotoItemsPage {
+  if (typeof input.batchId !== 'string' || !UUID.test(input.batchId)) throw invalid('batch id must be a lowercase UUID');
+  if (!Number.isSafeInteger(input.after) || input.after < 0) throw invalid('after must be a non-negative integer');
+  if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > MAX_BATCH_PAGE) throw invalid('limit is out of range');
+  const rows = db.all<PhotoItemsPage['items'][number] & { id: number }>(
+    `SELECT id, sha256, kind, mime, taken_at AS takenAt, taken_offset_minutes AS takenOffsetMinutes, date_source AS dateSource,
+            latitude, longitude, description, album, file_name AS fileName
+       FROM photo_items WHERE batch_id = ? AND id > ? ORDER BY id LIMIT ?`,
+    [input.batchId, input.after, input.limit],
+  );
+  return {
+    items: rows.map((r) => ({
+      sha256: r.sha256, kind: r.kind, mime: r.mime, takenAt: r.takenAt, takenOffsetMinutes: r.takenOffsetMinutes, dateSource: r.dateSource,
+      latitude: r.latitude, longitude: r.longitude, description: r.description, album: r.album, fileName: r.fileName,
     })),
     last: rows.length > 0 ? rows[rows.length - 1].id : input.after,
   };

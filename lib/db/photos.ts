@@ -17,6 +17,7 @@ import { isMimeType } from '../domain/profile';
 import { DbError } from './errors';
 import { isReferenced } from './queries';
 import { transaction, type SqlDb } from './sql';
+import { recordTombstone, stampRows } from './sync';
 
 /**
  * The photo collection's queries (`docs/formats/photo-library.md`). Everything arrives from outside
@@ -133,7 +134,11 @@ export function importPhotoItems(db: SqlDb, input: ImportPhotoItemsInput): Impor
     }
     const skipped = items.length - added;
     if (added === 0) db.run('DELETE FROM photo_batches WHERE id = ?', [batchId]);
-    else db.run('UPDATE photo_batches SET added_count = ?, skipped_count = ? WHERE id = ?', [added, skipped, batchId]);
+    else {
+      db.run('UPDATE photo_batches SET added_count = ?, skipped_count = ? WHERE id = ?', [added, skipped, batchId]);
+      // The batch (with its items, which have no `seq` of their own) is a change a peer has not seen.
+      stampRows(db, 'photo_batches', 'id = ?', [batchId]);
+    }
 
     const unreferencedBlobs: string[] = [];
     for (const sha256 of known) {
@@ -161,6 +166,11 @@ export interface UndoPhotoBatchResult {
  * A picture that loses its LAST item leaves the collection, and so do its profile assignments
  * (they were choices about a picture that is gone); a picture still held by an item of another
  * import keeps them.
+ *
+ * The undo travels as a `photo-batch` tombstone (peers are only OFFERED it, never made to apply it).
+ * The assignments dropped with a vanished picture leave NO tombstone of their own: they are implied
+ * by the batch tombstone, because a peer that keeps the pictures (it declined the offer) must also
+ * keep the choices made about them, and a peer that accepts runs this same undo.
  */
 export function undoPhotoBatch(db: SqlDb, batchId: string): UndoPhotoBatchResult {
   if (!isUuid(batchId)) invalid('batch id must be a UUID');
@@ -171,6 +181,9 @@ export function undoPhotoBatch(db: SqlDb, batchId: string): UndoPhotoBatchResult
     const candidates = db.all<{ sha256: string }>('SELECT DISTINCT sha256 FROM photo_items WHERE batch_id = ?', [batchId]).map((r) => r.sha256);
     const removedItems = db.run('DELETE FROM photo_items WHERE batch_id = ?', [batchId]);
     db.run('DELETE FROM photo_batches WHERE id = ?', [batchId]);
+    recordTombstone(db, 'photo-batch', '', batchId);
+    // An offer to undo this very import (made by a peer) is settled by doing it.
+    db.run("DELETE FROM sync_conflicts WHERE kind = 'photo-batch' AND key = ?", [batchId]);
     let removedAssignments = 0;
     for (const sha256 of candidates) {
       if (db.all('SELECT 1 FROM photo_items WHERE sha256 = ? LIMIT 1', [sha256]).length === 0) {

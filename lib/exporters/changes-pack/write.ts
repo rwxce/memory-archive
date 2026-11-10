@@ -1,8 +1,8 @@
 import { Zip, ZipDeflate, ZipPassThrough } from 'fflate';
-import { CHANGES_PACK_FORMAT_NAME, CHANGES_PACK_FORMAT_VERSION, type ChangeSet, type PackMessage } from '../../domain/changes-pack';
+import { CHANGES_PACK_FORMAT_NAME, CHANGES_PACK_FORMAT_VERSION, type ChangeSet, type PackMessage, type PackPhotoItem } from '../../domain/changes-pack';
 import { createSha256 } from '../../domain/sha256';
 import { ArchiveError, DEFAULT_LIMITS, MANIFEST_PATH, blobPath, isSha256Hex, type ArchiveLimits, type ManifestEntry } from '../archive/format';
-import { MAX_RECORD_LINE_BYTES, batchPath, recordPath, type ChangesPackCounts, type ChangesPackManifest, type RecordFileName } from './format';
+import { MAX_RECORD_LINE_BYTES, batchPath, photoBatchPath, recordPath, type ChangesPackCounts, type ChangesPackManifest, type RecordFileName } from './format';
 
 export interface ChangesPackSource {
   app: { name: string; version: string };
@@ -12,6 +12,8 @@ export interface ChangesPackSource {
   changes: ChangeSet;
   /** The messages of one batch of `changes.batches`, in pages. */
   batchMessages(batchId: string): AsyncIterable<readonly PackMessage[]>;
+  /** The items of one photo batch of `changes.photoBatches`, in pages. */
+  photoBatchItems(batchId: string): AsyncIterable<readonly PackPhotoItem[]>;
   /** The stored bytes of one blob, or `undefined` when absent. */
   openBlob(sha256: string): Promise<ReadableStream<Uint8Array> | undefined>;
   /** Bounds the pack must respect so its own reader accepts it; defaults to the backup's. */
@@ -118,6 +120,7 @@ export async function writeChangesPack(source: ChangesPackSource): Promise<Writt
     stageRecords('favorites', set.favorites, limits.maxEntryBytes),
     stageRecords('notes', set.notes, limits.maxEntryBytes),
     stageRecords('tombstones', set.tombstones, limits.maxEntryBytes),
+    stageRecords('photo-links', set.photoLinks, limits.maxEntryBytes),
   ];
   const batches = [...set.batches].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   let messages = 0;
@@ -131,6 +134,21 @@ export async function writeChangesPack(source: ChangesPackSource): Promise<Writt
         }
         file.line(message);
         messages++;
+      }
+    }
+    staged.push(file.finish());
+  }
+
+  const photoBatches = [...set.photoBatches].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  let photoItems = 0;
+  for (const header of photoBatches) {
+    const file = stager(photoBatchPath(header.id), limits.maxEntryBytes);
+    file.line(header);
+    for await (const page of source.photoBatchItems(header.id)) {
+      for (const item of page) {
+        if (!known.has(item.sha256)) throw new ArchiveError('blob-missing', 'a photo refers to media that is not among the media to send');
+        file.line(item);
+        photoItems++;
       }
     }
     staged.push(file.finish());
@@ -158,6 +176,9 @@ export async function writeChangesPack(source: ChangesPackSource): Promise<Writt
     notes: set.notes.length,
     tombstones: set.tombstones.length,
     blobs: blobs.length,
+    photoBatches: photoBatches.length,
+    photoItems,
+    photoLinks: set.photoLinks.length,
   };
   const entries: ManifestEntry[] = [
     ...staged.map((s) => ({ path: s.path, size: s.size, sha256: s.sha256 })),

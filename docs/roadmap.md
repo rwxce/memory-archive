@@ -155,9 +155,10 @@ linked from Settings) picks a ZIP (told apart by content) or loose files, shows 
 imports with Undo. Item 20a is done: the assignment data layer (schema v13 `photo_profiles`, `assignPhotos`,
 `unassignPhotos`, the picture listing, month buckets and the reading of a picture). Item 20b is done: the selection screen
 (`/photos/select`: pictures by day, choose, assign to people with an explicit confirmation, undo, a detail view, and an
-undo-import warning about assignments). Not built (follow-ups): the assigned pictures in the person page (`listProfilePhotos` is ready; it
-needs its own paged section and viewer, more than a small change), and syncing photos or assignments in a
-changes pack (known limit, unchanged). Not yet checked on a real phone gallery picker.**
+undo-import warning about assignments). The assigned pictures show on the person's page (a Photos card and `/person/photos`: paged grid by day, the same
+detail view with "Take out"). Sync of photos is done: the photo collection and the
+assignments of pictures to profiles travel in a changes pack (format version 2, schema v14), and a peer's undo of a photo
+import is offered, never applied (`docs/formats/changes-pack.md`, "Photos"). Not yet checked on a real phone gallery picker.**
 
 - Three ways to pick specific photos: Google Photos web download of a selection, Takeout of
   one album (keeps original dates and locations), or the device gallery picker.
@@ -167,7 +168,7 @@ changes pack (known limit, unchanged). Not yet checked on a real phone gallery p
 
 ## Phase 9 — Portable exports and hardening
 
-**Status: done in code and automated tests. Done: the viewer's data format and use case, the viewer itself (`viewer/`, opens from `file://`), its ZIP writer, the HTML / JSON / Markdown exports and the export configuration card on the backup screen (format, people, folders, dates, media), the robustness tests (`docs/testing-robustness.md`) and the complete Settings. Not done: checking the viewer's network-blocking policy and images in Safari and Firefox, trying the exports with real media, and a check on a real phone; these stay manual checks. The viewer is for a computer; on a phone the way to read a copy is the app.**
+**Status: done in code and automated tests. Done: the viewer's data format and use case, the viewer itself (`viewer/`, opens from `file://`), its ZIP writer, the HTML / JSON / Markdown exports and the export configuration card on the backup screen (format, people, folders, dates, media), exporting one person from their own page ("Export a copy" in the person menu opens the card with only that person ticked; Select all / none) with the photos assigned to them from the photo collection in all four formats (a Photos section in the viewer, a per-person photos page in HTML / Markdown, the list in JSON), the robustness tests (`docs/testing-robustness.md`) and the complete Settings. Not done: checking the viewer's network-blocking policy and images in Safari and Firefox, trying the exports with real media, and a check on a real phone; these stay manual checks. The viewer is for a computer; on a phone the way to read a copy is the app.**
 
 - Single-file read-only viewer (`viewer/`) that opens via `file://` with search and timeline;
   one, several or all profiles; date filters. Per-profile HTML / JSON / Markdown / ZIP.

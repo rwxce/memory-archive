@@ -13,6 +13,8 @@ export interface OpenChangesPackOptions {
   /** Newest database schema this app understands. */
   supportedSchemaVersion: number;
   limits?: Partial<ArchiveLimits>;
+  /** Newest changes-pack format version this reader understands; defaults to this app's. A test plays an older app with it. */
+  maxFormatVersion?: number;
 }
 
 export type OpenedChangesPack = OpenedZip<ChangesPackManifest> & { limits: ArchiveLimits };
@@ -20,7 +22,7 @@ export type OpenedChangesPack = OpenedZip<ChangesPackManifest> & { limits: Archi
 /** Throws `ArchiveError` (`not-an-archive`, `invalid-manifest`, `unsafe-path`, `newer-format`, ...); reads no record. */
 export async function openChangesPack(zip: Blob, options: OpenChangesPackOptions): Promise<OpenedChangesPack> {
   const limits: ArchiveLimits = { ...DEFAULT_LIMITS, ...options.limits };
-  const opened = await openZipPackage(zip, limits, (bytes) => parseChangesManifest(bytes, options.supportedSchemaVersion, limits));
+  const opened = await openZipPackage(zip, limits, (bytes) => parseChangesManifest(bytes, options.supportedSchemaVersion, limits, options.maxFormatVersion));
   return { ...opened, limits };
 }
 
@@ -137,14 +139,19 @@ export async function verifyChangesPack(zip: Blob, options: VerifyChangesPackOpt
     try {
       for await (const record of readPackLines(zip, opened, item.path, options.signal)) {
         if (shape.kind === 'record' && shape.name === 'blobs') listedBlobs.add(String(record.sha256));
-        if (shape.kind === 'batch' && lines === 0 && record.id !== shape.id) throw badRecord();
+        if ((shape.kind === 'batch' || shape.kind === 'photo') && lines === 0 && record.id !== shape.id) throw badRecord();
         lines++;
       }
       if (shape.kind === 'batch') {
         if (lines === 0) throw badRecord();
         found.batches++;
         found.messages += lines - 1;
-      } else if (shape.name !== 'blobs') found[shape.name] += lines;
+      } else if (shape.kind === 'photo') {
+        if (lines === 0) throw badRecord();
+        found.photoBatches++;
+        found.photoItems += lines - 1;
+      } else if (shape.name === 'photo-links') found.photoLinks += lines;
+      else if (shape.name !== 'blobs') found[shape.name] += lines;
     } catch (error) {
       fail(item.path, error);
     }

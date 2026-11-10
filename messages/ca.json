@@ -430,6 +430,7 @@
     "sectionsLabel": "Seccions",
     "sectionAudio": "Àudio",
     "sectionGallery": "Galeria",
+    "sectionPhotos": "Fotos",
     "sectionTimeline": "Cronologia",
     "sectionFavorites": "Preferits",
     "sectionNotes": "Notes",
@@ -438,6 +439,7 @@
     "menuLabel": "Més opcions per a {name}",
     "menuNote": "Nota sobre aquesta persona",
     "menuSearch": "Cerca a {name}",
+    "menuExport": "Exporta una còpia",
     "since": "des del {year}",
     "statMessages": "missatges",
     "statPictures": "fotos i vídeos",
@@ -446,7 +448,22 @@
     "galleryCount": "{count, plural, one {# foto o vídeo} other {# fotos i vídeos}}",
     "audioCount": "{count, plural, one {# missatge de veu} other {# missatges de veu}}",
     "favoritesTitle": "Preferits",
-    "showFavorites": "Mostra {count, plural, one {el # preferit} other {els # preferits}}"
+    "showFavorites": "Mostra {count, plural, one {el # preferit} other {els # preferits}}",
+    "photos": {
+      "title": "Fotos",
+      "intro": "Fotos de la teva col·lecció que has assignat a {name}.",
+      "loading": "Carregant les fotos…",
+      "loadFailed": "No s’han pogut llegir les fotos. No s’ha esborrat res.",
+      "count": "{count, plural, one {# foto assignada} other {# fotos assignades}}",
+      "none": "Encara no hi ha cap foto assignada",
+      "empty": "Encara no hi ha cap foto assignada a {name}. Tria fotos de la teva col·lecció i assigna-les a {name}; apareixeran aquí.",
+      "choose": "Tria fotos",
+      "shown": "Mostrant {shown} de {total}",
+      "showMore": "Mostra’n més",
+      "loadingMore": "Carregant-ne més…",
+      "moreFailed": "No s’han pogut llegir algunes fotos. No s’ha esborrat res.",
+      "takenOut": "Foto treta de les fotos de {name}. Continua a la teva col·lecció."
+    }
   },
   "personAudio": {
     "title": "Àudio",
@@ -1089,6 +1106,8 @@
         "perProfile": "Una carpeta per a cada persona"
       },
       "peopleLegend": "De qui són les converses",
+      "selectAll": "Selecciona-ho tot",
+      "selectNone": "Treu la selecció",
       "archivedTag": "arxivada",
       "noPeople": "Encara no hi ha persones a l'arxiu.",
       "noPeopleSelected": "Tria almenys una persona.",
@@ -1210,6 +1229,8 @@
       "conversations": "{count, plural, one {S’ha afegit o actualitzat # conversa.} other {S’han afegit o actualitzat # converses.}}",
       "notes": "{count, plural, one {S’ha afegit o actualitzat # nota.} other {S’han afegit o actualitzat # notes.}}",
       "favorites": "{count, plural, one {S’ha afegit # favorit.} other {S’han afegit # favorits.}}",
+      "photosAdded": "{count, plural, one {S’ha afegit # foto nova.} other {S’han afegit # fotos noves.}}",
+      "photoLinksAdded": "{count, plural, one {# foto assignada a una persona.} other {# fotos assignades a persones.}}",
       "removed": "{count, plural, one {S’ha tret # favorit o nota, perquè es va esborrar a l’altre dispositiu.} other {S’han tret # favorits o notes, perquè es van esborrar a l’altre dispositiu.}}",
       "nothingNew": "Tot el que hi havia en aquest fitxer ja era a l’arxiu. No ha canviat res.",
       "conflicts": "{count, plural, one {# element s’ha canviat als dos dispositius. Es guarden les dues versions i no s’ha sobreescrit res.} other {# elements s’han canviat als dos dispositius. Es guarden les dues versions i no s’ha sobreescrit res.}}",
@@ -1247,7 +1268,8 @@
         "conversation": "Conversa: {name}",
         "note": "Nota",
         "noteOn": "Nota: {name}",
-        "batch": "S’ha desfet una importació al dispositiu {code}"
+        "batch": "S’ha desfet una importació al dispositiu {code}",
+        "photoBatch": "S’ha desfet una importació de fotos al dispositiu {code}"
       },
       "untitled": "(sense nom)",
       "field": {
@@ -1288,6 +1310,20 @@
         "confirmBodyCreated": "{count, plural, one {El # missatge afegit} other {Els # missatges afegits}} per aquesta importació s’eliminaran, i també la conversa «{title}», que va crear aquesta importació. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Les notes i els favorits d’aquesta conversa se’n van amb ella. Tot allò que ja era al teu arxiu abans es queda.",
         "confirmBodyMaybeCreated": "{count, plural, one {El # missatge afegit} other {Els # missatges afegits}} per aquesta importació s’eliminaran de «{title}». Si no hi queda res més en aquesta conversa, la conversa també s’elimina, amb les notes i els favorits. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Tot allò que ja era al teu arxiu abans es queda.",
         "confirmBodyUnknown": "Els missatges afegits per aquesta importació s’eliminaran. Les fotos i els fitxers que cap altra conversa utilitzi també s’eliminaran. Els missatges que ja eren al teu arxiu es queden.",
+        "confirm": "Desfés la importació",
+        "cancel": "Torna enrere",
+        "unmatched": "Aquest dispositiu no té aquesta importació, així que no hi ha res per eliminar.",
+        "close": "Tanca aquesta nota"
+      },
+      "photoBatch": {
+        "offer": "El dispositiu {code} ha desfet una importació de fotos («{title}»).",
+        "offerCount": "{count, plural, one {# foto d’aquesta importació encara és aquí.} other {# fotos d’aquesta importació encara són aquí.}} No s’ha eliminat res.",
+        "offerUnknown": "El dispositiu {code} ha desfet una importació de fotos que aquest dispositiu també té. No s’ha eliminat res.",
+        "undo": "Desfés aquesta importació aquí",
+        "keep": "Conserva-la",
+        "confirmTitle": "Vols desfer aquesta importació aquí?",
+        "confirmBody": "{count, plural, one {La # foto afegida} other {Les # fotos afegides}} per aquesta importació s’eliminaran. Les fotos i els vídeos que cap altra importació utilitzi també s’eliminaran d’aquest dispositiu, i també les assignacions a persones. Les fotos que ja eren a la teva col·lecció es queden.",
+        "confirmBodyUnknown": "Les fotos afegides per aquesta importació s’eliminaran. Les fotos i els vídeos que cap altra importació utilitzi també s’eliminaran d’aquest dispositiu, i també les assignacions a persones. Les fotos que ja eren a la teva col·lecció es queden.",
         "confirm": "Desfés la importació",
         "cancel": "Torna enrere",
         "unmatched": "Aquest dispositiu no té aquesta importació, així que no hi ha res per eliminar.",

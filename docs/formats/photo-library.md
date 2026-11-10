@@ -1,4 +1,4 @@
-# Photo collection (library schema v13)
+# Photo collection (library schema v14)
 
 Pictures and videos the person brings in from a source that is not a chat. Three sources: a **Google
 Photos Takeout** ZIP (an album, several albums, or a whole library; schema v11), **loose files** chosen on the
@@ -7,7 +7,7 @@ the date source of schema v12. Phase 8. The Photos screen imports and undoes; th
 profiles has its data layer (schema v13, "Assigning pictures to profiles"); the selection screen that drives it
 (`/photos/select`, queue item 20b) is built.
 
-Status: **implemented**: schema v11 + v12 + v13 (`lib/db/migrations.ts`), `lib/domain/photo.ts`,
+Status: **implemented**: schema v11 + v12 + v13 + v14 (sync stamps; `lib/db/migrations.ts`), `lib/domain/photo.ts`,
 `lib/db/photos.ts`, `lib/db/photo-assign.ts`, `lib/usecases/photo-assign.ts`, `lib/importers/takeout/`, `lib/importers/photos/`, `lib/usecases/photo-library.ts`,
 `lib/usecases/photo-import.ts`, `lib/usecases/photo-source.ts`. No screen calls them yet.
 Where this document and the code disagree, fix the document in the same PR.
@@ -49,7 +49,7 @@ One picture or video of the collection.
 
 | Column | Meaning |
 |--------|---------|
-| `id` | Integer, insertion order. Not stable across devices (the changes pack does not carry items yet). |
+| `id` | Integer, insertion order. Not stable across devices (the changes pack never carries it; an item is keyed `(sha256, source, album)`). |
 | `batch_id` | The import that added it (`ON DELETE CASCADE`). |
 | `sha256` | The bytes: `blobs.sha256`. A file cannot be removed while an item uses it. |
 | `kind` | `photo` or `video`, from the file extension. |
@@ -381,13 +381,25 @@ restores by migrating (tested). `isLibraryEmpty` treats
 both tables as content (a library holding only photos is not empty, so a restore never overwrites
 it silently). `getStorageBreakdown` counts photo-item files as photos and videos.
 
-## Sync (changes pack): known limit
+## Sync (changes pack, schema v14)
 
-The changes pack does **not** carry photo items, batches or the assignments of pictures to profiles yet, and the media of photo-only blobs is
-not in a pack either. Photos reach another device through a full backup (restore). Carrying them
-needs a pack record kind (`photo-item`, keyed by `(sha256, source, album)`, which is already
-device-independent), tombstones for undone batches, and a pack `formatVersion` decision; it is
-deliberately not half done here. `docs/formats/changes-pack.md` states the same.
+The collection and its assignments travel in a changes pack of format version 2 (`docs/formats/changes-pack.md`, "Photos").
+Schema v14 adds `seq` and `changed_by` to `photo_batches` and `photo_profiles` (existing rows are backfilled so the
+first pack to every peer carries them) and widens the `tombstones` / `sync_conflicts` kinds.
+
+- **A photo import is a batch** (`photos/<batch id>.jsonl`: header, then its items; the bytes in `blobs/`). Items are
+  keyed `(sha256, source, album)`, so merging inserts what is new and skips the rest; a batch that adds nothing
+  leaves no history entry. Writers stamp the batch (`importPhotoItems`); an import that adds nothing stamps nothing.
+- **An assignment is a record** (`records/photo-links.jsonl`), a set where add wins. `assignPhotos` stamps exactly the
+  links it inserted (one change number per call); `unassignPhotos` / `unassignPhotoLinks` leave one `photo-link`
+  tombstone per link taken out. A repeat or a no-op writes nothing.
+- **Undoing an import is offered to the other devices, never applied** (a `photo-batch` tombstone, shown in "Items to
+  review"). Accepting runs `undoPhotoBatch` there; declining keeps the pictures and their assignments. The assignments
+  an undo drops are not tombstoned separately: a device that keeps the pictures keeps the choices made about them.
+- **A link never exists without an item** also across devices: a link whose picture the receiver does not hold is
+  dropped by the merge, and `loadSnapshot` still refuses a backup that breaks it.
+- A device never receives its own old versions back (`changed_by`), and a device that relays a version stamps it
+  with the peer it came from, like every other record.
 
 ## Tests
 

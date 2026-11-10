@@ -1,4 +1,4 @@
-# Changes pack (format version 1)
+# Changes pack (format version 2)
 
 The file two devices carry by hand to keep their archives in step (phase 7). A pack holds what one
 device changed since the last time it gave something to another device, or, for a new device,
@@ -7,7 +7,8 @@ messages or media on its own. A favorite or note the user deleted on another dev
 too (when this device did not change it since), and an undone import is only offered, never applied
 silently (see "Deletions").
 
-Status: **export, merge and the Sync devices screen are implemented; the conflicts screen is not.** Built: the data layer (schema v8: `device`,
+Format version 2 (schema v14) adds the photo collection and the assignments of pictures to profiles (see "Photos"); a
+version-1 pack is still read in full. Status: **export, merge and the Sync devices screen are implemented; the conflicts screen is not.** Built: the data layer (schema v8: `device`,
 `sync_peers`, `tombstones`, `seq` / `changed_by`; `lib/db/sync.ts`, `lib/usecases/sync-state.ts`), the pack writer and
 a structural reader / verifier (`lib/exporters/changes-pack/`), the change-set queries (`lib/db/changes.ts`), the
 export use case (`lib/usecases/changes-pack-export.ts`), and the merge: strict record validation
@@ -29,6 +30,7 @@ to each decision because the product owner delegated them.
 - Not a backup. A backup (`docs/formats/` and `lib/exporters/archive/format.ts`) is a snapshot
   that replaces an empty or chosen library. A pack merges. They are different formats on purpose
   (see "Why not reuse the backup database").
+- Photos and the people they were assigned to travel too (format version 2); see "Photos".
 - Out of scope: highlights (they come back by importing the same `findings.json` on the other
   device; they are in every full backup), settings, the search index, thumbnails.
 
@@ -41,7 +43,7 @@ to each decision because the product owner delegated them.
 | watermark | A `seq` value plus a direction: "everything up to here has been exchanged". Kept per peer. |
 | `upTo` | The counter value read, in the same step as the records, when a pack was built. |
 | peer | Another device this one has exchanged a pack with (`sync_peers`). |
-| tombstone | A row saying "this favorite / note / import batch was deleted here, at this time". |
+| tombstone | A row saying "this favorite / note / import batch / photo import / photo assignment was deleted here, at this time". |
 
 ## Why change numbers and not timestamps
 
@@ -76,13 +78,16 @@ records/blobs.jsonl                  one line per media file the records need (h
 records/favorites.jsonl
 records/notes.jsonl
 records/tombstones.jsonl
+records/photo-links.jsonl            (format version 2) pictures assigned to profiles
 batches/<batch id>.jsonl             one entry per import batch: header line, then its messages
+photos/<batch id>.jsonl              (format version 2) one entry per photo import: header line, then its items
 blobs/<aa>/<sha256>                  media bytes, named and stored exactly as in the backup
 ```
 
 Record files are UTF-8, one JSON object per line, every line ended by `\n` (no blank lines, none
 longer than 4 MiB **in UTF-8 bytes**, enforced by writer and reader alike), always present (possibly empty). Entry paths are validated against these exact
-shapes (`<batch id>` is a lowercase UUID). The writer is deterministic: records sorted by their
+shapes (`<batch id>` is a lowercase UUID). A version-1 pack has the six record files before `photo-links` and no
+`photos/` entries; the reader refuses either in a version-1 manifest, and a version-2 manifest must list all seven. The writer is deterministic: records sorted by their
 identity, batches by id, blobs by hash, a batch's messages in the order they were stored here, and
 fixed key order, so the same library and clock give the same bytes.
 
@@ -91,17 +96,18 @@ fixed key order, so the same library and clock give the same bytes.
 ```json
 {
   "format": "memory-archive-changes",
-  "formatVersion": 1,
+  "formatVersion": 2,
   "createdAt": "2026-03-04T05:06:07.000Z",
   "app": { "name": "memory-archive", "version": "0.10.0" },
-  "schemaVersion": 8,
+  "schemaVersion": 14,
   "kind": "changes",
   "source": { "deviceId": "<uuid>" },
   "target": { "deviceId": "<uuid>" },
   "since": 41,
   "upTo": 97,
   "ack": 33,
-  "counts": { "profiles": 0, "conversations": 0, "batches": 0, "messages": 0, "favorites": 0, "notes": 0, "tombstones": 0, "blobs": 0 },
+  "counts": { "profiles": 0, "conversations": 0, "batches": 0, "messages": 0, "favorites": 0, "notes": 0, "tombstones": 0, "blobs": 0,
+             "photoBatches": 0, "photoItems": 0, "photoLinks": 0 },
   "entries": [{ "path": "records/profiles.jsonl", "size": 0, "sha256": "..." }]
 }
 ```
@@ -118,7 +124,9 @@ fixed key order, so the same library and clock give the same bytes.
 | `counts`, `entries` | As in the backup manifest: sizes and hashes for every entry except the manifest; counts must equal the lines in the files. |
 
 Compatibility is the backup's rule: a reader accepts every `formatVersion` it ever shipped and
-refuses a newer one (`newer-format`) with a message. Adding an optional field a reader may safely
+refuses a newer one (`newer-format`) with a message. Version 2 is a bump because a version-1 reader would silently
+drop `photos/` and `photo-links`: it sees `newer-format` instead (the format is checked before the schema). A version-1
+manifest has no `photoBatches` / `photoItems` / `photoLinks` counts; they read as 0. Adding an optional field a reader may safely
 ignore does not bump the version; anything an old reader could misread or drop does.
 
 ## Records
@@ -138,14 +146,19 @@ note           { target: { kind: "profile", profileId }
                        | { kind: "conversation", conversationId }
                        | { kind: "message", conversationId, fingerprint },
                  body, createdAt, updatedAt, seq }
-tombstone      { kind: "favorite"|"note"|"batch", scope, key, deletedAt, seq }
+tombstone      { kind: "favorite"|"note"|"batch"|"photo-batch"|"photo-link", scope, key, deletedAt, seq }
 batch header   { id, conversationId, source, sourceLabel, createdAt, createdConversation, seq }
 batch message  { fingerprint, sentAt, ordinal, type, author|null, body, mediaSha256|null, mediaName }
+photo header   { id, source, sourceLabel, createdAt, addedCount, skippedCount, seq }           // version 2
+photo item     { sha256, kind, mime|null, takenAt|null, takenOffsetMinutes|null, dateSource,
+                 latitude|null, longitude|null, description, album, fileName }                  // version 2
+photo link     { sha256, profileId, createdAt, seq }                                            // version 2
 ```
 
 `scope` and `key` of a tombstone are exactly the schema's: favorite = (conversation id, message
 fingerprint); note = (`''` or the conversation id, `profile:<id>` | `conversation` |
-`message:<fingerprint>`); batch = (conversation id, batch id).
+`message:<fingerprint>`); batch = (conversation id, batch id); photo-batch = (`''`, photo batch id);
+photo-link = (profile id, picture hash).
 
 Locally, favorites, tombstones and import batches carry `changed_by` like profiles, conversations and notes (NULL =
 made here; a peer's id = the version merged from that peer). It is not part of a record on the
@@ -162,13 +175,36 @@ they travel inside their import batch, deduplicated by fingerprint on arrival. A
 `author` is the display name as the source named it; the receiver finds or creates the
 participant by `(conversation, name)`.
 
+### Photos (format version 2)
+
+The photo collection (`docs/formats/photo-library.md`) and the choices made about it travel like the chat data.
+
+- **A photo import is a batch**, mirroring `batches/`: `photos/<batch id>.jsonl` is a header line (`id`, `source`,
+  `sourceLabel`, `createdAt`, the source's `addedCount` / `skippedCount` for display, `seq`) followed by the batch's items
+  in the order they were stored. Items have no `seq` and no id of their own: like messages they never change and
+  travel with their batch. An item has no `source` field: it is its batch's (the importer gives every item of a
+  batch the batch's source), so an item is keyed `(sha256, header.source, album)`, the schema's idempotency key.
+  Local item row ids are never on the wire.
+- **An assignment is a record** of `records/photo-links.jsonl`: `{ sha256, profileId, createdAt, seq }`. It is keyed by the
+  picture (the bytes), not by an item, exactly as in the schema, so the same picture from two albums is one link.
+- **Unassigning** a picture leaves a `photo-link` tombstone (scope = profile id, key = picture hash), one per link taken
+  out. **Undoing a photo import** leaves ONE `photo-batch` tombstone (scope `''`, key = batch id). The assignments an
+  undo drops (a picture that loses its last item loses its links) leave no tombstone of their own: they are implied by
+  the batch tombstone. A peer that keeps the pictures (it declined the offer, see "Deletions") must also keep the choices
+  made about them, and one that accepts runs the same undo.
+- **Echo, watermarks and idempotency** follow the other synced tables: `photo_batches` and `photo_profiles` carry `seq`
+  and `changed_by`, a version merged from a peer is not carried back to it, and a second import changes nothing.
+
 ### What a pack contains
 
 For `changes` with watermark `since`: every profile, conversation, favorite, note, tombstone and
 import batch whose `seq > since`; for each batch all its messages. Then the **closure**: the
-records those reference, even if unchanged (profiles named by an included conversation, the
+records those reference, even if unchanged (profiles named by an included conversation or note, the
 conversation of an included batch, favorite or note), and the blob rows and bytes referenced by
-included messages and profile photos. So a pack never points at something it does not carry and
+included messages, photo items and profile photos. A photo batch's items travel with it, bytes included. A photo link
+travels with its profile (the same rule as a conversation's profiles). A link whose picture has no item in the pack
+still travels: the source cannot know what the target holds, and the target most likely has the picture from an earlier
+pack. The merge decides (see "Photo batches, items and links" under Merge). So a pack never points at something it does not carry and
 the receiver needs no "missing reference" case. For `full`: everything, including every blob.
 
 Blobs are included even if the target already has them: the source does not know what the target
@@ -178,7 +214,8 @@ holds, and listing hashes would need a round trip. The receiver skips bytes it h
 ## Merge
 
 One transaction per pack, applied in this order, so references always resolve:
-blobs, profiles, conversations, batches (with messages), favorites, notes, tombstones. A failure
+blobs, profiles, conversations, batches (with messages), photo batches (with items), favorites, notes, photo links,
+tombstones. A failure
 anywhere leaves the library exactly as it was, **including the received watermark**
 (`recordReceived` runs in the same transaction). Heavy work (unzip, parse, hash) runs in the
 worker like an import.
@@ -226,6 +263,20 @@ Notation: `S` = the pack's source, `lastReceived` = `sync_peers.last_received_se
   with `added` = the new messages and `skipped` = the rest, so a synced batch can be undone here
   like any import. Idempotent: the same message twice is one row.
 
+### Photo batches, items and links
+
+- Photo batch: if a batch with that id exists locally, or a local `photo-batch` tombstone exists (we undid it), skip it.
+  Otherwise insert its items with "do nothing on conflict" on `(sha256, source, album)`; if none was new the batch is
+  not recorded, else it is recorded under the same id with `added` / `skipped` counted here and `changed_by` = S, so a
+  synced photo import can be undone here like any. The media of a skipped batch that nothing else uses is swept after
+  the merge, like a skipped message batch's.
+- Photo link (a set, add wins, like favorites): `I` present and S changed it: if this device has no item holding the
+  picture the link is **dropped** (counted, not stored: a link never exists without an item, the invariant `loadSnapshot`
+  also enforces); a profile that is neither here nor in the pack refuses the pack (`invalid`). Otherwise the link is
+  inserted if absent (`changed_by` = S) and any local `photo-link` tombstone for it is removed.
+- A link dropped because the item was not here is not retried: the receiver either undid that import itself or never
+  merged the batch.
+
 ### Profiles, conversations, notes (editable records)
 
 | Local `L` | Rule |
@@ -260,6 +311,14 @@ any local tombstone for it. `I` not changed by S: skip.
 - An incoming note against a local note tombstone (we deleted it): if S changed it and S had not
   yet seen our deletion (`T.seq > lastSent`), **conflict**: the note is stored beside, not
   resurrected. If S had seen our deletion and wrote the note afterwards, take it.
+- **Photo link** tombstone `T`: if the link exists locally and we did not (re)create it since S last saw our data,
+  delete it and keep `T`. If we did, the link stays: **add wins**, nothing is lost (the other device then receives our
+  link, and its own deletion is superseded). If it does not exist, keep the newer tombstone.
+- **Photo import** (`photo-batch`) tombstone: **offered, never applied**, exactly like an import batch tombstone: the
+  deletion is stored in `sync_conflicts` as `kind: 'photo-batch'` ("S undid this photo import of N pictures; remove it
+  here too?"). Accepting runs the ordinary `undoPhotoBatch` here (its pictures, the assignments of a picture that
+  loses its last item, and the media nothing else uses; it records our own tombstone and closes the offer); declining
+  closes the offer and keeps everything. If the batch is not here the offer is "unmatched" and just closes.
 - **Import batch** tombstone ("S undid this import"): **not applied automatically.** Messages
   are the irreplaceable part of an archive and deleting them on one device because of an action
   on another is the one thing a manual sync must not do silently. The tombstone is listed for
@@ -283,7 +342,7 @@ active record and re-stamps it (it travels; the other device fast-forwards), `th
 takes `both` (our text, a blank line, theirs; refused if longer than a note may be); against a deletion `theirs`
 deletes (and leaves our own tombstone) and `mine` keeps the note. An offered batch undo is accepted (`theirs`: the
 ordinary undo runs, then the offer closes) or dismissed (`mine`); it is stored in the same table with `kind: batch`
-and nothing is removed until then.
+(or `photo-batch`) and nothing is removed until then.
 
 A conflict never outlives its subject: undoing an import closes its offer, and undoing the one that created a
 conversation closes every conflict on that conversation, its notes and its other batches. If the local record
@@ -380,7 +439,15 @@ to validate, independent of the schema of either side (only `schemaVersion` gate
 records can be listed on a conflict screen. The container, limits, hashing, blob layout and
 encryption are the backup's, unchanged.
 
-## Schema v8 and v9 (what this format needs, nothing more)
+## Schema v8, v9 and v14 (what this format needs, nothing more)
+
+**v14** (photos) adds `seq` and `changed_by` to `photo_batches` and `photo_profiles` (and an index on
+`photo_profiles.seq`), and rebuilds `tombstones` (kinds `photo-batch`, `photo-link`) and `sync_conflicts` (kind
+`photo-batch`) to widen their CHECKs: park the rows, drop, create the final table, copy back (not `ALTER ... RENAME`,
+which opens SQLite's temp schema). Existing photo rows get ONE fresh change number above the device counter (the
+counter is bumped by one, only when there is a photo row), so the first pack to every peer, even one already
+at a watermark, carries them; a library with no photo rows keeps its counter. Unlike v8's baseline of 1, this cannot
+use 1: peers may already be past it.
 
 v9 adds only `sync_conflicts` (see "Conflicts"); it is peer state, so a restore drops it and an empty-library check ignores it.
 
@@ -432,9 +499,8 @@ and fails with `limit-exceeded` instead of producing a pack its own reader would
 9. **A plain pack is as private as a plain backup**: use the encrypted envelope for anything that
    leaves the device through a service the user does not control.
 10. **Two people editing one library on one device** is not a case: a library is one person's.
-11. **The photo collection is not synced** (schema v11, `docs/formats/photo-library.md`): photo items, their
-    import batches and the media only they use are not in a pack, and undoing a photo import leaves no
-    tombstone. Neither are the assignments of pictures to profiles (schema v13, `photo_profiles`): they are
-    choices about a collection the pack does not carry, so a device that merges a pack never receives or
-    loses one. They travel in a full backup (restore). Carrying them needs a record kind keyed by
-    `(sha256, source, album)`, tombstones and a format decision, and is not half done.
+11. **Undoing a photo import is only offered**, like a message import. The assignments an undo drops are not
+    tombstoned: they follow the batch decision (see "Photos"). If one device keeps a picture that another undid, and then
+    assigns it, the link reaches the other device and is dropped there (no item).
+12. **Assignments need their pictures on the receiving device.** A link to a picture this device does not hold is
+    dropped, not parked; the sender's batch normally arrives in the same or an earlier pack.

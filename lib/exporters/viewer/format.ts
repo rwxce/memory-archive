@@ -1,3 +1,4 @@
+import type { PhotoDateSource, PhotoKind } from '../../domain/photo';
 import { GENERATOR_NAME } from '../legacy/version';
 
 /**
@@ -13,11 +14,36 @@ export const VIEWER_DATA_FORMAT = 'memory-archive-viewer';
 /** Bumped only when an older viewer could misread newer data; readers refuse newer versions. */
 export const VIEWER_SCHEMA_VERSION = 1;
 
+/**
+ * A picture or video the person assigned to a profile from the photo collection, as exported.
+ * Only pictures whose bytes are in the export are listed.
+ */
+export interface ViewerPhoto {
+  sha256: string;
+  /** `media/<sha256>.<ext>`, relative to the HTML file; always one of `ViewerData.media`. */
+  path: string;
+  kind: PhotoKind;
+  mime: string | null;
+  /** UTC instant the source recorded, or null (unknown). Show it through `photoDisplayDate`. */
+  takenAt: string | null;
+  takenOffsetMinutes: number | null;
+  dateSource: PhotoDateSource;
+  /** Untrusted, display only. */
+  fileName: string;
+  /** Album names (untrusted, display only), at most `PHOTO_PICTURE_ALBUMS_MAX`. */
+  albums: string[];
+}
+
 export interface ViewerProfile {
   id: string;
   displayName: string;
   relationship: string;
   description: string;
+  /**
+   * Pictures assigned to this profile, newest first, undated last. Optional: absent in exports made
+   * before it existed and when the export has no media (`selection.includeMedia` false).
+   */
+  photos?: ViewerPhoto[];
 }
 
 export interface ViewerMessage {
@@ -146,6 +172,14 @@ export function parseViewerData(text: string): ViewerData {
   }
   for (const m of value.media) {
     if (!isObject(m) || typeof m.path !== 'string' || !MEDIA_PATH.test(m.path)) throw new ViewerDataError('invalid', 'media path is not valid');
+  }
+  for (const p of value.profiles) {
+    if (!isObject(p)) throw new ViewerDataError('invalid', 'profile is not valid');
+    if (p.photos === undefined) continue;
+    if (!Array.isArray(p.photos)) throw new ViewerDataError('invalid', 'photos are not valid');
+    for (const ph of p.photos) {
+      if (!isObject(ph) || typeof ph.path !== 'string' || !MEDIA_PATH.test(ph.path)) throw new ViewerDataError('invalid', 'media path is not valid');
+    }
   }
   for (const c of value.conversations) {
     if (!isObject(c) || !Array.isArray(c.messages) || !Array.isArray(c.participants)) throw new ViewerDataError('invalid', 'conversation is not valid');

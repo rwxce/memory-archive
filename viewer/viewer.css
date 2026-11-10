@@ -128,3 +128,19 @@ mark { background: var(--mark-bg); color: var(--mark-text); border-radius: 3px; 
 @media (prefers-reduced-motion: no-preference) {
   .btn, .conv, .result { transition: border-color 0.15s; }
 }
+
+/* Photos assigned to a profile. */
+.photos-btn { width: 100%; text-align: left; }
+.photos-btn[aria-current='true'] { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+.photos-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.photos-pane .thread-head .top { align-items: center; }
+.photos-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.photo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.photo > a:first-child { display: block; }
+.photo img, .photo video { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; background: var(--border); }
+.photo .file { font-size: 0.875rem; }
+@media (max-width: 760px) {
+  .app[data-view='thread'] .photos-body { padding: 10px; }
+  .photo-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
+}

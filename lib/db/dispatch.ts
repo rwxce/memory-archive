@@ -63,9 +63,9 @@ import {
   type HighlightScope,
 } from './highlights';
 import { discardSearchIndex, getSearchIndexBytes, getSearchStatus, searchMessages, stepSearchIndex } from './search';
-import { assignPhotos, countPhotoPictures, getPhotoPicture, listPhotoDates, listPhotoPictures, unassignPhotoLinks, unassignPhotos } from './photo-assign';
+import { assignPhotos, countPhotoPictures, countProfilePhotos, getPhotoPicture, listPhotoDates, listPhotoPictures, unassignPhotoLinks, unassignPhotos } from './photo-assign';
 import { countPhotoItems, importPhotoItems, listPhotoBatches, listPhotoItems, undoPhotoBatch } from './photos';
-import { readBatchMessages, readChangeSet } from './changes';
+import { readBatchMessages, readChangeSet, readPhotoBatchItems } from './changes';
 import { listConflicts, resolveConflict } from './conflicts';
 import { mergeChangesPack, refusalOf } from './merge';
 import { countUnsentChanges, getDeviceId, getPeer, listPeers, peekDeviceId, recordReceived, recordSent } from './sync';
@@ -118,6 +118,7 @@ const HANDLERS: Handlers = {
   listPhotoDates: ({ db }, p) => listPhotoDates(db, p),
   getPhotoPicture: ({ db }, p) => getPhotoPicture(db, requireParams(p).sha256 as string),
   countPhotoPictures: ({ db }) => countPhotoPictures(db),
+  countProfilePhotos: ({ db }, p) => countProfilePhotos(db, p),
   assignPhotos: ({ db }, p) => assignPhotos(db, p),
   unassignPhotos: ({ db }, p) => unassignPhotos(db, p),
   unassignPhotoLinks: ({ db }, p) => unassignPhotoLinks(db, p),
@@ -207,6 +208,7 @@ const HANDLERS: Handlers = {
   recordSyncReceived: ({ db }, p) => transaction(db, () => recordReceived(db, p)),
   readChangeSet: ({ db }, p) => readChangeSet(db, requireParams(p) as unknown as DbOps['readChangeSet']['params']),
   readBatchMessages: ({ db }, p) => readBatchMessages(db, requireParams(p) as unknown as DbOps['readBatchMessages']['params']),
+  readPhotoBatchItems: ({ db }, p) => readPhotoBatchItems(db, requireParams(p) as unknown as DbOps['readPhotoBatchItems']['params']),
   checkChangesPack: ({ db }, p) => refusalOf(db, requireParams(p) as unknown as DbOps['checkChangesPack']['params']),
   mergeChangesPack: ({ db }, p) => mergeChangesPack(db, requireParams(p)),
   listSyncConflicts: ({ db }) => listConflicts(db),

@@ -152,7 +152,7 @@ export function useSyncConflicts(onChanged?: () => void): {
       try {
         const { recordGone, undone, localMissing } = await resolveSyncConflict(deps, id, choice, expected);
         if (recordGone) kind = 'record-gone';
-        else if (conflict?.kind === 'batch') kind = choice === 'theirs' ? (undone ? 'undone' : 'already-gone') : 'dismissed';
+        else if (conflict?.kind === 'batch' || conflict?.kind === 'photo-batch') kind = choice === 'theirs' ? (undone ? 'undone' : 'already-gone') : 'dismissed';
         else if (conflict?.kind === 'note' && localMissing && conflict.incomingDeleted) kind = 'already-gone';
         else if (conflict?.kind === 'note' && localMissing && choice === 'both') kind = 'both-restored';
         else kind = choice;

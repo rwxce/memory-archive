@@ -118,13 +118,13 @@ describe('PersonScreen', () => {
     expect(links[0].getAttribute('href')).toBe(`/conversation?id=${PRIVATE}&from=${personId}`);
   });
 
-  test('the bento leads to the sections (Timeline, Gallery, Audio, Favorites, Notes, Highlights) with the person in the address', async () => {
+  test('the bento leads to the sections (Timeline, Gallery, Audio, Favorites, Notes, Highlights, Photos) with the person in the address', async () => {
     view = await open('ana');
     const nav = view.container.querySelector('nav[aria-label="Sections"]')!;
     const links = [...nav.querySelectorAll('a')];
     const id = new URLSearchParams(search).get('id');
-    expect(links.map((a) => a.getAttribute('href'))).toEqual([`/person/timeline?id=${id}`, `/person/gallery?id=${id}`, `/person/audio?id=${id}`, `/person/favorites?id=${id}`, `/person/notes?id=${id}`, `/person/highlights?id=${id}`]);
-    for (const [link, name] of links.map((l, i) => [l, ['Timeline', 'Gallery', 'Audio', 'Favorites', 'Notes', 'Highlights'][i]] as const)) expect(link.textContent).toContain(name);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([`/person/timeline?id=${id}`, `/person/gallery?id=${id}`, `/person/audio?id=${id}`, `/person/favorites?id=${id}`, `/person/notes?id=${id}`, `/person/highlights?id=${id}`, `/person/photos?id=${id}`]);
+    for (const [link, name] of links.map((l, i) => [l, ['Timeline', 'Gallery', 'Audio', 'Favorites', 'Notes', 'Highlights', 'Photos'][i]] as const)) expect(link.textContent).toContain(name);
   });
 
   test('the stats and the card hints come from the archive: messages, photos and videos, voice messages', async () => {
@@ -149,7 +149,8 @@ describe('PersonScreen', () => {
     expect(menuItems(view)).toHaveLength(0);
     await click(menuButton(view));
     expect(menuButton(view).getAttribute('aria-expanded')).toBe('true');
-    expect(menuItems(view).map((i) => i.textContent?.trim())).toEqual(['Edit Ana', 'Archive Ana', en.person.menuNote, 'Search in Ana', en.person.importsLink]);
+    expect(menuItems(view).map((i) => i.textContent?.trim())).toEqual(['Edit Ana', 'Archive Ana', en.person.menuNote, 'Search in Ana', en.person.menuExport, en.person.importsLink]);
+    expect(menuItems(view).find((i) => i.textContent?.trim() === en.person.menuExport)!.getAttribute('href')).toMatch(/^\/backup\?person=[0-9a-f-]{36}#viewer-export$/);
     expect(menuItems(view).at(-1)!.getAttribute('href')).toMatch(/^\/import\/history\?person=/);
   });
 

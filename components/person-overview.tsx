@@ -1,13 +1,16 @@
 'use client';
 
 import { useRef } from 'react';
-import { Highlighter, ImageOff, Images, NotebookPen, Play, Star } from 'lucide-react';
+import { Camera, Highlighter, ImageOff, Images, NotebookPen, Play, Star } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useNearViewport } from '@/hooks/use-near-viewport';
+import { usePhotoImage } from '@/hooks/use-photo-image';
+import { useProfilePhotoPreview } from '@/hooks/use-profile-photo-preview';
 import { useTileImage } from '@/hooks/use-tile-image';
 import type { PersonOverview } from '@/hooks/use-person-overview';
 import { Link } from '@/i18n/navigation';
 import type { PersonMediaItem } from '@/lib/domain/library';
+import type { PhotoPicture } from '@/lib/domain/photo';
 import { cn } from '@/components/ui/utils';
 import { waveformHeights } from './waveform';
 
@@ -45,6 +48,24 @@ function Thumb({ item, className }: { item: PersonMediaItem; className?: string 
       {image.status === 'ready' ? (
         <img src={image.url} alt="" decoding="async" className="size-full object-cover" />
       ) : image.status === 'missing' || image.status === 'error' ? (
+        <ImageOff className="text-mu absolute inset-0 m-auto size-5" />
+      ) : null}
+    </span>
+  );
+}
+
+/** A preview of one assigned picture: its small thumbnail, or a quiet glyph when there is none (a video, an undecodable file). */
+function PhotoThumb({ picture }: { picture: PhotoPicture }) {
+  const frame = useRef<HTMLSpanElement>(null);
+  const near = useNearViewport(frame);
+  const image = usePhotoImage(picture, 'tile', near);
+  return (
+    <span ref={frame} aria-hidden className="bg-sf2 relative block aspect-square overflow-hidden rounded-[10px]">
+      {image.status === 'ready' ? (
+        <img src={image.url} alt="" decoding="async" className="size-full object-cover" />
+      ) : picture.kind === 'video' || image.status === 'no-preview' ? (
+        <Camera className="text-mu/60 absolute inset-0 m-auto size-5" />
+      ) : image.status === 'missing' || image.status === 'error' || image.status === 'too-large' ? (
         <ImageOff className="text-mu absolute inset-0 m-auto size-5" />
       ) : null}
     </span>
@@ -89,7 +110,7 @@ function YearBars({ years }: { years: PersonOverview['years'] }) {
 
 /**
  * The bento of sections: Timeline (with a bar per year), Gallery (real thumbnails), Audio
- * (decorative waveform), Favorites and Notes (counts). Each card is one link with a name that says
+ * (decorative waveform), Favorites and Notes (counts), Photos (the pictures assigned from the collection). Each card is one link with a name that says
  * what is behind it. Everything here is a preview: the sections themselves are separate screens.
  */
 export function PersonBento({ personId, overview }: { personId: string; overview: PersonOverview | undefined }) {
@@ -99,6 +120,7 @@ export function PersonBento({ personId, overview }: { personId: string; overview
   const id = encodeURIComponent(personId);
   const wave = waveformHeights(personId, 22);
   const bars = overview?.years ?? [];
+  const photos = useProfilePhotoPreview(personId);
 
   return (
     <nav aria-label={t('sectionsLabel')} className="grid grid-cols-2 gap-2.5 lg:grid-cols-3 lg:gap-3.5">
@@ -166,6 +188,23 @@ export function PersonBento({ personId, overview }: { personId: string; overview
         </span>
       </Link>
       </div>
+
+      <Link href={`/person/photos?id=${id}`} className={cn(card, photos.status === 'ready' && photos.total === 0 ? 'bg-sf2/60' : surface, 'col-span-full flex flex-col gap-3 p-3.5 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:p-4')}>
+        <span className="flex min-w-0 items-center gap-3">
+          <Camera className="text-ac-tx size-[22px] shrink-0" aria-hidden />
+          <span className="min-w-0">
+            <span className="block text-[15px] font-semibold">{t('sectionPhotos')}</span>
+            {photos.status === 'ready' && <span className="text-mu block text-[13px]">{photos.total === 0 ? t('photos.none') : t('photos.count', { count: photos.total })}</span>}
+          </span>
+        </span>
+        {photos.status === 'ready' && photos.pictures.length > 0 && (
+          <span className="grid grid-cols-4 gap-1 lg:w-72 lg:shrink-0">
+            {photos.pictures.map((picture) => (
+              <PhotoThumb key={picture.sha256} picture={picture} />
+            ))}
+          </span>
+        )}
+      </Link>
     </nav>
   );
 }
