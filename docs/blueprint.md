@@ -352,6 +352,14 @@ test type or architecture rule means updating this file **in the same PR**.
   `scripts/generate-icons.mjs` (signed-distance shapes + a tiny PNG encoder on `node:zlib`,
   no image tools): `app/icon.svg`, `app/apple-icon.png`, `public/icons/icon-{192,512}.png`,
   `icon-maskable-512.png`; a test fails when they are stale.
+- **Link previews:** `app/og.ts` (`shareMetadata()`) adds Open Graph + `summary_large_image`
+  tags to `/` and each `/<locale>/` layout, pointing at static 1200×630 cards
+  `public/og/{en,ca,es}.png` (`?v=OG_VERSION` busts caches). `pnpm og`
+  (`scripts/generate-og-cards.mjs`) redraws the approved mock in HTML with per-locale copy
+  (`STR`) and renders it with the system Chrome via Playwright (no new dependency, all requests
+  blocked; photos and Satoshi fonts inlined from `scripts/og-cards/`). `NEXT_PUBLIC_SITE_URL`
+  (set in `pages.yml`) makes `og:image` absolute. The service worker skips `og/**`; smoke checks
+  each entry page's card.
   - **Service worker** (`sw/service-worker.ts`, `serwist`): precaches every file of `out/`
     (pages, RSC payloads, chunks, icons) with `cleanURLs` + `directoryIndex` and all query
     parameters ignored; anything else goes to the network, and failed navigations get

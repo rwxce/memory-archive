@@ -44,7 +44,8 @@
     "check": "pnpm i18n:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm smoke",
     "rulesync": "rulesync generate",
     "rulesync:check": "rulesync generate --check",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "og": "node scripts/generate-og-cards.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "1.5.0",

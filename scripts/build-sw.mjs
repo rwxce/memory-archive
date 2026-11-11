@@ -21,7 +21,8 @@ export const SW_FILE = 'sw.js';
 
 /** What is precached: every app file except the worker itself and source maps. */
 export const GLOB_PATTERNS = ['**/*.{html,txt,js,css,json,webmanifest,svg,png,ico,wasm}'];
-export const GLOB_IGNORES = [SW_FILE, '**/*.map'];
+// Share cards (og/) are for link-preview crawlers, never shown by the app.
+export const GLOB_IGNORES = [SW_FILE, '**/*.map', 'og/**'];
 
 export async function buildServiceWorker({ root = process.cwd(), basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '' } = {}) {
   const outDir = path.join(root, OUT_DIR);

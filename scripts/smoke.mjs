@@ -88,6 +88,18 @@ for (const l of LOCALES) {
   if (!page.includes(`<html lang="${l}"`)) fail(`out/${l}/index.html is not lang="${l}"`);
 }
 
+// Link previews: every shareable entry page points og:image at its own locale's
+// card, and the card ships in out/og/.
+for (const [page, l] of [['index.html', 'en'], ...LOCALES.map((l) => [`${l}/index.html`, l])]) {
+  const html = fs.readFileSync(path.join(OUT, page), 'utf8');
+  const m = html.match(/<meta property="og:image" content="([^"]+)"/);
+  if (!m) fail(`out/${page} has no og:image`);
+  if (!/^https?:\/\//.test(m[1])) fail(`out/${page} og:image is not absolute: ${m[1]}`);
+  if (!m[1].includes(`/og/${l}.png`)) fail(`out/${page} og:image is not the ${l} card: ${m[1]}`);
+  if (!html.includes('name="twitter:card" content="summary_large_image"')) fail(`out/${page} has no large twitter card`);
+  if (!fs.existsSync(path.join(OUT, 'og', `${l}.png`))) fail(`out/og/${l}.png missing`);
+}
+
 /** Remote resources a page or stylesheet would load by itself. */
 function remoteResources(text) {
   const found = [];
@@ -133,6 +145,7 @@ if (sw.includes('self.__SW_MANIFEST')) fail('out/sw.js still has the un-injected
 for (const page of pages) {
   if (!sw.includes(JSON.stringify(page))) fail(`out/sw.js does not precache ${page}`);
 }
+if (sw.includes('"og/')) fail('out/sw.js precaches the share cards (og/), which the app never shows');
 
 // Database and import: the worker bundles and the SQLite binary ship in out/db/ and are
 // precached, so the library opens offline.
