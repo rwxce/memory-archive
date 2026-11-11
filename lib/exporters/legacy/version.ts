@@ -4,7 +4,7 @@
  * import `package.json`; a test keeps the version in sync with it.
  */
 export const GENERATOR_NAME = 'memory-archive';
-export const GENERATOR_VERSION = '0.13.0';
+export const GENERATOR_VERSION = '0.14.0';
 
 /**
  * Version of the legacy JSON envelope (docs/formats/legacy-json.md).
