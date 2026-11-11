@@ -17,6 +17,8 @@ env:
   # Pages serves this repository under /<repo name>/. A fork with another name
   # changes this one line.
   NEXT_PUBLIC_BASE_PATH: /memory-archive
+  # Origin of the published site: link previews (og:image) need absolute URLs.
+  NEXT_PUBLIC_SITE_URL: https://rwxce.github.io
 
 # Let a running deploy finish; a newer one waits instead of cancelling it.
 concurrency:

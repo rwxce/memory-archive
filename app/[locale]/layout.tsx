@@ -8,6 +8,7 @@ import { ThemeSync } from '@/components/theme-sync';
 import { THEME_INIT_SCRIPT } from '@/hooks/theme';
 import { LibraryProvider } from '@/hooks/use-library';
 import { routing } from '@/i18n/routing';
+import { shareMetadata } from '../og';
 
 type Params = { params: Promise<{ locale: string }> };
 
@@ -26,6 +27,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     applicationName: t('title'),
     appleWebApp: { capable: true, title: t('title'), statusBarStyle: 'default' },
     formatDetection: { telephone: false },
+    ...shareMetadata({ locale, title: t('title'), description: t('description'), path: `/${locale}/` }),
   };
 }
 
