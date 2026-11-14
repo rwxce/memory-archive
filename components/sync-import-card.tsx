@@ -156,7 +156,7 @@ function MergeResult({ result, openItems, onAnother }: { result: ImportChangesPa
       )}
       {result.batchOffers > 0 && <p>{t('offers', { count: result.batchOffers })}</p>}
       {(openItems ?? result.conflicts + result.batchOffers) > 0 && (
-        <a href="#sync-conflicts" className={linkClass} onClick={() => document.getElementById('sync-conflicts-title')?.focus()}>
+        <a href="#sync-conflicts" className={linkClass} onClick={() => document.getElementById('sync-conflicts-title')?.focus({ preventScroll: true })}>
           {t('conflictsReview')}
         </a>
       )}

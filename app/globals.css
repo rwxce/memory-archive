@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import 'lenis/dist/lenis.css';
 
 /* Only scan the app's own sources for class names. */
 @source not '../lib';

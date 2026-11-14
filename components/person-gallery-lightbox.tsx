@@ -135,6 +135,7 @@ export function PersonGalleryLightbox({ items, index, total, personId, loadingMo
 
   return (
     <dialog
+      data-lenis-prevent
       ref={dialog}
       aria-label={t('lightboxLabel', { kind, title: item.conversationTitle, when })}
       onClose={onClose}
@@ -179,7 +180,7 @@ export function PersonGalleryLightbox({ items, index, total, personId, loadingMo
       </div>
 
       {item.body && (
-        <p className="max-h-24 overflow-y-auto text-sm break-words whitespace-pre-wrap" dir="auto">
+        <p data-lenis-prevent className="max-h-24 overflow-y-auto text-sm break-words whitespace-pre-wrap" dir="auto">
           {item.body}
         </p>
       )}

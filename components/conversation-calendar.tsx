@@ -65,7 +65,7 @@ export function ConversationCalendar({
       id="conversation-calendar"
       aria-label={label ?? t('calendar.panelLabel')}
       onKeyDown={onKeyDown}
-      className="bg-bg border-glass-line shadow-soft absolute inset-x-4 bottom-2 z-20 mx-auto flex max-h-[calc(100%-1rem)] flex-col gap-2 overflow-y-auto rounded-3xl border p-3 sm:max-w-xl"
+      data-lenis-prevent className="bg-bg border-glass-line shadow-soft absolute inset-x-4 bottom-2 z-20 mx-auto flex max-h-[calc(100%-1rem)] flex-col gap-2 overflow-y-auto rounded-3xl border p-3 sm:max-w-xl"
     >
       {state.status === 'ready' && state.days.length > 0 ? (
         <Browser days={state.days} first={first} last={last} current={current ?? null} onPick={onPick} onClose={onClose} />

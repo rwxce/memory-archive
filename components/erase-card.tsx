@@ -57,6 +57,7 @@ export function EraseCard() {
       </div>
 
       <dialog
+        data-lenis-prevent
         ref={dialog}
         aria-labelledby="erase-title"
         aria-describedby="erase-body"
