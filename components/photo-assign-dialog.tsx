@@ -79,6 +79,7 @@ export function PhotoAssignDialog({ open, count, people, working, onConfirm, onC
         event.preventDefault();
         if (!working) onCancel();
       }}
+      data-lenis-prevent
       className="bg-bg text-foreground shadow-soft m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-3xl p-6 backdrop:bg-black/50"
     >
       {open && (
@@ -112,7 +113,7 @@ export function PhotoAssignDialog({ open, count, people, working, onConfirm, onC
               )}
               {everyone.length > 0 && shown.length === 0 && <p className="text-t2">{t('noMatch')}</p>}
               {shown.length > 0 && (
-                <ul className="flex max-h-[45dvh] flex-col gap-1 overflow-y-auto" aria-label={t('listLabel')}>
+                <ul data-lenis-prevent className="flex max-h-[45dvh] flex-col gap-1 overflow-y-auto" aria-label={t('listLabel')}>
                   {shown.map(({ person, archived }) => (
                     <li key={person.id}>
                       <label className="hover:bg-sf2 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-2 py-1">

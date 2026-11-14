@@ -25,6 +25,14 @@ test type or architecture rule means updating this file **in the same PR**.
   - Theme: `.dark` class on `<html>` set before first paint by `THEME_INIT_SCRIPT`
     (`hooks/theme.ts`; device preference or the choice in `localStorage`), `useTheme`,
     `ThemeSync` (re-applies after a client-side locale switch).
+  - Smooth scroll: `lenis` (exact pin, MIT, no dependencies, no network) via
+    `components/smooth-scroll-provider.tsx` in the locale layout, with `lenis/dist/lenis.css`
+    in `app/globals.css`. Lenis defaults (same feel as Zliding), off under
+    `prefers-reduced-motion`, recreated on route change, paused while `body[data-scroll-locked]`,
+    and `#hash` links scroll through Lenis. Nested scrollers stay native: they carry
+    `data-lenis-prevent` (message feed, calendar, note panels, every native modal `<dialog>`),
+    and the `prevent` callback skips any other element that overflows on `overflow-y: auto|scroll`
+    (e.g. the sidebar when it is taller than the screen).
   - Library connection: `hooks/use-library.tsx` (`LibraryProvider` in the locale layout,
     `useLibrary`) opens the db worker (`${NEXT_PUBLIC_BASE_PATH}/db/worker.js`) and the blob
     store lazily, when the first screen that needs them mounts (Settings never holds the

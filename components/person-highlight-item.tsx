@@ -41,6 +41,7 @@ function DeleteDialog({ title, onCancel, onConfirm }: { title: string; onCancel:
 
   return (
     <dialog
+      data-lenis-prevent
       ref={dialog}
       aria-labelledby="highlight-delete-title"
       aria-describedby="highlight-delete-body"

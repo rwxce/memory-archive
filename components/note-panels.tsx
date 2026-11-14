@@ -51,7 +51,7 @@ export function ConversationNote({ conversationId }: { conversationId: string })
         <NotebookPen className="size-5" aria-hidden />
       </button>
       {open && (
-        <div id={panelId} className="bg-sf order-last max-h-[45dvh] basis-full overflow-y-auto rounded-2xl p-4">
+        <div id={panelId} data-lenis-prevent className="bg-sf order-last max-h-[45dvh] basis-full overflow-y-auto rounded-2xl p-4">
           <NoteEditor note={note} label={t('label.conversation')} autoFocus onClose={() => setOpen(false)} />
         </div>
       )}
@@ -87,7 +87,7 @@ export function ConversationRowNote({ conversationId, title }: { conversationId:
         {t(hasNote ? 'noteEdit' : 'noteAdd')}
       </button>
       {open && (
-        <div id={panelId} className="bg-sf2 order-last mx-2 mt-1 mb-2 max-h-[45dvh] basis-full overflow-y-auto rounded-2xl p-4">
+        <div id={panelId} data-lenis-prevent className="bg-sf2 order-last mx-2 mt-1 mb-2 max-h-[45dvh] basis-full overflow-y-auto rounded-2xl p-4">
           <NoteEditor note={note} label={tn('label.conversation')} autoFocus onClose={() => setOpen(false)} />
         </div>
       )}

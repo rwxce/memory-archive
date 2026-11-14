@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ServiceWorkerRegistration } from '@/components/service-worker-registration';
+import { SmoothScrollProvider } from '@/components/smooth-scroll-provider';
 import { ThemeSync } from '@/components/theme-sync';
 import { THEME_INIT_SCRIPT } from '@/hooks/theme';
 import { LibraryProvider } from '@/hooks/use-library';
@@ -52,6 +53,7 @@ export default async function LocaleLayout({ children, params }: Params & { chil
         <ThemeSync />
         <ServiceWorkerRegistration />
         <NextIntlClientProvider>
+          <SmoothScrollProvider />
           <LibraryProvider>{children}</LibraryProvider>
         </NextIntlClientProvider>
       </body>

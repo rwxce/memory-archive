@@ -58,6 +58,7 @@ export function ReplaceBackupDialog({
 
   return (
     <dialog
+      data-lenis-prevent
       ref={dialog}
       aria-labelledby="replace-title"
       aria-describedby="replace-body"
