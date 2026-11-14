@@ -30,6 +30,7 @@ function ReplaceDialog({ target, busy, failed, onCancel, onConfirm }: { target: 
 
   return (
     <dialog
+      data-lenis-prevent
       ref={dialog}
       aria-labelledby={`${uid}-title`}
       aria-describedby={`${uid}-body`}
@@ -46,7 +47,7 @@ function ReplaceDialog({ target, busy, failed, onCancel, onConfirm }: { target: 
         <div id={`${uid}-body`} className="flex flex-col gap-2 text-sm">
           <p>{t('body', { name: target.name })}</p>
           <p className="text-mu text-xs">{t('current')}</p>
-          <p dir="auto" className="bg-sf max-h-40 overflow-y-auto rounded-2xl px-3.5 py-2.5 break-words whitespace-pre-line">
+          <p dir="auto" data-lenis-prevent className="bg-sf max-h-40 overflow-y-auto rounded-2xl px-3.5 py-2.5 break-words whitespace-pre-line">
             {target.phrase}
           </p>
         </div>

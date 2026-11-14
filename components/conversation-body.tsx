@@ -194,7 +194,7 @@ export function ConversationBody({ source, messageId = null }: { source: FeedSou
           aria-label={source.label}
           aria-busy={waiting || pages.busy}
           data-testid="message-feed"
-          className="focus-visible:ring-ring/50 relative h-full overflow-y-auto overscroll-contain [overflow-anchor:none] focus-visible:ring-[3px] focus-visible:ring-inset"
+          data-lenis-prevent className="focus-visible:ring-ring/50 relative h-full overflow-y-auto overscroll-contain [overflow-anchor:none] focus-visible:ring-[3px] focus-visible:ring-inset"
         >
           <div style={{ height: list.totalHeight }} className="relative w-full">
             {list.items.map(({ index, top }) => {

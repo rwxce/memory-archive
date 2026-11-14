@@ -136,6 +136,7 @@ export function PhotoDetailDialog({ pictures, openSha, hasMore, loadingMore, nam
 
   return (
     <dialog
+      data-lenis-prevent
       ref={dialog}
       aria-label={t('label')}
       onKeyDown={onKeyDown}
@@ -170,7 +171,7 @@ export function PhotoDetailDialog({ pictures, openSha, hasMore, loadingMore, nam
               </PillButton>
             </div>
           </div>
-          <div className="flex max-h-[40dvh] flex-col gap-4 overflow-y-auto p-5 text-sm md:max-h-none">
+          <div data-lenis-prevent className="flex max-h-[40dvh] flex-col gap-4 overflow-y-auto p-5 text-sm md:max-h-none">
             <dl className="flex flex-col gap-3">
               <div>
                 <dt className="text-t2 text-xs font-semibold tracking-wide uppercase">{t('file')}</dt>

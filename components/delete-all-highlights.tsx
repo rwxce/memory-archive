@@ -56,6 +56,7 @@ function AllDialog({ name, count, onCancel, onConfirm }: { name: string; count: 
 
   return (
     <dialog
+      data-lenis-prevent
       ref={dialog}
       aria-labelledby="highlights-delete-all-title"
       aria-describedby="highlights-delete-all-body"
